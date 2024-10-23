@@ -3,7 +3,7 @@ import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
 
 @Injectable()
-export class DeviceService {
+export class DeviceService extends RepositoryBase {
   create(createDeviceDto: CreateDeviceDto) {
     return 'This action adds a new device';
   }

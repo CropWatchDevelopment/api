@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { DeviceModule } from './device/device.module';
 import { DataModule } from './data/data.module';
 import { LocationModule } from './location/location.module';
+import { RepositoryBaseService } from './repository-base/repository-base.service';
 
 @Module({
   imports: [
@@ -19,6 +20,6 @@ import { LocationModule } from './location/location.module';
     LocationModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, RepositoryBaseService],
 })
 export class AppModule { }
