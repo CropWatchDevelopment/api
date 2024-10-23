@@ -11,7 +11,6 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @ApiBearerAuth('XYZ')
-  @ApiBearerAuth('API_KEY')
   @Get('user')
   @UseGuards(SupabaseAuthGuard)
   async getProtectedRoute(@Req() req) {

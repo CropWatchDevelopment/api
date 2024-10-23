@@ -1,6 +1,6 @@
 // Import necessary modules from Supabase and NestJS
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import { SupabaseClient, createClient } from '@supabase/supabase-js';
+import { SupabaseClient, User, createClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -16,13 +16,13 @@ export class AuthService {
   }
 
   // Function to validate a JWT token using Supabase
-  async validateUser(token: string): Promise<any> {
+  async validateUser(token: string): Promise<User> {
     try {
       const { data: user, error } = await this.supabase.auth.getUser(token);
       if (error) {
         throw new UnauthorizedException('Invalid token or user not found');
       }
-      return user;
+      return user.user;
     } catch (error) {
       throw new UnauthorizedException('Unable to validate user token');
     }
@@ -31,11 +31,16 @@ export class AuthService {
   async validateApiKey(apiKey: string): Promise<boolean> {
     // Here you would implement logic to validate the API key
     // For now, we assume a hardcoded valid key for demonstration purposes
-    const { data: validApiKey, error } = await this.supabase.from('api_keys').select('*').eq('api_key', apiKey).single();
+
+    let { data: api_keys, error } = await this.supabase
+      .from('api_keys')
+      .select('*')
+      .single();
+
     if (error) {
       throw new UnauthorizedException('Invalid API key');
     }
-    return apiKey === validApiKey;
+    return api_keys;
   }
 
   // Function to sign in with email and password
