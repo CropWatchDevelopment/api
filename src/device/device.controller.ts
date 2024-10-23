@@ -3,8 +3,6 @@ import { DeviceService } from './device.service';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { IRepositoryBase } from 'src/interfaces/repositoryBase.interface';
-import { Device } from './entities/device.entity';
 
 @ApiTags('Device')
 @Controller('device')

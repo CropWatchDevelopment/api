@@ -7,6 +7,7 @@ import { DeviceModule } from './device/device.module';
 import { DataModule } from './data/data.module';
 import { LocationModule } from './location/location.module';
 import { RepositoryBaseService } from './repository-base/repository-base.service';
+import { SupabaseService } from './supabase/supabase.service';
 
 @Module({
   imports: [
@@ -20,6 +21,6 @@ import { RepositoryBaseService } from './repository-base/repository-base.service
     LocationModule,
   ],
   controllers: [AppController],
-  providers: [AppService, RepositoryBaseService],
+  providers: [AppService, RepositoryBaseService, SupabaseService],
 })
 export class AppModule { }
