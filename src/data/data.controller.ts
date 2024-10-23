@@ -2,7 +2,9 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { DataService } from './data.service';
 import { CreateDatumDto } from './dto/create-datum.dto';
 import { UpdateDatumDto } from './dto/update-datum.dto';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Data')
 @Controller('data')
 export class DataController {
   constructor(private readonly dataService: DataService) {}

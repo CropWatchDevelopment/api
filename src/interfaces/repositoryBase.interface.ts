@@ -1,7 +1,7 @@
 export interface IRepositoryBase<T> {
-    findOne(id: string): Promise<T | null>;
+    findOne(id: number): Promise<T | null>;
     findAll(): Promise<T[]>;
     create(entity: T): Promise<T>;
-    update(id: string, entity: T): Promise<T | null>;
-    remove(id: string): Promise<boolean>;
+    update(id: number, entity: T): Promise<T | null>;
+    remove(id: number): Promise<boolean>;
   }
