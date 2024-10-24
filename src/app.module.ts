@@ -9,6 +9,8 @@ import { LocationModule } from './location/location.module';
 import { SupabaseService } from './supabase/supabase.service';
 import { SupabaseModule } from './supabase/supabase.module';
 import { ProfilesModule } from './profiles/profiles.module';
+import { CwDeviceOwnersModule } from './cw_device_owners/cw_device_owners.module';
+import { CwDeviceLocationsModule } from './cw_device_locations/cw_device_locations.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { ProfilesModule } from './profiles/profiles.module';
     LocationModule,
     SupabaseModule,
     ProfilesModule,
+    CwDeviceOwnersModule,
+    CwDeviceLocationsModule,
   ],
   controllers: [AppController],
   providers: [AppService, SupabaseService],
