@@ -11,19 +11,16 @@ export class ProfileRepository {
   constructor(private readonly supabaseService: SupabaseService) {}
 
   @ApiBearerAuth('XYZ')
-  async findById(@Req() req): Promise<ProfileRow | null> {
-    const user = req.user;
+  async findById(id: string): Promise<ProfileRow | null> {
+    const {data: user, error: userError } = await this.supabaseService.getSupabaseClient().auth.getUser(id);
     if (userError) {
       throw userError;
-    }
-    if (!user) {
-      throw new Error('User not found');
     }
     const { data, error } = await this.supabaseService
       .getSupabaseClient()
       .from('profiles')
       .select('*')
-      .eq('id', user.session.user.id)
+      .eq('id', user.user.id)
       .single();
     if (error) {
       throw error;

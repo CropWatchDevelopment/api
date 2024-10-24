@@ -12,11 +12,11 @@ export class LocationService {
   }
 
   findAll() {
-    return `This action returns all location`;
+    return this.locationRepository.findAll();
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} location`;
+    return this.locationRepository.findById(id);
   }
 
   update(id: number, updateLocationDto: UpdateLocationDto) {
