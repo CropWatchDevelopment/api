@@ -6,8 +6,9 @@ import { ConfigModule } from '@nestjs/config';
 import { DeviceModule } from './device/device.module';
 import { DataModule } from './data/data.module';
 import { LocationModule } from './location/location.module';
-import { RepositoryBaseService } from './repository-base/repository-base.service';
 import { SupabaseService } from './supabase/supabase.service';
+import { SupabaseModule } from './supabase/supabase.module';
+import { ProfilesModule } from './profiles/profiles.module';
 
 @Module({
   imports: [
@@ -19,8 +20,10 @@ import { SupabaseService } from './supabase/supabase.service';
     DeviceModule,
     DataModule,
     LocationModule,
+    SupabaseModule,
+    ProfilesModule,
   ],
   controllers: [AppController],
-  providers: [AppService, RepositoryBaseService, SupabaseService],
+  providers: [AppService, SupabaseService],
 })
 export class AppModule { }

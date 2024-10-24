@@ -1,20 +1,32 @@
 import { Injectable } from '@nestjs/common';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
-import { RepositoryBaseService } from 'src/repository-base/repository-base.service';
 import { Device } from './entities/device.entity';
+import { DeviceRepository } from './repositories/device.repository';
 
 @Injectable()
-export class DeviceService extends RepositoryBaseService<Device> {
-  async create(createDeviceDto: CreateDeviceDto): Promise<Device> {
-    return super.create(createDeviceDto);
+export class DeviceService {
+  constructor(private readonly deviceRepository: DeviceRepository) {
+    
   }
 
-  async update(id: number, updateDeviceDto: UpdateDeviceDto): Promise<Device> {
-    return super.update(id, updateDeviceDto);
+  // create(createDeviceDto: CreateDeviceDto) {
+  //   return super.create(createDeviceDto);
+  // }
+
+  findAll() {
+    return this.deviceRepository.findAll();
   }
 
-  async remove(id: number): Promise<boolean> {
-    return super.remove(id);
-  }
+  // findOne(id: number) {
+  //   return super.findOne(id);
+  // }
+
+  // update(id: number, updateDeviceDto: UpdateDeviceDto) {
+  //   return super.update(id, updateDeviceDto);
+  // }
+
+  // remove(id: number) {
+  //   return super.remove(id);
+  // }
 }

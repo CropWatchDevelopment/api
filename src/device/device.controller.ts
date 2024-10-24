@@ -1,40 +1,34 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { DeviceService } from './device.service';
-import { CreateDeviceDto } from './dto/create-device.dto';
-import { UpdateDeviceDto } from './dto/update-device.dto';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
+import { DeviceRepository } from './repositories/device.repository';
 
-@ApiTags('Device')
-@Controller('device')
-@ApiBearerAuth('XYZ')
+@ApiTags('Devices')
+@Controller('Devices')
 export class DeviceController {
-  constructor(
-    private readonly deviceService: DeviceService
-  ) {}
+  constructor(private readonly dataService: DeviceRepository) {}
 
-  @Post()
-  create(@Body() createDeviceDto: CreateDeviceDto) {
-    
-    return this.deviceService.create(createDeviceDto);
-  }
+  // @Post()
+  // create(@Body() createDatumDto: CreateDatumDto) {
+  //   return this.dataService.create(createDatumDto);
+  // }
 
   @Get()
   findAll() {
-    return this.deviceService.findAll();
+    return this.dataService.findAll();
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.deviceService.findOne(+id);
-  }
+  // @Get(':id')
+  // findOne(@Param('id') id: string) {
+  //   return this.dataService.findOne(+id);
+  // }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDeviceDto: UpdateDeviceDto) {
-    return this.deviceService.update(+id, updateDeviceDto);
-  }
+  // @Patch(':id')
+  // update(@Param('id') id: string, @Body() updateDatumDto: UpdateDatumDto) {
+  //   return this.dataService.update(+id, updateDatumDto);
+  // }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.deviceService.remove(+id);
-  }
+  // @Delete(':id')
+  // remove(@Param('id') id: string) {
+  //   return this.dataService.remove(+id);
+  // }
 }
