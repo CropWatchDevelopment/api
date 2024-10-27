@@ -1,16 +1,16 @@
-// src/cw_device_locations/cw_device_locations.service.ts
 import { Injectable } from '@nestjs/common';
-import { Database } from 'database.types';
-import { BaseService } from 'src/bases/base.service';
-import { CreateDeviceOwnerDto } from 'src/cw_device_owners/dto/create-device-owner.dto';
-import { UpdateDeviceOwnerDto } from 'src/cw_device_owners/dto/update-device-owner.dto';
-import { DeviceOwnerRepository } from 'src/repositories/cw_device_owners';
+import { CreateDeviceLocationDto } from './dto/create-device-location.dto';
+import { UpdateDeviceLocationDto } from './dto/update-device-location.dto';
 
-type DeviceOwnerRow = Database['public']['Tables']['cw_device_owners']['Row'];
+import { DeviceLocationRepository } from '../repositories/cw_device_locations.repository';
+import { BaseService } from 'src/bases/base.service';
+import { Database } from 'database.types';
+
+type DeviceLocationRow = Database['public']['Tables']['cw_device_locations']['Row'];
 
 @Injectable()
-export class CwDeviceOwnersService extends BaseService<DeviceOwnerRow, CreateDeviceOwnerDto, UpdateDeviceOwnerDto> {
-  constructor(deviceOwnerRepository: DeviceOwnerRepository) {
-    super(deviceOwnerRepository);
+export class CwDeviceLocationsService extends BaseService<DeviceLocationRow, CreateDeviceLocationDto, UpdateDeviceLocationDto> {
+  constructor(deviceLocationRepository: DeviceLocationRepository) {
+    super(deviceLocationRepository);
   }
 }
