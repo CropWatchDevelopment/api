@@ -1,7 +1,6 @@
-// src/repositories/profiles.repository.ts
 import { Injectable, Req } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import { Database } from 'database.types';  // Adjust the path
+import { Database } from 'database.types';
 import { ApiBearerAuth } from '@nestjs/swagger';
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
