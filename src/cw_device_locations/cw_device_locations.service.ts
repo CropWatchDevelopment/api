@@ -1,30 +1,16 @@
 // src/cw_device_locations/cw_device_locations.service.ts
 import { Injectable } from '@nestjs/common';
-import { CreateDeviceLocationDto } from './dto/create-device-location.dto';
-import { UpdateDeviceLocationDto } from './dto/update-device-location.dto';
-import { DeviceLocationRepository } from 'src/repositories/cw_device_locations.repository';
+import { Database } from 'database.types';
+import { BaseService } from 'src/bases/base.service';
+import { CreateDeviceOwnerDto } from 'src/cw_device_owners/dto/create-device-owner.dto';
+import { UpdateDeviceOwnerDto } from 'src/cw_device_owners/dto/update-device-owner.dto';
+import { DeviceOwnerRepository } from 'src/repositories/cw_device_owners';
+
+type DeviceOwnerRow = Database['public']['Tables']['cw_device_owners']['Row'];
 
 @Injectable()
-export class CwDeviceLocationsService {
-  constructor(private readonly deviceLocationRepository: DeviceLocationRepository) {}
-
-  async findAll() {
-    return this.deviceLocationRepository.findAll();
-  }
-
-  async findById(id: number) {
-    return this.deviceLocationRepository.findById(id);
-  }
-
-  async create(createDeviceLocationDto: CreateDeviceLocationDto) {
-    return this.deviceLocationRepository.create(createDeviceLocationDto);
-  }
-
-  async update(id: number, updateDeviceLocationDto: UpdateDeviceLocationDto) {
-    return this.deviceLocationRepository.update(id, updateDeviceLocationDto);
-  }
-
-  async delete(id: number) {
-    return this.deviceLocationRepository.delete(id);
+export class CwDeviceOwnersService extends BaseService<DeviceOwnerRow, CreateDeviceOwnerDto, UpdateDeviceOwnerDto> {
+  constructor(deviceOwnerRepository: DeviceOwnerRepository) {
+    super(deviceOwnerRepository);
   }
 }
