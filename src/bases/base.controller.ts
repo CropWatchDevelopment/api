@@ -1,4 +1,4 @@
-import { Get, Post, Body } from '@nestjs/common';
+import { Get, Post, Body, UseInterceptors } from '@nestjs/common';
 import { ApiOperation } from '@nestjs/swagger';
 
 export interface BaseServiceInterface<T, CreateDto> {

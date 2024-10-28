@@ -1,9 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableCors();
+  app.useGlobalPipes(new ValidationPipe());
+  app.enableVersioning({
+    type: VersioningType.URI,
+  });
 
   const config = new DocumentBuilder()
   .setTitle('CropWatch API')
@@ -16,7 +22,6 @@ async function bootstrap() {
   .addTag('auth', 'Endpoints related to user authentication and authorization')
   .addTag('devices', 'Endpoints for device data management')
   .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'XYZ')
-  .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'API_KEY')
   .build();
 
 const document = SwaggerModule.createDocument(app, config);
