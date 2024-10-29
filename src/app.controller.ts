@@ -9,6 +9,7 @@ import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 export class AppController {
   constructor() {}
 
+  @UseInterceptors(CacheInterceptor)
   @Get()
   async getHello() {
     return [{ id: 1, name: 'Nest' + Math.random() }];

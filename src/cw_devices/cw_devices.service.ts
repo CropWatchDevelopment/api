@@ -9,8 +9,12 @@ type DevicesRow = Database['public']['Tables']['cw_devices']['Row'];
 
 @Injectable()
 export class CwDevicesService extends BaseService<DevicesRow, CreateDeviceLocationDto, UpdateDeviceLocationDto> {
-  constructor(deviceRepository: DeviceRepository) {
+  constructor(private readonly deviceRepository: DeviceRepository) {
     super(deviceRepository);
+  }
+
+  public async getDeviceByDevEui(devEui: string): Promise<DevicesRow> {
+    return this.deviceRepository.findByDevEui({ dev_eui: devEui });
   }
 
 }

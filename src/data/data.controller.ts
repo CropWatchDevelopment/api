@@ -1,22 +1,38 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { DataService } from './data.service';
 import { CreateDatumDto } from './dto/create-datum.dto';
 import { UpdateDatumDto } from './dto/update-datum.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { CwDeviceTypeService } from 'src/cw_device_type/cw_device_type.service';
+import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
 
 @ApiTags('Data')
 @Controller('data')
 export class DataController {
-  constructor(private readonly dataService: DataService) {}
+  constructor(
+    private readonly dataService: DataService,
+    private readonly deviceService: CwDevicesService,
+    private readonly deviceTypeService: CwDeviceTypeService,
+  ) { }
 
   @Post()
   create(@Body() createDatumDto: CreateDatumDto) {
     return this.dataService.create(createDatumDto);
   }
 
+  @ApiOperation({ summary: 'Retrieve data with filters and pagination' })
+  @ApiQuery({ name: 'DevEui', required: false, type: String, description: 'Device EUI to filter data by specific device.' })
+  @ApiQuery({ name: 'Skip', required: false, type: Number, description: 'Number of records to skip. (default: 0)' })
+  @ApiQuery({ name: 'Take', required: false, type: Number, description: 'Number of records to retrieve. (default: 10)' })
+  @ApiQuery({ name: 'Order', required: false, type: String, description: 'Created_At Order direction, either ASC or DESC.' })
   @Get()
-  findAll() {
-    return this.dataService.findAll();
+  findAll(
+    @Query('DevEui') devEui?: string,
+    @Query('Skip') skip = 0,
+    @Query('Take') take = 10,
+    @Query('Order') order: 'ASC' | 'DESC' = 'ASC'
+  ) {
+    return this.dataService.findAll({ devEui, skip, take, order });
   }
 
   @Get(':id')
@@ -24,13 +40,13 @@ export class DataController {
     return this.dataService.findOne(+id);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDatumDto: UpdateDatumDto) {
-    return this.dataService.update(+id, updateDatumDto);
-  }
+  // @Patch(':id')
+  // update(@Param('id') id: string, @Body() updateDatumDto: UpdateDatumDto) {
+  //   return this.dataService.update(+id, updateDatumDto);
+  // }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.dataService.remove(+id);
-  }
+  // @Delete(':id')
+  // remove(@Param('id') id: string) {
+  //   return this.dataService.remove(+id);
+  // }
 }

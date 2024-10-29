@@ -15,6 +15,7 @@ import { CwDevicesModule } from './cw_devices/cw_devices.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager';
+import { CwDeviceTypeModule } from './cw_device_type/cw_device_type.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager';
     CwDeviceOwnersModule,
     CwDeviceLocationsModule,
     CwDevicesModule,
+    CwDeviceTypeModule,
   ],
   controllers: [AppController],
   providers: [
@@ -48,10 +50,6 @@ import { CacheInterceptor, CacheModule } from '@nestjs/cache-manager';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: CacheInterceptor,
     },
   ],
 })
