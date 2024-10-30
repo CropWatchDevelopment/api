@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, Req } from '@nestjs/common';
 import { DataService } from './data.service';
 import { CreateDatumDto } from './dto/create-datum.dto';
 import { UpdateDatumDto } from './dto/update-datum.dto';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { CwDeviceTypeService } from 'src/cw_device_type/cw_device_type.service';
 import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
+import { ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags('Data')
 @Controller('data')
@@ -25,14 +26,19 @@ export class DataController {
   @ApiQuery({ name: 'Skip', required: false, type: Number, description: 'Number of records to skip. (default: 0)' })
   @ApiQuery({ name: 'Take', required: false, type: Number, description: 'Number of records to retrieve. (default: 10)' })
   @ApiQuery({ name: 'Order', required: false, type: String, description: 'Created_At Order direction, either ASC or DESC.' })
+  @ApiBearerAuth('XYZ')
   @Get()
   findAll(
+    @Req() req,
     @Query('DevEui') devEui?: string,
     @Query('Skip') skip = 0,
     @Query('Take') take = 10,
     @Query('Order') order: 'ASC' | 'DESC' = 'ASC'
   ) {
-    return this.dataService.findAll({ devEui, skip, take, order });
+    if (!req.user) {
+      return 'Unauthorized';
+    }
+    return this.dataService.findAll({ devEui, skip, take, order }, req.user.email);
   }
 
   @Get(':id')

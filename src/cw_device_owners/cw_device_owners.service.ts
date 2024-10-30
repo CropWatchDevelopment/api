@@ -10,7 +10,11 @@ type DeviceOwnerRow = Database['public']['Tables']['cw_device_owners']['Row'];
 
 @Injectable()
 export class CwDeviceOwnersService extends BaseService<DeviceOwnerRow, CreateDeviceOwnerDto, UpdateDeviceOwnerDto> {
-  constructor(deviceOwnerRepository: DeviceOwnerRepository) {
+  constructor(private readonly deviceOwnerRepository: DeviceOwnerRepository) {
     super(deviceOwnerRepository);
+  }
+
+  public async getDeviceOwnerByDevEuiAndEmail(devEui: string, email: string): Promise<DeviceOwnerRow> {
+    return this.deviceOwnerRepository.findByDevEuiAndEmail(devEui, email);
   }
 }

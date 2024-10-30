@@ -11,4 +11,21 @@ export class DeviceOwnerRepository extends BaseRepository<DeviceOwnerRow> {
   constructor(supabaseService: SupabaseService) {
     super(supabaseService, 'cw_device_owners');
   }
+
+  public async findByDevEuiAndEmail(dev_eui: string, email: string): Promise<DeviceOwnerRow> {
+    const { data, error } = await this.supabaseService
+      .getSupabaseClient()
+      .from('cw_device_owners')
+      .select('*')
+      .eq('dev_eui', dev_eui)
+      .eq('email', email)
+      .single();
+    if (error) {
+      throw new Error(`Failed to find device owner with dev_eui ${dev_eui}: ${error.message}`);
+    }
+    if (!data) {
+      throw new Error(`Device owner with dev_eui ${dev_eui} not found.`);
+    }
+    return data as DeviceOwnerRow;
+  }
 }
