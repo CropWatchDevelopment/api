@@ -1,5 +1,5 @@
 // Import necessary modules from Supabase and NestJS
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logger } from '@nestjs/common';
 import { SupabaseClient, User, createClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
 
@@ -7,7 +7,9 @@ import { ConfigService } from '@nestjs/config';
 export class AuthService {
   private supabase: SupabaseClient;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService
+  ) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
     const supabaseKey = this.configService.get<string>('SUPABASE_KEY');
 
