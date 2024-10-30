@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SupabaseAuthGuard } from './guards/supabase.guard';
 import { LoginDto } from './DTOs/userAuth.dto';
 import { AuthService } from './auth.service';
+import { Public } from './public.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -17,6 +18,7 @@ export class AuthController {
     return { message: 'This is a protected route', user: req.user };
   }
 
+  @Public()
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     const session = await this.authService.signInWithEmail(loginDto.email, loginDto.password);

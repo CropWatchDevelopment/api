@@ -7,7 +7,10 @@ import { ConfigService } from '@nestjs/config';
 export class AuthService {
   private supabase: SupabaseClient;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    // private jwtService: JwtService,
+  ) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
     const supabaseKey = this.configService.get<string>('SUPABASE_KEY');
 
@@ -50,6 +53,7 @@ export class AuthService {
       if (error) {
         throw new UnauthorizedException('Invalid credentials');
       }
+      // this.jwtService.sign(session);
       return session;
     } catch (error) {
       throw new UnauthorizedException('Unable to sign in with email and password');

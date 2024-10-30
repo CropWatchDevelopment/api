@@ -21,8 +21,8 @@ async function bootstrap() {
 
 const document = SwaggerModule.createDocument(app, config);
 SwaggerModule.setup('api', app, document, {
-  customCssUrl: 'https://example.com/swagger-custom.css',
-  customfavIcon: 'https://example.com/favicon.ico',
+  customCssUrl: 'https://cropwatch.io/swagger-custom.css',
+  customfavIcon: 'https://cropwatch.io/favicon.svg',
   customSiteTitle: 'CropWatch API Documentation'
 });
 
