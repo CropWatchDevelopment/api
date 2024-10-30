@@ -1,4 +1,3 @@
-// src/cw_devices/dto/create-device.dto.ts
 import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class CreateDeviceDto {

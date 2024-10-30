@@ -1,14 +1,17 @@
-import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { Controller, Get, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 
 @ApiBearerAuth('authorization')
+@UseInterceptors(CacheInterceptor)
+@CacheTTL(20)
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor() {}
 
+  @UseInterceptors(CacheInterceptor)
   @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  async getHello() {
+    return [{ id: 1, name: 'Nest' + Math.random() }];
   }
 }

@@ -2,72 +2,30 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { Database } from 'database.types';
+import { BaseRepository } from './base.repository';
 
 type DeviceOwnerRow = Database['public']['Tables']['cw_device_owners']['Row'];
 
 @Injectable()
-export class DeviceOwnerRepository {
-  constructor(private readonly supabaseService: SupabaseService) {}
-
-  async findAll(): Promise<DeviceOwnerRow[]> {
-    const { data, error } = await this.supabaseService
-      .getSupabaseClient()
-      .from('cw_device_owners')
-      .select('*');
-    if (error) {
-      throw error;
-    }
-    return data || [];
+export class DeviceOwnerRepository extends BaseRepository<DeviceOwnerRow> {
+  constructor(supabaseService: SupabaseService) {
+    super(supabaseService, 'cw_device_owners');
   }
 
-  async findById(id: number): Promise<DeviceOwnerRow | null> {
+  public async findByDevEuiAndEmail(dev_eui: string, email: string): Promise<DeviceOwnerRow> {
     const { data, error } = await this.supabaseService
       .getSupabaseClient()
       .from('cw_device_owners')
       .select('*')
-      .eq('id', id)
+      .eq('dev_eui', dev_eui)
+      .eq('email', email)
       .single();
     if (error) {
-      throw error;
+      throw new Error(`Failed to find device owner with dev_eui ${dev_eui}: ${error.message}`);
     }
-    return data || null;
-  }
-
-  async create(deviceOwner: Partial<DeviceOwnerRow>): Promise<DeviceOwnerRow> {
-    const { data, error } = await this.supabaseService
-      .getSupabaseClient()
-      .from('cw_device_owners')
-      .insert(deviceOwner)
-      .select('*')
-      .single();
-    if (error) {
-      throw error;
+    if (!data) {
+      throw new Error(`Device owner with dev_eui ${dev_eui} not found.`);
     }
-    return data;
-  }
-
-  async update(id: number, deviceOwner: Partial<DeviceOwnerRow>): Promise<DeviceOwnerRow> {
-    const { data, error } = await this.supabaseService
-      .getSupabaseClient()
-      .from('cw_device_owners')
-      .update(deviceOwner)
-      .eq('id', id)
-      .select('*')
-      .single();
-    if (error) {
-      throw error;
-    }
-    return data;
-  }
-
-  async delete(id: number): Promise<void> {
-    const { error } = await this.supabaseService
-      .getSupabaseClient()
-      .from('cw_device_owners')
-      .delete()
-      .eq('id', id);
-    if (error) {
-      throw error;
-    }
+    return data as DeviceOwnerRow;
   }
 }

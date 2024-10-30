@@ -1,12 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SupabaseService } from './supabase.service';
+import { ConfigService } from '@nestjs/config';
 
 describe('SupabaseService', () => {
   let service: SupabaseService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SupabaseService],
+      providers: [
+        SupabaseService,
+        {
+          provide: ConfigService,
+          useValue: { /* mock config properties if needed */ },
+        },
+      ],
     }).compile();
 
     service = module.get<SupabaseService>(SupabaseService);

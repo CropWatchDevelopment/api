@@ -3,28 +3,18 @@ import { Injectable } from '@nestjs/common';
 import { CreateDeviceOwnerDto } from './dto/create-device-owner.dto';
 import { UpdateDeviceOwnerDto } from './dto/update-device-owner.dto';
 import { DeviceOwnerRepository } from 'src/repositories/cw_device_owners';
+import { Database } from 'database.types';
+import { BaseService } from 'src/bases/base.service';
+
+type DeviceOwnerRow = Database['public']['Tables']['cw_device_owners']['Row'];
 
 @Injectable()
-export class CwDeviceOwnersService {
-  constructor(private readonly deviceOwnerRepository: DeviceOwnerRepository) {}
-
-  async findAll() {
-    return this.deviceOwnerRepository.findAll();
+export class CwDeviceOwnersService extends BaseService<DeviceOwnerRow, CreateDeviceOwnerDto, UpdateDeviceOwnerDto> {
+  constructor(private readonly deviceOwnerRepository: DeviceOwnerRepository) {
+    super(deviceOwnerRepository);
   }
 
-  async findById(id: number) {
-    return this.deviceOwnerRepository.findById(id);
-  }
-
-  async create(createDeviceOwnerDto: CreateDeviceOwnerDto) {
-    return this.deviceOwnerRepository.create(createDeviceOwnerDto);
-  }
-
-  async update(id: number, updateDeviceOwnerDto: UpdateDeviceOwnerDto) {
-    return this.deviceOwnerRepository.update(id, updateDeviceOwnerDto);
-  }
-
-  async delete(id: number) {
-    return this.deviceOwnerRepository.delete(id);
+  public async getDeviceOwnerByDevEuiAndEmail(devEui: string, email: string): Promise<DeviceOwnerRow> {
+    return this.deviceOwnerRepository.findByDevEuiAndEmail(devEui, email);
   }
 }
