@@ -7,8 +7,9 @@ import { CwDeviceTypeService } from 'src/cw_device_type/cw_device_type.service';
 import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
 
-@ApiTags('Data')
+
 @Controller('data')
+@ApiTags('CRUD operations for data related to devices rigistered to current JWT')
 export class DataController {
   constructor(
     private readonly dataService: DataService,

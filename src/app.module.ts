@@ -7,15 +7,17 @@ import { LocationModule } from './location/location.module';
 import { SupabaseModule } from './supabase/supabase.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { CwDeviceOwnersModule } from './cw_device_owners/cw_device_owners.module';
-import { CwDeviceLocationsModule } from './cw_device_locations/cw_device_locations.module';
 import { CwDevicesModule } from './cw_devices/cw_devices.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthService } from './auth/auth.service';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { CacheModule } from '@nestjs/cache-manager';
 import { RelayModule } from './relay/relay.module';
 import { GeolocationModule } from './geolocation/geolocation.module';
+import { AppController } from './app.controller';
+import { HealthModule } from './health/health.module';
+import { PdfModule } from './pdf/pdf.module';
 
 @Module({
   imports: [
@@ -38,16 +40,22 @@ import { GeolocationModule } from './geolocation/geolocation.module';
     SupabaseModule,
     ProfilesModule,
     CwDeviceOwnersModule,
-    CwDeviceLocationsModule,
     CwDevicesModule,
     RelayModule,
     GeolocationModule,
+    HealthModule,
+    PdfModule,
   ],
+  controllers: [AppController],
   providers: [
     AuthService,
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,  // Register JwtAuthGuard as a global guard
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard
     },
   ],
 })

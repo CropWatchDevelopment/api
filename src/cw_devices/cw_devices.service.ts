@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { Database } from 'database.types';
 import { BaseService } from 'src/bases/base.service';
-import { CreateDeviceLocationDto } from 'src/cw_device_locations/dto/create-device-location.dto';
-import { UpdateDeviceLocationDto } from 'src/cw_device_locations/dto/update-device-location.dto';
 import { DeviceRepository } from 'src/repositories/cw_devices.repository';
+import { CreateDeviceDto } from './dto/create-device.dto';
+import { UpdateDeviceDto } from './dto/update-device.dto';
 
 type DevicesRow = Database['public']['Tables']['cw_devices']['Row'];
 
 @Injectable()
-export class CwDevicesService extends BaseService<DevicesRow, CreateDeviceLocationDto, UpdateDeviceLocationDto> {
+export class CwDevicesService extends BaseService<DevicesRow, CreateDeviceDto, UpdateDeviceDto> {
   constructor(private readonly deviceRepository: DeviceRepository) {
     super(deviceRepository);
   }

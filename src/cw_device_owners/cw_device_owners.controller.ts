@@ -5,7 +5,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CreateDeviceOwnerDto } from './dto/create-device-owner.dto';
 import { UpdateDeviceOwnerDto } from './dto/update-device-owner.dto';
 
-@ApiTags('🔒Device➡️Owners')
+@ApiTags('🔒Device-Owners - CRUD operations for linkages between current JWT users profile and devices')
 @Controller('cw-device-owners')
 export class CwDeviceOwnersController {
   constructor(private readonly cwDeviceOwnersService: CwDeviceOwnersService) {}

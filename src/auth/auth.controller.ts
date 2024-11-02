@@ -5,8 +5,9 @@ import { SupabaseAuthGuard } from './guards/supabase.guard';
 import { LoginDto } from './DTOs/userAuth.dto';
 import { AuthService } from './auth.service';
 import { Public } from './public.decorator';
+import { Throttle } from '@nestjs/throttler';
 
-@ApiTags('auth')
+@ApiTags('Endpoints related to user authentication and authorization')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) { }
@@ -37,6 +38,7 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @Throttle({ default: { limit: 1, ttl: 6000 } })
   @ApiResponse({ status: 200, description: 'Login Success' })
   @ApiResponse({ status: 400, description: 'Bad Request' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
