@@ -1,5 +1,5 @@
 // Import necessary modules from Supabase and NestJS
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { SupabaseClient, User, createClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
 
@@ -23,11 +23,11 @@ export class AuthService {
     try {
       const { data: user, error } = await this.supabase.auth.getUser(token);
       if (error) {
-        throw new UnauthorizedException('Invalid token or user not found');
+        throw new UnauthorizedException(error.message);
       }
       return user.user;
     } catch (error) {
-      throw new UnauthorizedException('Unable to validate user token');
+      throw new UnauthorizedException(error.message);
     }
   }
 
@@ -38,6 +38,8 @@ export class AuthService {
     let { data: api_keys, error } = await this.supabase
       .from('api_keys')
       .select('*')
+      .eq('api_key', apiKey)
+      .gt('expiry_date', new Date())
       .single();
 
     if (error) {

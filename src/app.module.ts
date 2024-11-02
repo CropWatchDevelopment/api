@@ -14,6 +14,8 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AuthService } from './auth/auth.service';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { CacheModule } from '@nestjs/cache-manager';
+import { RelayModule } from './relay/relay.module';
+import { GeolocationModule } from './geolocation/geolocation.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { CacheModule } from '@nestjs/cache-manager';
     CwDeviceOwnersModule,
     CwDeviceLocationsModule,
     CwDevicesModule,
+    RelayModule,
+    GeolocationModule,
   ],
   providers: [
     AuthService,
