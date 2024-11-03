@@ -15,9 +15,24 @@ export class PdfService {
                 italics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Italic.ttf'),
                 bolditalics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-MediumItalic.ttf'),
             },
+            Noto_Sans_JP: {
+                normal: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf'),
+                bold: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Medium.ttf'),
+                italics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
+                bolditalics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
+            },
         };
 
         const report = JSON.stringify({
+            version: '1.5',
+            subset: 'PDF/A-3a',
+            tagged: true,
+            displayTitle: true,
+            info: {
+                title: 'CropWatch Data Report',
+                author: 'CropWatch Automated Reporting System',
+                subject: 'Report Generated for Sensor Dev_EUI: 0004A30B001A4B3A',
+            },
             permissions: {
                 printing: 'highResolution',
                 modifying: false,
@@ -25,7 +40,7 @@ export class PdfService {
                 annotating: true,
                 fillingForms: true,
                 contentAccessibility: true,
-                documentAssembly: true
+                documentAssembly: true,
             },
             content: [
                 {
