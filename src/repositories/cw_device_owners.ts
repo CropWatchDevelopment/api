@@ -1,10 +1,7 @@
-// src/cw_device_owners/cw_device_owners.repository.ts
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import { Database } from 'database.types';
 import { BaseRepository } from './base.repository';
-
-type DeviceOwnerRow = Database['public']['Tables']['cw_device_owners']['Row'];
+import { DeviceOwnerRow } from 'src/common/database-types';
 
 @Injectable()
 export class DeviceOwnerRepository extends BaseRepository<DeviceOwnerRow> {

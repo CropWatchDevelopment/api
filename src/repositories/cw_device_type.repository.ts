@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
-import { Database } from 'database.types';
 import { BaseRepository } from './base.repository';
-
-type DeviceTypeRow = Database['public']['Tables']['cw_device_type']['Row'];
+import { DeviceTypeRow } from 'src/common/database-types';
 
 @Injectable()
 export class DeviceTypeRepository extends BaseRepository<DeviceTypeRow> {

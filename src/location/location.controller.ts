@@ -3,9 +3,7 @@ import { LocationService } from './location.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { BaseController } from 'src/bases/base.controller';
-import { Database } from 'database.types';
-
-type LocationsRow = Database['public']['Tables']['cw_locations']['Row'];
+import { LocationsRow } from 'src/common/database-types';
 
 @ApiTags('Locations')
 @Controller('location')
