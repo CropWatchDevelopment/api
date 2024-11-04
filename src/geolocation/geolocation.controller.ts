@@ -12,7 +12,7 @@ export class GeolocationController {
     @Get('address')
     @UseGuards(SupabaseAuthGuard)
     async getProtectedRoute() {
-        const location = await this.geoLocationService.getGeolocation('45 huntington ave, boston, ma');
+        const location = await this.geoLocationService.getGeolocation('Africa House, 70 Kingsway, London WC2B 6AH, United Kingdom');
         return { message: 'Geolocation fetched', location };
     }
 

@@ -1,8 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
-import helmet from 'helmet';
+import { VersioningType } from '@nestjs/common';
 
 async function bootstrap() {
   const version = '1';
@@ -10,13 +9,21 @@ async function bootstrap() {
     cors: true,
   });
   app.setGlobalPrefix(`v${version}`);
-  // app.use(helmet());
   app.enableCors();
-  // app.useGlobalPipes(new ValidationPipe());
   app.enableVersioning({
     type: VersioningType.URI,
   });
+  const document = SwaggerModule.createDocument(app, getSwaggerConfig(version));
+  SwaggerModule.setup('api', app, document, {
+    customCssUrl: 'https://cropwatch.io/swagger-custom.css',
+    customfavIcon: 'https://cropwatch.io/favicon.svg',
+    customSiteTitle: 'CropWatch API Documentation'
+  });
+  await app.listen(process.env.PORT ?? 3000);
+}
+bootstrap();
 
+function getSwaggerConfig(version: string) {
   const config = new DocumentBuilder()
     .setTitle('CropWatch API')
     .setDescription('API documentation for CropWatch services, offering endpoints for authentication, data management, and monitoring capabilities.')
@@ -28,15 +35,5 @@ async function bootstrap() {
     .setLicense('MIT License', 'https://opensource.org/licenses/MIT')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'XYZ')
     .build();
-
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document, {
-    customCssUrl: 'https://cropwatch.io/swagger-custom.css',
-    customfavIcon: 'https://cropwatch.io/favicon.svg',
-    customSiteTitle: 'CropWatch API Documentation'
-  });
-
-
-  await app.listen(process.env.PORT ?? 3000);
+  return config;
 }
-bootstrap();

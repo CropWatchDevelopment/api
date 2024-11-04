@@ -1,4 +1,4 @@
-import { Injectable, Req } from '@nestjs/common';
+import { BadRequestException, Injectable, NotAcceptableException, NotFoundException, NotImplementedException, Req } from '@nestjs/common';
 import { CreateDatumDto } from './dto/create-datum.dto';
 import { UpdateDatumDto } from './dto/update-datum.dto';
 import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
@@ -22,36 +22,36 @@ export class DataService {
     private readonly deviceTypeService: CwDeviceTypeService,
     private readonly deviceOwnerService: CwDeviceOwnersService,
     private readonly dataRepository: DataRepository,
-  ) {}
+  ) { }
 
   create(createDatumDto: CreateDatumDto) {
-    return 'This action adds a new datum';
+    return new NotImplementedException();
   }
 
   async findAll(params: FindAllParams, email: string): Promise<any> {
     const { devEui, skip, take, order } = params;
     if (!devEui) {
-      return 'DevEui is required';
+      return new BadRequestException('DevEui is required');
     }
     const deviceOwner = await this.deviceOwnerService.getDeviceOwnerByDevEuiAndUID(devEui, email);
     if (!deviceOwner) {
-      return 'Device does not exist OR Device Owner not found';
+      return new NotAcceptableException('Device does not exist OR Device Owner not found');
     }
     const device = await this.deviceService.getDeviceByDevEui(devEui);
     if (!device) {
-      return 'Device not found';
+      return new NotFoundException('Device not found');
     }
     const deviceType = device.type;
     if (!deviceType) {
-      return 'Device type not found';
+      throw new NotFoundException('Device type not found');
     }
     const deviceTypeData = await this.deviceTypeService.findById(deviceType);
     if (!deviceTypeData) {
-      return 'Device type data not found';
+      throw new NotFoundException('Device type data not found');
     }
     const data_table: string = deviceTypeData.data_table;
     if (!data_table) {
-      return 'Data table not found';
+      throw new NotFoundException('Data table not found');
     }
     //Data_table will contain the name of the datatable to query in the repo
     const data = this.dataRepository.findAllByTable(data_table, devEui, skip, take, order == 'ASC' ? true : false);
@@ -59,14 +59,14 @@ export class DataService {
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} datum`;
+    return new NotImplementedException();
   }
 
   update(id: number, updateDatumDto: UpdateDatumDto) {
-    return `This action updates a #${id} datum`;
+    return new NotImplementedException();
   }
 
   remove(id: number) {
-    return `This action removes a #${id} datum`;
+    return new NotImplementedException();
   }
 }
