@@ -2,100 +2,119 @@ import { Injectable } from '@nestjs/common';
 import { join } from 'path';
 import PdfPrinter from 'pdfmake';
 import { TDocumentDefinitions, TFontDictionary } from 'pdfmake/build/pdfmake';
+import { DataService } from 'src/data/data.service';
+
 
 @Injectable()
 export class PdfService {
+    constructor(private readonly dataService: DataService) { }
 
-    public async createPdfBinary(): Promise<Buffer> {
-        console.log('path', join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Regular.ttf'));
-        const fonts: TFontDictionary = {
-            Roboto: {
-                normal: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Regular.ttf'),
-                bold: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Medium.ttf'),
-                italics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Italic.ttf'),
-                bolditalics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-MediumItalic.ttf'),
-            },
-            Noto_Sans_JP: {
-                normal: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf'),
-                bold: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Medium.ttf'),
-                italics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
-                bolditalics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
-            },
-        };
+    private fonts: TFontDictionary = {
+        Roboto: {
+            normal: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Regular.ttf'),
+            bold: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Medium.ttf'),
+            italics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Italic.ttf'),
+            bolditalics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-MediumItalic.ttf'),
+        },
+        Noto_Sans_JP: {
+            normal: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf'),
+            bold: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Medium.ttf'),
+            italics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
+            bolditalics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
+        },
+    };
 
-        const report = JSON.stringify({
-            version: '1.5',
-            subset: 'PDF/A-3a',
-            tagged: true,
-            displayTitle: true,
-            info: {
-                title: 'CropWatch Data Report',
-                author: 'CropWatch Automated Reporting System',
-                subject: 'Report Generated for Sensor Dev_EUI: 0004A30B001A4B3A',
+    public async createPdfBinary(user_id: string): Promise<Buffer> {
+        const data: any[] = await this.dataService.findAll({
+            devEui: '373632336F32840A',
+            skip: 0,
+            take: 10,
+            order: 'ASC',
+        }, user_id);
+    
+        // JSON template with placeholders for easy replacement
+        let reportJson = JSON.stringify({
+            "version": "1.5",
+            "subset": "PDF/A-3a",
+            "tagged": true,
+            "displayTitle": true,
+            "info": {
+                "title": "CropWatch Data Report",
+                "author": "CropWatch Automated Reporting System",
+                "subject": "Report Generated for Sensor Dev_EUI: {{dev_eui}}"
             },
-            permissions: {
-                printing: 'highResolution',
-                modifying: false,
-                copying: true,
-                annotating: true,
-                fillingForms: true,
-                contentAccessibility: true,
-                documentAssembly: true,
+            "permissions": {
+                "printing": "highResolution",
+                "modifying": false,
+                "copying": true,
+                "annotating": true,
+                "fillingForms": true,
+                "contentAccessibility": true,
+                "documentAssembly": true
             },
-            content: [
+            "content": [
+                { "text": "CropWatch Data Report", "style": "header" },
+                { "text": "Generated for Device: {{dev_eui}}\n\n", "fontSize": 12 },
                 {
-                    text: 'REPORT',
-                    style: 'header'
-                },
-                {
-                    columns: [
-                        [
-                            {
-                                columns: [
-                                    {
-                                        ul: [
-                                            'item 1',
-                                            'item 2',
-                                            'item 3'
-                                        ]
-                                    },
-                                    { text: 'Lorem ipsum dolor sit amet, consectetur adipisicing elit. Malit profecta versatur nomine ocurreret multavit, officiis viveremus aeternum superstitio suspicor alia nostram, quando nostros congressus susceperant concederetur leguntur iam, vigiliae democritea tantopere causae, atilii plerumque ipsas potitur pertineant multis rem quaeri pro, legendum didicisse credere ex maluisset per videtis. Cur discordans praetereat aliae ruinae dirigentur orestem eodem, praetermittenda divinum. Collegisti, deteriora malint loquuntur officii cotidie finitas referri doleamus ambigua acute. Adhaesiones ratione beate arbitraretur detractis perdiscere, constituant hostis polyaeno. Diu concederetur.' },
-                                    {
-                                        style: 'tableExample',
-                                        table: {
-                                            body: [
-                                                ['承認', '確認', '作成'],
-                                                [' ', ' ', ' ']
-                                            ]
-                                        }
-                                    },
-                                ]
-                            }
+                    "style": "tableExample",
+                    "table": {
+                        "headerRows": 1,
+                        "widths": ["auto", "*", "auto", "auto", "auto", "auto", "*", "*"],
+                        "body": [
+                            [
+                                { "text": "ID", "bold": true },
+                                { "text": "Created At", "bold": true },
+                                { "text": "Dew Point (°C)", "bold": true },
+                                { "text": "Humidity (%)", "bold": true },
+                                { "text": "Temperature (°C)", "bold": true },
+                                { "text": "VPD", "bold": true },
+                                { "text": "Dev EUI", "bold": true },
+                                { "text": "Profile ID", "bold": true }
+                            ],
+                            "{{data_rows}}"
                         ]
-                    ]
-                },
+                    }
+                }
             ],
-            styles: {
-                header: {
-                    fontSize: 18,
-                    bold: true
-                },
+            "styles": {
+                "header": { "fontSize": 18, "bold": true },
+                "tableExample": { "margin": [0, 5, 0, 15] }
             }
         });
-
-
-
-        const printer: PdfPrinter = new PdfPrinter(fonts);
-        const docDefinition: any = JSON.parse(report) as TDocumentDefinitions;
-
+    
+        // Prepare data rows for the table
+        const dataRows = data.map(item => [
+            item.id,
+            item.created_at,
+            item.dewPointC,
+            item.humidity,
+            item.temperatureC,
+            item.vpd,
+            item.dev_eui,
+            item.profile_id
+        ]);
+    
+        // Replace `{{dev_eui}}` placeholder with actual `dev_eui` value
+        reportJson = reportJson.replace(/{{dev_eui}}/g, data[0]?.dev_eui || '');
+    
+        // Parse JSON and directly insert `dataRows` as an array
+        const report = JSON.parse(reportJson); // Parse to an object only once
+        report.content[2].table.body = [
+            report.content[2].table.body[0], // Header row
+            ...dataRows                      // Data rows
+        ];
+    
+        const printer: PdfPrinter = new PdfPrinter(this.fonts);
+        const docDefinition: TDocumentDefinitions = report; // `report` is already an object
+    
         return new Promise((resolve, reject) => {
             const pdfDoc = printer.createPdfKitDocument(docDefinition);
             const chunks: Buffer[] = [];
-
+    
             pdfDoc.on('data', (chunk) => chunks.push(chunk));
             pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
             pdfDoc.on('error', reject);
-
+    
             pdfDoc.end();
         });
     }

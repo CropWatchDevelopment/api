@@ -8,7 +8,7 @@ import { DataRepository } from 'src/repositories/data.repository';
 import { CwDeviceOwnersService } from 'src/cw_device_owners/cw_device_owners.service';
 
 
-interface FindAllParams {
+export interface FindAllParams {
   devEui?: string;
   skip: number;
   take: number;
@@ -28,12 +28,12 @@ export class DataService {
     return 'This action adds a new datum';
   }
 
-  async findAll(params: FindAllParams, email: string) {
+  async findAll(params: FindAllParams, email: string): Promise<any> {
     const { devEui, skip, take, order } = params;
     if (!devEui) {
       return 'DevEui is required';
     }
-    const deviceOwner = await this.deviceOwnerService.getDeviceOwnerByDevEuiAndEmail(devEui, '');
+    const deviceOwner = await this.deviceOwnerService.getDeviceOwnerByDevEuiAndUID(devEui, email);
     if (!deviceOwner) {
       return 'Device does not exist OR Device Owner not found';
     }

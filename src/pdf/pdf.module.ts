@@ -3,14 +3,30 @@ import { PdfController } from './pdf.controller';
 import { PdfService } from './pdf.service';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { DataService } from 'src/data/data.service';
+import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
+import { DataModule } from 'src/data/data.module';
+import { CwDevicesModule } from 'src/cw_devices/cw_devices.module';
+import { CwDeviceTypeModule } from 'src/cw_device_type/cw_device_type.module';
+import { CwDeviceOwnersModule } from 'src/cw_device_owners/cw_device_owners.module';
+import { AuthService } from 'src/auth/auth.service';
 
 @Module({
   imports: [
+    DataModule,
+    CwDevicesModule,
+    CwDeviceTypeModule,
+    CwDeviceOwnersModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, './', 'fonts'),
     }),
   ],
   controllers: [PdfController],
-  providers: [PdfService]
+  providers: [
+    PdfService,
+    DataService,
+    DataService,
+    AuthService,
+  ]
 })
 export class PdfModule {}

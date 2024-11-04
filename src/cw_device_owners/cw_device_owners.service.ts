@@ -14,7 +14,7 @@ export class CwDeviceOwnersService extends BaseService<DeviceOwnerRow, CreateDev
     super(deviceOwnerRepository);
   }
 
-  public async getDeviceOwnerByDevEuiAndEmail(devEui: string, email: string): Promise<DeviceOwnerRow> {
-    return this.deviceOwnerRepository.findByDevEuiAndEmail(devEui, email);
+  public async getDeviceOwnerByDevEuiAndUID(devEui: string, user_id: string): Promise<DeviceOwnerRow> {
+    return this.deviceOwnerRepository.findByDevEuiAndUID(devEui, user_id);
   }
 }

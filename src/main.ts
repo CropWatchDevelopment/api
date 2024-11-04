@@ -10,9 +10,9 @@ async function bootstrap() {
     cors: true,
   });
   app.setGlobalPrefix(`v${version}`);
-  app.use(helmet());
+  // app.use(helmet());
   app.enableCors();
-  app.useGlobalPipes(new ValidationPipe());
+  // app.useGlobalPipes(new ValidationPipe());
   app.enableVersioning({
     type: VersioningType.URI,
   });

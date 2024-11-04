@@ -10,5 +10,6 @@ import { DeviceRepository } from 'src/repositories/cw_devices.repository';
   imports: [SupabaseModule, AuthModule],
   providers: [CwDevicesService, DeviceRepository],
   controllers: [CwDevicesController],
+  exports: [CwDevicesService],
 })
 export class CwDevicesModule {}

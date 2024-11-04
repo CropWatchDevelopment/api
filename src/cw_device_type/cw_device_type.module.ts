@@ -12,6 +12,7 @@ import { DeviceTypeRepository } from 'src/repositories/cw_device_type.repository
     DeviceTypeRepository,
     
   ],
-  controllers: [CwDeviceTypeController]
+  controllers: [CwDeviceTypeController],
+  exports: [CwDeviceTypeService],
 })
 export class CwDeviceTypeModule {}

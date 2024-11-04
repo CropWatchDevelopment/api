@@ -9,9 +9,13 @@ import { DeviceTypeRepository } from 'src/repositories/cw_device_type.repository
 import { SupabaseService } from 'src/supabase/supabase.service';
 import { CwDeviceOwnersService } from 'src/cw_device_owners/cw_device_owners.service';
 import { DeviceOwnerRepository } from 'src/repositories/cw_device_owners';
+import { CwDevicesModule } from 'src/cw_devices/cw_devices.module';
+import { CwDeviceTypeModule } from 'src/cw_device_type/cw_device_type.module';
 
 @Module({
   imports: [
+    CwDevicesModule,
+    CwDeviceTypeModule,
   ],
   controllers: [DataController],
   providers: [
@@ -25,5 +29,9 @@ import { DeviceOwnerRepository } from 'src/repositories/cw_device_owners';
     DeviceTypeRepository,
     SupabaseService,
   ],
+  exports: [
+    DataService,
+    DataRepository,
+  ]
 })
 export class DataModule { }

@@ -9,5 +9,6 @@ import { DeviceOwnerRepository } from 'src/repositories/cw_device_owners';
   imports: [SupabaseModule],
   providers: [CwDeviceOwnersService, DeviceOwnerRepository], // Add repository and service
   controllers: [CwDeviceOwnersController],
+  exports: [CwDeviceOwnersService],
 })
 export class CwDeviceOwnersModule { }
