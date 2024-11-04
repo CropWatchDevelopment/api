@@ -3,11 +3,15 @@ import { join } from 'path';
 import PdfPrinter from 'pdfmake';
 import { TDocumentDefinitions, TFontDictionary } from 'pdfmake/build/pdfmake';
 import { DataService } from 'src/data/data.service';
+import { ReportsTemplatesService } from 'src/reports_templates/reports_templates.service';
 
 
 @Injectable()
 export class PdfService {
-    constructor(private readonly dataService: DataService) { }
+    constructor(
+        private readonly dataService: DataService,
+        private readonly reportsTemplatesService: ReportsTemplatesService
+    ) { }
 
     private fonts: TFontDictionary = {
         Roboto: {
@@ -32,6 +36,7 @@ export class PdfService {
             throw new Error('DevEui is required');
         }
         
+        // Fetch data from correct type (no clue how to map it later though....)
         const data: any[] = await this.dataService.findAll({
             devEui,
             skip: 0,
@@ -39,55 +44,58 @@ export class PdfService {
             order: 'ASC',
         }, user_id);
     
+
+        let reportJsonResponse = await this.reportsTemplatesService.getReportTemplateByDevEui(devEui);
+        let reportJson = JSON.stringify(reportJsonResponse.template);
         // JSON template with placeholders for easy replacement
-        let reportJson = JSON.stringify({
-            "version": "1.5",
-            "subset": "PDF/A-3a",
-            "tagged": true,
-            "displayTitle": true,
-            "info": {
-                "title": "CropWatch Data Report",
-                "author": "CropWatch Automated Reporting System",
-                "subject": "Report Generated for Sensor Dev_EUI: {{dev_eui}}"
-            },
-            "permissions": {
-                "printing": "highResolution",
-                "modifying": false,
-                "copying": true,
-                "annotating": true,
-                "fillingForms": true,
-                "contentAccessibility": true,
-                "documentAssembly": true
-            },
-            "content": [
-                { "text": "CropWatch Data Report", "style": "header" },
-                { "text": "Generated for Device: {{dev_eui}}\n\n", "fontSize": 12 },
-                {
-                    "style": "tableExample",
-                    "table": {
-                        "headerRows": 1,
-                        "widths": ["auto", "*", "auto", "auto", "auto", "auto", "*", "*"],
-                        "body": [
-                            [
-                                { "text": "ID", "bold": true },
-                                { "text": "Created At", "bold": true },
-                                { "text": "Dew Point (°C)", "bold": true },
-                                { "text": "Humidity (%)", "bold": true },
-                                { "text": "Temperature (°C)", "bold": true },
-                                { "text": "VPD", "bold": true },
-                                { "text": "Dev EUI", "bold": true },
-                                { "text": "Profile ID", "bold": true }
-                            ],
-                            "{{data_rows}}"
-                        ]
-                    }
-                }
-            ],
-            "styles": {
-                "header": { "fontSize": 18, "bold": true },
-                "tableExample": { "margin": [0, 5, 0, 15] }
-            }
-        });
+        // let reportJson = JSON.stringify({
+        //     "version": "1.5",
+        //     "subset": "PDF/A-3a",
+        //     "tagged": true,
+        //     "displayTitle": true,
+        //     "info": {
+        //         "title": "CropWatch Data Report",
+        //         "author": "CropWatch Automated Reporting System",
+        //         "subject": "Report Generated for Sensor Dev_EUI: {{dev_eui}}"
+        //     },
+        //     "permissions": {
+        //         "printing": "highResolution",
+        //         "modifying": false,
+        //         "copying": true,
+        //         "annotating": true,
+        //         "fillingForms": true,
+        //         "contentAccessibility": true,
+        //         "documentAssembly": true
+        //     },
+        //     "content": [
+        //         { "text": "CropWatch Data Report", "style": "header" },
+        //         { "text": "Generated for Device: {{dev_eui}}\n\n", "fontSize": 12 },
+        //         {
+        //             "style": "tableExample",
+        //             "table": {
+        //                 "headerRows": 1,
+        //                 "widths": ["auto", "*", "auto", "auto", "auto", "auto", "*", "*"],
+        //                 "body": [
+        //                     [
+        //                         { "text": "ID", "bold": true },
+        //                         { "text": "Created At", "bold": true },
+        //                         { "text": "Dew Point (°C)", "bold": true },
+        //                         { "text": "Humidity (%)", "bold": true },
+        //                         { "text": "Temperature (°C)", "bold": true },
+        //                         { "text": "VPD", "bold": true },
+        //                         { "text": "Dev EUI", "bold": true },
+        //                         { "text": "Profile ID", "bold": true }
+        //                     ],
+        //                     "{{data_rows}}"
+        //                 ]
+        //             }
+        //         }
+        //     ],
+        //     "styles": {
+        //         "header": { "fontSize": 18, "bold": true },
+        //         "tableExample": { "margin": [0, 5, 0, 15] }
+        //     }
+        // });
     
         // Prepare data rows for the table
         const dataRows = data.map(item => [

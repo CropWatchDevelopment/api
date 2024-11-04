@@ -10,6 +10,8 @@ import { CwDevicesModule } from 'src/cw_devices/cw_devices.module';
 import { CwDeviceTypeModule } from 'src/cw_device_type/cw_device_type.module';
 import { CwDeviceOwnersModule } from 'src/cw_device_owners/cw_device_owners.module';
 import { AuthService } from 'src/auth/auth.service';
+import { ReportsTemplatesService } from 'src/reports_templates/reports_templates.service';
+import { ReportsTemplatesModule } from 'src/reports_templates/reports_templates.module';
 
 @Module({
   imports: [
@@ -17,6 +19,7 @@ import { AuthService } from 'src/auth/auth.service';
     CwDevicesModule,
     CwDeviceTypeModule,
     CwDeviceOwnersModule,
+    ReportsTemplatesModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, './', 'fonts'),
     }),

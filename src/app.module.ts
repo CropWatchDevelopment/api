@@ -18,6 +18,7 @@ import { GeolocationModule } from './geolocation/geolocation.module';
 import { AppController } from './app.controller';
 import { HealthModule } from './health/health.module';
 import { PdfModule } from './pdf/pdf.module';
+import { ReportsTemplatesModule } from './reports_templates/reports_templates.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { PdfModule } from './pdf/pdf.module';
     GeolocationModule,
     HealthModule,
     PdfModule,
+    ReportsTemplatesModule,
   ],
   controllers: [AppController],
   providers: [

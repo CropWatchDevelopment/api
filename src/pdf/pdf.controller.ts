@@ -1,9 +1,10 @@
 // pdf.controller.ts
-import { Controller, Get, Res, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Res, UseGuards, Req, Body, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { PdfService } from './pdf.service';
 import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
+import { PdfDTO } from './dto/pdf.dto';
 
 @ApiTags('📄 PDF - Serve a PDF file')
 @Controller('pdf')
@@ -13,11 +14,15 @@ export class PdfController {
     @Get()
     @ApiBearerAuth('XYZ')
     @UseGuards(SupabaseAuthGuard)
-    async getFile(@Res() res: Response, @Req() req): Promise<void> {
+    async getFile(
+        @Res() res: Response,
+        @Req() req,
+        @Query('devEui') devEui: string
+    ): Promise<void> {
         
         const user_id = req.user.id;
         
-        const pdfBuffer = await this.pdfService.createPdfBinary(user_id);
+        const pdfBuffer = await this.pdfService.createPdfBinary(user_id, devEui);
         
         res.set({
             'Content-Type': 'application/pdf',

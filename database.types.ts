@@ -13,18 +13,21 @@ export type Database = {
         Row: {
           api_key: string | null
           created_at: string
+          expires_at: string | null
           id: number
           owner_id: string
         }
         Insert: {
           api_key?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: number
           owner_id?: string
         }
         Update: {
           api_key?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: number
           owner_id?: string
         }
@@ -1512,6 +1515,51 @@ export type Database = {
         }
         Relationships: []
       }
+      reports_templates: {
+        Row: {
+          created_at: string
+          dev_eui: string | null
+          id: number
+          name: string
+          owner_id: string
+          recipients: string | null
+          template: Json
+        }
+        Insert: {
+          created_at?: string
+          dev_eui?: string | null
+          id?: number
+          name: string
+          owner_id?: string
+          recipients?: string | null
+          template: Json
+        }
+        Update: {
+          created_at?: string
+          dev_eui?: string | null
+          id?: number
+          name?: string
+          owner_id?: string
+          recipients?: string | null
+          template?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_templates_dev_eui_fkey"
+            columns: ["dev_eui"]
+            isOneToOne: false
+            referencedRelation: "cw_devices"
+            referencedColumns: ["dev_eui"]
+          },
+          {
+            foreignKeyName: "reports_templates_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       road_event_lines: {
         Row: {
           camera_id: string
@@ -1666,9 +1714,9 @@ export type Database = {
           snr: number
           soil_ec: number
           soil_humidity: number
-          soil_k: number
-          soil_n: number
-          soil_p: number
+          soil_k: number | null
+          soil_n: number | null
+          soil_p: number | null
           soil_ph: number
           soil_temperature: number
         }
@@ -1682,9 +1730,9 @@ export type Database = {
           snr: number
           soil_ec: number
           soil_humidity: number
-          soil_k: number
-          soil_n: number
-          soil_p: number
+          soil_k?: number | null
+          soil_n?: number | null
+          soil_p?: number | null
           soil_ph: number
           soil_temperature: number
         }
@@ -1698,9 +1746,9 @@ export type Database = {
           snr?: number
           soil_ec?: number
           soil_humidity?: number
-          soil_k?: number
-          soil_n?: number
-          soil_p?: number
+          soil_k?: number | null
+          soil_n?: number | null
+          soil_p?: number | null
           soil_ph?: number
           soil_temperature?: number
         }
@@ -1739,6 +1787,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "seeed_sensecap_s2103_WaterLevel_dev_eui_fkey"
+            columns: ["dev_eui"]
+            isOneToOne: false
+            referencedRelation: "cw_devices"
+            referencedColumns: ["dev_eui"]
+          },
+        ]
+      }
+      seeed_sensecap_s2104: {
+        Row: {
+          battery_level: number | null
+          created_at: string
+          dev_eui: string
+          id: number
+          moisture: number | null
+          temperature: number | null
+        }
+        Insert: {
+          battery_level?: number | null
+          created_at?: string
+          dev_eui: string
+          id?: number
+          moisture?: number | null
+          temperature?: number | null
+        }
+        Update: {
+          battery_level?: number | null
+          created_at?: string
+          dev_eui?: string
+          id?: number
+          moisture?: number | null
+          temperature?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeed_sensecap_s210x_temp_moist_dev_eui_fkey"
             columns: ["dev_eui"]
             isOneToOne: false
             referencedRelation: "cw_devices"

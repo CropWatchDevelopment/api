@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { Database } from 'database.types';
 import { BaseService } from 'src/bases/base.service';
 import { DeviceRepository } from 'src/repositories/cw_devices.repository';
-import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
+import { CreateDeviceDto } from './dto/create-device.dto';
 
 type DevicesRow = Database['public']['Tables']['cw_devices']['Row'];
 
