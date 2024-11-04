@@ -15,7 +15,7 @@ async function bootstrap() {
   });
   const document = SwaggerModule.createDocument(app, getSwaggerConfig(version));
   SwaggerModule.setup('api', app, document, {
-    customCssUrl: 'https://cropwatch.io/swagger-custom.css',
+    customCssUrl: '../src/assets/css/swagger-custom.css',
     customfavIcon: 'https://cropwatch.io/favicon.svg',
     customSiteTitle: 'CropWatch API Documentation'
   });
@@ -33,7 +33,8 @@ function getSwaggerConfig(version: string) {
     .setContact('Kevin Cantrell', 'https://cropwatch.com', 'kevin@cropwatch.com')
     .setExternalDoc('CropWatch Knowledge-Base', 'https://kb.cropwatch.io')
     .setLicense('MIT License', 'https://opensource.org/licenses/MIT')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'XYZ')
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
+    .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' })
     .build();
   return config;
 }

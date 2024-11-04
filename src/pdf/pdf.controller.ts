@@ -4,7 +4,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { PdfService } from './pdf.service';
 import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
-import { PdfDTO } from './dto/pdf.dto';
 
 @ApiTags('📄 PDF - Serve a PDF file')
 @Controller('pdf')
@@ -12,7 +11,7 @@ export class PdfController {
     constructor(private readonly pdfService: PdfService) {}
 
     @Get()
-    @ApiBearerAuth('XYZ')
+    @ApiBearerAuth('JWT')
     @UseGuards(SupabaseAuthGuard)
     async getFile(
         @Res() res: Response,

@@ -27,7 +27,7 @@ export class DataController {
   @ApiQuery({ name: 'Skip', required: false, type: Number, description: 'Number of records to skip. (default: 0)' })
   @ApiQuery({ name: 'Take', required: false, type: Number, description: 'Number of records to retrieve. (default: 10)' })
   @ApiQuery({ name: 'Order', required: false, type: String, description: 'Created_At Order direction, either ASC or DESC.' })
-  @ApiBearerAuth('XYZ')
+  @ApiBearerAuth('JWT')
   @Get()
   findAll(
     @Req() req,

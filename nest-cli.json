@@ -6,8 +6,8 @@
     "deleteOutDir": true,
     "assets": [
       {
-        "include": "fonts/**/*",
-        "outDir": "dist/src/pdf"
+        "include": "assets/**/*",
+        "outDir": "dist/src"
       }
     ]
   }

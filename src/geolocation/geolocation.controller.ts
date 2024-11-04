@@ -8,7 +8,7 @@ import { GeolocationService } from './geolocation.service';
 export class GeolocationController {
     constructor(private readonly geoLocationService: GeolocationService) { }
 
-    @ApiBearerAuth('XYZ')
+    @ApiBearerAuth('JWT')
     @Get('address')
     @UseGuards(SupabaseAuthGuard)
     async getProtectedRoute() {

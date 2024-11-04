@@ -12,7 +12,7 @@ import { Throttle } from '@nestjs/throttler';
 export class AuthController {
   constructor(private authService: AuthService) { }
 
-  @ApiBearerAuth('XYZ')
+  @ApiBearerAuth('JWT')
   @Get('user')
   @UseGuards(SupabaseAuthGuard)
   @ApiResponse({ status: 200, description: 'Login Success' })

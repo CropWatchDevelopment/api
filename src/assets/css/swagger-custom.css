@@ -1,0 +1,18 @@
+.swagger-ui .topbar {
+    background-color: #0f5ae4;
+}
+
+.topbar-wrapper > .link {
+        content:url(https://cropwatch.io/favicon.svg);
+        height: 50px;
+}
+
+.topbar-wrapper > .link::before {
+    content: "CropWatch";
+    float: left;
+    height: 50px;
+}
+
+/* .swagger-ui .info {
+    font-family: 'CustomFont', sans-serif;
+} */

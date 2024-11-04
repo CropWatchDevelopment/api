@@ -8,7 +8,7 @@ export class ProfilesController {
   constructor(private readonly profilesService: ProfilesService) {}
   
   @Get()
-  @ApiBearerAuth('XYZ')
+  @ApiBearerAuth('JWT')
   findOne(@Req() req) {
     const id = req.headers['authorization'];
     return this.profilesService.findOne(id);

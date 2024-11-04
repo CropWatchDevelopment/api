@@ -20,9 +20,9 @@ import { ReportsTemplatesModule } from 'src/reports_templates/reports_templates.
     CwDeviceTypeModule,
     CwDeviceOwnersModule,
     ReportsTemplatesModule,
-    ServeStaticModule.forRoot({
-      rootPath: join(__dirname, './', 'fonts'),
-    }),
+    // ServeStaticModule.forRoot({
+    //   rootPath: join(__dirname, './', 'fonts'),
+    // }),
   ],
   controllers: [PdfController],
   providers: [

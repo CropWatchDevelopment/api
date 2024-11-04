@@ -9,7 +9,7 @@ type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 export class ProfileRepository {
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  @ApiBearerAuth('XYZ')
+  @ApiBearerAuth('JWT')
   async findById(id: string): Promise<ProfileRow | null> {
     const {data: user, error: userError } = await this.supabaseService.getSupabaseClient().auth.getUser(id);
     if (userError) {

@@ -15,16 +15,16 @@ export class PdfService {
 
     private fonts: TFontDictionary = {
         Roboto: {
-            normal: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Regular.ttf'),
-            bold: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Medium.ttf'),
-            italics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-Italic.ttf'),
-            bolditalics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Roboto/Roboto-MediumItalic.ttf'),
+            normal: join(process.cwd(), 'dist', '', 'src/assets/fonts/Roboto/Roboto-Regular.ttf'),
+            bold: join(process.cwd(), 'dist', '', 'src/assets/fonts/Roboto/Roboto-Medium.ttf'),
+            italics: join(process.cwd(), 'dist', '', 'src/assets/fonts/Roboto/Roboto-Italic.ttf'),
+            bolditalics: join(process.cwd(), 'dist', '', 'src/assets/fonts/Roboto/Roboto-MediumItalic.ttf'),
         },
         Noto_Sans_JP: {
-            normal: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf'),
-            bold: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Medium.ttf'),
-            italics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
-            bolditalics: join(process.cwd(), 'dist', '', 'src/pdf/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
+            normal: join(process.cwd(), 'dist', '', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf'),
+            bold: join(process.cwd(), 'dist', '', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Medium.ttf'),
+            italics: join(process.cwd(), 'dist', '', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
+            bolditalics: join(process.cwd(), 'dist', '', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
         },
     };
 
@@ -47,55 +47,6 @@ export class PdfService {
 
         let reportJsonResponse = await this.reportsTemplatesService.getReportTemplateByDevEui(devEui);
         let reportJson = JSON.stringify(reportJsonResponse.template);
-        // JSON template with placeholders for easy replacement
-        // let reportJson = JSON.stringify({
-        //     "version": "1.5",
-        //     "subset": "PDF/A-3a",
-        //     "tagged": true,
-        //     "displayTitle": true,
-        //     "info": {
-        //         "title": "CropWatch Data Report",
-        //         "author": "CropWatch Automated Reporting System",
-        //         "subject": "Report Generated for Sensor Dev_EUI: {{dev_eui}}"
-        //     },
-        //     "permissions": {
-        //         "printing": "highResolution",
-        //         "modifying": false,
-        //         "copying": true,
-        //         "annotating": true,
-        //         "fillingForms": true,
-        //         "contentAccessibility": true,
-        //         "documentAssembly": true
-        //     },
-        //     "content": [
-        //         { "text": "CropWatch Data Report", "style": "header" },
-        //         { "text": "Generated for Device: {{dev_eui}}\n\n", "fontSize": 12 },
-        //         {
-        //             "style": "tableExample",
-        //             "table": {
-        //                 "headerRows": 1,
-        //                 "widths": ["auto", "*", "auto", "auto", "auto", "auto", "*", "*"],
-        //                 "body": [
-        //                     [
-        //                         { "text": "ID", "bold": true },
-        //                         { "text": "Created At", "bold": true },
-        //                         { "text": "Dew Point (°C)", "bold": true },
-        //                         { "text": "Humidity (%)", "bold": true },
-        //                         { "text": "Temperature (°C)", "bold": true },
-        //                         { "text": "VPD", "bold": true },
-        //                         { "text": "Dev EUI", "bold": true },
-        //                         { "text": "Profile ID", "bold": true }
-        //                     ],
-        //                     "{{data_rows}}"
-        //                 ]
-        //             }
-        //         }
-        //     ],
-        //     "styles": {
-        //         "header": { "fontSize": 18, "bold": true },
-        //         "tableExample": { "margin": [0, 5, 0, 15] }
-        //     }
-        // });
     
         // Prepare data rows for the table
         const dataRows = data.map(item => [
