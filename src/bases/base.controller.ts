@@ -5,17 +5,20 @@ import {
   Patch,
   Put,
   Delete,
+  Param,
 } from '@nestjs/common';
 import { ApiCreateResponses, ApiDeleteResponses, ApiGetResponses, CommonResponses } from 'src/common/common-responses.decorator';
 import { ApiCommonAuth } from 'src/common/common-auth-decorators';
 
-export interface BaseServiceInterface<T, CreateDto> {
+export interface BaseServiceInterface<T, CreateDto, UpdateDto> {
   findAll: () => Promise<T[]>;
   create: (dto: CreateDto) => Promise<T>;
+  partialUpdate: (id: number, dto: UpdateDto) => Promise<T>; // For PATCH
+  fullUpdate: (id: number, dto: UpdateDto) => Promise<T>;
 }
 
-export class BaseController<T, CreateDto> {
-  constructor(private readonly service: BaseServiceInterface<T, CreateDto>) { }
+export class BaseController<T, CreateDto, UpdateDto> {
+  constructor(private readonly service: BaseServiceInterface<T, CreateDto, UpdateDto>) { }
 
   @Get()
   @ApiCommonAuth('Get all items')
@@ -32,18 +35,18 @@ export class BaseController<T, CreateDto> {
     return this.service.create(createDto);
   }
 
-  @Patch()
-  @ApiCommonAuth('Update a single item')
+  @Patch(':id')
+  @ApiCommonAuth('Partially update a single item')
   @ApiCreateResponses()
-  async PartialUpdate(@Body() createDto: CreateDto): Promise<T> {
-    return this.service.create(createDto);
+  async PartialUpdate(@Param('id') id: number, @Body() updateDto: UpdateDto): Promise<T> {
+    return this.service.partialUpdate(id, updateDto);
   }
 
-  @Put()
-  @ApiCommonAuth('Update a single item')
+  @Put(':id')
+  @ApiCommonAuth('Fully update a single item')
   @ApiCreateResponses()
-  async FullUpdate(@Body() createDto: CreateDto): Promise<T> {
-    return this.service.create(createDto);
+  async FullUpdate(@Param('id') id: number, @Body() updateDto: UpdateDto): Promise<T> {
+    return this.service.fullUpdate(id, updateDto);
   }
 
   @Delete()

@@ -1,12 +1,13 @@
-import { BaseRepository } from "src/repositories/base.repository";
+import { BaseRepository } from 'src/repositories/base.repository';
 
-// src/services/base.service.ts
-export interface BaseServiceInterface<T, CreateDto> {
+export interface BaseServiceInterface<T, CreateDto, UpdateDto> {
   findAll(): Promise<T[]>;
   create(dto: CreateDto): Promise<T>;
+  partialUpdate(id: number, dto: UpdateDto): Promise<T>;
+  fullUpdate(id: number, dto: T | UpdateDto): Promise<T>; // Allow T or UpdateDto for full updates
 }
 
-export class BaseService<T, CreateDto extends Partial<T>, UpdateDto extends Partial<T>> implements BaseServiceInterface<T, CreateDto> {
+export class BaseService<T, CreateDto extends Partial<T>, UpdateDto extends Partial<T>> implements BaseServiceInterface<T, CreateDto, UpdateDto> {
   constructor(protected readonly repository: BaseRepository<T>) {}
 
   async findAll(): Promise<T[]> {
@@ -21,8 +22,12 @@ export class BaseService<T, CreateDto extends Partial<T>, UpdateDto extends Part
     return this.repository.create(dto);
   }
 
-  async update(id: number, dto: UpdateDto): Promise<T> {
-    return this.repository.update(id, dto);
+  async partialUpdate(id: number, dto: UpdateDto): Promise<T> {
+    return this.repository.partialUpdate(id, dto);
+  }
+
+  async fullUpdate(id: number, dto: T | UpdateDto): Promise<T> {
+    return this.repository.fullUpdate(id, dto as T);
   }
 
   async delete(id: number): Promise<void> {

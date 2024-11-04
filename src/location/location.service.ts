@@ -1,29 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
-import { LocationRepository } from 'src/repositories/cw_location.repository';
+import { BaseService } from 'src/bases/base.service';
+import { BaseRepository } from 'src/repositories/base.repository';
+import { LocationRow } from 'src/common/database-types';
 
 @Injectable()
-export class LocationService {
-  constructor(private readonly locationRepository: LocationRepository) {}
-
-  create(createLocationDto: CreateLocationDto) {
-    return this.locationRepository.create(createLocationDto);
+export class LocationService extends BaseService<LocationRow, CreateLocationDto, UpdateLocationDto> {
+  constructor(repository: BaseRepository<LocationRow>) {
+    super(repository);
   }
 
-  findAll() {
-    return this.locationRepository.findAll();
-  }
-
-  findOne(id: number) {
-    return this.locationRepository.findById(id);
-  }
-
-  update(id: number, updateLocationDto: UpdateLocationDto) {
-    return `This action updates a #${id} location`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} location`;
-  }
 }

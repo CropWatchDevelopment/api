@@ -4,11 +4,12 @@ import { CreateLocationDto } from './dto/create-location.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { BaseController } from 'src/bases/base.controller';
 import { LocationsRow } from 'src/common/database-types';
+import { UpdateLocationDto } from './dto/update-location.dto';
 
 @ApiTags('Locations')
 @Controller('location')
-export class LocationController extends BaseController<LocationsRow, CreateLocationDto>  {
-  constructor(private readonly locationService: LocationService) {
+export class LocationController extends BaseController<LocationsRow, CreateLocationDto, UpdateLocationDto>  {
+  constructor(locationService: LocationService) {
     super(locationService);
   }
 

@@ -44,11 +44,25 @@ export class BaseRepository<T> {
     return data;
   }
 
-  async update(id: number | string, item: Partial<T>, idColumn = 'id'): Promise<T> {
+  async partialUpdate(id: number | string, item: Partial<T>, idColumn = 'id'): Promise<T> {
     const { data, error } = await this.supabaseService
       .getSupabaseClient()
       .from(this.tableName)
       .update(item)
+      .eq(idColumn, id)
+      .select('*')
+      .single();
+    if (error) {
+      throw error;
+    }
+    return data;
+  }
+
+  async fullUpdate(id: number | string, item: T, idColumn = 'id'): Promise<T> {
+    const { data, error } = await this.supabaseService
+      .getSupabaseClient()
+      .from(this.tableName)
+      .update(item) // Accepts full item data
       .eq(idColumn, id)
       .select('*')
       .single();

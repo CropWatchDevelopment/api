@@ -17,10 +17,10 @@ export class DataController {
     private readonly deviceTypeService: CwDeviceTypeService,
   ) { }
 
-  @Post()
-  create(@Body() createDatumDto: CreateDatumDto) {
-    return this.dataService.create(createDatumDto);
-  }
+  // @Post()
+  // create(@Body() createDatumDto: CreateDatumDto) {
+  //   return this.dataService.create(createDatumDto);
+  // }
 
   @ApiOperation({ summary: 'Retrieve data with filters and pagination' })
   @ApiQuery({ name: 'DevEui', required: false, type: String, description: 'Device EUI to filter data by specific device.' })
@@ -42,10 +42,10 @@ export class DataController {
     return this.dataService.findAll({ devEui, skip, take, order }, req.user.email);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.dataService.findOne(+id);
-  }
+  // @Get(':id')
+  // findOne(@Param('id') id: string) {
+  //   return this.dataService.findOne(+id);
+  // }
 
   // @Patch(':id')
   // update(@Param('id') id: string, @Body() updateDatumDto: UpdateDatumDto) {
