@@ -35,19 +35,42 @@ export class PdfService {
         if (!devEui) {
             throw new Error('DevEui is required');
         }
-        
+
+        const { reportString, reportData } = await this.fetchDataAndReportFromDB(devEui, user_id);
+        const reportJson = this.insertDataIntoReport(reportString, reportData);
+
+        const printer: PdfPrinter = new PdfPrinter(this.fonts);
+        const docDefinition: TDocumentDefinitions = reportJson; // `report` is already an object
+
+        return new Promise((resolve, reject) => {
+            const pdfDoc = printer.createPdfKitDocument(docDefinition);
+            const chunks: Buffer[] = [];
+
+            pdfDoc.on('data', (chunk) => chunks.push(chunk));
+            pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
+            pdfDoc.on('error', reject);
+
+            pdfDoc.end();
+        });
+    }
+
+    private async fetchDataAndReportFromDB(devEui: string, user_id: string) {
         // Fetch data from correct type (no clue how to map it later though....)
-        const data: any[] = await this.dataService.findAll({
+        const reportData: any[] = await this.dataService.findAll({
             devEui,
             skip: 0,
             take: 10,
             order: 'ASC',
         }, user_id);
-    
+
 
         let reportJsonResponse = await this.reportsTemplatesService.getReportTemplateByDevEui(devEui);
-        let reportJson = JSON.stringify(reportJsonResponse.template);
-    
+        let reportString = JSON.stringify(reportJsonResponse.template);
+        return { reportString, reportData };
+    }
+
+    private insertDataIntoReport(reportJson: string, data: any[]) {
+
         // Prepare data rows for the table
         const dataRows = data.map(item => [
             item.id,
@@ -59,29 +82,15 @@ export class PdfService {
             item.dev_eui,
             item.profile_id
         ]);
-    
-        // Replace `{{dev_eui}}` placeholder with actual `dev_eui` value
-        reportJson = reportJson.replace(/{{dev_eui}}/g, data[0]?.dev_eui || '');
-    
+
         // Parse JSON and directly insert `dataRows` as an array
+        reportJson = reportJson.replace(/{{dev_eui}}/g, data[0]?.dev_eui || '');
         const report = JSON.parse(reportJson); // Parse to an object only once
         report.content[2].table.body = [
             report.content[2].table.body[0], // Header row
             ...dataRows                      // Data rows
         ];
-    
-        const printer: PdfPrinter = new PdfPrinter(this.fonts);
-        const docDefinition: TDocumentDefinitions = report; // `report` is already an object
-    
-        return new Promise((resolve, reject) => {
-            const pdfDoc = printer.createPdfKitDocument(docDefinition);
-            const chunks: Buffer[] = [];
-    
-            pdfDoc.on('data', (chunk) => chunks.push(chunk));
-            pdfDoc.on('end', () => resolve(Buffer.concat(chunks)));
-            pdfDoc.on('error', reject);
-    
-            pdfDoc.end();
-        });
+
+        return report;
     }
 }
