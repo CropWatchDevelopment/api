@@ -31,21 +31,26 @@ export class AuthService {
     }
   }
 
-  async validateApiKey(apiKey: string): Promise<boolean> {
+  async validateApiKey(apiKey: string): Promise<string> {
     // Here you would implement logic to validate the API key
     // For now, we assume a hardcoded valid key for demonstration purposes
 
-    let { data: api_keys, error } = await this.supabase
+    let { data: user_api_keys, error } = await this.supabase
       .from('api_keys')
       .select('*')
       .eq('api_key', apiKey)
-      .gt('expiry_date', new Date())
+      .gt('expires_at', new Date().toISOString())
       .single();
 
     if (error) {
       throw new UnauthorizedException('Invalid API key');
     }
-    return api_keys;
+
+    if (!user_api_keys) {
+      throw new UnauthorizedException('API key not found');
+    }
+
+    return user_api_keys.owner_id;
   }
 
   // Function to sign in with email and password

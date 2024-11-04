@@ -21,8 +21,20 @@ export class JwtAuthGuard implements CanActivate {
             // Skip guard if the endpoint is marked as public
             return true;
         }
-
+        
         const request = context.switchToHttp().getRequest();
+        request.user = {}; // Initialize user object on request
+        const apiKey = request.headers['x-api-key'];
+        if (apiKey) {
+            const isValidApiKey = await this.authService.validateApiKey(apiKey);
+            if (!isValidApiKey) {
+                throw new UnauthorizedException('Invalid API key');
+            }
+            request.user.id = isValidApiKey;
+            return true; // Allow access if API key is valid
+        }
+
+        // If no API key, check for Bearer token
         const token = this.extractTokenFromHeader(request);
         if (!token) {
             throw new UnauthorizedException('Token not found');

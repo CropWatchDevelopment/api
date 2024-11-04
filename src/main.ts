@@ -34,7 +34,7 @@ function getSwaggerConfig(version: string) {
     .setExternalDoc('CropWatch Knowledge-Base', 'https://kb.cropwatch.io')
     .setLicense('MIT License', 'https://opensource.org/licenses/MIT')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
-    .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' })
+    .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'x-api-key')
     .build();
   return config;
 }

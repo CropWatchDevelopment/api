@@ -9,17 +9,17 @@ export class SupabaseAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    // const apiKey = request.headers['x-api-key'];
+    const apiKey = request.headers['x-api-key'];
     const authHeader = request.headers['authorization'];
 
     // Check if API key is provided
-    // if (apiKey) {
-    //   const isValidApiKey = await this.authService.validateApiKey(apiKey);
-    //   if (!isValidApiKey) {
-    //     throw new UnauthorizedException('Invalid API key');
-    //   }
-    //   return true;
-    // }
+    if (apiKey) {
+      const isValidApiKey = await this.authService.validateApiKey(apiKey);
+      if (!isValidApiKey) {
+        throw new UnauthorizedException('Invalid API key');
+      }
+      return true;
+    }
 
     // If no API key, check for Bearer token
     if (!authHeader) {

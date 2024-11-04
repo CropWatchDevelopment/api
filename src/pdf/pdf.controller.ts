@@ -1,6 +1,6 @@
 // pdf.controller.ts
 import { Controller, Get, Res, UseGuards, Req, Body, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { PdfService } from './pdf.service';
 import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
@@ -11,6 +11,7 @@ export class PdfController {
     constructor(private readonly pdfService: PdfService) {}
 
     @Get()
+    @ApiSecurity('x-api-key', ['x-api-key'])
     @ApiBearerAuth('JWT')
     @UseGuards(SupabaseAuthGuard)
     async getFile(
