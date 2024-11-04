@@ -24,9 +24,16 @@ export class PdfService {
         },
     };
 
-    public async createPdfBinary(user_id: string): Promise<Buffer> {
+    public async createPdfBinary(user_id: string, devEui: string): Promise<Buffer> {
+        if (!user_id) {
+            throw new Error('User ID is required');
+        }
+        if (!devEui) {
+            throw new Error('DevEui is required');
+        }
+        
         const data: any[] = await this.dataService.findAll({
-            devEui: '373632336F32840A',
+            devEui,
             skip: 0,
             take: 10,
             order: 'ASC',
