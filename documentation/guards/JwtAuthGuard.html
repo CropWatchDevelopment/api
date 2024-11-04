@@ -315,8 +315,8 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="40"
-                                    class="link-to-prism">src/auth/guards/jwt-auth.guard.ts:40</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="52"
+                                    class="link-to-prism">src/auth/guards/jwt-auth.guard.ts:52</a></div>
                         </td>
                     </tr>
 
@@ -385,8 +385,20 @@ export class JwtAuthGuard implements CanActivate {
             // Skip guard if the endpoint is marked as public
             return true;
         }
-
+        
         const request &#x3D; context.switchToHttp().getRequest();
+        request.user &#x3D; {}; // Initialize user object on request
+        const apiKey &#x3D; request.headers[&#x27;x-api-key&#x27;];
+        if (apiKey) {
+            const isValidApiKey &#x3D; await this.authService.validateApiKey(apiKey);
+            if (!isValidApiKey) {
+                throw new UnauthorizedException(&#x27;Invalid API key&#x27;);
+            }
+            request.user.id &#x3D; isValidApiKey;
+            return true; // Allow access if API key is valid
+        }
+
+        // If no API key, check for Bearer token
         const token &#x3D; this.extractTokenFromHeader(request);
         if (!token) {
             throw new UnauthorizedException(&#x27;Token not found&#x27;);

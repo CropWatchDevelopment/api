@@ -144,7 +144,7 @@
                             <li>
                                     <span class="modifier">Public</span>
                                     <span class="modifier">Async</span>
-                                <a href="#getDeviceOwnerByDevEuiAndEmail" >getDeviceOwnerByDevEuiAndEmail</a>
+                                <a href="#getDeviceOwnerByDevEuiAndUID" >getDeviceOwnerByDevEuiAndUID</a>
                             </li>
                             <li>
                                     <span class="modifier">Async</span>
@@ -236,19 +236,19 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="getDeviceOwnerByDevEuiAndEmail"></a>
+                    <a name="getDeviceOwnerByDevEuiAndUID"></a>
                     <span class="name">
                             <span class="modifier">Public</span>
                             <span class="modifier">Async</span>
-                        <span ><b>getDeviceOwnerByDevEuiAndEmail</b></span>
-                        <a href="#getDeviceOwnerByDevEuiAndEmail"><span class="icon ion-ios-link"></span></a>
+                        <span ><b>getDeviceOwnerByDevEuiAndUID</b></span>
+                        <a href="#getDeviceOwnerByDevEuiAndUID"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
                         <span class="modifier-icon icon ion-ios-reset"></span>
-                    <code>getDeviceOwnerByDevEuiAndEmail(devEui: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>, email: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
+                    <code>getDeviceOwnerByDevEuiAndUID(devEui: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>, user_id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
                 </td>
             </tr>
 
@@ -289,7 +289,7 @@
 
                                         </tr>
                                         <tr>
-                                                <td>email</td>
+                                                <td>user_id</td>
                                             <td>
                                                             <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
                                             </td>
@@ -692,8 +692,8 @@ export class CwDeviceOwnersService extends BaseService&lt;DeviceOwnerRow, Create
     super(deviceOwnerRepository);
   }
 
-  public async getDeviceOwnerByDevEuiAndEmail(devEui: string, email: string): Promise&lt;DeviceOwnerRow&gt; {
-    return this.deviceOwnerRepository.findByDevEuiAndEmail(devEui, email);
+  public async getDeviceOwnerByDevEuiAndUID(devEui: string, user_id: string): Promise&lt;DeviceOwnerRow&gt; {
+    return this.deviceOwnerRepository.findByDevEuiAndUID(devEui, user_id);
   }
 }</code></pre>
     </div>

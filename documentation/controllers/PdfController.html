@@ -79,93 +79,129 @@
                    <compodoc-menu mode="normal"></compodoc-menu>
                </div>
                <!-- START CONTENT -->
-               <div class="content miscellaneous-functions">
+               <div class="content controller">
                    <div class="content-data">
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 <ol class="breadcrumb">
-  <li class="breadcrumb-item">Miscellaneous</li>
-  <li class="breadcrumb-item">Functions</li>
+  <li class="breadcrumb-item">Controllers</li>
+  <li class="breadcrumb-item" >PdfController</li>
 </ol>
 
-<section data-compodoc="block-index">
+<ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item">
+            <a href="#info" 
+                class="nav-link"
+                class="nav-link active"
+                role="tab" id="info-tab" data-bs-toggle="tab" data-link="info">Info</a>
+        </li>
+        <li class="nav-item">
+            <a href="#source" 
+                class="nav-link"
+                
+                role="tab" id="source-tab" data-bs-toggle="tab" data-link="source">Source</a>
+        </li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane fade active in" id="info">
+        <p class="comment">
+            <h3>File</h3>
+        </p>
+        <p class="comment">
+            <code>src/pdf/pdf.controller.ts</code>
+        </p>
+
+            <p class="comment">
+                <h3>Prefix</h3>
+            </p>
+            <p class="comment">
+                <code>pdf</code>
+            </p>
+
+
+
+
+
+
+            <section data-compodoc="block-index">
     <h3 id="index">Index</h3>
     <table class="table table-sm table-bordered index-table">
         <tbody>
-            <tr>
-                <td class="col-md-4">
-                    <ul class="index-list">
-                        <li>
-                            <a href="#bootstrap" title="src/main.ts" ><b>bootstrap</b>&nbsp;&nbsp;&nbsp;(src/.../main.ts)</a>
-                        </li>
-                        <li>
-                            <a href="#getSwaggerConfig" title="src/main.ts" ><b>getSwaggerConfig</b>&nbsp;&nbsp;&nbsp;(src/.../main.ts)</a>
-                        </li>
-                    </ul>
-                </td>
-            </tr>
+
+                <tr>
+                    <td class="col-md-4">
+                        <h6><b>Methods</b></h6>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="col-md-4">
+                        <ul class="index-list">
+                            <li>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier">Async</span>
+                                <a href="#getFile" >getFile</a>
+                            </li>
+                        </ul>
+                    </td>
+                </tr>
+
+
+
+
+
         </tbody>
     </table>
 </section>
 
-    <h3>src/main.ts</h3>
-    <section data-compodoc="block-methods">
-    <h3></h3>    <table class="table table-sm table-bordered">
-        <tbody>
-            <tr>
-                <td class="col-md-4">
-                    <a name="bootstrap"></a>
-                    <span class="name">
-                        <span ><b>bootstrap</b></span>
-                        <a href="#bootstrap"><span class="icon ion-ios-link"></span></a>
-                    </span>
-                </td>
-            </tr>
-            <tr>
-                <td class="col-md-4">
-<code>bootstrap()</code>
-                </td>
-            </tr>
-
-
-
-
-        </tbody>
-    </table>
+            <section data-compodoc="block-methods">
+    
+    <h3 id="methods">
+        Methods
+    </h3>
     <table class="table table-sm table-bordered">
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="getSwaggerConfig"></a>
+                    <a name="getFile"></a>
                     <span class="name">
-                        <span ><b>getSwaggerConfig</b></span>
-                        <a href="#getSwaggerConfig"><span class="icon ion-ios-link"></span></a>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier">Async</span>
+                        <span ><b>getFile</b></span>
+                        <a href="#getFile"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
-<code>getSwaggerConfig(version: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>getFile(res: Response, req, devEui: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
                 </td>
             </tr>
 
+            <tr>
+                <td class="col-md-4">
+                    <b>Decorators : </b>
+                    <br />
+                    <code>@Get()<br />@ApiSecurity(&#x27;x-api-key&#x27;, [&#x27;x-api-key&#x27;])<br />@ApiBearerAuth(&#x27;JWT&#x27;)<br />@UseGuards(SupabaseAuthGuard)<br /></code>
+                </td>
+            </tr>
 
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Defined in <a href="" data-line="17"
+                                    class="link-to-prism">src/pdf/pdf.controller.ts:17</a></div>
+                        </td>
+                    </tr>
 
 
             <tr>
@@ -184,7 +220,30 @@
                                     </thead>
                                     <tbody>
                                         <tr>
-                                                <td>version</td>
+                                                <td>res</td>
+                                            <td>
+                                                        <code>Response</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                        <tr>
+                                                <td>req</td>
+                                            <td>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                        <tr>
+                                                <td>devEui</td>
                                             <td>
                                                             <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
                                             </td>
@@ -198,11 +257,73 @@
                                     </tbody>
                                 </table>
                             </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;void&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
                 </td>
             </tr>
         </tbody>
     </table>
-</section>
+</section>    </div>
+
+
+    <div class="tab-pane fade  tab-source-code" id="source">
+        <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">// pdf.controller.ts
+import { Controller, Get, Res, UseGuards, Req, Body, Query } from &#x27;@nestjs/common&#x27;;
+import { ApiBearerAuth, ApiSecurity, ApiTags } from &#x27;@nestjs/swagger&#x27;;
+import { Response } from &#x27;express&#x27;;
+import { PdfService } from &#x27;./pdf.service&#x27;;
+import { SupabaseAuthGuard } from &#x27;src/auth/guards/supabase.guard&#x27;;
+
+@ApiTags(&#x27;📄 PDF - Serve a PDF file&#x27;)
+@Controller(&#x27;pdf&#x27;)
+export class PdfController {
+    constructor(private readonly pdfService: PdfService) {}
+
+    @Get()
+    @ApiSecurity(&#x27;x-api-key&#x27;, [&#x27;x-api-key&#x27;])
+    @ApiBearerAuth(&#x27;JWT&#x27;)
+    @UseGuards(SupabaseAuthGuard)
+    async getFile(
+        @Res() res: Response,
+        @Req() req,
+        @Query(&#x27;devEui&#x27;) devEui: string
+    ): Promise&lt;void&gt; {
+        
+        const user_id &#x3D; req.user.id;
+        
+        const pdfBuffer &#x3D; await this.pdfService.createPdfBinary(user_id, devEui);
+        
+        res.set({
+            &#x27;Content-Type&#x27;: &#x27;application/pdf&#x27;,
+            &#x27;Content-Disposition&#x27;: &#x27;attachment; filename&#x3D;&quot;report.pdf&quot;&#x27;,
+            &#x27;Content-Length&#x27;: pdfBuffer.length,
+        });
+
+        res.send(pdfBuffer);
+    }
+}
+</code></pre>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
                    </div><div class="search-results">
@@ -230,8 +351,8 @@
 
        <script>
             var COMPODOC_CURRENT_PAGE_DEPTH = 1;
-            var COMPODOC_CURRENT_PAGE_CONTEXT = 'miscellaneous-functions';
-            var COMPODOC_CURRENT_PAGE_URL = 'functions.html';
+            var COMPODOC_CURRENT_PAGE_CONTEXT = 'controller';
+            var COMPODOC_CURRENT_PAGE_URL = 'PdfController.html';
             var MAX_SEARCH_RESULTS = 15;
        </script>
 

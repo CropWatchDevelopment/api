@@ -235,7 +235,7 @@
 
     <div class="tab-pane fade  tab-source-code" id="source">
         <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { Get, Post, Body, UseInterceptors } from &#x27;@nestjs/common&#x27;;
-import { ApiOperation } from &#x27;@nestjs/swagger&#x27;;
+import { ApiOperation, ApiResponse } from &#x27;@nestjs/swagger&#x27;;
 
 export interface BaseServiceInterface&lt;T, CreateDto&gt; {
   findAll: () &#x3D;&gt; Promise&lt;T[]&gt;;
@@ -245,12 +245,22 @@ export interface BaseServiceInterface&lt;T, CreateDto&gt; {
 export class BaseController&lt;T, CreateDto&gt; {
   constructor(private readonly service: BaseServiceInterface&lt;T, CreateDto&gt;) {}
 
+  @ApiResponse({ status: 200, description: &#x27;OK&#x27; })
+  @ApiResponse({ status: 400, description: &#x27;Bad Request&#x27; })
+  @ApiResponse({ status: 401, description: &#x27;Unauthorized&#x27; })
+  @ApiResponse({ status: 402, description: &#x27;Payment Required&#x27; })
+  @ApiResponse({ status: 403, description: &#x27;Forbidden&#x27; })
   @ApiOperation({ summary: &#x27;Get all items&#x27; })
   @Get()
   async findAll(): Promise&lt;T[]&gt; {
     return this.service.findAll();
   }
 
+  @ApiResponse({ status: 201, description: &#x27;Content Created&#x27; })
+  @ApiResponse({ status: 400, description: &#x27;Bad Request&#x27; })
+  @ApiResponse({ status: 401, description: &#x27;Unauthorized&#x27; })
+  @ApiResponse({ status: 402, description: &#x27;Payment Required&#x27; })
+  @ApiResponse({ status: 403, description: &#x27;Forbidden&#x27; })
   @ApiOperation({ summary: &#x27;Create a new item&#x27; })
   @Post()
   async create(@Body() createDto: CreateDto): Promise&lt;T&gt; {

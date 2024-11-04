@@ -18,7 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "update-types": "npx supabase gen types --lang=typescript --project-id 'dpaoqrcfswnzknixwkll' --schema public > database.types.ts"
+    "update-types": "npx supabase gen types --lang=typescript --project-id 'dpaoqrcfswnzknixwkll' --schema public > database.types.ts",
+    "compodoc": "npx @compodoc/compodoc -p tsconfig.json -s"
   },
   "dependencies": {
     "@nestjs/axios": "^3.1.1",

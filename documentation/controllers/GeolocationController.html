@@ -190,7 +190,7 @@
                 <td class="col-md-4">
                     <b>Decorators : </b>
                     <br />
-                    <code>@ApiBearerAuth(&#x27;XYZ&#x27;)<br />@Get(&#x27;address&#x27;)<br />@UseGuards(SupabaseAuthGuard)<br /></code>
+                    <code>@ApiBearerAuth(&#x27;JWT&#x27;)<br />@Get(&#x27;address&#x27;)<br />@UseGuards(SupabaseAuthGuard)<br /></code>
                 </td>
             </tr>
 
@@ -227,11 +227,11 @@ import { GeolocationService } from &#x27;./geolocation.service&#x27;;
 export class GeolocationController {
     constructor(private readonly geoLocationService: GeolocationService) { }
 
-    @ApiBearerAuth(&#x27;XYZ&#x27;)
+    @ApiBearerAuth(&#x27;JWT&#x27;)
     @Get(&#x27;address&#x27;)
     @UseGuards(SupabaseAuthGuard)
     async getProtectedRoute() {
-        const location &#x3D; await this.geoLocationService.getGeolocation(&#x27;45 huntington ave, boston, ma&#x27;);
+        const location &#x3D; await this.geoLocationService.getGeolocation(&#x27;Africa House, 70 Kingsway, London WC2B 6AH, United Kingdom&#x27;);
         return { message: &#x27;Geolocation fetched&#x27;, location };
     }
 

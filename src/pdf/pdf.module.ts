@@ -1,16 +1,12 @@
 import { Module } from '@nestjs/common';
 import { PdfController } from './pdf.controller';
 import { PdfService } from './pdf.service';
-import { ServeStaticModule } from '@nestjs/serve-static';
-import { join } from 'path';
 import { DataService } from 'src/data/data.service';
-import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
 import { DataModule } from 'src/data/data.module';
 import { CwDevicesModule } from 'src/cw_devices/cw_devices.module';
 import { CwDeviceTypeModule } from 'src/cw_device_type/cw_device_type.module';
 import { CwDeviceOwnersModule } from 'src/cw_device_owners/cw_device_owners.module';
 import { AuthService } from 'src/auth/auth.service';
-import { ReportsTemplatesService } from 'src/reports_templates/reports_templates.service';
 import { ReportsTemplatesModule } from 'src/reports_templates/reports_templates.module';
 
 @Module({
@@ -20,9 +16,6 @@ import { ReportsTemplatesModule } from 'src/reports_templates/reports_templates.
     CwDeviceTypeModule,
     CwDeviceOwnersModule,
     ReportsTemplatesModule,
-    // ServeStaticModule.forRoot({
-    //   rootPath: join(__dirname, './', 'fonts'),
-    // }),
   ],
   controllers: [PdfController],
   providers: [
@@ -32,4 +25,4 @@ import { ReportsTemplatesModule } from 'src/reports_templates/reports_templates.
     AuthService,
   ]
 })
-export class PdfModule {}
+export class PdfModule { }

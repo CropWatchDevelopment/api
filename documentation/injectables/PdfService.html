@@ -91,7 +91,7 @@
 
 <ol class="breadcrumb">
   <li class="breadcrumb-item">Injectables</li>
-  <li class="breadcrumb-item" >DataService</li>
+  <li class="breadcrumb-item" >PdfService</li>
 </ol>
 
 <ul class="nav nav-tabs" role="tablist">
@@ -115,7 +115,7 @@
             <h3>File</h3>
         </p>
         <p class="comment">
-            <code>src/data/data.service.ts</code>
+            <code>src/pdf/pdf.service.ts</code>
         </p>
 
 
@@ -126,6 +126,21 @@
     <h3 id="index">Index</h3>
     <table class="table table-sm table-bordered index-table">
         <tbody>
+                <tr>
+                    <td class="col-md-4">
+                        <h6><b>Properties</b></h6>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="col-md-4">
+                        <ul class="index-list">
+                            <li>
+                                    <span class="modifier">Private</span>
+                                <a href="#fonts" >fonts</a>
+                            </li>
+                        </ul>
+                    </td>
+                </tr>
 
                 <tr>
                     <td class="col-md-4">
@@ -136,20 +151,18 @@
                     <td class="col-md-4">
                         <ul class="index-list">
                             <li>
-                                <a href="#create" >create</a>
-                            </li>
-                            <li>
+                                    <span class="modifier">Public</span>
                                     <span class="modifier">Async</span>
-                                <a href="#findAll" >findAll</a>
+                                <a href="#createPdfBinary" >createPdfBinary</a>
                             </li>
                             <li>
-                                <a href="#findOne" >findOne</a>
+                                    <span class="modifier">Private</span>
+                                    <span class="modifier">Async</span>
+                                <a href="#fetchDataAndReportFromDB" >fetchDataAndReportFromDB</a>
                             </li>
                             <li>
-                                <a href="#remove" >remove</a>
-                            </li>
-                            <li>
-                                <a href="#update" >update</a>
+                                    <span class="modifier">Private</span>
+                                <a href="#insertDataIntoReport" >insertDataIntoReport</a>
                             </li>
                         </ul>
                     </td>
@@ -169,12 +182,12 @@
             <tbody>
                 <tr>
                     <td class="col-md-4">
-<code>constructor(deviceService: <a href="../injectables/CwDevicesService.html" target="_self">CwDevicesService</a>, deviceTypeService: <a href="../injectables/CwDeviceTypeService.html" target="_self">CwDeviceTypeService</a>, deviceOwnerService: <a href="../injectables/CwDeviceOwnersService.html" target="_self">CwDeviceOwnersService</a>, dataRepository: <a href="../injectables/DataRepository.html" target="_self">DataRepository</a>)</code>
+<code>constructor(dataService: <a href="../injectables/DataService.html" target="_self">DataService</a>, reportsTemplatesService: <a href="../injectables/ReportsTemplatesService.html" target="_self">ReportsTemplatesService</a>)</code>
                     </td>
                 </tr>
                         <tr>
                             <td class="col-md-4">
-                                <div class="io-line">Defined in <a href="" data-line="19" class="link-to-prism">src/data/data.service.ts:19</a></div>
+                                <div class="io-line">Defined in <a href="" data-line="10" class="link-to-prism">src/pdf/pdf.service.ts:10</a></div>
                             </td>
                         </tr>
 
@@ -192,10 +205,10 @@
                                         </thead>
                                         <tbody>
                                                 <tr>
-                                                        <td>deviceService</td>
+                                                        <td>dataService</td>
                                                   
                                                         <td>
-                                                                        <code><a href="../injectables/CwDevicesService.html" target="_self" >CwDevicesService</a></code>
+                                                                        <code><a href="../injectables/DataService.html" target="_self" >DataService</a></code>
                                                         </td>
                                                   
                                                     <td>
@@ -204,34 +217,10 @@
                                                     
                                                 </tr>
                                                 <tr>
-                                                        <td>deviceTypeService</td>
+                                                        <td>reportsTemplatesService</td>
                                                   
                                                         <td>
-                                                                        <code><a href="../injectables/CwDeviceTypeService.html" target="_self" >CwDeviceTypeService</a></code>
-                                                        </td>
-                                                  
-                                                    <td>
-                                                            No
-                                                    </td>
-                                                    
-                                                </tr>
-                                                <tr>
-                                                        <td>deviceOwnerService</td>
-                                                  
-                                                        <td>
-                                                                        <code><a href="../injectables/CwDeviceOwnersService.html" target="_self" >CwDeviceOwnersService</a></code>
-                                                        </td>
-                                                  
-                                                    <td>
-                                                            No
-                                                    </td>
-                                                    
-                                                </tr>
-                                                <tr>
-                                                        <td>dataRepository</td>
-                                                  
-                                                        <td>
-                                                                        <code><a href="../injectables/DataRepository.html" target="_self" >DataRepository</a></code>
+                                                                        <code><a href="../injectables/ReportsTemplatesService.html" target="_self" >ReportsTemplatesService</a></code>
                                                         </td>
                                                   
                                                     <td>
@@ -257,85 +246,19 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="create"></a>
+                    <a name="createPdfBinary"></a>
                     <span class="name">
-                        <span ><b>create</b></span>
-                        <a href="#create"><span class="icon ion-ios-link"></span></a>
-                    </span>
-                </td>
-            </tr>
-            <tr>
-                <td class="col-md-4">
-<code>create(createDatumDto: <a href="../classes/CreateDatumDto.html" target="_self">CreateDatumDto</a>)</code>
-                </td>
-            </tr>
-
-
-                    <tr>
-                        <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="27"
-                                    class="link-to-prism">src/data/data.service.ts:27</a></div>
-                        </td>
-                    </tr>
-
-
-            <tr>
-                <td class="col-md-4">
-
-                            <div class="io-description">
-                                <b>Parameters :</b>
-                                
-                                <table class="params">
-                                    <thead>
-                                        <tr>
-                                            <td>Name</td>
-                                                <td>Type</td>
-                                            <td>Optional</td>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                                <td>createDatumDto</td>
-                                            <td>
-                                                            <code><a href="../classes/CreateDatumDto.html" target="_self" >CreateDatumDto</a></code>
-                                            </td>
-
-                                            <td>
-                                                    No
-                                            </td>
-
-
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
-
-                        </div>
-                            <div class="io-description">
-                                
-                            </div>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-    <table class="table table-sm table-bordered">
-        <tbody>
-            <tr>
-                <td class="col-md-4">
-                    <a name="findAll"></a>
-                    <span class="name">
+                            <span class="modifier">Public</span>
                             <span class="modifier">Async</span>
-                        <span ><b>findAll</b></span>
-                        <a href="#findAll"><span class="icon ion-ios-link"></span></a>
+                        <span ><b>createPdfBinary</b></span>
+                        <a href="#createPdfBinary"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
                         <span class="modifier-icon icon ion-ios-reset"></span>
-                    <code>findAll(params: <a href="../interfaces/FindAllParams.html" target="_self">FindAllParams</a>, email: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
+                    <code>createPdfBinary(user_id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>, devEui: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
                 </td>
             </tr>
 
@@ -343,7 +266,7 @@
                     <tr>
                         <td class="col-md-4">
                             <div class="io-line">Defined in <a href="" data-line="31"
-                                    class="link-to-prism">src/data/data.service.ts:31</a></div>
+                                    class="link-to-prism">src/pdf/pdf.service.ts:31</a></div>
                         </td>
                     </tr>
 
@@ -364,9 +287,9 @@
                                     </thead>
                                     <tbody>
                                         <tr>
-                                                <td>params</td>
+                                                <td>user_id</td>
                                             <td>
-                                                            <code><a href="../interfaces/FindAllParams.html" target="_self" >FindAllParams</a></code>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
                                             </td>
 
                                             <td>
@@ -376,7 +299,7 @@
 
                                         </tr>
                                         <tr>
-                                                <td>email</td>
+                                                <td>devEui</td>
                                             <td>
                                                             <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
                                             </td>
@@ -391,7 +314,7 @@
                                 </table>
                             </div>
                         <div class="io-description">
-                            <b>Returns : </b>    <code>Promise&lt;any&gt;</code>
+                            <b>Returns : </b>    <code>Promise&lt;Buffer&gt;</code>
 
                         </div>
                             <div class="io-description">
@@ -405,24 +328,27 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="findOne"></a>
+                    <a name="fetchDataAndReportFromDB"></a>
                     <span class="name">
-                        <span ><b>findOne</b></span>
-                        <a href="#findOne"><span class="icon ion-ios-link"></span></a>
+                            <span class="modifier">Private</span>
+                            <span class="modifier">Async</span>
+                        <span ><b>fetchDataAndReportFromDB</b></span>
+                        <a href="#fetchDataAndReportFromDB"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
-<code>findOne(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>)</code>
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>fetchDataAndReportFromDB(devEui: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>, user_id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
                 </td>
             </tr>
 
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="61"
-                                    class="link-to-prism">src/data/data.service.ts:61</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="57"
+                                    class="link-to-prism">src/pdf/pdf.service.ts:57</a></div>
                         </td>
                     </tr>
 
@@ -443,9 +369,21 @@
                                     </thead>
                                     <tbody>
                                         <tr>
-                                                <td>id</td>
+                                                <td>devEui</td>
                                             <td>
-                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                        <tr>
+                                                <td>user_id</td>
+                                            <td>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
                                             </td>
 
                                             <td>
@@ -458,7 +396,7 @@
                                 </table>
                             </div>
                         <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
+                            <b>Returns : </b>    <code>unknown</code>
 
                         </div>
                             <div class="io-description">
@@ -472,24 +410,26 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="remove"></a>
+                    <a name="insertDataIntoReport"></a>
                     <span class="name">
-                        <span ><b>remove</b></span>
-                        <a href="#remove"><span class="icon ion-ios-link"></span></a>
+                            <span class="modifier">Private</span>
+                        <span ><b>insertDataIntoReport</b></span>
+                        <a href="#insertDataIntoReport"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
-<code>remove(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>)</code>
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>insertDataIntoReport(reportJson: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>, data: any[])</code>
                 </td>
             </tr>
 
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="69"
-                                    class="link-to-prism">src/data/data.service.ts:69</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="72"
+                                    class="link-to-prism">src/pdf/pdf.service.ts:72</a></div>
                         </td>
                     </tr>
 
@@ -510,76 +450,9 @@
                                     </thead>
                                     <tbody>
                                         <tr>
-                                                <td>id</td>
+                                                <td>reportJson</td>
                                             <td>
-                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
-                                            </td>
-
-                                            <td>
-                                                    No
-                                            </td>
-
-
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
-
-                        </div>
-                            <div class="io-description">
-                                
-                            </div>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-    <table class="table table-sm table-bordered">
-        <tbody>
-            <tr>
-                <td class="col-md-4">
-                    <a name="update"></a>
-                    <span class="name">
-                        <span ><b>update</b></span>
-                        <a href="#update"><span class="icon ion-ios-link"></span></a>
-                    </span>
-                </td>
-            </tr>
-            <tr>
-                <td class="col-md-4">
-<code>update(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>, updateDatumDto: <a href="../classes/UpdateDatumDto.html" target="_self">UpdateDatumDto</a>)</code>
-                </td>
-            </tr>
-
-
-                    <tr>
-                        <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="65"
-                                    class="link-to-prism">src/data/data.service.ts:65</a></div>
-                        </td>
-                    </tr>
-
-
-            <tr>
-                <td class="col-md-4">
-
-                            <div class="io-description">
-                                <b>Parameters :</b>
-                                
-                                <table class="params">
-                                    <thead>
-                                        <tr>
-                                            <td>Name</td>
-                                                <td>Type</td>
-                                            <td>Optional</td>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                                <td>id</td>
-                                            <td>
-                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
                                             </td>
 
                                             <td>
@@ -589,9 +462,9 @@
 
                                         </tr>
                                         <tr>
-                                                <td>updateDatumDto</td>
+                                                <td>data</td>
                                             <td>
-                                                            <code><a href="../classes/UpdateDatumDto.html" target="_self" >UpdateDatumDto</a></code>
+                                                        <code>any[]</code>
                                             </td>
 
                                             <td>
@@ -615,84 +488,158 @@
         </tbody>
     </table>
 </section>
+            <section data-compodoc="block-properties">
+    
+    <h3 id="inputs">
+        Properties
+    </h3>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="fonts"></a>
+                    <span class="name">
+                            <span class="modifier">Private</span>
+                        <span ><b>fonts</b></span>
+                        <a href="#fonts"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+                <tr>
+                    <td class="col-md-4">
+                        <i>Type : </i>    <code>TFontDictionary</code>
+
+                    </td>
+                </tr>
+                <tr>
+                    <td class="col-md-4">
+                        <i>Default value : </i><code>{
+        Roboto: {
+            normal: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Roboto/Roboto-Regular.ttf&#x27;),
+            bold: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Roboto/Roboto-Medium.ttf&#x27;),
+            italics: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Roboto/Roboto-Italic.ttf&#x27;),
+            bolditalics: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Roboto/Roboto-MediumItalic.ttf&#x27;),
+        },
+        Noto_Sans_JP: {
+            normal: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf&#x27;),
+            bold: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Medium.ttf&#x27;),
+            italics: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf&#x27;),
+            bolditalics: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf&#x27;),
+        },
+    }</code>
+                    </td>
+                </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in <a href="" data-line="16" class="link-to-prism">src/pdf/pdf.service.ts:16</a></div>
+                        </td>
+                    </tr>
+
+
+        </tbody>
+    </table>
+</section>
 
     </div>
 
 
     <div class="tab-pane fade  tab-source-code" id="source">
-        <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { BadRequestException, Injectable, NotAcceptableException, NotFoundException, NotImplementedException, Req } from &#x27;@nestjs/common&#x27;;
-import { CreateDatumDto } from &#x27;./dto/create-datum.dto&#x27;;
-import { UpdateDatumDto } from &#x27;./dto/update-datum.dto&#x27;;
-import { CwDevicesService } from &#x27;src/cw_devices/cw_devices.service&#x27;;
-import { CwDeviceTypeService } from &#x27;src/cw_device_type/cw_device_type.service&#x27;;
-import { Database } from &#x27;database.types&#x27;;
-import { DataRepository } from &#x27;src/repositories/data.repository&#x27;;
-import { CwDeviceOwnersService } from &#x27;src/cw_device_owners/cw_device_owners.service&#x27;;
+        <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { Injectable } from &#x27;@nestjs/common&#x27;;
+import { join } from &#x27;path&#x27;;
+import PdfPrinter from &#x27;pdfmake&#x27;;
+import { TDocumentDefinitions, TFontDictionary } from &#x27;pdfmake/build/pdfmake&#x27;;
+import { DataService } from &#x27;src/data/data.service&#x27;;
+import { ReportsTemplatesService } from &#x27;src/reports_templates/reports_templates.service&#x27;;
 
-
-export interface FindAllParams {
-  devEui?: string;
-  skip: number;
-  take: number;
-  order: &#x27;ASC&#x27; | &#x27;DESC&#x27;;
-}
 
 @Injectable()
-export class DataService {
-  constructor(
-    private readonly deviceService: CwDevicesService,
-    private readonly deviceTypeService: CwDeviceTypeService,
-    private readonly deviceOwnerService: CwDeviceOwnersService,
-    private readonly dataRepository: DataRepository,
-  ) { }
+export class PdfService {
+    constructor(
+        private readonly dataService: DataService,
+        private readonly reportsTemplatesService: ReportsTemplatesService
+    ) { }
 
-  create(createDatumDto: CreateDatumDto) {
-    return new NotImplementedException();
-  }
+    private fonts: TFontDictionary &#x3D; {
+        Roboto: {
+            normal: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Roboto/Roboto-Regular.ttf&#x27;),
+            bold: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Roboto/Roboto-Medium.ttf&#x27;),
+            italics: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Roboto/Roboto-Italic.ttf&#x27;),
+            bolditalics: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Roboto/Roboto-MediumItalic.ttf&#x27;),
+        },
+        Noto_Sans_JP: {
+            normal: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf&#x27;),
+            bold: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Medium.ttf&#x27;),
+            italics: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf&#x27;),
+            bolditalics: join(process.cwd(), &#x27;dist&#x27;, &#x27;&#x27;, &#x27;src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf&#x27;),
+        },
+    };
 
-  async findAll(params: FindAllParams, email: string): Promise&lt;any&gt; {
-    const { devEui, skip, take, order } &#x3D; params;
-    if (!devEui) {
-      return new BadRequestException(&#x27;DevEui is required&#x27;);
-    }
-    const deviceOwner &#x3D; await this.deviceOwnerService.getDeviceOwnerByDevEuiAndUID(devEui, email);
-    if (!deviceOwner) {
-      return new NotAcceptableException(&#x27;Device does not exist OR Device Owner not found&#x27;);
-    }
-    const device &#x3D; await this.deviceService.getDeviceByDevEui(devEui);
-    if (!device) {
-      return new NotFoundException(&#x27;Device not found&#x27;);
-    }
-    const deviceType &#x3D; device.type;
-    if (!deviceType) {
-      throw new NotFoundException(&#x27;Device type not found&#x27;);
-    }
-    const deviceTypeData &#x3D; await this.deviceTypeService.findById(deviceType);
-    if (!deviceTypeData) {
-      throw new NotFoundException(&#x27;Device type data not found&#x27;);
-    }
-    const data_table: string &#x3D; deviceTypeData.data_table;
-    if (!data_table) {
-      throw new NotFoundException(&#x27;Data table not found&#x27;);
-    }
-    //Data_table will contain the name of the datatable to query in the repo
-    const data &#x3D; this.dataRepository.findAllByTable(data_table, devEui, skip, take, order &#x3D;&#x3D; &#x27;ASC&#x27; ? true : false);
-    return data;
-  }
+    public async createPdfBinary(user_id: string, devEui: string): Promise&lt;Buffer&gt; {
+        if (!user_id) {
+            throw new Error(&#x27;User ID is required&#x27;);
+        }
+        if (!devEui) {
+            throw new Error(&#x27;DevEui is required&#x27;);
+        }
 
-  findOne(id: number) {
-    return new NotImplementedException();
-  }
+        const { reportString, reportData } &#x3D; await this.fetchDataAndReportFromDB(devEui, user_id);
+        const reportJson &#x3D; this.insertDataIntoReport(reportString, reportData);
 
-  update(id: number, updateDatumDto: UpdateDatumDto) {
-    return new NotImplementedException();
-  }
+        const printer: PdfPrinter &#x3D; new PdfPrinter(this.fonts);
+        const docDefinition: TDocumentDefinitions &#x3D; reportJson; // &#x60;report&#x60; is already an object
 
-  remove(id: number) {
-    return new NotImplementedException();
-  }
-}
-</code></pre>
+        return new Promise((resolve, reject) &#x3D;&gt; {
+            const pdfDoc &#x3D; printer.createPdfKitDocument(docDefinition);
+            const chunks: Buffer[] &#x3D; [];
+
+            pdfDoc.on(&#x27;data&#x27;, (chunk) &#x3D;&gt; chunks.push(chunk));
+            pdfDoc.on(&#x27;end&#x27;, () &#x3D;&gt; resolve(Buffer.concat(chunks)));
+            pdfDoc.on(&#x27;error&#x27;, reject);
+
+            pdfDoc.end();
+        });
+    }
+
+    private async fetchDataAndReportFromDB(devEui: string, user_id: string) {
+        // Fetch data from correct type (no clue how to map it later though....)
+        const reportData: any[] &#x3D; await this.dataService.findAll({
+            devEui,
+            skip: 0,
+            take: 10,
+            order: &#x27;ASC&#x27;,
+        }, user_id);
+
+
+        let reportJsonResponse &#x3D; await this.reportsTemplatesService.getReportTemplateByDevEui(devEui);
+        let reportString &#x3D; JSON.stringify(reportJsonResponse.template);
+        return { reportString, reportData };
+    }
+
+    private insertDataIntoReport(reportJson: string, data: any[]) {
+
+        // Prepare data rows for the table
+        const dataRows &#x3D; data.map(item &#x3D;&gt; [
+            item.id,
+            item.created_at,
+            item.dewPointC,
+            item.humidity,
+            item.temperatureC,
+            item.vpd,
+            item.dev_eui,
+            item.profile_id
+        ]);
+
+        // Parse JSON and directly insert &#x60;dataRows&#x60; as an array
+        reportJson &#x3D; reportJson.replace(/{{dev_eui}}/g, data[0]?.dev_eui || &#x27;&#x27;);
+        const report &#x3D; JSON.parse(reportJson); // Parse to an object only once
+        report.content[2].table.body &#x3D; [
+            report.content[2].table.body[0], // Header row
+            ...dataRows                      // Data rows
+        ];
+
+        return report;
+    }
+}</code></pre>
     </div>
 
 </div>
@@ -735,7 +682,7 @@ export class DataService {
        <script>
             var COMPODOC_CURRENT_PAGE_DEPTH = 1;
             var COMPODOC_CURRENT_PAGE_CONTEXT = 'injectable';
-            var COMPODOC_CURRENT_PAGE_URL = 'DataService.html';
+            var COMPODOC_CURRENT_PAGE_URL = 'PdfService.html';
             var MAX_SEARCH_RESULTS = 15;
        </script>
 

@@ -318,7 +318,7 @@
 
 
     <div class="tab-pane fade  tab-source-code" id="source">
-        <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { Injectable, Req } from &#x27;@nestjs/common&#x27;;
+        <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { BadRequestException, Injectable, NotAcceptableException, NotFoundException, NotImplementedException, Req } from &#x27;@nestjs/common&#x27;;
 import { CreateDatumDto } from &#x27;./dto/create-datum.dto&#x27;;
 import { UpdateDatumDto } from &#x27;./dto/update-datum.dto&#x27;;
 import { CwDevicesService } from &#x27;src/cw_devices/cw_devices.service&#x27;;
@@ -328,7 +328,7 @@ import { DataRepository } from &#x27;src/repositories/data.repository&#x27;;
 import { CwDeviceOwnersService } from &#x27;src/cw_device_owners/cw_device_owners.service&#x27;;
 
 
-interface FindAllParams {
+export interface FindAllParams {
   devEui?: string;
   skip: number;
   take: number;
@@ -342,36 +342,36 @@ export class DataService {
     private readonly deviceTypeService: CwDeviceTypeService,
     private readonly deviceOwnerService: CwDeviceOwnersService,
     private readonly dataRepository: DataRepository,
-  ) {}
+  ) { }
 
   create(createDatumDto: CreateDatumDto) {
-    return &#x27;This action adds a new datum&#x27;;
+    return new NotImplementedException();
   }
 
-  async findAll(params: FindAllParams, email: string) {
+  async findAll(params: FindAllParams, email: string): Promise&lt;any&gt; {
     const { devEui, skip, take, order } &#x3D; params;
     if (!devEui) {
-      return &#x27;DevEui is required&#x27;;
+      return new BadRequestException(&#x27;DevEui is required&#x27;);
     }
-    const deviceOwner &#x3D; await this.deviceOwnerService.getDeviceOwnerByDevEuiAndEmail(devEui, &#x27;&#x27;);
+    const deviceOwner &#x3D; await this.deviceOwnerService.getDeviceOwnerByDevEuiAndUID(devEui, email);
     if (!deviceOwner) {
-      return &#x27;Device does not exist OR Device Owner not found&#x27;;
+      return new NotAcceptableException(&#x27;Device does not exist OR Device Owner not found&#x27;);
     }
     const device &#x3D; await this.deviceService.getDeviceByDevEui(devEui);
     if (!device) {
-      return &#x27;Device not found&#x27;;
+      return new NotFoundException(&#x27;Device not found&#x27;);
     }
     const deviceType &#x3D; device.type;
     if (!deviceType) {
-      return &#x27;Device type not found&#x27;;
+      throw new NotFoundException(&#x27;Device type not found&#x27;);
     }
     const deviceTypeData &#x3D; await this.deviceTypeService.findById(deviceType);
     if (!deviceTypeData) {
-      return &#x27;Device type data not found&#x27;;
+      throw new NotFoundException(&#x27;Device type data not found&#x27;);
     }
     const data_table: string &#x3D; deviceTypeData.data_table;
     if (!data_table) {
-      return &#x27;Data table not found&#x27;;
+      throw new NotFoundException(&#x27;Data table not found&#x27;);
     }
     //Data_table will contain the name of the datatable to query in the repo
     const data &#x3D; this.dataRepository.findAllByTable(data_table, devEui, skip, take, order &#x3D;&#x3D; &#x27;ASC&#x27; ? true : false);
@@ -379,15 +379,15 @@ export class DataService {
   }
 
   findOne(id: number) {
-    return &#x60;This action returns a #${id} datum&#x60;;
+    return new NotImplementedException();
   }
 
   update(id: number, updateDatumDto: UpdateDatumDto) {
-    return &#x60;This action updates a #${id} datum&#x60;;
+    return new NotImplementedException();
   }
 
   remove(id: number) {
-    return &#x60;This action removes a #${id} datum&#x60;;
+    return new NotImplementedException();
   }
 }
 </code></pre>

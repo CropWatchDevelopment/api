@@ -186,7 +186,7 @@
                 <td class="col-md-4">
                     <b>Decorators : </b>
                     <br />
-                    <code>@Get()<br />@ApiBearerAuth(&#x27;XYZ&#x27;)<br /></code>
+                    <code>@Get()<br />@ApiBearerAuth(&#x27;JWT&#x27;)<br /></code>
                 </td>
             </tr>
 
@@ -249,7 +249,7 @@ export class ProfilesController {
   constructor(private readonly profilesService: ProfilesService) {}
   
   @Get()
-  @ApiBearerAuth(&#x27;XYZ&#x27;)
+  @ApiBearerAuth(&#x27;JWT&#x27;)
   findOne(@Req() req) {
     const id &#x3D; req.headers[&#x27;authorization&#x27;];
     return this.profilesService.findOne(id);

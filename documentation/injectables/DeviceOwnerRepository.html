@@ -144,7 +144,7 @@
                             <li>
                                     <span class="modifier">Public</span>
                                     <span class="modifier">Async</span>
-                                <a href="#findByDevEuiAndEmail" >findByDevEuiAndEmail</a>
+                                <a href="#findByDevEuiAndUID" >findByDevEuiAndUID</a>
                             </li>
                             <li>
                                     <span class="modifier">Async</span>
@@ -236,19 +236,19 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="findByDevEuiAndEmail"></a>
+                    <a name="findByDevEuiAndUID"></a>
                     <span class="name">
                             <span class="modifier">Public</span>
                             <span class="modifier">Async</span>
-                        <span ><b>findByDevEuiAndEmail</b></span>
-                        <a href="#findByDevEuiAndEmail"><span class="icon ion-ios-link"></span></a>
+                        <span ><b>findByDevEuiAndUID</b></span>
+                        <a href="#findByDevEuiAndUID"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
                         <span class="modifier-icon icon ion-ios-reset"></span>
-                    <code>findByDevEuiAndEmail(dev_eui: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>, email: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
+                    <code>findByDevEuiAndUID(dev_eui: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>, user_id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
                 </td>
             </tr>
 
@@ -289,7 +289,7 @@
 
                                         </tr>
                                         <tr>
-                                                <td>email</td>
+                                                <td>user_id</td>
                                             <td>
                                                             <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
                                             </td>
@@ -746,13 +746,13 @@ export class DeviceOwnerRepository extends BaseRepository&lt;DeviceOwnerRow&gt; 
     super(supabaseService, &#x27;cw_device_owners&#x27;);
   }
 
-  public async findByDevEuiAndEmail(dev_eui: string, email: string): Promise&lt;DeviceOwnerRow&gt; {
+  public async findByDevEuiAndUID(dev_eui: string, user_id: string): Promise&lt;DeviceOwnerRow&gt; {
     const { data, error } &#x3D; await this.supabaseService
       .getSupabaseClient()
       .from(&#x27;cw_device_owners&#x27;)
       .select(&#x27;*&#x27;)
       .eq(&#x27;dev_eui&#x27;, dev_eui)
-      .eq(&#x27;email&#x27;, email)
+      .eq(&#x27;user_id&#x27;, user_id)
       .single();
     if (error) {
       throw new Error(&#x60;Failed to find device owner with dev_eui ${dev_eui}: ${error.message}&#x60;);

@@ -215,7 +215,7 @@
                 <td class="col-md-4">
                     <b>Decorators : </b>
                     <br />
-                    <code>@ApiBearerAuth(&#x27;XYZ&#x27;)<br />@Get(&#x27;user&#x27;)<br />@UseGuards(SupabaseAuthGuard)<br />@ApiResponse({status: 200, description: &#x27;Login Success&#x27;})<br />@ApiResponse({status: 400, description: &#x27;Bad Request&#x27;})<br />@ApiResponse({status: 401, description: &#x27;Unauthorized&#x27;})<br />@ApiResponse({status: 402, description: &#x27;Payment Required&#x27;})<br />@ApiResponse({status: 403, description: &#x27;Forbidden&#x27;})<br />@ApiResponse({status: 404, description: &#x27;Login Not Found&#x27;, type: LoginDto, links: undefined})<br /></code>
+                    <code>@ApiBearerAuth(&#x27;JWT&#x27;)<br />@Get(&#x27;user&#x27;)<br />@UseGuards(SupabaseAuthGuard)<br />@ApiResponse({status: 200, description: &#x27;Login Success&#x27;})<br />@ApiResponse({status: 400, description: &#x27;Bad Request&#x27;})<br />@ApiResponse({status: 401, description: &#x27;Unauthorized&#x27;})<br />@ApiResponse({status: 402, description: &#x27;Payment Required&#x27;})<br />@ApiResponse({status: 403, description: &#x27;Forbidden&#x27;})<br />@ApiResponse({status: 404, description: &#x27;Login Not Found&#x27;, type: LoginDto, links: undefined})<br /></code>
                 </td>
             </tr>
 
@@ -362,12 +362,12 @@ import { AuthService } from &#x27;./auth.service&#x27;;
 import { Public } from &#x27;./public.decorator&#x27;;
 import { Throttle } from &#x27;@nestjs/throttler&#x27;;
 
-@ApiTags(&#x27;auth&#x27;)
+@ApiTags(&#x27;Endpoints related to user authentication and authorization&#x27;)
 @Controller(&#x27;auth&#x27;)
 export class AuthController {
   constructor(private authService: AuthService) { }
 
-  @ApiBearerAuth(&#x27;XYZ&#x27;)
+  @ApiBearerAuth(&#x27;JWT&#x27;)
   @Get(&#x27;user&#x27;)
   @UseGuards(SupabaseAuthGuard)
   @ApiResponse({ status: 200, description: &#x27;Login Success&#x27; })

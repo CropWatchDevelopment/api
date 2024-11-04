@@ -79,16 +79,19 @@
                    <compodoc-menu mode="normal"></compodoc-menu>
                </div>
                <!-- START CONTENT -->
-               <div class="content controller">
+               <div class="content injectable">
                    <div class="content-data">
 
 
 
 
 
+
+
+
 <ol class="breadcrumb">
-  <li class="breadcrumb-item">Controllers</li>
-  <li class="breadcrumb-item" >CwDeviceOwnersController</li>
+  <li class="breadcrumb-item">Injectables</li>
+  <li class="breadcrumb-item" >ReportTemplatesRepository</li>
 </ol>
 
 <ul class="nav nav-tabs" role="tablist">
@@ -112,19 +115,17 @@
             <h3>File</h3>
         </p>
         <p class="comment">
-            <code>src/cw_device_owners/cw_device_owners.controller.ts</code>
+            <code>src/repositories/reports_templates.repository.ts</code>
         </p>
 
+
+
             <p class="comment">
-                <h3>Prefix</h3>
+                <h3>Extends</h3>
             </p>
             <p class="comment">
-                <code>cw-device-owners</code>
+                            <code><a href="../classes/BaseRepository.html" target="_self" >BaseRepository</a></code>
             </p>
-
-
-
-
 
 
             <section data-compodoc="block-index">
@@ -141,28 +142,28 @@
                     <td class="col-md-4">
                         <ul class="index-list">
                             <li>
-                                    <span class="modifier"></span>
-                                    <span class="modifier"></span>
+                                    <span class="modifier">Public</span>
+                                    <span class="modifier">Async</span>
+                                <a href="#findByDevEui" >findByDevEui</a>
+                            </li>
+                            <li>
+                                    <span class="modifier">Async</span>
                                 <a href="#create" >create</a>
                             </li>
                             <li>
-                                    <span class="modifier"></span>
-                                    <span class="modifier"></span>
+                                    <span class="modifier">Async</span>
+                                <a href="#delete" >delete</a>
+                            </li>
+                            <li>
+                                    <span class="modifier">Async</span>
                                 <a href="#findAll" >findAll</a>
                             </li>
                             <li>
-                                    <span class="modifier"></span>
-                                    <span class="modifier"></span>
-                                <a href="#findOne" >findOne</a>
+                                    <span class="modifier">Async</span>
+                                <a href="#findById" >findById</a>
                             </li>
                             <li>
-                                    <span class="modifier"></span>
-                                    <span class="modifier"></span>
-                                <a href="#remove" >remove</a>
-                            </li>
-                            <li>
-                                    <span class="modifier"></span>
-                                    <span class="modifier"></span>
+                                    <span class="modifier">Async</span>
                                 <a href="#update" >update</a>
                             </li>
                         </ul>
@@ -177,6 +178,55 @@
     </table>
 </section>
 
+            <section data-compodoc="block-constructor">
+    <h3 id="constructor">Constructor</h3>
+        <table class="table table-sm table-bordered">
+            <tbody>
+                <tr>
+                    <td class="col-md-4">
+<code>constructor(supabaseService: <a href="../injectables/SupabaseService.html" target="_self">SupabaseService</a>)</code>
+                    </td>
+                </tr>
+                        <tr>
+                            <td class="col-md-4">
+                                <div class="io-line">Defined in <a href="" data-line="9" class="link-to-prism">src/repositories/reports_templates.repository.ts:9</a></div>
+                            </td>
+                        </tr>
+
+                <tr>
+                    <td class="col-md-4">
+                            <div>
+                                    <b>Parameters :</b>
+                                    <table class="params">
+                                        <thead>
+                                            <tr>
+                                                <td>Name</td>
+                                                    <td>Type</td>
+                                                <td>Optional</td>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                                <tr>
+                                                        <td>supabaseService</td>
+                                                  
+                                                        <td>
+                                                                        <code><a href="../injectables/SupabaseService.html" target="_self" >SupabaseService</a></code>
+                                                        </td>
+                                                  
+                                                    <td>
+                                                            No
+                                                    </td>
+                                                    
+                                                </tr>
+                                        </tbody>
+                                    </table>
+                            </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+</section>
+
             <section data-compodoc="block-methods">
     
     <h3 id="methods">
@@ -186,34 +236,27 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="create"></a>
+                    <a name="findByDevEui"></a>
                     <span class="name">
-                            <span class="modifier"></span>
-                            <span class="modifier"></span>
-                        <span ><b>create</b></span>
-                        <a href="#create"><span class="icon ion-ios-link"></span></a>
+                            <span class="modifier">Public</span>
+                            <span class="modifier">Async</span>
+                        <span ><b>findByDevEui</b></span>
+                        <a href="#findByDevEui"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
                         <span class="modifier-icon icon ion-ios-reset"></span>
-                    <code>create(createDeviceOwnerDto: <a href="../classes/CreateDeviceOwnerDto.html" target="_self">CreateDeviceOwnerDto</a>)</code>
+                    <code>findByDevEui(undefined: literal type)</code>
                 </td>
             </tr>
 
-            <tr>
-                <td class="col-md-4">
-                    <b>Decorators : </b>
-                    <br />
-                    <code>@ApiOperation({summary: &#x27;Create a new device owner&#x27;})<br />@Post()<br /></code>
-                </td>
-            </tr>
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="27"
-                                    class="link-to-prism">src/cw_device_owners/cw_device_owners.controller.ts:27</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="14"
+                                    class="link-to-prism">src/repositories/reports_templates.repository.ts:14</a></div>
                         </td>
                     </tr>
 
@@ -234,9 +277,8 @@
                                     </thead>
                                     <tbody>
                                         <tr>
-                                                <td>createDeviceOwnerDto</td>
                                             <td>
-                                                            <code><a href="../classes/CreateDeviceOwnerDto.html" target="_self" >CreateDeviceOwnerDto</a></code>
+                                                        <code>literal type</code>
                                             </td>
 
                                             <td>
@@ -249,7 +291,175 @@
                                 </table>
                             </div>
                         <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
+                            <b>Returns : </b>    <code>Promise&lt;DeviceRow&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="create"></a>
+                    <span class="name">
+                            <span class="modifier">Async</span>
+                        <span ><b>create</b></span>
+                        <a href="#create"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>create(item: Partial<T>)</code>
+                </td>
+            </tr>
+
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseRepository.html" target="_self" >BaseRepository</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:34</a></code>
+</div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>item</td>
+                                            <td>
+                                                        <code>Partial&lt;T&gt;</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;T&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="delete"></a>
+                    <span class="name">
+                            <span class="modifier">Async</span>
+                        <span ><b>delete</b></span>
+                        <a href="#delete"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>delete(id: number | string, idColumn: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
+                </td>
+            </tr>
+
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseRepository.html" target="_self" >BaseRepository</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:61</a></code>
+</div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                                <td>Default value</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>id</td>
+                                            <td>
+                                                        <code>number | string</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+                                            <td>
+                                            </td>
+
+                                        </tr>
+                                        <tr>
+                                                <td>idColumn</td>
+                                            <td>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+                                            <td>
+                                                    <code>&#x27;id&#x27;</code>
+                                            </td>
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;void&gt;</code>
 
                         </div>
                             <div class="io-description">
@@ -265,8 +475,7 @@
                 <td class="col-md-4">
                     <a name="findAll"></a>
                     <span class="name">
-                            <span class="modifier"></span>
-                            <span class="modifier"></span>
+                            <span class="modifier">Async</span>
                         <span ><b>findAll</b></span>
                         <a href="#findAll"><span class="icon ion-ios-link"></span></a>
                     </span>
@@ -279,18 +488,17 @@
                 </td>
             </tr>
 
-            <tr>
-                <td class="col-md-4">
-                    <b>Decorators : </b>
-                    <br />
-                    <code>@ApiOperation({summary: &#x27;Get all device owners&#x27;})<br />@Get()<br /></code>
-                </td>
-            </tr>
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="15"
-                                    class="link-to-prism">src/cw_device_owners/cw_device_owners.controller.ts:15</a></div>
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseRepository.html" target="_self" >BaseRepository</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:10</a></code>
+</div>
                         </td>
                     </tr>
 
@@ -299,7 +507,7 @@
                 <td class="col-md-4">
 
                         <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
+                            <b>Returns : </b>    <code>Promise&lt;T[]&gt;</code>
 
                         </div>
                 </td>
@@ -310,34 +518,32 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="findOne"></a>
+                    <a name="findById"></a>
                     <span class="name">
-                            <span class="modifier"></span>
-                            <span class="modifier"></span>
-                        <span ><b>findOne</b></span>
-                        <a href="#findOne"><span class="icon ion-ios-link"></span></a>
+                            <span class="modifier">Async</span>
+                        <span ><b>findById</b></span>
+                        <a href="#findById"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
                         <span class="modifier-icon icon ion-ios-reset"></span>
-                    <code>findOne(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>)</code>
+                    <code>findById(id: number | string, idColumn: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
                 </td>
             </tr>
 
-            <tr>
-                <td class="col-md-4">
-                    <b>Decorators : </b>
-                    <br />
-                    <code>@ApiOperation({summary: &#x27;Get a device owner by ID&#x27;})<br />@Get(&#x27;:id&#x27;)<br /></code>
-                </td>
-            </tr>
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="21"
-                                    class="link-to-prism">src/cw_device_owners/cw_device_owners.controller.ts:21</a></div>
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseRepository.html" target="_self" >BaseRepository</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:21</a></code>
+</div>
                         </td>
                     </tr>
 
@@ -354,103 +560,44 @@
                                             <td>Name</td>
                                                 <td>Type</td>
                                             <td>Optional</td>
+                                                <td>Default value</td>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
                                                 <td>id</td>
                                             <td>
-                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
+                                                        <code>number | string</code>
                                             </td>
 
                                             <td>
                                                     No
                                             </td>
 
-
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
-
-                        </div>
-                            <div class="io-description">
-                                
-                            </div>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-    <table class="table table-sm table-bordered">
-        <tbody>
-            <tr>
-                <td class="col-md-4">
-                    <a name="remove"></a>
-                    <span class="name">
-                            <span class="modifier"></span>
-                            <span class="modifier"></span>
-                        <span ><b>remove</b></span>
-                        <a href="#remove"><span class="icon ion-ios-link"></span></a>
-                    </span>
-                </td>
-            </tr>
-            <tr>
-                <td class="col-md-4">
-                        <span class="modifier-icon icon ion-ios-reset"></span>
-                    <code>remove(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>)</code>
-                </td>
-            </tr>
-
-            <tr>
-                <td class="col-md-4">
-                    <b>Decorators : </b>
-                    <br />
-                    <code>@ApiOperation({summary: &#x27;Delete a device owner by ID&#x27;})<br />@Delete(&#x27;:id&#x27;)<br /></code>
-                </td>
-            </tr>
-
-                    <tr>
-                        <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="39"
-                                    class="link-to-prism">src/cw_device_owners/cw_device_owners.controller.ts:39</a></div>
-                        </td>
-                    </tr>
-
-
-            <tr>
-                <td class="col-md-4">
-
-                            <div class="io-description">
-                                <b>Parameters :</b>
-                                
-                                <table class="params">
-                                    <thead>
-                                        <tr>
-                                            <td>Name</td>
-                                                <td>Type</td>
-                                            <td>Optional</td>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                                <td>id</td>
                                             <td>
-                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
+                                            </td>
+
+                                        </tr>
+                                        <tr>
+                                                <td>idColumn</td>
+                                            <td>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
                                             </td>
 
                                             <td>
                                                     No
                                             </td>
 
+                                            <td>
+                                                    <code>&#x27;id&#x27;</code>
+                                            </td>
 
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                         <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
+                            <b>Returns : </b>    <code>Promise&lt;T | null&gt;</code>
 
                         </div>
                             <div class="io-description">
@@ -466,8 +613,7 @@
                 <td class="col-md-4">
                     <a name="update"></a>
                     <span class="name">
-                            <span class="modifier"></span>
-                            <span class="modifier"></span>
+                            <span class="modifier">Async</span>
                         <span ><b>update</b></span>
                         <a href="#update"><span class="icon ion-ios-link"></span></a>
                     </span>
@@ -476,22 +622,21 @@
             <tr>
                 <td class="col-md-4">
                         <span class="modifier-icon icon ion-ios-reset"></span>
-                    <code>update(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>, updateDeviceOwnerDto: <a href="../classes/UpdateDeviceOwnerDto.html" target="_self">UpdateDeviceOwnerDto</a>)</code>
+                    <code>update(id: number | string, item: Partial<T>, idColumn: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
                 </td>
             </tr>
 
-            <tr>
-                <td class="col-md-4">
-                    <b>Decorators : </b>
-                    <br />
-                    <code>@ApiOperation({summary: &#x27;Update a device owner by ID&#x27;})<br />@Patch(&#x27;:id&#x27;)<br /></code>
-                </td>
-            </tr>
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="33"
-                                    class="link-to-prism">src/cw_device_owners/cw_device_owners.controller.ts:33</a></div>
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseRepository.html" target="_self" >BaseRepository</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:47</a></code>
+</div>
                         </td>
                     </tr>
 
@@ -508,38 +653,58 @@
                                             <td>Name</td>
                                                 <td>Type</td>
                                             <td>Optional</td>
+                                                <td>Default value</td>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr>
                                                 <td>id</td>
                                             <td>
-                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
+                                                        <code>number | string</code>
                                             </td>
 
                                             <td>
                                                     No
                                             </td>
 
+                                            <td>
+                                            </td>
 
                                         </tr>
                                         <tr>
-                                                <td>updateDeviceOwnerDto</td>
+                                                <td>item</td>
                                             <td>
-                                                            <code><a href="../classes/UpdateDeviceOwnerDto.html" target="_self" >UpdateDeviceOwnerDto</a></code>
+                                                        <code>Partial&lt;T&gt;</code>
                                             </td>
 
                                             <td>
                                                     No
                                             </td>
 
+                                            <td>
+                                            </td>
+
+                                        </tr>
+                                        <tr>
+                                                <td>idColumn</td>
+                                            <td>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+                                            <td>
+                                                    <code>&#x27;id&#x27;</code>
+                                            </td>
 
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
                         <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
+                            <b>Returns : </b>    <code>Promise&lt;T&gt;</code>
 
                         </div>
                             <div class="io-description">
@@ -549,58 +714,45 @@
             </tr>
         </tbody>
     </table>
-</section>    </div>
+</section>
+
+    </div>
 
 
     <div class="tab-pane fade  tab-source-code" id="source">
-        <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">// src/cw_device_owners/cw_device_owners.controller.ts
-import { Controller, Get, Post, Body, Patch, Param, Delete } from &#x27;@nestjs/common&#x27;;
-import { CwDeviceOwnersService } from &#x27;./cw_device_owners.service&#x27;;
-import { ApiTags, ApiOperation } from &#x27;@nestjs/swagger&#x27;;
-import { CreateDeviceOwnerDto } from &#x27;./dto/create-device-owner.dto&#x27;;
-import { UpdateDeviceOwnerDto } from &#x27;./dto/update-device-owner.dto&#x27;;
+        <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { Injectable } from &#x27;@nestjs/common&#x27;;
+import { SupabaseService } from &#x27;../supabase/supabase.service&#x27;;
+import { Database } from &#x27;database.types&#x27;;
+import { BaseRepository } from &#x27;./base.repository&#x27;;
 
-@ApiTags(&#x27;🔒Device-Owners - CRUD operations for linkages between current JWT users profile and devices&#x27;)
-@Controller(&#x27;cw-device-owners&#x27;)
-export class CwDeviceOwnersController {
-  constructor(private readonly cwDeviceOwnersService: CwDeviceOwnersService) {}
+type DeviceRow &#x3D; Database[&#x27;public&#x27;][&#x27;Tables&#x27;][&#x27;reports_templates&#x27;][&#x27;Row&#x27;];
 
-  @ApiOperation({ summary: &#x27;Get all device owners&#x27; })
-  @Get()
-  findAll() {
-    return this.cwDeviceOwnersService.findAll();
-  }
+@Injectable()
+export class ReportTemplatesRepository extends BaseRepository&lt;DeviceRow&gt; {
+    constructor(supabaseService: SupabaseService) {
+        super(supabaseService, &#x27;reports_templates&#x27;);
+    }
 
-  @ApiOperation({ summary: &#x27;Get a device owner by ID&#x27; })
-  @Get(&#x27;:id&#x27;)
-  findOne(@Param(&#x27;id&#x27;) id: number) {
-    return this.cwDeviceOwnersService.findById(id);
-  }
-
-  @ApiOperation({ summary: &#x27;Create a new device owner&#x27; })
-  @Post()
-  create(@Body() createDeviceOwnerDto: CreateDeviceOwnerDto) {
-    return this.cwDeviceOwnersService.create(createDeviceOwnerDto);
-  }
-
-  @ApiOperation({ summary: &#x27;Update a device owner by ID&#x27; })
-  @Patch(&#x27;:id&#x27;)
-  update(@Param(&#x27;id&#x27;) id: number, @Body() updateDeviceOwnerDto: UpdateDeviceOwnerDto) {
-    return this.cwDeviceOwnersService.update(id, updateDeviceOwnerDto);
-  }
-
-  @ApiOperation({ summary: &#x27;Delete a device owner by ID&#x27; })
-  @Delete(&#x27;:id&#x27;)
-  remove(@Param(&#x27;id&#x27;) id: number) {
-    return this.cwDeviceOwnersService.delete(id);
-  }
+    public async findByDevEui({ dev_eui }: { dev_eui: string }): Promise&lt;DeviceRow&gt; {
+        const { data, error } &#x3D; await this.supabaseService
+            .getSupabaseClient()
+            .from(&#x27;reports_templates&#x27;)
+            .select(&#x27;*&#x27;)
+            .eq(&#x27;dev_eui&#x27;, dev_eui)
+            .single();
+        if (error) {
+            throw new Error(&#x60;Failed to find device with dev_eui ${dev_eui}: ${error.message}&#x60;);
+        }
+        if (!data) {
+            throw new Error(&#x60;Device with dev_eui ${dev_eui} not found.&#x60;);
+        }
+        return data as DeviceRow;
+    }
 }
 </code></pre>
     </div>
+
 </div>
-
-
-
 
 
 
@@ -639,8 +791,8 @@ export class CwDeviceOwnersController {
 
        <script>
             var COMPODOC_CURRENT_PAGE_DEPTH = 1;
-            var COMPODOC_CURRENT_PAGE_CONTEXT = 'controller';
-            var COMPODOC_CURRENT_PAGE_URL = 'CwDeviceOwnersController.html';
+            var COMPODOC_CURRENT_PAGE_CONTEXT = 'injectable';
+            var COMPODOC_CURRENT_PAGE_URL = 'ReportTemplatesRepository.html';
             var MAX_SEARCH_RESULTS = 15;
        </script>
 

@@ -148,10 +148,20 @@
                             <li>
                                     <span class="modifier"></span>
                                     <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
                                     <span class="modifier">Async</span>
                                 <a href="#create" >create</a>
                             </li>
                             <li>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
                                     <span class="modifier"></span>
                                     <span class="modifier"></span>
                                     <span class="modifier">Async</span>
@@ -182,6 +192,11 @@
                     <span class="name">
                             <span class="modifier"></span>
                             <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
                             <span class="modifier">Async</span>
                         <span ><b>create</b></span>
                         <a href="#create"><span class="icon ion-ios-link"></span></a>
@@ -199,7 +214,7 @@
                 <td class="col-md-4">
                     <b>Decorators : </b>
                     <br />
-                    <code>@ApiOperation({summary: &#x27;Create a new item&#x27;})<br />@Post()<br /></code>
+                    <code>@ApiResponse({status: 201, description: &#x27;Content Created&#x27;})<br />@ApiResponse({status: 400, description: &#x27;Bad Request&#x27;})<br />@ApiResponse({status: 401, description: &#x27;Unauthorized&#x27;})<br />@ApiResponse({status: 402, description: &#x27;Payment Required&#x27;})<br />@ApiResponse({status: 403, description: &#x27;Forbidden&#x27;})<br />@ApiOperation({summary: &#x27;Create a new item&#x27;})<br />@Post()<br /></code>
                 </td>
             </tr>
 
@@ -211,7 +226,7 @@
                     </tr>
                     <tr>
                         <td class="col-md-4">
-                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:20</a></code>
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:30</a></code>
 </div>
                         </td>
                     </tr>
@@ -266,6 +281,11 @@
                     <span class="name">
                             <span class="modifier"></span>
                             <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
                             <span class="modifier">Async</span>
                         <span ><b>findAll</b></span>
                         <a href="#findAll"><span class="icon ion-ios-link"></span></a>
@@ -283,7 +303,7 @@
                 <td class="col-md-4">
                     <b>Decorators : </b>
                     <br />
-                    <code>@ApiOperation({summary: &#x27;Get all items&#x27;})<br />@Get()<br /></code>
+                    <code>@ApiResponse({status: 200, description: &#x27;OK&#x27;})<br />@ApiResponse({status: 400, description: &#x27;Bad Request&#x27;})<br />@ApiResponse({status: 401, description: &#x27;Unauthorized&#x27;})<br />@ApiResponse({status: 402, description: &#x27;Payment Required&#x27;})<br />@ApiResponse({status: 403, description: &#x27;Forbidden&#x27;})<br />@ApiOperation({summary: &#x27;Get all items&#x27;})<br />@Get()<br /></code>
                 </td>
             </tr>
 
@@ -295,7 +315,7 @@
                     </tr>
                     <tr>
                         <td class="col-md-4">
-                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:14</a></code>
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:19</a></code>
 </div>
                         </td>
                     </tr>
@@ -318,14 +338,16 @@
     <div class="tab-pane fade  tab-source-code" id="source">
         <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { Get, Post, Body, Patch, Param, Delete, Controller } from &#x27;@nestjs/common&#x27;;
 import { CwDevicesService } from &#x27;./cw_devices.service&#x27;;
-import { ApiTags } from &#x27;@nestjs/swagger&#x27;;
+import { ApiBearerAuth, ApiSecurity, ApiTags } from &#x27;@nestjs/swagger&#x27;;
 import { Database } from &#x27;database.types&#x27;;
 import { BaseController } from &#x27;src/bases/base.controller&#x27;;
 import { CreateDeviceDto } from &#x27;./dto/create-device.dto&#x27;;
 
 type DevicesRow &#x3D; Database[&#x27;public&#x27;][&#x27;Tables&#x27;][&#x27;cw_devices&#x27;][&#x27;Row&#x27;];
 
-@ApiTags(&#x27;Devices&#x27;)
+@ApiBearerAuth(&#x27;JWT&#x27;)
+@ApiSecurity(&#x27;x-api-key&#x27;, [&#x27;x-api-key&#x27;])
+@ApiTags(&#x27;Devices&#x27;, &#x27;Operations related to current JWT device management&#x27;)
 @Controller(&#x27;cw-devices&#x27;)
 export class CwDevicesController extends BaseController&lt;DevicesRow, CreateDeviceDto&gt; {
   constructor(cwDevicesService: CwDevicesService) {

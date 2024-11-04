@@ -204,8 +204,8 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="20"
-                                    class="link-to-prism">src/data/data.controller.ts:20</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="21"
+                                    class="link-to-prism">src/data/data.controller.ts:21</a></div>
                         </td>
                     </tr>
 
@@ -280,14 +280,14 @@
                 <td class="col-md-4">
                     <b>Decorators : </b>
                     <br />
-                    <code>@ApiOperation({summary: &#x27;Retrieve data with filters and pagination&#x27;})<br />@ApiQuery({name: &#x27;DevEui&#x27;, required: false, type: String, description: &#x27;Device EUI to filter data by specific device.&#x27;})<br />@ApiQuery({name: &#x27;Skip&#x27;, required: false, type: Number, description: &#x27;Number of records to skip. (default: 0)&#x27;})<br />@ApiQuery({name: &#x27;Take&#x27;, required: false, type: Number, description: &#x27;Number of records to retrieve. (default: 10)&#x27;})<br />@ApiQuery({name: &#x27;Order&#x27;, required: false, type: String, description: &#x27;Created_At Order direction, either ASC or DESC.&#x27;})<br />@ApiBearerAuth(&#x27;XYZ&#x27;)<br />@Get()<br /></code>
+                    <code>@ApiOperation({summary: &#x27;Retrieve data with filters and pagination&#x27;})<br />@ApiQuery({name: &#x27;DevEui&#x27;, required: false, type: String, description: &#x27;Device EUI to filter data by specific device.&#x27;})<br />@ApiQuery({name: &#x27;Skip&#x27;, required: false, type: Number, description: &#x27;Number of records to skip. (default: 0)&#x27;})<br />@ApiQuery({name: &#x27;Take&#x27;, required: false, type: Number, description: &#x27;Number of records to retrieve. (default: 10)&#x27;})<br />@ApiQuery({name: &#x27;Order&#x27;, required: false, type: String, description: &#x27;Created_At Order direction, either ASC or DESC.&#x27;})<br />@ApiBearerAuth(&#x27;JWT&#x27;)<br />@Get()<br /></code>
                 </td>
             </tr>
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="31"
-                                    class="link-to-prism">src/data/data.controller.ts:31</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="32"
+                                    class="link-to-prism">src/data/data.controller.ts:32</a></div>
                         </td>
                     </tr>
 
@@ -423,8 +423,8 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="45"
-                                    class="link-to-prism">src/data/data.controller.ts:45</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="46"
+                                    class="link-to-prism">src/data/data.controller.ts:46</a></div>
                         </td>
                     </tr>
 
@@ -483,8 +483,9 @@ import { CwDeviceTypeService } from &#x27;src/cw_device_type/cw_device_type.serv
 import { CwDevicesService } from &#x27;src/cw_devices/cw_devices.service&#x27;;
 import { ApiBearerAuth } from &#x27;@nestjs/swagger&#x27;;
 
-@ApiTags(&#x27;Data&#x27;)
+
 @Controller(&#x27;data&#x27;)
+@ApiTags(&#x27;CRUD operations for data related to devices rigistered to current JWT&#x27;)
 export class DataController {
   constructor(
     private readonly dataService: DataService,
@@ -502,7 +503,7 @@ export class DataController {
   @ApiQuery({ name: &#x27;Skip&#x27;, required: false, type: Number, description: &#x27;Number of records to skip. (default: 0)&#x27; })
   @ApiQuery({ name: &#x27;Take&#x27;, required: false, type: Number, description: &#x27;Number of records to retrieve. (default: 10)&#x27; })
   @ApiQuery({ name: &#x27;Order&#x27;, required: false, type: String, description: &#x27;Created_At Order direction, either ASC or DESC.&#x27; })
-  @ApiBearerAuth(&#x27;XYZ&#x27;)
+  @ApiBearerAuth(&#x27;JWT&#x27;)
   @Get()
   findAll(
     @Req() req,

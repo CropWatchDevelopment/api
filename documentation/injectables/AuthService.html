@@ -250,8 +250,8 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="52"
-                                    class="link-to-prism">src/auth/auth.service.ts:52</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="57"
+                                    class="link-to-prism">src/auth/auth.service.ts:57</a></div>
                         </td>
                     </tr>
 
@@ -368,7 +368,7 @@
                                 </table>
                             </div>
                         <div class="io-description">
-                            <b>Returns : </b>    <code>Promise&lt;boolean&gt;</code>
+                            <b>Returns : </b>    <code>Promise&lt;string&gt;</code>
 
                         </div>
                             <div class="io-description">
@@ -518,21 +518,26 @@ export class AuthService {
     }
   }
 
-  async validateApiKey(apiKey: string): Promise&lt;boolean&gt; {
+  async validateApiKey(apiKey: string): Promise&lt;string&gt; {
     // Here you would implement logic to validate the API key
     // For now, we assume a hardcoded valid key for demonstration purposes
 
-    let { data: api_keys, error } &#x3D; await this.supabase
+    let { data: user_api_keys, error } &#x3D; await this.supabase
       .from(&#x27;api_keys&#x27;)
       .select(&#x27;*&#x27;)
       .eq(&#x27;api_key&#x27;, apiKey)
-      .gt(&#x27;expiry_date&#x27;, new Date())
+      .gt(&#x27;expires_at&#x27;, new Date().toISOString())
       .single();
 
     if (error) {
       throw new UnauthorizedException(&#x27;Invalid API key&#x27;);
     }
-    return api_keys;
+
+    if (!user_api_keys) {
+      throw new UnauthorizedException(&#x27;API key not found&#x27;);
+    }
+
+    return user_api_keys.owner_id;
   }
 
   // Function to sign in with email and password
