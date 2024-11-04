@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { BaseService } from 'src/bases/base.service';
-import { DeviceRepository } from 'src/repositories/cw_devices.repository';
+import { BaseService } from '../bases/base.service';
+import { DeviceRepository } from '../repositories/cw_devices.repository';
 import { UpdateDeviceDto } from './dto/update-device.dto';
 import { CreateDeviceDto } from './dto/create-device.dto';
-import { DevicesRow } from 'src/common/database-types';
+import { DevicesRow } from '../common/database-types';
 
 @Injectable()
 export class CwDevicesService extends BaseService<DevicesRow, CreateDeviceDto, UpdateDeviceDto> {

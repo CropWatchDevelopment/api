@@ -1,9 +1,11 @@
-import { Get, Post, Body, Patch, Param, Delete, Controller } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { CwDevicesService } from './cw_devices.service';
 import { ApiBearerAuth, ApiSecurity, ApiTags } from '@nestjs/swagger';
-import { BaseController } from 'src/bases/base.controller';
+// import { BaseController } from 'src/bases/base.controller';
+import { BaseController } from '../bases/base.controller';
 import { CreateDeviceDto } from './dto/create-device.dto';
-import { DevicesRow } from 'src/common/database-types';
+// import { DevicesRow } from 'src/common/database-types';
+import { DevicesRow } from '../common/database-types';
 import { UpdateDeviceDto } from './dto/update-device.dto';
 
 @ApiBearerAuth('JWT')

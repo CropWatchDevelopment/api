@@ -7,8 +7,9 @@ import {
   Delete,
   Param,
 } from '@nestjs/common';
-import { ApiCreateResponses, ApiDeleteResponses, ApiGetResponses, CommonResponses } from 'src/common/common-responses.decorator';
-import { ApiCommonAuth } from 'src/common/common-auth-decorators';
+import { ApiCreateResponses, ApiDeleteResponses, ApiGetResponses, CommonResponses } from '../common/common-responses.decorator';
+// import { ApiCommonAuth } from 'src/common/common-auth-decorators';
+import { ApiCommonAuth } from '../common/common-auth-decorators';
 
 export interface BaseServiceInterface<T, CreateDto, UpdateDto> {
   findAll: () => Promise<T[]>;
