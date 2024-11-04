@@ -1,7 +1,7 @@
 import { applyDecorators } from '@nestjs/common';
 import { ApiResponse } from '@nestjs/swagger';
 
-export function ApiCommonResponses() {
+export function CommonResponses() {
   return applyDecorators(
     ApiResponse({ status: 400, description: 'Bad Request' }),
     ApiResponse({ status: 401, description: 'Unauthorized' }),
@@ -15,20 +15,20 @@ export function ApiCommonResponses() {
 export function ApiCreateResponses() {
   return applyDecorators(
     ApiResponse({ status: 201, description: 'Content Created' }),
-    ApiCommonResponses()
+    CommonResponses()
   );
 }
 
 export function ApiGetResponses() {
   return applyDecorators(
     ApiResponse({ status: 200, description: 'OK' }),
-    ApiCommonResponses()
+    CommonResponses()
   );
 }
 
 export function ApiDeleteResponses() {
   return applyDecorators(
     ApiResponse({ status: 204, description: 'No Content' }),
-    ApiCommonResponses()
+    CommonResponses()
   );
 }
