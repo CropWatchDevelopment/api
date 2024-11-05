@@ -25,9 +25,11 @@ export class RelayController {
     @ApiResponse({ status: 401, description: 'Unauthorized' })
     @ApiResponse({ status: 402, description: 'Payment Required' })
     @ApiResponse({ status: 403, description: 'Forbidden' })
-    async getProtectedRoute(@Query('state') state: RelayState, @Req() req) {
+    async getProtectedRoute(
+        @Query('deviceId') deviceId: string,
+        @Query('state') state: RelayState, @Req() req) {
         const relayOn = state === RelayState.Open;
-        const response = await this.relayService.sendDownlink(relayOn);
+        const response = await this.relayService.sendDownlink(relayOn, deviceId);
         return { message: 'Relay state updated', response };
     }
 }
