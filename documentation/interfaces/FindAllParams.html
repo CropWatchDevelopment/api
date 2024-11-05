@@ -318,7 +318,7 @@
 
 
     <div class="tab-pane fade  tab-source-code" id="source">
-        <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { BadRequestException, Injectable, NotAcceptableException, NotFoundException, NotImplementedException, Req } from &#x27;@nestjs/common&#x27;;
+        <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { BadRequestException, Injectable, NotAcceptableException, NotFoundException, NotImplementedException } from &#x27;@nestjs/common&#x27;;
 import { CreateDatumDto } from &#x27;./dto/create-datum.dto&#x27;;
 import { UpdateDatumDto } from &#x27;./dto/update-datum.dto&#x27;;
 import { CwDevicesService } from &#x27;src/cw_devices/cw_devices.service&#x27;;
@@ -326,7 +326,6 @@ import { CwDeviceTypeService } from &#x27;src/cw_device_type/cw_device_type.serv
 import { Database } from &#x27;database.types&#x27;;
 import { DataRepository } from &#x27;src/repositories/data.repository&#x27;;
 import { CwDeviceOwnersService } from &#x27;src/cw_device_owners/cw_device_owners.service&#x27;;
-
 
 export interface FindAllParams {
   devEui?: string;
@@ -344,50 +343,55 @@ export class DataService {
     private readonly dataRepository: DataRepository,
   ) { }
 
-  create(createDatumDto: CreateDatumDto) {
-    return new NotImplementedException();
-  }
+  // create(createDatumDto: CreateDatumDto) {
+  //   return new NotImplementedException();
+  // }
 
   async findAll(params: FindAllParams, email: string): Promise&lt;any&gt; {
     const { devEui, skip, take, order } &#x3D; params;
+    this.validateDevEui(devEui);
+    await this.validateDeviceOwner(devEui, email);
+    const device &#x3D; await this.getDevice(devEui);
+    const deviceTypeData &#x3D; await this.getDeviceTypeData(device.type);
+    return this.dataRepository.findAllByTable(
+      deviceTypeData.data_table,
+      devEui,
+      skip,
+      take,
+      order &#x3D;&#x3D;&#x3D; &#x27;ASC&#x27;
+    );
+  }
+
+  private validateDevEui(devEui?: string): void {
     if (!devEui) {
-      return new BadRequestException(&#x27;DevEui is required&#x27;);
+      throw new BadRequestException(&#x27;DevEui is required&#x27;);
     }
+  }
+
+  private async validateDeviceOwner(devEui: string, email: string): Promise&lt;void&gt; {
     const deviceOwner &#x3D; await this.deviceOwnerService.getDeviceOwnerByDevEuiAndUID(devEui, email);
     if (!deviceOwner) {
-      return new NotAcceptableException(&#x27;Device does not exist OR Device Owner not found&#x27;);
+      throw new NotAcceptableException(&#x27;Device does not exist OR Device Owner not found&#x27;);
     }
+  }
+
+  private async getDevice(devEui: string) {
     const device &#x3D; await this.deviceService.getDeviceByDevEui(devEui);
     if (!device) {
-      return new NotFoundException(&#x27;Device not found&#x27;);
+      throw new NotFoundException(&#x27;Device not found&#x27;);
     }
-    const deviceType &#x3D; device.type;
+    return device;
+  }
+
+  private async getDeviceTypeData(deviceType: number) {
     if (!deviceType) {
       throw new NotFoundException(&#x27;Device type not found&#x27;);
     }
     const deviceTypeData &#x3D; await this.deviceTypeService.findById(deviceType);
-    if (!deviceTypeData) {
-      throw new NotFoundException(&#x27;Device type data not found&#x27;);
+    if (!deviceTypeData || !deviceTypeData.data_table) {
+      throw new NotFoundException(&#x27;Device type data or data table not found&#x27;);
     }
-    const data_table: string &#x3D; deviceTypeData.data_table;
-    if (!data_table) {
-      throw new NotFoundException(&#x27;Data table not found&#x27;);
-    }
-    //Data_table will contain the name of the datatable to query in the repo
-    const data &#x3D; this.dataRepository.findAllByTable(data_table, devEui, skip, take, order &#x3D;&#x3D; &#x27;ASC&#x27; ? true : false);
-    return data;
-  }
-
-  findOne(id: number) {
-    return new NotImplementedException();
-  }
-
-  update(id: number, updateDatumDto: UpdateDatumDto) {
-    return new NotImplementedException();
-  }
-
-  remove(id: number) {
-    return new NotImplementedException();
+    return deviceTypeData;
   }
 }
 </code></pre>

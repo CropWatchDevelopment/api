@@ -163,7 +163,7 @@
                 </tr>
                         <tr>
                             <td class="col-md-4">
-                                <div class="io-line">Defined in <a href="" data-line="9" class="link-to-prism">src/repositories/profiles.repositories.ts:9</a></div>
+                                <div class="io-line">Defined in <a href="" data-line="7" class="link-to-prism">src/repositories/profiles.repositories.ts:7</a></div>
                             </td>
                         </tr>
 
@@ -236,8 +236,8 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="13"
-                                    class="link-to-prism">src/repositories/profiles.repositories.ts:13</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="11"
+                                    class="link-to-prism">src/repositories/profiles.repositories.ts:11</a></div>
                         </td>
                     </tr>
 
@@ -291,10 +291,8 @@
     <div class="tab-pane fade  tab-source-code" id="source">
         <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { Injectable, Req } from &#x27;@nestjs/common&#x27;;
 import { SupabaseService } from &#x27;../supabase/supabase.service&#x27;;
-import { Database } from &#x27;database.types&#x27;;
 import { ApiBearerAuth } from &#x27;@nestjs/swagger&#x27;;
-
-type ProfileRow &#x3D; Database[&#x27;public&#x27;][&#x27;Tables&#x27;][&#x27;profiles&#x27;][&#x27;Row&#x27;];
+import { ProfileRow } from &#x27;src/common/database-types&#x27;;
 
 @Injectable()
 export class ProfileRepository {

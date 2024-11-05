@@ -144,6 +144,16 @@
                             </li>
                             <li>
                                     <span class="modifier">Private</span>
+                                    <span class="modifier">Async</span>
+                                <a href="#checkApiKey" >checkApiKey</a>
+                            </li>
+                            <li>
+                                    <span class="modifier">Private</span>
+                                    <span class="modifier">Async</span>
+                                <a href="#checkJwtToken" >checkJwtToken</a>
+                            </li>
+                            <li>
+                                    <span class="modifier">Private</span>
                                 <a href="#extractTokenFromHeader" >extractTokenFromHeader</a>
                             </li>
                         </ul>
@@ -297,6 +307,146 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
+                    <a name="checkApiKey"></a>
+                    <span class="name">
+                            <span class="modifier">Private</span>
+                            <span class="modifier">Async</span>
+                        <span ><b>checkApiKey</b></span>
+                        <a href="#checkApiKey"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>checkApiKey(request: <a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank">any</a>)</code>
+                </td>
+            </tr>
+
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Defined in <a href="" data-line="45"
+                                    class="link-to-prism">src/auth/guards/jwt-auth.guard.ts:45</a></div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>request</td>
+                                            <td>
+                                                            <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;boolean&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="checkJwtToken"></a>
+                    <span class="name">
+                            <span class="modifier">Private</span>
+                            <span class="modifier">Async</span>
+                        <span ><b>checkJwtToken</b></span>
+                        <a href="#checkJwtToken"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>checkJwtToken(request: <a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank">any</a>)</code>
+                </td>
+            </tr>
+
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Defined in <a href="" data-line="31"
+                                    class="link-to-prism">src/auth/guards/jwt-auth.guard.ts:31</a></div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>request</td>
+                                            <td>
+                                                            <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;boolean&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
                     <a name="extractTokenFromHeader"></a>
                     <span class="name">
                             <span class="modifier">Private</span>
@@ -315,8 +465,8 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="52"
-                                    class="link-to-prism">src/auth/guards/jwt-auth.guard.ts:52</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="58"
+                                    class="link-to-prism">src/auth/guards/jwt-auth.guard.ts:58</a></div>
                         </td>
                     </tr>
 
@@ -382,12 +532,32 @@ export class JwtAuthGuard implements CanActivate {
             context.getClass(),
         ]);
         if (isPublic) {
-            // Skip guard if the endpoint is marked as public
             return true;
         }
-        
+
         const request &#x3D; context.switchToHttp().getRequest();
-        request.user &#x3D; {}; // Initialize user object on request
+        if (await this.checkApiKey(request)) return true;
+
+        // If no API key? check for Bearer token
+        if (await this.checkJwtToken(request)) return true;
+    }
+
+    private async checkJwtToken(request: any): Promise&lt;boolean&gt; {
+        const token &#x3D; this.extractTokenFromHeader(request);
+        if (!token) {
+            throw new UnauthorizedException(&#x27;Token not found&#x27;);
+        }
+        try {
+            const user &#x3D; await this.authService.validateUser(token);
+            request.user &#x3D; user;
+            return true;
+        } catch (error) {
+            throw new UnauthorizedException(error);
+        }
+    }
+
+    private async checkApiKey(request: any): Promise&lt;boolean&gt; {
+        request.user &#x3D; {};
         const apiKey &#x3D; request.headers[&#x27;x-api-key&#x27;];
         if (apiKey) {
             const isValidApiKey &#x3D; await this.authService.validateApiKey(apiKey);
@@ -395,21 +565,7 @@ export class JwtAuthGuard implements CanActivate {
                 throw new UnauthorizedException(&#x27;Invalid API key&#x27;);
             }
             request.user.id &#x3D; isValidApiKey;
-            return true; // Allow access if API key is valid
-        }
-
-        // If no API key, check for Bearer token
-        const token &#x3D; this.extractTokenFromHeader(request);
-        if (!token) {
-            throw new UnauthorizedException(&#x27;Token not found&#x27;);
-        }
-
-        try {
-            const user &#x3D; await this.authService.validateUser(token);
-            request.user &#x3D; user;  // Attach user to the request
             return true;
-        } catch (error) {
-            throw new UnauthorizedException(error);
         }
     }
 

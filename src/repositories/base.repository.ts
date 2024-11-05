@@ -1,6 +1,13 @@
-// src/repositories/base.repository.ts
 import { SupabaseService } from '../supabase/supabase.service';
 
+/**
+ * Base Repository Generic Class.
+ * This class is used by all repositories to perform CRUD operations.
+ * It is a generic class that accepts a type T.
+ * TODO: Prepare this class for mocking, and possibly add failover methods on error, or Round Robbin retry logic.
+ * @param {SupabaseService} SupabaseService  The target to process see {@link SupabaseService}
+ * @param {string} tableName  The database table name to perform operations
+ */
 export class BaseRepository<T> {
   constructor(
     protected readonly supabaseService: SupabaseService,

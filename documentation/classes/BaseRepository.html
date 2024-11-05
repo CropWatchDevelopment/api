@@ -123,6 +123,16 @@
         </p>
 
 
+            <p class="comment">
+                <h3>Description</h3>
+            </p>
+            <p class="comment">
+                <p>Base Repository Generic Class.
+This class is used by all repositories to perform CRUD operations.
+It is a generic class that accepts a type T.
+TODO: Prepare this class for mocking, and possibly add failover methods on error, or Round Robbin retry logic.</p>
+
+            </p>
 
 
 
@@ -158,7 +168,11 @@
                             </li>
                             <li>
                                     <span class="modifier">Async</span>
-                                <a href="#update" >update</a>
+                                <a href="#fullUpdate" >fullUpdate</a>
+                            </li>
+                            <li>
+                                    <span class="modifier">Async</span>
+                                <a href="#partialUpdate" >partialUpdate</a>
                             </li>
                         </ul>
                     </td>
@@ -183,7 +197,7 @@
                 </tr>
                         <tr>
                             <td class="col-md-4">
-                                <div class="io-line">Defined in <a href="" data-line="4" class="link-to-prism">src/repositories/base.repository.ts:4</a></div>
+                                <div class="io-line">Defined in <a href="" data-line="11" class="link-to-prism">src/repositories/base.repository.ts:11</a></div>
                             </td>
                         </tr>
 
@@ -261,8 +275,8 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="34"
-                                    class="link-to-prism">src/repositories/base.repository.ts:34</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="41"
+                                    class="link-to-prism">src/repositories/base.repository.ts:41</a></div>
                         </td>
                     </tr>
 
@@ -330,8 +344,8 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="61"
-                                    class="link-to-prism">src/repositories/base.repository.ts:61</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="82"
+                                    class="link-to-prism">src/repositories/base.repository.ts:82</a></div>
                         </td>
                     </tr>
 
@@ -417,8 +431,8 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="10"
-                                    class="link-to-prism">src/repositories/base.repository.ts:10</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="17"
+                                    class="link-to-prism">src/repositories/base.repository.ts:17</a></div>
                         </td>
                     </tr>
 
@@ -456,8 +470,8 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="21"
-                                    class="link-to-prism">src/repositories/base.repository.ts:21</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="28"
+                                    class="link-to-prism">src/repositories/base.repository.ts:28</a></div>
                         </td>
                     </tr>
 
@@ -525,26 +539,127 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="update"></a>
+                    <a name="fullUpdate"></a>
                     <span class="name">
                             <span class="modifier">Async</span>
-                        <span ><b>update</b></span>
-                        <a href="#update"><span class="icon ion-ios-link"></span></a>
+                        <span ><b>fullUpdate</b></span>
+                        <a href="#fullUpdate"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
                         <span class="modifier-icon icon ion-ios-reset"></span>
-                    <code>update(id: number | string, item: Partial<T>, idColumn: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
+                    <code>fullUpdate(id: number | string, item: T, idColumn: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
                 </td>
             </tr>
 
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="47"
-                                    class="link-to-prism">src/repositories/base.repository.ts:47</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="68"
+                                    class="link-to-prism">src/repositories/base.repository.ts:68</a></div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                                <td>Default value</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>id</td>
+                                            <td>
+                                                        <code>number | string</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+                                            <td>
+                                            </td>
+
+                                        </tr>
+                                        <tr>
+                                                <td>item</td>
+                                            <td>
+                                                        <code>T</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+                                            <td>
+                                            </td>
+
+                                        </tr>
+                                        <tr>
+                                                <td>idColumn</td>
+                                            <td>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+                                            <td>
+                                                    <code>&#x27;id&#x27;</code>
+                                            </td>
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;T&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="partialUpdate"></a>
+                    <span class="name">
+                            <span class="modifier">Async</span>
+                        <span ><b>partialUpdate</b></span>
+                        <a href="#partialUpdate"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>partialUpdate(id: number | string, item: Partial<T>, idColumn: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
+                </td>
+            </tr>
+
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Defined in <a href="" data-line="54"
+                                    class="link-to-prism">src/repositories/base.repository.ts:54</a></div>
                         </td>
                     </tr>
 
@@ -634,6 +749,14 @@
     <div class="tab-pane fade  tab-source-code" id="source">
         <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { SupabaseService } from &#x27;../supabase/supabase.service&#x27;;
 
+/**
+ * Base Repository Generic Class.
+ * This class is used by all repositories to perform CRUD operations.
+ * It is a generic class that accepts a type T.
+ * TODO: Prepare this class for mocking, and possibly add failover methods on error, or Round Robbin retry logic.
+ * @param {SupabaseService} SupabaseService  The target to process see {@link SupabaseService}
+ * @param {string} tableName  The database table name to perform operations
+ */
 export class BaseRepository&lt;T&gt; {
   constructor(
     protected readonly supabaseService: SupabaseService,
@@ -677,11 +800,25 @@ export class BaseRepository&lt;T&gt; {
     return data;
   }
 
-  async update(id: number | string, item: Partial&lt;T&gt;, idColumn &#x3D; &#x27;id&#x27;): Promise&lt;T&gt; {
+  async partialUpdate(id: number | string, item: Partial&lt;T&gt;, idColumn &#x3D; &#x27;id&#x27;): Promise&lt;T&gt; {
     const { data, error } &#x3D; await this.supabaseService
       .getSupabaseClient()
       .from(this.tableName)
       .update(item)
+      .eq(idColumn, id)
+      .select(&#x27;*&#x27;)
+      .single();
+    if (error) {
+      throw error;
+    }
+    return data;
+  }
+
+  async fullUpdate(id: number | string, item: T, idColumn &#x3D; &#x27;id&#x27;): Promise&lt;T&gt; {
+    const { data, error } &#x3D; await this.supabaseService
+      .getSupabaseClient()
+      .from(this.tableName)
+      .update(item) // Accepts full item data
       .eq(idColumn, id)
       .select(&#x27;*&#x27;)
       .single();

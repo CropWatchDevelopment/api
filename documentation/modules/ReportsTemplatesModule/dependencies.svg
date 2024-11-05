@@ -24,10 +24,6 @@
 <title>cluster_ReportsTemplatesModule</title>
 <polygon fill="none" stroke="black" stroke-dasharray="1,5" points="8,-70 8,-268 760,-268 760,-70 8,-70"/>
 </g>
-<g id="clust4" class="cluster">
-<title>cluster_ReportsTemplatesModule_exports</title>
-<polygon fill="none" stroke="black" points="197,-208 197,-260 377,-260 377,-208 197,-208"/>
-</g>
 <g id="clust6" class="cluster">
 <title>cluster_ReportsTemplatesModule_providers</title>
 <polygon fill="none" stroke="black" points="258,-78 258,-130 752,-130 752,-78 258,-78"/>
@@ -35,6 +31,10 @@
 <g id="clust3" class="cluster">
 <title>cluster_ReportsTemplatesModule_imports</title>
 <polygon fill="none" stroke="black" points="16,-78 16,-130 250,-130 250,-78 16,-78"/>
+</g>
+<g id="clust4" class="cluster">
+<title>cluster_ReportsTemplatesModule_exports</title>
+<polygon fill="none" stroke="black" points="197,-208 197,-260 377,-260 377,-208 197,-208"/>
 </g>
 <!-- AuthModule -->
 <g id="node1" class="node">

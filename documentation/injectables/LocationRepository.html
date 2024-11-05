@@ -159,7 +159,11 @@
                             </li>
                             <li>
                                     <span class="modifier">Async</span>
-                                <a href="#update" >update</a>
+                                <a href="#fullUpdate" >fullUpdate</a>
+                            </li>
+                            <li>
+                                    <span class="modifier">Async</span>
+                                <a href="#partialUpdate" >partialUpdate</a>
                             </li>
                         </ul>
                     </td>
@@ -184,7 +188,7 @@
                 </tr>
                         <tr>
                             <td class="col-md-4">
-                                <div class="io-line">Defined in <a href="" data-line="9" class="link-to-prism">src/repositories/cw_location.repository.ts:9</a></div>
+                                <div class="io-line">Defined in <a href="" data-line="7" class="link-to-prism">src/repositories/cw_location.repository.ts:7</a></div>
                             </td>
                         </tr>
 
@@ -255,7 +259,7 @@
                     </tr>
                     <tr>
                         <td class="col-md-4">
-                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:34</a></code>
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:41</a></code>
 </div>
                         </td>
                     </tr>
@@ -330,7 +334,7 @@
                     </tr>
                     <tr>
                         <td class="col-md-4">
-                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:61</a></code>
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:82</a></code>
 </div>
                         </td>
                     </tr>
@@ -423,7 +427,7 @@
                     </tr>
                     <tr>
                         <td class="col-md-4">
-                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:10</a></code>
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:17</a></code>
 </div>
                         </td>
                     </tr>
@@ -468,7 +472,7 @@
                     </tr>
                     <tr>
                         <td class="col-md-4">
-                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:21</a></code>
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:28</a></code>
 </div>
                         </td>
                     </tr>
@@ -537,18 +541,18 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="update"></a>
+                    <a name="fullUpdate"></a>
                     <span class="name">
                             <span class="modifier">Async</span>
-                        <span ><b>update</b></span>
-                        <a href="#update"><span class="icon ion-ios-link"></span></a>
+                        <span ><b>fullUpdate</b></span>
+                        <a href="#fullUpdate"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
                         <span class="modifier-icon icon ion-ios-reset"></span>
-                    <code>update(id: number | string, item: Partial<T>, idColumn: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
+                    <code>fullUpdate(id: number | string, item: T, idColumn: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
                 </td>
             </tr>
 
@@ -561,7 +565,114 @@
                     </tr>
                     <tr>
                         <td class="col-md-4">
-                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:47</a></code>
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:68</a></code>
+</div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                                <td>Default value</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>id</td>
+                                            <td>
+                                                        <code>number | string</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+                                            <td>
+                                            </td>
+
+                                        </tr>
+                                        <tr>
+                                                <td>item</td>
+                                            <td>
+                                                        <code>T</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+                                            <td>
+                                            </td>
+
+                                        </tr>
+                                        <tr>
+                                                <td>idColumn</td>
+                                            <td>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+                                            <td>
+                                                    <code>&#x27;id&#x27;</code>
+                                            </td>
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;T&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="partialUpdate"></a>
+                    <span class="name">
+                            <span class="modifier">Async</span>
+                        <span ><b>partialUpdate</b></span>
+                        <a href="#partialUpdate"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>partialUpdate(id: number | string, item: Partial<T>, idColumn: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank">string</a>)</code>
+                </td>
+            </tr>
+
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseRepository.html" target="_self" >BaseRepository</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseRepository.html#source" target="_self" >BaseRepository:54</a></code>
 </div>
                         </td>
                     </tr>
@@ -648,10 +759,8 @@
     <div class="tab-pane fade  tab-source-code" id="source">
         <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { Injectable } from &#x27;@nestjs/common&#x27;;
 import { SupabaseService } from &#x27;../supabase/supabase.service&#x27;;
-import { Database } from &#x27;database.types&#x27;;
 import { BaseRepository } from &#x27;./base.repository&#x27;;
-
-type LocationRow &#x3D; Database[&#x27;public&#x27;][&#x27;Tables&#x27;][&#x27;cw_locations&#x27;][&#x27;Row&#x27;];
+import { LocationRow } from &#x27;src/common/database-types&#x27;;
 
 @Injectable()
 export class LocationRepository extends BaseRepository&lt;LocationRow&gt; {

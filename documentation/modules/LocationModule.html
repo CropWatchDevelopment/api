@@ -117,55 +117,55 @@
 <title>cluster_LocationModule</title>
 <polygon fill="none" stroke="black" stroke-dasharray="1,5" points="8,-70 8,-195 518,-195 518,-70 8,-70"/>
 </g>
-<g id="clust6" class="cluster">
-<title>cluster_LocationModule_providers</title>
-<polygon fill="none" stroke="black" points="152,-78 152,-130 510,-130 510,-78 152,-78"/>
-</g>
 <g id="clust3" class="cluster">
 <title>cluster_LocationModule_imports</title>
-<polygon fill="none" stroke="black" points="16,-78 16,-130 144,-130 144,-78 16,-78"/>
+<polygon fill="none" stroke="black" points="382,-78 382,-130 510,-130 510,-78 382,-78"/>
+</g>
+<g id="clust6" class="cluster">
+<title>cluster_LocationModule_providers</title>
+<polygon fill="none" stroke="black" points="16,-78 16,-130 374,-130 374,-78 16,-78"/>
 </g>
 <!-- SupabaseModule -->
 <g id="node1" class="node">
 <title>SupabaseModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="136.42,-122 133.42,-126 112.42,-126 109.42,-122 23.58,-122 23.58,-86 136.42,-86 136.42,-122"/>
-<text text-anchor="middle" x="80" y="-99.8" font-family="Times,serif" font-size="14.00">SupabaseModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="502.42,-122 499.42,-126 478.42,-126 475.42,-122 389.58,-122 389.58,-86 502.42,-86 502.42,-122"/>
+<text text-anchor="middle" x="446" y="-99.8" font-family="Times,serif" font-size="14.00">SupabaseModule</text>
 </g>
 <!-- LocationModule -->
 <g id="node2" class="node">
 <title>LocationModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="288.81,-187 285.81,-191 264.81,-191 261.81,-187 179.19,-187 179.19,-151 288.81,-151 288.81,-187"/>
-<text text-anchor="middle" x="234" y="-164.8" font-family="Times,serif" font-size="14.00">LocationModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="332.81,-187 329.81,-191 308.81,-191 305.81,-187 223.19,-187 223.19,-151 332.81,-151 332.81,-187"/>
+<text text-anchor="middle" x="278" y="-164.8" font-family="Times,serif" font-size="14.00">LocationModule</text>
 </g>
 <!-- SupabaseModule&#45;&gt;LocationModule -->
 <g id="edge1" class="edge">
 <title>SupabaseModule&#45;&gt;LocationModule</title>
-<path fill="none" stroke="black" d="M80,-122.11C80,-141.34 80,-169 80,-169 80,-169 169.27,-169 169.27,-169"/>
-<polygon fill="black" stroke="black" points="169.27,-172.5 179.27,-169 169.27,-165.5 169.27,-172.5"/>
+<path fill="none" stroke="black" d="M446,-122.11C446,-141.34 446,-169 446,-169 446,-169 343.01,-169 343.01,-169"/>
+<polygon fill="black" stroke="black" points="343.01,-165.5 333.01,-169 343.01,-172.5 343.01,-165.5"/>
 </g>
 <!-- LocationRepository -->
 <g id="node3" class="node">
 <title>LocationRepository</title>
-<ellipse fill="#fdb462" stroke="black" cx="414" cy="-104" rx="87.98" ry="18"/>
-<text text-anchor="middle" x="414" y="-99.8" font-family="Times,serif" font-size="14.00">LocationRepository</text>
+<ellipse fill="#fdb462" stroke="black" cx="278" cy="-104" rx="87.98" ry="18"/>
+<text text-anchor="middle" x="278" y="-99.8" font-family="Times,serif" font-size="14.00">LocationRepository</text>
 </g>
 <!-- LocationRepository&#45;&gt;LocationModule -->
 <g id="edge2" class="edge">
 <title>LocationRepository&#45;&gt;LocationModule</title>
-<path fill="none" stroke="black" d="M414,-122.11C414,-141.34 414,-169 414,-169 414,-169 298.98,-169 298.98,-169"/>
-<polygon fill="black" stroke="black" points="298.98,-165.5 288.98,-169 298.98,-172.5 298.98,-165.5"/>
+<path fill="none" stroke="black" d="M278,-122.11C278,-122.11 278,-140.99 278,-140.99"/>
+<polygon fill="black" stroke="black" points="274.5,-140.99 278,-150.99 281.5,-140.99 274.5,-140.99"/>
 </g>
 <!-- LocationService -->
 <g id="node4" class="node">
 <title>LocationService</title>
-<ellipse fill="#fdb462" stroke="black" cx="234" cy="-104" rx="74.14" ry="18"/>
-<text text-anchor="middle" x="234" y="-99.8" font-family="Times,serif" font-size="14.00">LocationService</text>
+<ellipse fill="#fdb462" stroke="black" cx="98" cy="-104" rx="74.14" ry="18"/>
+<text text-anchor="middle" x="98" y="-99.8" font-family="Times,serif" font-size="14.00">LocationService</text>
 </g>
 <!-- LocationService&#45;&gt;LocationModule -->
 <g id="edge3" class="edge">
 <title>LocationService&#45;&gt;LocationModule</title>
-<path fill="none" stroke="black" d="M234,-122.11C234,-122.11 234,-140.99 234,-140.99"/>
-<polygon fill="black" stroke="black" points="230.5,-140.99 234,-150.99 237.5,-140.99 230.5,-140.99"/>
+<path fill="none" stroke="black" d="M98,-122.11C98,-141.34 98,-169 98,-169 98,-169 213.02,-169 213.02,-169"/>
+<polygon fill="black" stroke="black" points="213.02,-172.5 223.02,-169 213.02,-165.5 213.02,-172.5"/>
 </g>
 </g>
 </svg>
@@ -257,6 +257,7 @@ import { LocationController } from &#x27;./location.controller&#x27;;
 import { LocationService } from &#x27;./location.service&#x27;;
 import { LocationRepository } from &#x27;src/repositories/cw_location.repository&#x27;;
 import { SupabaseModule } from &#x27;src/supabase/supabase.module&#x27;;
+import { BaseRepository } from &#x27;src/repositories/base.repository&#x27;;
 
 @Module({
   imports: [SupabaseModule],
@@ -264,6 +265,7 @@ import { SupabaseModule } from &#x27;src/supabase/supabase.module&#x27;;
   providers: [
     LocationService,
     LocationRepository,
+    BaseRepository,
   ],
 })
 export class LocationModule {}

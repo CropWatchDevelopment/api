@@ -282,7 +282,7 @@ import { SupabaseAuthGuard } from &#x27;src/auth/guards/supabase.guard&#x27;;
 @ApiTags(&#x27;📄 PDF - Serve a PDF file&#x27;)
 @Controller(&#x27;pdf&#x27;)
 export class PdfController {
-    constructor(private readonly pdfService: PdfService) {}
+    constructor(private readonly pdfService: PdfService) { }
 
     @Get()
     @ApiSecurity(&#x27;x-api-key&#x27;, [&#x27;x-api-key&#x27;])
@@ -293,17 +293,13 @@ export class PdfController {
         @Req() req,
         @Query(&#x27;devEui&#x27;) devEui: string
     ): Promise&lt;void&gt; {
-        
         const user_id &#x3D; req.user.id;
-        
         const pdfBuffer &#x3D; await this.pdfService.createPdfBinary(user_id, devEui);
-        
         res.set({
             &#x27;Content-Type&#x27;: &#x27;application/pdf&#x27;,
             &#x27;Content-Disposition&#x27;: &#x27;attachment; filename&#x3D;&quot;report.pdf&quot;&#x27;,
             &#x27;Content-Length&#x27;: pdfBuffer.length,
         });
-
         res.send(pdfBuffer);
     }
 }

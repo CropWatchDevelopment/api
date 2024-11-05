@@ -120,6 +120,12 @@
 
 
 
+            <p class="comment">
+                <h3>Extends</h3>
+            </p>
+            <p class="comment">
+                            <code><a href="../classes/BaseService.html" target="_self" >BaseService</a></code>
+            </p>
 
 
             <section data-compodoc="block-index">
@@ -136,19 +142,28 @@
                     <td class="col-md-4">
                         <ul class="index-list">
                             <li>
+                                    <span class="modifier">Async</span>
                                 <a href="#create" >create</a>
                             </li>
                             <li>
+                                    <span class="modifier">Async</span>
+                                <a href="#delete" >delete</a>
+                            </li>
+                            <li>
+                                    <span class="modifier">Async</span>
                                 <a href="#findAll" >findAll</a>
                             </li>
                             <li>
-                                <a href="#findOne" >findOne</a>
+                                    <span class="modifier">Async</span>
+                                <a href="#findById" >findById</a>
                             </li>
                             <li>
-                                <a href="#remove" >remove</a>
+                                    <span class="modifier">Async</span>
+                                <a href="#fullUpdate" >fullUpdate</a>
                             </li>
                             <li>
-                                <a href="#update" >update</a>
+                                    <span class="modifier">Async</span>
+                                <a href="#partialUpdate" >partialUpdate</a>
                             </li>
                         </ul>
                     </td>
@@ -168,12 +183,12 @@
             <tbody>
                 <tr>
                     <td class="col-md-4">
-<code>constructor(locationRepository: <a href="../injectables/LocationRepository.html" target="_self">LocationRepository</a>)</code>
+<code>constructor(repository: <a href="../undefineds/LocationRow.html" target="_self">BaseRepository&lt;LocationRow&gt;</a>)</code>
                     </td>
                 </tr>
                         <tr>
                             <td class="col-md-4">
-                                <div class="io-line">Defined in <a href="" data-line="7" class="link-to-prism">src/location/location.service.ts:7</a></div>
+                                <div class="io-line">Defined in <a href="" data-line="9" class="link-to-prism">src/location/location.service.ts:9</a></div>
                             </td>
                         </tr>
 
@@ -191,10 +206,10 @@
                                         </thead>
                                         <tbody>
                                                 <tr>
-                                                        <td>locationRepository</td>
+                                                        <td>repository</td>
                                                   
                                                         <td>
-                                                                        <code><a href="../injectables/LocationRepository.html" target="_self" >LocationRepository</a></code>
+                                                                        <code><a href="../miscellaneous/typealiases.html#LocationRow" target="_self" >BaseRepository&lt;LocationRow&gt;</a></code>
                                                         </td>
                                                   
                                                     <td>
@@ -222,6 +237,7 @@
                 <td class="col-md-4">
                     <a name="create"></a>
                     <span class="name">
+                            <span class="modifier">Async</span>
                         <span ><b>create</b></span>
                         <a href="#create"><span class="icon ion-ios-link"></span></a>
                     </span>
@@ -229,15 +245,22 @@
             </tr>
             <tr>
                 <td class="col-md-4">
-<code>create(createLocationDto: <a href="../classes/CreateLocationDto.html" target="_self">CreateLocationDto</a>)</code>
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>create(dto: CreateDto)</code>
                 </td>
             </tr>
 
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="10"
-                                    class="link-to-prism">src/location/location.service.ts:10</a></div>
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseService.html" target="_self" >BaseService</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseService.html#source" target="_self" >BaseService:21</a></code>
+</div>
                         </td>
                     </tr>
 
@@ -258,9 +281,9 @@
                                     </thead>
                                     <tbody>
                                         <tr>
-                                                <td>createLocationDto</td>
+                                                <td>dto</td>
                                             <td>
-                                                            <code><a href="../classes/CreateLocationDto.html" target="_self" >CreateLocationDto</a></code>
+                                                        <code>CreateDto</code>
                                             </td>
 
                                             <td>
@@ -273,7 +296,82 @@
                                 </table>
                             </div>
                         <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
+                            <b>Returns : </b>    <code>Promise&lt;T&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="delete"></a>
+                    <span class="name">
+                            <span class="modifier">Async</span>
+                        <span ><b>delete</b></span>
+                        <a href="#delete"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>delete(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>)</code>
+                </td>
+            </tr>
+
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseService.html" target="_self" >BaseService</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseService.html#source" target="_self" >BaseService:33</a></code>
+</div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>id</td>
+                                            <td>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;void&gt;</code>
 
                         </div>
                             <div class="io-description">
@@ -289,6 +387,7 @@
                 <td class="col-md-4">
                     <a name="findAll"></a>
                     <span class="name">
+                            <span class="modifier">Async</span>
                         <span ><b>findAll</b></span>
                         <a href="#findAll"><span class="icon ion-ios-link"></span></a>
                     </span>
@@ -296,15 +395,22 @@
             </tr>
             <tr>
                 <td class="col-md-4">
-<code>findAll()</code>
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>findAll()</code>
                 </td>
             </tr>
 
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="14"
-                                    class="link-to-prism">src/location/location.service.ts:14</a></div>
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseService.html" target="_self" >BaseService</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseService.html#source" target="_self" >BaseService:13</a></code>
+</div>
                         </td>
                     </tr>
 
@@ -313,7 +419,7 @@
                 <td class="col-md-4">
 
                         <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
+                            <b>Returns : </b>    <code>Promise&lt;T[]&gt;</code>
 
                         </div>
                 </td>
@@ -324,24 +430,32 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="findOne"></a>
+                    <a name="findById"></a>
                     <span class="name">
-                        <span ><b>findOne</b></span>
-                        <a href="#findOne"><span class="icon ion-ios-link"></span></a>
+                            <span class="modifier">Async</span>
+                        <span ><b>findById</b></span>
+                        <a href="#findById"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
-<code>findOne(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>)</code>
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>findById(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>)</code>
                 </td>
             </tr>
 
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="18"
-                                    class="link-to-prism">src/location/location.service.ts:18</a></div>
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseService.html" target="_self" >BaseService</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseService.html#source" target="_self" >BaseService:17</a></code>
+</div>
                         </td>
                     </tr>
 
@@ -377,7 +491,7 @@
                                 </table>
                             </div>
                         <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://www.typescriptlang.org/docs/handbook/basic-types.html" target="_blank" >any</a></code>
+                            <b>Returns : </b>    <code>Promise&lt;T | null&gt;</code>
 
                         </div>
                             <div class="io-description">
@@ -391,91 +505,32 @@
         <tbody>
             <tr>
                 <td class="col-md-4">
-                    <a name="remove"></a>
+                    <a name="fullUpdate"></a>
                     <span class="name">
-                        <span ><b>remove</b></span>
-                        <a href="#remove"><span class="icon ion-ios-link"></span></a>
+                            <span class="modifier">Async</span>
+                        <span ><b>fullUpdate</b></span>
+                        <a href="#fullUpdate"><span class="icon ion-ios-link"></span></a>
                     </span>
                 </td>
             </tr>
             <tr>
                 <td class="col-md-4">
-<code>remove(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>)</code>
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>fullUpdate(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>, dto: T | UpdateDto)</code>
                 </td>
             </tr>
 
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="26"
-                                    class="link-to-prism">src/location/location.service.ts:26</a></div>
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseService.html" target="_self" >BaseService</a></code>
+</div>
                         </td>
                     </tr>
-
-
-            <tr>
-                <td class="col-md-4">
-
-                            <div class="io-description">
-                                <b>Parameters :</b>
-                                
-                                <table class="params">
-                                    <thead>
-                                        <tr>
-                                            <td>Name</td>
-                                                <td>Type</td>
-                                            <td>Optional</td>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                                <td>id</td>
-                                            <td>
-                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
-                                            </td>
-
-                                            <td>
-                                                    No
-                                            </td>
-
-
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
-
-                        </div>
-                            <div class="io-description">
-                                
-                            </div>
-                </td>
-            </tr>
-        </tbody>
-    </table>
-    <table class="table table-sm table-bordered">
-        <tbody>
-            <tr>
-                <td class="col-md-4">
-                    <a name="update"></a>
-                    <span class="name">
-                        <span ><b>update</b></span>
-                        <a href="#update"><span class="icon ion-ios-link"></span></a>
-                    </span>
-                </td>
-            </tr>
-            <tr>
-                <td class="col-md-4">
-<code>update(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>, updateLocationDto: <a href="../classes/UpdateLocationDto.html" target="_self">UpdateLocationDto</a>)</code>
-                </td>
-            </tr>
-
-
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="22"
-                                    class="link-to-prism">src/location/location.service.ts:22</a></div>
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseService.html#source" target="_self" >BaseService:29</a></code>
+</div>
                         </td>
                     </tr>
 
@@ -508,9 +563,9 @@
 
                                         </tr>
                                         <tr>
-                                                <td>updateLocationDto</td>
+                                                <td>dto</td>
                                             <td>
-                                                            <code><a href="../classes/UpdateLocationDto.html" target="_self" >UpdateLocationDto</a></code>
+                                                        <code>T | UpdateDto</code>
                                             </td>
 
                                             <td>
@@ -523,7 +578,94 @@
                                 </table>
                             </div>
                         <div class="io-description">
-                            <b>Returns : </b>        <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/string" target="_blank" >string</a></code>
+                            <b>Returns : </b>    <code>Promise&lt;T&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="partialUpdate"></a>
+                    <span class="name">
+                            <span class="modifier">Async</span>
+                        <span ><b>partialUpdate</b></span>
+                        <a href="#partialUpdate"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>partialUpdate(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>, dto: UpdateDto)</code>
+                </td>
+            </tr>
+
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseService.html" target="_self" >BaseService</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseService.html#source" target="_self" >BaseService:25</a></code>
+</div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>id</td>
+                                            <td>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                        <tr>
+                                                <td>dto</td>
+                                            <td>
+                                                        <code>UpdateDto</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;T&gt;</code>
 
                         </div>
                             <div class="io-description">
@@ -542,31 +684,16 @@
         <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { Injectable } from &#x27;@nestjs/common&#x27;;
 import { CreateLocationDto } from &#x27;./dto/create-location.dto&#x27;;
 import { UpdateLocationDto } from &#x27;./dto/update-location.dto&#x27;;
-import { LocationRepository } from &#x27;src/repositories/cw_location.repository&#x27;;
+import { BaseService } from &#x27;src/bases/base.service&#x27;;
+import { BaseRepository } from &#x27;src/repositories/base.repository&#x27;;
+import { LocationRow } from &#x27;src/common/database-types&#x27;;
 
 @Injectable()
-export class LocationService {
-  constructor(private readonly locationRepository: LocationRepository) {}
-
-  create(createLocationDto: CreateLocationDto) {
-    return this.locationRepository.create(createLocationDto);
+export class LocationService extends BaseService&lt;LocationRow, CreateLocationDto, UpdateLocationDto&gt; {
+  constructor(repository: BaseRepository&lt;LocationRow&gt;) {
+    super(repository);
   }
 
-  findAll() {
-    return this.locationRepository.findAll();
-  }
-
-  findOne(id: number) {
-    return this.locationRepository.findById(id);
-  }
-
-  update(id: number, updateLocationDto: UpdateLocationDto) {
-    return &#x60;This action updates a #${id} location&#x60;;
-  }
-
-  remove(id: number) {
-    return &#x60;This action removes a #${id} location&#x60;;
-  }
 }
 </code></pre>
     </div>

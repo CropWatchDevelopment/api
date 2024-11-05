@@ -143,6 +143,7 @@
                             <li>
                                     <span class="modifier"></span>
                                     <span class="modifier"></span>
+                                    <span class="modifier"></span>
                                 <a href="#check" >check</a>
                             </li>
                         </ul>
@@ -170,6 +171,7 @@
                     <span class="name">
                             <span class="modifier"></span>
                             <span class="modifier"></span>
+                            <span class="modifier"></span>
                         <span ><b>check</b></span>
                         <a href="#check"><span class="icon ion-ios-link"></span></a>
                     </span>
@@ -186,14 +188,14 @@
                 <td class="col-md-4">
                     <b>Decorators : </b>
                     <br />
-                    <code>@Get()<br />@HealthCheck()<br /></code>
+                    <code>@Get()<br />@Public()<br />@HealthCheck()<br /></code>
                 </td>
             </tr>
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="13"
-                                    class="link-to-prism">src/health/health.controller.ts:13</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="15"
+                                    class="link-to-prism">src/health/health.controller.ts:15</a></div>
                         </td>
                     </tr>
 
@@ -215,6 +217,7 @@
     <div class="tab-pane fade  tab-source-code" id="source">
         <pre class="line-numbers compodoc-sourcecode"><code class="language-typescript">import { Controller, Get } from &#x27;@nestjs/common&#x27;;
 import { HealthCheckService, HttpHealthIndicator, HealthCheck } from &#x27;@nestjs/terminus&#x27;;
+import { Public } from &#x27;src/auth/public.decorator&#x27;;
 
 @Controller(&#x27;health&#x27;)
 export class HealthController {
@@ -224,6 +227,7 @@ export class HealthController {
   ) {}
 
   @Get()
+  @Public()
   @HealthCheck()
   check() {
     return this.health.check([

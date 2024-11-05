@@ -149,10 +149,6 @@
                                     <span class="modifier"></span>
                                     <span class="modifier"></span>
                                     <span class="modifier"></span>
-                                    <span class="modifier"></span>
-                                    <span class="modifier"></span>
-                                    <span class="modifier"></span>
-                                    <span class="modifier"></span>
                                     <span class="modifier">Async</span>
                                 <a href="#create" >create</a>
                             </li>
@@ -160,12 +156,30 @@
                                     <span class="modifier"></span>
                                     <span class="modifier"></span>
                                     <span class="modifier"></span>
+                                    <span class="modifier">Async</span>
+                                <a href="#Delete" >Delete</a>
+                            </li>
+                            <li>
                                     <span class="modifier"></span>
                                     <span class="modifier"></span>
                                     <span class="modifier"></span>
                                     <span class="modifier"></span>
                                     <span class="modifier">Async</span>
                                 <a href="#findAll" >findAll</a>
+                            </li>
+                            <li>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier">Async</span>
+                                <a href="#FullUpdate" >FullUpdate</a>
+                            </li>
+                            <li>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier"></span>
+                                    <span class="modifier">Async</span>
+                                <a href="#PartialUpdate" >PartialUpdate</a>
                             </li>
                         </ul>
                     </td>
@@ -193,10 +207,6 @@
                             <span class="modifier"></span>
                             <span class="modifier"></span>
                             <span class="modifier"></span>
-                            <span class="modifier"></span>
-                            <span class="modifier"></span>
-                            <span class="modifier"></span>
-                            <span class="modifier"></span>
                             <span class="modifier">Async</span>
                         <span ><b>create</b></span>
                         <a href="#create"><span class="icon ion-ios-link"></span></a>
@@ -214,7 +224,7 @@
                 <td class="col-md-4">
                     <b>Decorators : </b>
                     <br />
-                    <code>@ApiResponse({status: 201, description: &#x27;Content Created&#x27;})<br />@ApiResponse({status: 400, description: &#x27;Bad Request&#x27;})<br />@ApiResponse({status: 401, description: &#x27;Unauthorized&#x27;})<br />@ApiResponse({status: 402, description: &#x27;Payment Required&#x27;})<br />@ApiResponse({status: 403, description: &#x27;Forbidden&#x27;})<br />@ApiOperation({summary: &#x27;Create a new item&#x27;})<br />@Post()<br /></code>
+                    <code>@Post()<br />@ApiCommonAuth(&#x27;Create a new item&#x27;)<br />@ApiCreateResponses()<br /></code>
                 </td>
             </tr>
 
@@ -226,7 +236,92 @@
                     </tr>
                     <tr>
                         <td class="col-md-4">
-                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:30</a></code>
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:35</a></code>
+</div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>createDto</td>
+                                            <td>
+                                                        <code>CreateDto</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;T&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="Delete"></a>
+                    <span class="name">
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier">Async</span>
+                        <span ><b>Delete</b></span>
+                        <a href="#Delete"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>Delete(createDto: CreateDto)</code>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="col-md-4">
+                    <b>Decorators : </b>
+                    <br />
+                    <code>@Delete()<br />@ApiCommonAuth(&#x27;Delete a single item&#x27;)<br />@ApiDeleteResponses()<br /></code>
+                </td>
+            </tr>
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseController.html" target="_self" >BaseController</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:56</a></code>
 </div>
                         </td>
                     </tr>
@@ -283,9 +378,6 @@
                             <span class="modifier"></span>
                             <span class="modifier"></span>
                             <span class="modifier"></span>
-                            <span class="modifier"></span>
-                            <span class="modifier"></span>
-                            <span class="modifier"></span>
                             <span class="modifier">Async</span>
                         <span ><b>findAll</b></span>
                         <a href="#findAll"><span class="icon ion-ios-link"></span></a>
@@ -303,7 +395,7 @@
                 <td class="col-md-4">
                     <b>Decorators : </b>
                     <br />
-                    <code>@ApiResponse({status: 200, description: &#x27;OK&#x27;})<br />@ApiResponse({status: 400, description: &#x27;Bad Request&#x27;})<br />@ApiResponse({status: 401, description: &#x27;Unauthorized&#x27;})<br />@ApiResponse({status: 402, description: &#x27;Payment Required&#x27;})<br />@ApiResponse({status: 403, description: &#x27;Forbidden&#x27;})<br />@ApiOperation({summary: &#x27;Get all items&#x27;})<br />@Get()<br /></code>
+                    <code>@Get()<br />@ApiCommonAuth(&#x27;Get all items&#x27;)<br />@CommonResponses()<br />@ApiGetResponses()<br /></code>
                 </td>
             </tr>
 
@@ -315,7 +407,7 @@
                     </tr>
                     <tr>
                         <td class="col-md-4">
-                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:19</a></code>
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:28</a></code>
 </div>
                         </td>
                     </tr>
@@ -332,6 +424,200 @@
             </tr>
         </tbody>
     </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="FullUpdate"></a>
+                    <span class="name">
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier">Async</span>
+                        <span ><b>FullUpdate</b></span>
+                        <a href="#FullUpdate"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>FullUpdate(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>, updateDto: UpdateDto)</code>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="col-md-4">
+                    <b>Decorators : </b>
+                    <br />
+                    <code>@Put(&#x27;:id&#x27;)<br />@ApiCommonAuth(&#x27;Fully update a single item&#x27;)<br />@ApiCreateResponses()<br /></code>
+                </td>
+            </tr>
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseController.html" target="_self" >BaseController</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:49</a></code>
+</div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>id</td>
+                                            <td>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                        <tr>
+                                                <td>updateDto</td>
+                                            <td>
+                                                        <code>UpdateDto</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;T&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <table class="table table-sm table-bordered">
+        <tbody>
+            <tr>
+                <td class="col-md-4">
+                    <a name="PartialUpdate"></a>
+                    <span class="name">
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier"></span>
+                            <span class="modifier">Async</span>
+                        <span ><b>PartialUpdate</b></span>
+                        <a href="#PartialUpdate"><span class="icon ion-ios-link"></span></a>
+                    </span>
+                </td>
+            </tr>
+            <tr>
+                <td class="col-md-4">
+                        <span class="modifier-icon icon ion-ios-reset"></span>
+                    <code>PartialUpdate(id: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank">number</a>, updateDto: UpdateDto)</code>
+                </td>
+            </tr>
+
+            <tr>
+                <td class="col-md-4">
+                    <b>Decorators : </b>
+                    <br />
+                    <code>@Patch(&#x27;:id&#x27;)<br />@ApiCommonAuth(&#x27;Partially update a single item&#x27;)<br />@ApiCreateResponses()<br /></code>
+                </td>
+            </tr>
+
+                    <tr>
+                        <td class="col-md-4">
+                            <div class="io-line">Inherited from         <code><a href="../classes/BaseController.html" target="_self" >BaseController</a></code>
+</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="col-md-4">
+                                <div class="io-line">Defined in         <code><a href="../classes/BaseController.html#source" target="_self" >BaseController:42</a></code>
+</div>
+                        </td>
+                    </tr>
+
+
+            <tr>
+                <td class="col-md-4">
+
+                            <div class="io-description">
+                                <b>Parameters :</b>
+                                
+                                <table class="params">
+                                    <thead>
+                                        <tr>
+                                            <td>Name</td>
+                                                <td>Type</td>
+                                            <td>Optional</td>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                                <td>id</td>
+                                            <td>
+                                                            <code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/number" target="_blank" >number</a></code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                        <tr>
+                                                <td>updateDto</td>
+                                            <td>
+                                                        <code>UpdateDto</code>
+                                            </td>
+
+                                            <td>
+                                                    No
+                                            </td>
+
+
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <div class="io-description">
+                            <b>Returns : </b>    <code>Promise&lt;T&gt;</code>
+
+                        </div>
+                            <div class="io-description">
+                                
+                            </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
 </section>    </div>
 
 
@@ -341,14 +627,13 @@ import { LocationService } from &#x27;./location.service&#x27;;
 import { CreateLocationDto } from &#x27;./dto/create-location.dto&#x27;;
 import { ApiTags } from &#x27;@nestjs/swagger&#x27;;
 import { BaseController } from &#x27;src/bases/base.controller&#x27;;
-import { Database } from &#x27;database.types&#x27;;
-
-type LocationsRow &#x3D; Database[&#x27;public&#x27;][&#x27;Tables&#x27;][&#x27;cw_locations&#x27;][&#x27;Row&#x27;];
+import { LocationsRow } from &#x27;src/common/database-types&#x27;;
+import { UpdateLocationDto } from &#x27;./dto/update-location.dto&#x27;;
 
 @ApiTags(&#x27;Locations&#x27;)
 @Controller(&#x27;location&#x27;)
-export class LocationController extends BaseController&lt;LocationsRow, CreateLocationDto&gt;  {
-  constructor(private readonly locationService: LocationService) {
+export class LocationController extends BaseController&lt;LocationsRow, CreateLocationDto, UpdateLocationDto&gt;  {
+  constructor(locationService: LocationService) {
     super(locationService);
   }
 

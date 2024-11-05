@@ -24,121 +24,121 @@
 <title>cluster_PdfModule</title>
 <polygon fill="none" stroke="black" stroke-dasharray="1,5" points="8,-70 8,-195 1196,-195 1196,-70 8,-70"/>
 </g>
-<g id="clust6" class="cluster">
-<title>cluster_PdfModule_providers</title>
-<polygon fill="none" stroke="black" points="794,-78 794,-130 1188,-130 1188,-78 794,-78"/>
-</g>
 <g id="clust3" class="cluster">
 <title>cluster_PdfModule_imports</title>
-<polygon fill="none" stroke="black" points="16,-78 16,-130 786,-130 786,-78 16,-78"/>
+<polygon fill="none" stroke="black" points="418,-78 418,-130 1188,-130 1188,-78 418,-78"/>
+</g>
+<g id="clust6" class="cluster">
+<title>cluster_PdfModule_providers</title>
+<polygon fill="none" stroke="black" points="16,-78 16,-130 410,-130 410,-78 16,-78"/>
 </g>
 <!-- CwDeviceOwnersModule -->
 <g id="node1" class="node">
 <title>CwDeviceOwnersModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="778.17,-122 775.17,-126 754.17,-126 751.17,-122 615.83,-122 615.83,-86 778.17,-86 778.17,-122"/>
-<text text-anchor="middle" x="697" y="-99.8" font-family="Times,serif" font-size="14.00">CwDeviceOwnersModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="1180.17,-122 1177.17,-126 1156.17,-126 1153.17,-122 1017.83,-122 1017.83,-86 1180.17,-86 1180.17,-122"/>
+<text text-anchor="middle" x="1099" y="-99.8" font-family="Times,serif" font-size="14.00">CwDeviceOwnersModule</text>
 </g>
 <!-- PdfModule -->
 <g id="node6" class="node">
 <title>PdfModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="736.49,-187 733.49,-191 712.49,-191 709.49,-187 657.51,-187 657.51,-151 736.49,-151 736.49,-187"/>
-<text text-anchor="middle" x="697" y="-164.8" font-family="Times,serif" font-size="14.00">PdfModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="546.49,-187 543.49,-191 522.49,-191 519.49,-187 467.51,-187 467.51,-151 546.49,-151 546.49,-187"/>
+<text text-anchor="middle" x="507" y="-164.8" font-family="Times,serif" font-size="14.00">PdfModule</text>
 </g>
 <!-- CwDeviceOwnersModule&#45;&gt;PdfModule -->
 <g id="edge1" class="edge">
 <title>CwDeviceOwnersModule&#45;&gt;PdfModule</title>
-<path fill="none" stroke="black" d="M697,-122.11C697,-122.11 697,-140.99 697,-140.99"/>
-<polygon fill="black" stroke="black" points="693.5,-140.99 697,-150.99 700.5,-140.99 693.5,-140.99"/>
+<path fill="none" stroke="black" d="M1099,-122.01C1099,-144.49 1099,-180 1099,-180 1099,-180 556.76,-180 556.76,-180"/>
+<polygon fill="black" stroke="black" points="556.76,-176.5 546.76,-180 556.76,-183.5 556.76,-176.5"/>
 </g>
 <!-- CwDeviceTypeModule -->
 <g id="node2" class="node">
 <title>CwDeviceTypeModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="597.9,-122 594.9,-126 573.9,-126 570.9,-122 450.1,-122 450.1,-86 597.9,-86 597.9,-122"/>
-<text text-anchor="middle" x="524" y="-99.8" font-family="Times,serif" font-size="14.00">CwDeviceTypeModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="999.9,-122 996.9,-126 975.9,-126 972.9,-122 852.1,-122 852.1,-86 999.9,-86 999.9,-122"/>
+<text text-anchor="middle" x="926" y="-99.8" font-family="Times,serif" font-size="14.00">CwDeviceTypeModule</text>
 </g>
 <!-- CwDeviceTypeModule&#45;&gt;PdfModule -->
 <g id="edge2" class="edge">
 <title>CwDeviceTypeModule&#45;&gt;PdfModule</title>
-<path fill="none" stroke="black" d="M524,-122.01C524,-138.05 524,-159 524,-159 524,-159 647.31,-159 647.31,-159"/>
-<polygon fill="black" stroke="black" points="647.31,-162.5 657.31,-159 647.31,-155.5 647.31,-162.5"/>
+<path fill="none" stroke="black" d="M926,-122.13C926,-142.57 926,-173 926,-173 926,-173 556.8,-173 556.8,-173"/>
+<polygon fill="black" stroke="black" points="556.8,-169.5 546.8,-173 556.8,-176.5 556.8,-169.5"/>
 </g>
 <!-- CwDevicesModule -->
 <g id="node3" class="node">
 <title>CwDevicesModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="432.08,-122 429.08,-126 408.08,-126 405.08,-122 307.92,-122 307.92,-86 432.08,-86 432.08,-122"/>
-<text text-anchor="middle" x="370" y="-99.8" font-family="Times,serif" font-size="14.00">CwDevicesModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="834.08,-122 831.08,-126 810.08,-126 807.08,-122 709.92,-122 709.92,-86 834.08,-86 834.08,-122"/>
+<text text-anchor="middle" x="772" y="-99.8" font-family="Times,serif" font-size="14.00">CwDevicesModule</text>
 </g>
 <!-- CwDevicesModule&#45;&gt;PdfModule -->
 <g id="edge3" class="edge">
 <title>CwDevicesModule&#45;&gt;PdfModule</title>
-<path fill="none" stroke="black" d="M370,-122.27C370,-140.56 370,-166 370,-166 370,-166 647.23,-166 647.23,-166"/>
-<polygon fill="black" stroke="black" points="647.23,-169.5 657.23,-166 647.23,-162.5 647.23,-169.5"/>
+<path fill="none" stroke="black" d="M772,-122.27C772,-140.56 772,-166 772,-166 772,-166 556.67,-166 556.67,-166"/>
+<polygon fill="black" stroke="black" points="556.67,-162.5 546.67,-166 556.67,-169.5 556.67,-162.5"/>
 </g>
 <!-- DataModule -->
 <g id="node4" class="node">
 <title>DataModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="289.98,-122 286.98,-126 265.98,-126 262.98,-122 204.02,-122 204.02,-86 289.98,-86 289.98,-122"/>
-<text text-anchor="middle" x="247" y="-99.8" font-family="Times,serif" font-size="14.00">DataModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="691.98,-122 688.98,-126 667.98,-126 664.98,-122 606.02,-122 606.02,-86 691.98,-86 691.98,-122"/>
+<text text-anchor="middle" x="649" y="-99.8" font-family="Times,serif" font-size="14.00">DataModule</text>
 </g>
 <!-- DataModule&#45;&gt;PdfModule -->
 <g id="edge4" class="edge">
 <title>DataModule&#45;&gt;PdfModule</title>
-<path fill="none" stroke="black" d="M247,-122.13C247,-142.57 247,-173 247,-173 247,-173 647.46,-173 647.46,-173"/>
-<polygon fill="black" stroke="black" points="647.46,-176.5 657.46,-173 647.46,-169.5 647.46,-176.5"/>
+<path fill="none" stroke="black" d="M649,-122.01C649,-138.05 649,-159 649,-159 649,-159 556.55,-159 556.55,-159"/>
+<polygon fill="black" stroke="black" points="556.55,-155.5 546.55,-159 556.55,-162.5 556.55,-155.5"/>
 </g>
 <!-- ReportsTemplatesModule -->
 <g id="node5" class="node">
 <title>ReportsTemplatesModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="185.91,-122 182.91,-126 161.91,-126 158.91,-122 24.09,-122 24.09,-86 185.91,-86 185.91,-122"/>
-<text text-anchor="middle" x="105" y="-99.8" font-family="Times,serif" font-size="14.00">ReportsTemplatesModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="587.91,-122 584.91,-126 563.91,-126 560.91,-122 426.09,-122 426.09,-86 587.91,-86 587.91,-122"/>
+<text text-anchor="middle" x="507" y="-99.8" font-family="Times,serif" font-size="14.00">ReportsTemplatesModule</text>
 </g>
 <!-- ReportsTemplatesModule&#45;&gt;PdfModule -->
 <g id="edge5" class="edge">
 <title>ReportsTemplatesModule&#45;&gt;PdfModule</title>
-<path fill="none" stroke="black" d="M105,-122.01C105,-144.49 105,-180 105,-180 105,-180 647.24,-180 647.24,-180"/>
-<polygon fill="black" stroke="black" points="647.24,-183.5 657.24,-180 647.24,-176.5 647.24,-183.5"/>
+<path fill="none" stroke="black" d="M507,-122.11C507,-122.11 507,-140.99 507,-140.99"/>
+<polygon fill="black" stroke="black" points="503.5,-140.99 507,-150.99 510.5,-140.99 503.5,-140.99"/>
 </g>
 <!-- AuthService -->
 <g id="node7" class="node">
 <title>AuthService</title>
-<ellipse fill="#fdb462" stroke="black" cx="1121" cy="-104" rx="59.11" ry="18"/>
-<text text-anchor="middle" x="1121" y="-99.8" font-family="Times,serif" font-size="14.00">AuthService</text>
+<ellipse fill="#fdb462" stroke="black" cx="343" cy="-104" rx="59.11" ry="18"/>
+<text text-anchor="middle" x="343" y="-99.8" font-family="Times,serif" font-size="14.00">AuthService</text>
 </g>
 <!-- AuthService&#45;&gt;PdfModule -->
 <g id="edge6" class="edge">
 <title>AuthService&#45;&gt;PdfModule</title>
-<path fill="none" stroke="black" d="M1121,-122.01C1121,-144.49 1121,-180 1121,-180 1121,-180 746.51,-180 746.51,-180"/>
-<polygon fill="black" stroke="black" points="746.51,-176.5 736.51,-180 746.51,-183.5 746.51,-176.5"/>
+<path fill="none" stroke="black" d="M343,-122.01C343,-138.05 343,-159 343,-159 343,-159 457.3,-159 457.3,-159"/>
+<polygon fill="black" stroke="black" points="457.3,-162.5 467.3,-159 457.3,-155.5 457.3,-162.5"/>
 </g>
 <!-- DataService -->
 <g id="node8" class="node">
 <title>DataService</title>
-<ellipse fill="#fdb462" stroke="black" cx="985" cy="-104" rx="58.44" ry="18"/>
-<text text-anchor="middle" x="985" y="-99.8" font-family="Times,serif" font-size="14.00">DataService</text>
+<ellipse fill="#fdb462" stroke="black" cx="207" cy="-104" rx="58.44" ry="18"/>
+<text text-anchor="middle" x="207" y="-99.8" font-family="Times,serif" font-size="14.00">DataService</text>
 </g>
 <!-- DataService&#45;&gt;PdfModule -->
 <g id="edge7" class="edge">
 <title>DataService&#45;&gt;PdfModule</title>
-<path fill="none" stroke="black" d="M1004.41,-121.06C1004.41,-141.49 1004.41,-173 1004.41,-173 1004.41,-173 746.56,-173 746.56,-173"/>
-<polygon fill="black" stroke="black" points="746.56,-169.5 736.56,-173 746.56,-176.5 746.56,-169.5"/>
+<path fill="none" stroke="black" d="M187.59,-121.06C187.59,-141.49 187.59,-173 187.59,-173 187.59,-173 457.19,-173 457.19,-173"/>
+<polygon fill="black" stroke="black" points="457.19,-176.5 467.19,-173 457.19,-169.5 457.19,-176.5"/>
 </g>
 <!-- DataService&#45;&gt;PdfModule -->
 <g id="edge8" class="edge">
 <title>DataService&#45;&gt;PdfModule</title>
-<path fill="none" stroke="black" d="M965.59,-121.27C965.59,-139.62 965.59,-166 965.59,-166 965.59,-166 746.63,-166 746.63,-166"/>
-<polygon fill="black" stroke="black" points="746.63,-162.5 736.63,-166 746.63,-169.5 746.63,-162.5"/>
+<path fill="none" stroke="black" d="M226.41,-121.27C226.41,-139.62 226.41,-166 226.41,-166 226.41,-166 457.39,-166 457.39,-166"/>
+<polygon fill="black" stroke="black" points="457.39,-169.5 467.39,-166 457.39,-162.5 457.39,-169.5"/>
 </g>
 <!-- PdfService -->
 <g id="node9" class="node">
 <title>PdfService</title>
-<ellipse fill="#fdb462" stroke="black" cx="855" cy="-104" rx="53.31" ry="18"/>
-<text text-anchor="middle" x="855" y="-99.8" font-family="Times,serif" font-size="14.00">PdfService</text>
+<ellipse fill="#fdb462" stroke="black" cx="77" cy="-104" rx="53.31" ry="18"/>
+<text text-anchor="middle" x="77" y="-99.8" font-family="Times,serif" font-size="14.00">PdfService</text>
 </g>
 <!-- PdfService&#45;&gt;PdfModule -->
 <g id="edge9" class="edge">
 <title>PdfService&#45;&gt;PdfModule</title>
-<path fill="none" stroke="black" d="M855,-122.01C855,-138.05 855,-159 855,-159 855,-159 746.87,-159 746.87,-159"/>
-<polygon fill="black" stroke="black" points="746.87,-155.5 736.87,-159 746.87,-162.5 746.87,-155.5"/>
+<path fill="none" stroke="black" d="M77,-122.01C77,-144.49 77,-180 77,-180 77,-180 457.32,-180 457.32,-180"/>
+<polygon fill="black" stroke="black" points="457.32,-183.5 467.32,-180 457.32,-176.5 457.32,-183.5"/>
 </g>
 </g>
 </svg>

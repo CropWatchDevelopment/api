@@ -24,83 +24,83 @@
 <title>cluster_CwDeviceTypeModule</title>
 <polygon fill="none" stroke="black" stroke-dasharray="1,5" points="8,-70 8,-268 703,-268 703,-70 8,-70"/>
 </g>
+<g id="clust6" class="cluster">
+<title>cluster_CwDeviceTypeModule_providers</title>
+<polygon fill="none" stroke="black" points="258,-78 258,-130 695,-130 695,-78 258,-78"/>
+</g>
 <g id="clust3" class="cluster">
 <title>cluster_CwDeviceTypeModule_imports</title>
-<polygon fill="none" stroke="black" points="461,-78 461,-130 695,-130 695,-78 461,-78"/>
+<polygon fill="none" stroke="black" points="16,-78 16,-130 250,-130 250,-78 16,-78"/>
 </g>
 <g id="clust4" class="cluster">
 <title>cluster_CwDeviceTypeModule_exports</title>
-<polygon fill="none" stroke="black" points="351,-208 351,-260 517,-260 517,-208 351,-208"/>
-</g>
-<g id="clust6" class="cluster">
-<title>cluster_CwDeviceTypeModule_providers</title>
-<polygon fill="none" stroke="black" points="16,-78 16,-130 453,-130 453,-78 16,-78"/>
+<polygon fill="none" stroke="black" points="199,-208 199,-260 365,-260 365,-208 199,-208"/>
 </g>
 <!-- AuthModule -->
 <g id="node1" class="node">
 <title>AuthModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="686.55,-122 683.55,-126 662.55,-126 659.55,-122 599.45,-122 599.45,-86 686.55,-86 686.55,-122"/>
-<text text-anchor="middle" x="643" y="-99.8" font-family="Times,serif" font-size="14.00">AuthModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="241.55,-122 238.55,-126 217.55,-126 214.55,-122 154.45,-122 154.45,-86 241.55,-86 241.55,-122"/>
+<text text-anchor="middle" x="198" y="-99.8" font-family="Times,serif" font-size="14.00">AuthModule</text>
 </g>
 <!-- CwDeviceTypeModule -->
 <g id="node3" class="node">
 <title>CwDeviceTypeModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="507.9,-187 504.9,-191 483.9,-191 480.9,-187 360.1,-187 360.1,-151 507.9,-151 507.9,-187"/>
-<text text-anchor="middle" x="434" y="-164.8" font-family="Times,serif" font-size="14.00">CwDeviceTypeModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="355.9,-187 352.9,-191 331.9,-191 328.9,-187 208.1,-187 208.1,-151 355.9,-151 355.9,-187"/>
+<text text-anchor="middle" x="282" y="-164.8" font-family="Times,serif" font-size="14.00">CwDeviceTypeModule</text>
 </g>
 <!-- AuthModule&#45;&gt;CwDeviceTypeModule -->
 <g id="edge1" class="edge">
 <title>AuthModule&#45;&gt;CwDeviceTypeModule</title>
-<path fill="none" stroke="black" d="M643,-122.11C643,-141.34 643,-169 643,-169 643,-169 517.98,-169 517.98,-169"/>
-<polygon fill="black" stroke="black" points="517.98,-165.5 507.98,-169 517.98,-172.5 517.98,-165.5"/>
+<path fill="none" stroke="black" d="M225.04,-122.11C225.04,-122.11 225.04,-140.99 225.04,-140.99"/>
+<polygon fill="black" stroke="black" points="221.54,-140.99 225.04,-150.99 228.54,-140.99 221.54,-140.99"/>
 </g>
 <!-- SupabaseModule -->
 <g id="node2" class="node">
 <title>SupabaseModule</title>
-<polygon fill="#8dd3c7" stroke="black" points="581.42,-122 578.42,-126 557.42,-126 554.42,-122 468.58,-122 468.58,-86 581.42,-86 581.42,-122"/>
-<text text-anchor="middle" x="525" y="-99.8" font-family="Times,serif" font-size="14.00">SupabaseModule</text>
+<polygon fill="#8dd3c7" stroke="black" points="136.42,-122 133.42,-126 112.42,-126 109.42,-122 23.58,-122 23.58,-86 136.42,-86 136.42,-122"/>
+<text text-anchor="middle" x="80" y="-99.8" font-family="Times,serif" font-size="14.00">SupabaseModule</text>
 </g>
 <!-- SupabaseModule&#45;&gt;CwDeviceTypeModule -->
 <g id="edge2" class="edge">
 <title>SupabaseModule&#45;&gt;CwDeviceTypeModule</title>
-<path fill="none" stroke="black" d="M488.25,-122.11C488.25,-122.11 488.25,-140.99 488.25,-140.99"/>
-<polygon fill="black" stroke="black" points="484.75,-140.99 488.25,-150.99 491.75,-140.99 484.75,-140.99"/>
+<path fill="none" stroke="black" d="M80,-122.11C80,-141.34 80,-169 80,-169 80,-169 198.22,-169 198.22,-169"/>
+<polygon fill="black" stroke="black" points="198.22,-172.5 208.22,-169 198.22,-165.5 198.22,-172.5"/>
 </g>
 <!-- CwDeviceTypeService  -->
 <g id="node4" class="node">
 <title>CwDeviceTypeService </title>
-<polygon fill="#fb8072" stroke="black" points="508.83,-252 359.17,-252 359.17,-216 508.83,-216 508.83,-252"/>
-<text text-anchor="middle" x="434" y="-229.8" font-family="Times,serif" font-size="14.00">CwDeviceTypeService </text>
+<polygon fill="#fb8072" stroke="black" points="356.83,-252 207.17,-252 207.17,-216 356.83,-216 356.83,-252"/>
+<text text-anchor="middle" x="282" y="-229.8" font-family="Times,serif" font-size="14.00">CwDeviceTypeService </text>
 </g>
 <!-- CwDeviceTypeModule&#45;&gt;CwDeviceTypeService  -->
 <g id="edge3" class="edge">
 <title>CwDeviceTypeModule&#45;&gt;CwDeviceTypeService </title>
-<path fill="none" stroke="black" stroke-dasharray="5,2" d="M434,-187.11C434,-187.11 434,-205.99 434,-205.99"/>
-<polygon fill="black" stroke="black" points="430.5,-205.99 434,-215.99 437.5,-205.99 430.5,-205.99"/>
+<path fill="none" stroke="black" stroke-dasharray="5,2" d="M282,-187.11C282,-187.11 282,-205.99 282,-205.99"/>
+<polygon fill="black" stroke="black" points="278.5,-205.99 282,-215.99 285.5,-205.99 278.5,-205.99"/>
 </g>
 <!-- CwDeviceTypeService -->
 <g id="node5" class="node">
 <title>CwDeviceTypeService</title>
-<ellipse fill="#fdb462" stroke="black" cx="344" cy="-104" rx="100.68" ry="18"/>
-<text text-anchor="middle" x="344" y="-99.8" font-family="Times,serif" font-size="14.00">CwDeviceTypeService</text>
+<ellipse fill="#fdb462" stroke="black" cx="586" cy="-104" rx="100.68" ry="18"/>
+<text text-anchor="middle" x="586" y="-99.8" font-family="Times,serif" font-size="14.00">CwDeviceTypeService</text>
 </g>
 <!-- CwDeviceTypeService&#45;&gt;CwDeviceTypeModule -->
 <g id="edge4" class="edge">
 <title>CwDeviceTypeService&#45;&gt;CwDeviceTypeModule</title>
-<path fill="none" stroke="black" d="M402.44,-118.75C402.44,-118.75 402.44,-140.59 402.44,-140.59"/>
-<polygon fill="black" stroke="black" points="398.94,-140.59 402.44,-150.59 405.94,-140.59 398.94,-140.59"/>
+<path fill="none" stroke="black" d="M586,-122.11C586,-141.34 586,-169 586,-169 586,-169 365.98,-169 365.98,-169"/>
+<polygon fill="black" stroke="black" points="365.98,-165.5 355.98,-169 365.98,-172.5 365.98,-165.5"/>
 </g>
 <!-- DeviceTypeRepository -->
 <g id="node6" class="node">
 <title>DeviceTypeRepository</title>
-<ellipse fill="#fdb462" stroke="black" cx="125" cy="-104" rx="100.7" ry="18"/>
-<text text-anchor="middle" x="125" y="-99.8" font-family="Times,serif" font-size="14.00">DeviceTypeRepository</text>
+<ellipse fill="#fdb462" stroke="black" cx="367" cy="-104" rx="100.7" ry="18"/>
+<text text-anchor="middle" x="367" y="-99.8" font-family="Times,serif" font-size="14.00">DeviceTypeRepository</text>
 </g>
 <!-- DeviceTypeRepository&#45;&gt;CwDeviceTypeModule -->
 <g id="edge5" class="edge">
 <title>DeviceTypeRepository&#45;&gt;CwDeviceTypeModule</title>
-<path fill="none" stroke="black" d="M125,-122.11C125,-141.34 125,-169 125,-169 125,-169 349.99,-169 349.99,-169"/>
-<polygon fill="black" stroke="black" points="349.99,-172.5 359.99,-169 349.99,-165.5 349.99,-172.5"/>
+<path fill="none" stroke="black" d="M311.05,-119.08C311.05,-119.08 311.05,-140.76 311.05,-140.76"/>
+<polygon fill="black" stroke="black" points="307.55,-140.76 311.05,-150.76 314.55,-140.76 307.55,-140.76"/>
 </g>
 </g>
 </svg>

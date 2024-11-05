@@ -15,6 +15,12 @@ export class SupabaseService {
         this.supabase = createClient<Database>(supabaseUrl, supabaseKey);
     }
 
+    /**
+   * Description: getSupabaseClient() returns the Supabase client instance, this will be the single source of truth for all Supabase operations.
+   * @param {string} feedback
+   * @returns {void}
+   * @memberof ChildComponent
+   */
     getSupabaseClient(): SupabaseClient {
         return this.supabase;
     }

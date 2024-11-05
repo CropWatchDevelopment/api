@@ -239,19 +239,24 @@
 
                     <tr>
                         <td class="col-md-4">
-                            <div class="io-line">Defined in <a href="" data-line="18"
-                                    class="link-to-prism">src/supabase/supabase.service.ts:18</a></div>
+                            <div class="io-line">Defined in <a href="" data-line="24"
+                                    class="link-to-prism">src/supabase/supabase.service.ts:24</a></div>
                         </td>
                     </tr>
 
 
             <tr>
                 <td class="col-md-4">
+                        <div class="io-description"><p>Description: getSupabaseClient() returns the Supabase client instance, this will be the single source of truth for all Supabase operations.</p>
+</div>
 
                         <div class="io-description">
                             <b>Returns : </b>    <code>SupabaseClient</code>
 
                         </div>
+                            <div class="io-description">
+                                
+                            </div>
                 </td>
             </tr>
         </tbody>
@@ -312,6 +317,12 @@ export class SupabaseService {
         this.supabase &#x3D; createClient&lt;Database&gt;(supabaseUrl, supabaseKey);
     }
 
+    /**
+   * Description: getSupabaseClient() returns the Supabase client instance, this will be the single source of truth for all Supabase operations.
+   * @param {string} feedback
+   * @returns {void}
+   * @memberof ChildComponent
+   */
     getSupabaseClient(): SupabaseClient {
         return this.supabase;
     }
