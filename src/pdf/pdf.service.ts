@@ -4,6 +4,7 @@ import PdfPrinter from 'pdfmake';
 import { TDocumentDefinitions, TFontDictionary } from 'pdfmake/build/pdfmake';
 import { DataService } from 'src/data/data.service';
 import { ReportsTemplatesService } from 'src/reports_templates/reports_templates.service';
+import { getFontPaths } from 'src/utils/font-loader';
 
 
 @Injectable()
@@ -14,18 +15,8 @@ export class PdfService {
     ) { }
 
     private fonts: TFontDictionary = {
-        Roboto: {
-            normal: join(process.cwd(), 'dist', '', 'src/assets/fonts/Roboto/Roboto-Regular.ttf'),
-            bold: join(process.cwd(), 'dist', '', 'src/assets/fonts/Roboto/Roboto-Medium.ttf'),
-            italics: join(process.cwd(), 'dist', '', 'src/assets/fonts/Roboto/Roboto-Italic.ttf'),
-            bolditalics: join(process.cwd(), 'dist', '', 'src/assets/fonts/Roboto/Roboto-MediumItalic.ttf'),
-        },
-        Noto_Sans_JP: {
-            normal: join(process.cwd(), 'dist', '', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf'),
-            bold: join(process.cwd(), 'dist', '', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Medium.ttf'),
-            italics: join(process.cwd(), 'dist', '', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
-            bolditalics: join(process.cwd(), 'dist', '', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Light.ttf'),
-        },
+        Roboto: getFontPaths('Roboto', 'src/assets/fonts/Roboto'),
+        Noto_Sans_JP: getFontPaths('NotoSansJP', 'src/assets/fonts/Noto_Sans_JP/static'),
     };
 
     public async createPdfBinary(user_id: string, devEui: string): Promise<Buffer> {
