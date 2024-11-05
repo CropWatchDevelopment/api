@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class BaseDeviceDto {
     @IsNotEmpty()
@@ -8,4 +8,8 @@ export class BaseDeviceDto {
     @IsNotEmpty()
     @IsString()
     name: string;
+
+    @IsNotEmpty()
+    @IsNumber()
+    type: number;
 }
