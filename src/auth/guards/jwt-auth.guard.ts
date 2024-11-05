@@ -18,12 +18,32 @@ export class JwtAuthGuard implements CanActivate {
             context.getClass(),
         ]);
         if (isPublic) {
-            // Skip guard if the endpoint is marked as public
             return true;
         }
-        
+
         const request = context.switchToHttp().getRequest();
-        request.user = {}; // Initialize user object on request
+        if (await this.checkApiKey(request)) return true;
+
+        // If no API key? check for Bearer token
+        if (await this.checkJwtToken(request)) return true;
+    }
+
+    private async checkJwtToken(request: any): Promise<boolean> {
+        const token = this.extractTokenFromHeader(request);
+        if (!token) {
+            throw new UnauthorizedException('Token not found');
+        }
+        try {
+            const user = await this.authService.validateUser(token);
+            request.user = user;
+            return true;
+        } catch (error) {
+            throw new UnauthorizedException(error);
+        }
+    }
+
+    private async checkApiKey(request: any): Promise<boolean> {
+        request.user = {};
         const apiKey = request.headers['x-api-key'];
         if (apiKey) {
             const isValidApiKey = await this.authService.validateApiKey(apiKey);
@@ -31,21 +51,7 @@ export class JwtAuthGuard implements CanActivate {
                 throw new UnauthorizedException('Invalid API key');
             }
             request.user.id = isValidApiKey;
-            return true; // Allow access if API key is valid
-        }
-
-        // If no API key, check for Bearer token
-        const token = this.extractTokenFromHeader(request);
-        if (!token) {
-            throw new UnauthorizedException('Token not found');
-        }
-
-        try {
-            const user = await this.authService.validateUser(token);
-            request.user = user;  // Attach user to the request
             return true;
-        } catch (error) {
-            throw new UnauthorizedException(error);
         }
     }
 
