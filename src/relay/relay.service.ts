@@ -5,10 +5,8 @@ import { ConfigService } from '@nestjs/config';
 export class RelayService {
     constructor() {}
     
-    public async sendDownlink(state: boolean) {
+    public async sendDownlink(state: boolean, deviceId: string) {
         const appId = 'dragino-lt-22222';
-        const deviceId = 'dragino-test';
-        const accessKey = process.env.DRAGINO_API_KEY;
     
         const url = `${process.env.TTI_BASE_URL}/api/v3/as/applications/${appId}/devices/${deviceId}/down/replace`;
         const onCommand = "030011";
@@ -26,11 +24,15 @@ export class RelayService {
             ]
         };
     
+        return await this.makeTTIApiRequest(url, data);
+    }
+
+    private async makeTTIApiRequest(url: string, data: any) {
         try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${accessKey}`,
+                    'Authorization': `Bearer ${process.env.DRAGINO_API_KEY}`,
                     'Content-Type': 'application/json',
                     'User-Agent': 'my-integration/my-integration-version'
                 },
@@ -45,7 +47,7 @@ export class RelayService {
             console.log('Downlink sent successfully:', responseData);
             return responseData;
         } catch (error) {
-            console.error('Error sending downlink:', error.message);
+            throw new Error(`Error sending downlink: ${error.message}`);
         }
     }
 
