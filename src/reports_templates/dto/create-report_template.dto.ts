@@ -1,11 +1,7 @@
 import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
-import { BaseDevEuiDto } from 'src/common/dto/base-dev-eui.dto';
+import { BaseDeviceDto } from 'src/common/dto/base-dev-eui.dto';
 
-export class CreateReportTemplateDto extends BaseDevEuiDto {
-
-  @IsNotEmpty()
-  @IsString()
-  name: string;
+export class CreateReportTemplateDto extends BaseDeviceDto {
 
   @IsNotEmpty()
   @IsNumber()

@@ -7,12 +7,12 @@ import { DeviceTypeRow } from 'src/common/database-types';
 
 @Injectable()
 export class CwDeviceTypeService extends BaseService<DeviceTypeRow, CreateDeviceTypeDto, UpdateDeviceTypeDto> {
-  constructor(private readonly deviceTypeRepository: DeviceTypeRepository) {
+  constructor(deviceTypeRepository: DeviceTypeRepository) {
     super(deviceTypeRepository);
   }
 
   public async getDeviceTypeByDevType(devType: string): Promise<DeviceTypeRow> {
-    return this.deviceTypeRepository.findByDeviceType({ dev_type: devType });
+    return this.repository.findById(devType);
   }
 
 }

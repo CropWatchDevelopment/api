@@ -39,7 +39,7 @@ export class DataController {
     if (!req.user) {
       return 'Unauthorized';
     }
-    return this.dataService.findAll({ devEui, skip, take, order }, req.user.email);
+    return this.dataService.findAll({ devEui, skip, take, order }, req.user.id);
   }
 
   // @Get(':id')

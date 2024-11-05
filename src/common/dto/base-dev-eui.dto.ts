@@ -1,7 +1,11 @@
 import { IsNotEmpty, IsString } from 'class-validator';
 
-export class BaseDevEuiDto {
+export class BaseDeviceDto {
     @IsNotEmpty()
     @IsString()
     dev_eui: string;
+
+    @IsNotEmpty()
+    @IsString()
+    name: string;
 }
