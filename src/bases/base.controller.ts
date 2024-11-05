@@ -36,18 +36,18 @@ export class BaseController<T, CreateDto, UpdateDto> {
     return this.service.create(createDto);
   }
 
-  @Patch(':id')
-  @ApiCommonAuth('Partially update a single item')
-  @ApiCreateResponses()
-  async PartialUpdate(@Param('id') id: number, @Body() updateDto: UpdateDto): Promise<T> {
-    return this.service.partialUpdate(id, updateDto);
-  }
-
   @Put(':id')
   @ApiCommonAuth('Fully update a single item')
   @ApiCreateResponses()
   async FullUpdate(@Param('id') id: number, @Body() updateDto: UpdateDto): Promise<T> {
-    return this.service.fullUpdate(id, updateDto);
+    return this.updateItem('full', id, updateDto);
+  }
+
+  @Patch(':id')
+  @ApiCommonAuth('Partially update a single item')
+  @ApiCreateResponses()
+  async PartialUpdate(@Param('id') id: number, @Body() updateDto: UpdateDto): Promise<T> {
+    return this.updateItem('partial', id, updateDto);
   }
 
   @Delete()
@@ -55,5 +55,15 @@ export class BaseController<T, CreateDto, UpdateDto> {
   @ApiDeleteResponses()
   async Delete(@Body() createDto: CreateDto): Promise<T> {
     throw new Error('Method not implemented.');
+  }
+
+  private async updateItem(
+    updateType: 'full' | 'partial',
+    id: number,
+    updateDto: UpdateDto
+  ): Promise<T> {
+    return updateType === 'full'
+      ? this.service.fullUpdate(id, updateDto)
+      : this.service.partialUpdate(id, updateDto);
   }
 }
