@@ -9,7 +9,7 @@ on:
       - src/*
       - test/*
       - '*.json'
-      - yarn.lock
+      - pnpm-lock.yaml
   pull_request:
     paths:
       - '!*.MD'
@@ -22,28 +22,28 @@ jobs:
     name: test/node ${{ matrix.node }}/${{ matrix.platform }}
     runs-on: ${{ matrix.platform }}
     steps:
-    - uses: actions/checkout@master
-    - uses: actions/setup-node@master
-      with:
-        node-version: ${{ matrix.node }}
-    - run: npm install -g yarn
-    - run: yarn install
-    - run: yarn build
-    - run: yarn test
+      - uses: actions/checkout@master
+      - uses: actions/setup-node@master
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install -g pnpm
+      - run: pnpm install
+      - run: pnpm build
+      - run: pnpm test
   coverage:
     needs: [ test ]
     name: coverage
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - uses: actions/setup-node@master
-      with:
-        node-version: '12'
-    - run: npm install -g yarn
-    - run: yarn install
-    - run: yarn build
-    - uses: paambaati/codeclimate-action@v2.2.4
-      env:
-        CC_TEST_REPORTER_ID: 4943f634f52225e6554c4ba483bcbed755df0596602b583c712e9d667b1d9224
-      with:
-        coverageCommand: yarn coverage
+      - uses: actions/checkout@master
+      - uses: actions/setup-node@master
+        with:
+          node-version: '12'
+      - run: npm install -g pnpm
+      - run: pnpm install
+      - run: pnpm build
+      - uses: paambaati/codeclimate-action@v2.2.4
+        env:
+          CC_TEST_REPORTER_ID: 4943f634f52225e6554c4ba483bcbed755df0596602b583c712e9d667b1d9224
+        with:
+          coverageCommand: pnpm coverage
