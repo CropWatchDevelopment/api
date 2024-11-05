@@ -3,6 +3,9 @@
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://app.cropwatch.io/icons/favicon.png?id=v3" width="120" alt="Nest Logo" /></a>
 </p>
+<p align="center">
+[![Maintainability](https://api.codeclimate.com/v1/badges/13721cab5a018f30332c/maintainability)](https://codeclimate.com/github/CropWatchDevelopment/api/maintainability)
+</p>
 
 ## Overview
 
