@@ -8,7 +8,16 @@ describe('LocationController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LocationController],
-      providers: [LocationService],
+      providers: [
+        {
+          provide: LocationService,
+          useValue: {
+            // Mock methods here as needed
+            findAll: jest.fn(),
+            findById: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     controller = module.get<LocationController>(LocationController);

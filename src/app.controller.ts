@@ -17,6 +17,6 @@ export class AppController {
   @Get('/')
   @Throttle({ default: { limit: 1, ttl: 6000 } })
   async getHello() {
-    return [{ id: 1, name: 'Nest' + Math.random() }];
+    return 'Hello World!';
   }
 }

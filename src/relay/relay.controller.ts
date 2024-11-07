@@ -3,7 +3,7 @@ import { RelayService } from './relay.service';
 import { ApiTags, ApiQuery, ApiResponse } from '@nestjs/swagger';
 import { Public } from 'src/auth/public.decorator';
 
-enum RelayState {
+export enum RelayState {
     Open = 'open (OFF)', // OFF
     Close = 'close (ON)' // ON
 }

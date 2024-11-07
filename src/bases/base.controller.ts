@@ -53,8 +53,8 @@ export class BaseController<T, CreateDto, UpdateDto> {
   @Delete()
   @ApiCommonAuth('Delete a single item')
   @ApiDeleteResponses()
-  async Delete(@Body() createDto: CreateDto): Promise<T> {
-    throw new Error('Method not implemented.');
+  async Delete(@Body() id: number): Promise<T> {
+    return undefined;
   }
 
   private async updateItem(

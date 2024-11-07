@@ -33,6 +33,10 @@ export class PdfService {
         const printer: PdfPrinter = new PdfPrinter(this.fonts);
         const docDefinition: TDocumentDefinitions = reportJson; // `report` is already an object
 
+        if (!docDefinition.content || !Array.isArray(docDefinition.content)) {
+            throw new Error('Invalid report structure');
+        }
+
         return new Promise((resolve, reject) => {
             const pdfDoc = printer.createPdfKitDocument(docDefinition);
             const chunks: Buffer[] = [];

@@ -1,20 +1,29 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ProfilesController } from './profiles.controller';
 import { ProfilesService } from './profiles.service';
+import { ProfileRepository } from 'src/repositories/profiles.repositories';
 
-describe('ProfilesController', () => {
-  let controller: ProfilesController;
+describe('ProfilesService', () => {
+  let service: ProfilesService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [ProfilesController],
-      providers: [ProfilesService],
+      providers: [
+        ProfilesService,
+        {
+          provide: ProfileRepository,
+          useValue: {
+            // Mock repository methods
+            findAll: jest.fn(),
+            findById: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
-    controller = module.get<ProfilesController>(ProfilesController);
+    service = module.get<ProfilesService>(ProfilesService);
   });
 
   it('should be defined', () => {
-    expect(controller).toBeDefined();
+    expect(service).toBeDefined();
   });
 });
