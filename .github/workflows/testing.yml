@@ -1,0 +1,40 @@
+name: Tests
+ 
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+ 
+env:
+  CC_TEST_REPORTER_ID: 4943f634f52225e6554c4ba483bcbed755df0596602b583c712e9d667b1d9224
+ 
+jobs:
+  testing:
+    name: Tests
+    runs-on: ubuntu-20.04
+    timeout-minutes: 15
+ 
+    strategy:
+      matrix:
+        node: [ '14.17', '16.13', '18.13' ]
+ 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+ 
+      - name: Use correct Node.js version
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node }}
+ 
+      - name: Install dependencies
+        run: pnpm install
+ 
+      - name: Build package (just in case build fails)
+        run: pnpm build
+ 
+      - name: Run tests with coverage
+        uses: paambaati/codeclimate-action@v2.7.5
+        with:
+          coverageCommand: pnpm test:cov
