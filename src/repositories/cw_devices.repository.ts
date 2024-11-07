@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { SupabaseService } from '../supabase/supabase.service';
-import { BaseRepository } from './base.repository';
+import { SupabaseService } from 'src/supabase/supabase.service';
 import { DeviceRow } from 'src/common/database-types';
+import { createRepository } from './repository-factory';
+
+const BaseDeviceRepository = createRepository<DeviceRow>('cw_devices');
 
 @Injectable()
-export class DeviceRepository extends BaseRepository<DeviceRow> {
+export class DeviceRepository extends BaseDeviceRepository {
     constructor(supabaseService: SupabaseService) {
-        super(supabaseService, 'cw_devices');
+        super(supabaseService);
     }
 
     public async findByDevEui({ dev_eui }: { dev_eui: string }): Promise<DeviceRow> {
