@@ -22,6 +22,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - name: Setup Code Climate test reporter
+        run: |
+          curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+          chmod +x ./cc-test-reporter
+          ./cc-test-reporter before-build
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
  
       - name: Use correct Node.js version
         uses: actions/setup-node@v4
