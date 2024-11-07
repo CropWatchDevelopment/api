@@ -29,6 +29,8 @@ jobs:
           ./cc-test-reporter before-build
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
+        with:
+            version: 9.10.0
  
       - name: Use correct Node.js version
         uses: actions/setup-node@v4
