@@ -11,7 +11,12 @@ describe('SupabaseService', () => {
         SupabaseService,
         {
           provide: ConfigService,
-          useValue: { /* mock config properties if needed */ },
+          useValue: {
+            get: jest.fn((key: string) => {
+              if (key === 'SUPABASE_URL') return 'http://mock-supabase-url';
+              if (key === 'SUPABASE_KEY') return 'mock-supabase-key';
+            }),
+          },
         },
       ],
     }).compile();

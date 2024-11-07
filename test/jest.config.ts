@@ -1,13 +1,12 @@
 module.exports = {
-    moduleFileExtensions: ["js", "json", "ts"],
-    rootDir: ".",
-    testEnvironment: "node",
-    testRegex: ".e2e-spec.ts$",
-    transform: {
-        "^.+\\.(t|j)s$": "ts-jest"
-    },
     moduleNameMapper: {
-        "^src/(.*)$": "<rootDir>/src/$1" // Fallback mapping to ensure `src` alias works if used anywhere else
+      '^src/(.*)$': '<rootDir>/src/$1',
+      '^@supabase/supabase-js$': '<rootDir>/__mocks__/supabase.ts',
     },
-    moduleDirectories: ["node_modules", "src"]
-};
+    moduleFileExtensions: ['js', 'json', 'ts'],
+    rootDir: '.',
+    testEnvironment: 'node',
+    transform: {
+      '^.+\\.(t|j)s$': 'ts-jest',
+    },
+  };
