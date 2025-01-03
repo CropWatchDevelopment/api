@@ -324,6 +324,42 @@ export type Database = {
           },
         ]
       }
+      cw_air_data: {
+        Row: {
+          co: number | null
+          co2: number | null
+          created_at: string
+          dev_eui: string
+          humidity: number | null
+          pressure: number | null
+          smoke_detected: boolean | null
+          temperature_c: number | null
+          vape_detected: boolean | null
+        }
+        Insert: {
+          co?: number | null
+          co2?: number | null
+          created_at?: string
+          dev_eui: string
+          humidity?: number | null
+          pressure?: number | null
+          smoke_detected?: boolean | null
+          temperature_c?: number | null
+          vape_detected?: boolean | null
+        }
+        Update: {
+          co?: number | null
+          co2?: number | null
+          created_at?: string
+          dev_eui?: string
+          humidity?: number | null
+          pressure?: number | null
+          smoke_detected?: boolean | null
+          temperature_c?: number | null
+          vape_detected?: boolean | null
+        }
+        Relationships: []
+      }
       cw_air_thvd: {
         Row: {
           created_at: string
@@ -655,6 +691,13 @@ export type Database = {
           warranty_start_date?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "cw_devices_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "cw_locations"
+            referencedColumns: ["location_id"]
+          },
           {
             foreignKeyName: "cw_devices_type_fkey"
             columns: ["type"]
@@ -1018,6 +1061,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cw_soil_data: {
+        Row: {
+          created_at: string
+          dev_eui: string
+          ec: number | null
+          moisture: number | null
+          ph: number | null
+          temperature_c: number | null
+        }
+        Insert: {
+          created_at?: string
+          dev_eui: string
+          ec?: number | null
+          moisture?: number | null
+          ph?: number | null
+          temperature_c?: number | null
+        }
+        Update: {
+          created_at?: string
+          dev_eui?: string
+          ec?: number | null
+          moisture?: number | null
+          ph?: number | null
+          temperature_c?: number | null
+        }
+        Relationships: []
       }
       cw_soil_uplinks: {
         Row: {
@@ -2076,22 +2146,39 @@ export type Database = {
         }
         Returns: Record<string, unknown>
       }
-      get_hloc_data: {
-        Args: {
-          start_time: string
-          end_time: string
-          time_interval: string
-          table_name: string
-          device_eui: string
-        }
-        Returns: {
-          interval_time: string
-          low: number
-          high: number
-          open: number
-          close: number
-        }[]
-      }
+      get_hloc_data:
+        | {
+            Args: {
+              p_dev_eui: string
+              p_bucket_interval: string
+              p_time_range: string
+              p_metric: string
+            }
+            Returns: {
+              bucket: string
+              dev_eui: string
+              open_val: number
+              close_val: number
+              low_val: number
+              high_val: number
+            }[]
+          }
+        | {
+            Args: {
+              start_time: string
+              end_time: string
+              time_interval: string
+              table_name: string
+              device_eui: string
+            }
+            Returns: {
+              interval_time: string
+              low: number
+              high: number
+              open: number
+              close: number
+            }[]
+          }
       get_location_for_user: {
         Args: {
           user_id: string
