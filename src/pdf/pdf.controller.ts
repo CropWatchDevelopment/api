@@ -24,7 +24,7 @@ export class PdfController {
         res.set({
             'Content-Type': 'application/pdf',
             'Content-Disposition': 'attachment; filename="report.pdf"',
-            'Content-Length': pdfBuffer.length,
+            'Content-Length': 50, //pdfBuffer.length,
         });
         res.send(pdfBuffer);
     }
