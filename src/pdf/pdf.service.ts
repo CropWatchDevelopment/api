@@ -4,13 +4,11 @@ import { ReportsTemplatesService } from 'src/reports_templates/reports_templates
 
 // PDF Import stuff
 import PDFDocument from 'pdfkit';
-import fs from 'fs';
 import { pdfReportFormat } from './interfaces/report.interface';
-import { drawHeaderTable } from './pdf-parts/drawHeaderTable';
-import { drawGraph } from './pdf-parts/drawGraph';
 import { drawDataPointsTable } from './pdf-parts/drawDataPointsTable';
 import { mapToPdfReport } from './data-formatters/legacy-test';
 import { drawHeaderAndSignatureBoxes } from './pdf-parts/drawHeaderAndSignatureBoxes';
+import { drawSimpleLineChartD3Style } from './pdf-parts/drawBetterChartWithD3';
 
 
 @Injectable()
@@ -37,8 +35,8 @@ export class PdfService {
     return fileBuffer;
   }
 
-  buildPdfReport(reportData: pdfReportFormat): Promise<Buffer> {
-    return new Promise<Buffer>((resolve, reject) => {
+  async buildPdfReport(reportData: pdfReportFormat): Promise<Buffer> {
+    return new Promise<Buffer>(async (resolve, reject) => {
       try {
         // Create a new PDF document
         const doc = new PDFDocument({
@@ -55,10 +53,14 @@ export class PdfService {
         });
 
         // Build content (this is where you'd call your helper functions)
-        // drawHeaderTable(doc, reportData);
-        // drawSignatureBoxes(doc);
         drawHeaderAndSignatureBoxes(doc, reportData);
-        drawGraph(doc, reportData.dataPoints);
+        // drawGraph(doc, reportData.dataPoints);
+
+        doc.x = doc.page.margins.left;
+        await drawSimpleLineChartD3Style(
+          doc,
+          reportData.dataPoints
+        );
         drawDataPointsTable(doc, reportData.dataPoints);
 
         // Finalize the PDF (triggers the 'end' event)

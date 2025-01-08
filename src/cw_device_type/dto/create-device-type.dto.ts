@@ -5,7 +5,7 @@ import { BaseDeviceDto } from 'src/common/dto/base-dev-eui.dto';
 export class CreateDeviceTypeDto extends BaseDeviceDto {
   @IsNotEmpty()
   @IsString()
-  name: string;
+  // name: string;
 
   @IsNotEmpty()
   @IsString()

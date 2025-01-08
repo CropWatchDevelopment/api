@@ -65,6 +65,24 @@ importers:
       d3:
         specifier: ^7.9.0
         version: 7.9.0
+      d3-array:
+        specifier: ^3.2.4
+        version: 3.2.4
+      d3-axis:
+        specifier: ^3.0.0
+        version: 3.0.0
+      d3-format:
+        specifier: ^3.1.0
+        version: 3.1.0
+      d3-scale:
+        specifier: ^4.0.2
+        version: 4.0.2
+      d3-time:
+        specifier: ^3.1.0
+        version: 3.1.0
+      d3-time-format:
+        specifier: ^4.1.0
+        version: 4.1.0
       firebase:
         specifier: ^11.1.0
         version: 11.1.0
@@ -95,7 +113,7 @@ importers:
         version: 10.4.5
       '@nestjs/schematics':
         specifier: ^10.0.0
-        version: 10.2.2(chokidar@4.0.1)(typescript@5.6.3)
+        version: 10.2.2(chokidar@3.6.0)(typescript@5.6.3)
       '@nestjs/testing':
         specifier: ^10.0.0
         version: 10.4.5(@nestjs/common@10.4.5(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/core@10.4.5(@nestjs/common@10.4.5(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/platform-express@10.4.5)(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/platform-express@10.4.5(@nestjs/common@10.4.5(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/core@10.4.5))
@@ -4819,17 +4837,6 @@ snapshots:
     optionalDependencies:
       chokidar: 3.6.0
 
-  '@angular-devkit/core@17.3.10(chokidar@4.0.1)':
-    dependencies:
-      ajv: 8.12.0
-      ajv-formats: 2.1.1(ajv@8.12.0)
-      jsonc-parser: 3.2.1
-      picomatch: 4.0.1
-      rxjs: 7.8.1
-      source-map: 0.7.4
-    optionalDependencies:
-      chokidar: 4.0.1
-
   '@angular-devkit/core@17.3.8(chokidar@3.6.0)':
     dependencies:
       ajv: 8.12.0
@@ -4866,16 +4873,6 @@ snapshots:
   '@angular-devkit/schematics@17.3.10(chokidar@3.6.0)':
     dependencies:
       '@angular-devkit/core': 17.3.10(chokidar@3.6.0)
-      jsonc-parser: 3.2.1
-      magic-string: 0.30.8
-      ora: 5.4.1
-      rxjs: 7.8.1
-    transitivePeerDependencies:
-      - chokidar
-
-  '@angular-devkit/schematics@17.3.10(chokidar@4.0.1)':
-    dependencies:
-      '@angular-devkit/core': 17.3.10(chokidar@4.0.1)
       jsonc-parser: 3.2.1
       magic-string: 0.30.8
       ora: 5.4.1
@@ -6496,10 +6493,10 @@ snapshots:
     transitivePeerDependencies:
       - chokidar
 
-  '@nestjs/schematics@10.2.2(chokidar@4.0.1)(typescript@5.6.3)':
+  '@nestjs/schematics@10.2.2(chokidar@3.6.0)(typescript@5.6.3)':
     dependencies:
-      '@angular-devkit/core': 17.3.10(chokidar@4.0.1)
-      '@angular-devkit/schematics': 17.3.10(chokidar@4.0.1)
+      '@angular-devkit/core': 17.3.10(chokidar@3.6.0)
+      '@angular-devkit/schematics': 17.3.10(chokidar@3.6.0)
       comment-json: 4.2.5
       jsonc-parser: 3.3.1
       pluralize: 8.0.0
