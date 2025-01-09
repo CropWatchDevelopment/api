@@ -5,10 +5,10 @@ import { ReportsTemplatesService } from 'src/reports_templates/reports_templates
 // PDF Import stuff
 import PDFDocument from 'pdfkit';
 import { pdfReportFormat } from './interfaces/report.interface';
-import { drawDataPointsTable } from './pdf-parts/drawDataPointsTable';
 import { mapToPdfReport } from './data-formatters/legacy-test';
 import { drawHeaderAndSignatureBoxes } from './pdf-parts/drawHeaderAndSignatureBoxes';
 import { drawSimpleLineChartD3Style } from './pdf-parts/drawBetterChartWithD3';
+import { drawDataTable } from './pdf-parts/drawMultiColumnTable';
 
 
 @Injectable()
@@ -44,6 +44,9 @@ export class PdfService {
           margin: 40
         });
 
+        doc.registerFont('NotoSansJP', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf');
+        doc.font('NotoSansJP');
+
         // Collect chunks in memory
         const buffers: Buffer[] = [];
         doc.on('data', (chunk) => buffers.push(chunk));
@@ -61,7 +64,7 @@ export class PdfService {
           doc,
           reportData.dataPoints
         );
-        drawDataPointsTable(doc, reportData.dataPoints);
+        drawDataTable(doc, reportData.dataPoints.map((d) => ({ createdAt: new Date(d.date).toDateString(), temperature: d.value })));
 
         // Finalize the PDF (triggers the 'end' event)
         doc.end();
@@ -75,7 +78,7 @@ export class PdfService {
   private async fetchDataAndReportFromDB(devEui: string, user_id: string) {
     // Example: fetch 10 items
     const reportData = await this.dataService.findAll(
-      { devEui, skip: 0, take: 10, order: 'ASC' },
+      { devEui, skip: 0, take: 1000, order: 'ASC' },
       user_id
     );
     const reportJsonResponse = await this.reportsTemplatesService.getReportTemplateByDevEui(
