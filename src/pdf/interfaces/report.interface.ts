@@ -3,6 +3,7 @@ export interface pdfReportFormat {
     department?: string;
     useageLocation: string;
     sensorName: string;
+    devEui: string;
   
     firstData: Date;
     lastData: Date;

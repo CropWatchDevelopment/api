@@ -10,28 +10,33 @@ import { drawHeaderAndSignatureBoxes } from './pdf-parts/drawHeaderAndSignatureB
 import { drawSimpleLineChartD3Style } from './pdf-parts/drawBetterChartWithD3';
 import { drawDataTable12Cols } from './pdf-parts/drawMultiColumnTable';
 import { TableColorRange } from './interfaces/TableColorRange';
+import { CwDeviceTypeService } from 'src/cw_device_type/cw_device_type.service';
+import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
 
 
 @Injectable()
 export class PdfService {
   constructor(
     private readonly dataService: DataService,
-    private readonly reportsTemplatesService: ReportsTemplatesService
+    private readonly reportsTemplatesService: ReportsTemplatesService,
+    private readonly deviceTypeService: CwDeviceTypeService,
+    private readonly deviceService: CwDevicesService,
   ) { }
 
   public async createPdfBinary(user_id: string, devEui: string) {
     if (!user_id) throw new Error('User ID is required');
     if (!devEui) throw new Error('DevEui is required');
     let rawData = await this.fetchDataAndReportFromDB(devEui, user_id);
-    const pdfReport = mapToPdfReport(
+    let device = await this.deviceService.getDeviceByDevEui(devEui);
+    const pdfReport = await mapToPdfReport(
       rawData,
       'Acme Corp',             // company
       'Engineering',           // department
       'Warehouse 7',           // usage location
-      'Thermometer A1'         // sensor name
+      device.name,         // sensor name
+      devEui             // devEui
     );
 
-    console.log(pdfReport);
     const fileBuffer = await this.buildPdfReport(pdfReport);
     return fileBuffer;
   }
@@ -61,7 +66,7 @@ export class PdfService {
 
         // Draw the line chart
         doc.x = doc.page.margins.left;
-        doc.fontSize(14).text('温度', doc.page.width/2, doc.y, { width: 100 });
+        doc.fontSize(14).text('温度', doc.page.width / 2, doc.y, { width: 100 });
         await drawSimpleLineChartD3Style(
           doc,
           reportData.dataPoints

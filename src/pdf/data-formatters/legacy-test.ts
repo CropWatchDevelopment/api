@@ -24,7 +24,8 @@ interface RawRecord {
     company: string,
     department: string | undefined,
     usageLocation: string,
-    sensorName: string
+    sensorName: string,
+    devEui: string
   ): pdfReportFormat {
     // Extract the array
     const records = raw.reportData;
@@ -36,6 +37,7 @@ interface RawRecord {
         department,
         useageLocation: usageLocation,
         sensorName,
+        devEui,
   
         firstData: now,
         lastData: now,
@@ -108,6 +110,7 @@ interface RawRecord {
       department,
       useageLocation: usageLocation,
       sensorName,
+      devEui,
   
       firstData,
       lastData,

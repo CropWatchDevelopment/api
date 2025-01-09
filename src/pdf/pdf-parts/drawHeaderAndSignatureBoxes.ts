@@ -31,12 +31,13 @@ export function drawHeaderAndSignatureBoxes(
   doc.moveDown(1);
 
   doc.fontSize(10);
-  doc.text(`Company: ${data.company}`, { width: headerTableWidth });
+  doc.text(`会社: ${data.company}`, { width: headerTableWidth });
   if (data.department) {
-    doc.text(`Department: ${data.department}`, { width: headerTableWidth });
+    doc.text(`部署: ${data.department}`, { width: headerTableWidth });
   }
   doc.text(`Location: ${data.useageLocation}`, { width: headerTableWidth });
   doc.text(`Sensor: ${data.sensorName}`, { width: headerTableWidth });
+  doc.text(`DevEUI: ${data.devEui}`, { width: headerTableWidth });
 
   // We'll stop here—no more "Normal / Notice / Warning / Alert" lines
   // because we want them in the table now.
@@ -80,16 +81,16 @@ export function drawHeaderAndSignatureBoxes(
   //  - "Avg: ..."
   //  - "StdDiv: ..."
   const statsRows = [
-    `Total Data Points: ${data.totalDatapoints}`,
-    `Date Range: ${data.dateRange}`,
+    `サンプリング数: ${data.totalDatapoints}`,
+    `測定期間: ${data.dateRange}`,
     `Normal: ${data.normal} (${data.normalPercentage.toFixed(2)}%)`,
     `Notice: ${data.notice} (${data.noticePercentage.toFixed(2)}%)`,
     `Warning: ${data.warning} (${data.warningPercentage.toFixed(2)}%)`,
     `Alert: ${data.alert} (${data.alertPercentage.toFixed(2)}%)`,
-    `Max: ${data.max}`,
-    `Min: ${data.min}`,
-    `Avg: ${data.avg.toFixed(2)}`,
-    `StdDiv: ${data.stdDiv.toFixed(2)}`
+    `最大値: ${data.max}`,
+    `最小値: ${data.min}`,
+    `平均値: ${data.avg.toFixed(2)}`,
+    `標準偏差: ${data.stdDiv.toFixed(2)}`
   ];
 
   // We'll define a row height
