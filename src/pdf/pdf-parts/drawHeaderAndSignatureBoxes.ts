@@ -1,24 +1,32 @@
 import { pdfReportFormat } from '../interfaces/report.interface';
 import { drawSignatureBoxes } from './drawSignatureBoxes';
 
-
+/**
+ * Draws the "Report Summary" text for company/department/location/sensor (unchanged),
+ * then draws a table (50% width, no vertical borders, horizontal lines only),
+ * then the signature boxes on the right.
+ */
 export function drawHeaderAndSignatureBoxes(
   doc: PDFKit.PDFDocument,
   data: pdfReportFormat
 ) {
-  // 1) Save start position
+  // 1) Save the starting position
   const startX = doc.x;
   const startY = doc.y;
 
-  const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const headerTableWidth = pageWidth * 0.6; // 60% for the header
+  // We'll compute how wide the main content area is (page minus left/right margins)
+  const availableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+
+  // The left portion is 60% for the top text, but for the "stats table" we only want 50% width
+  // so let's define some partial widths:
+  const headerTableWidth = availableWidth * 0.6;   // for the "Report Summary"
+  const statsTableWidth = availableWidth * 0.5;    // for the horizontal-line table
 
   // -------------------------------------------------------------------------
-  // 2) Draw header on the LEFT
+  // 2) Draw the "Report Summary" (left side) -- same as before
   // -------------------------------------------------------------------------
   doc.save();
 
-  // Constrain text width for the header table
   doc.fontSize(14).text('Report Summary', startX, startY, { width: headerTableWidth });
   doc.moveDown(1);
 
@@ -30,53 +38,98 @@ export function drawHeaderAndSignatureBoxes(
   doc.text(`Location: ${data.useageLocation}`, { width: headerTableWidth });
   doc.text(`Sensor: ${data.sensorName}`, { width: headerTableWidth });
 
-  doc.moveDown();
-  doc.text(`Total Data Points: ${data.totalDatapoints}`, { width: headerTableWidth });
-  doc.text(`Date Range: ${data.dateRange}`, { width: headerTableWidth });
-  doc.moveDown();
-
-  doc.text(`Normal: ${data.normal} (${data.normalPercentage.toFixed(2)}%)`, {
-    width: headerTableWidth
-  });
-  doc.text(`Notice: ${data.notice} (${data.noticePercentage.toFixed(2)}%)`, {
-    width: headerTableWidth
-  });
-  doc.text(`Warning: ${data.warning} (${data.warningPercentage.toFixed(2)}%)`, {
-    width: headerTableWidth
-  });
-  doc.text(`Alert: ${data.alert} (${data.alertPercentage.toFixed(2)}%)`, {
-    width: headerTableWidth
-  });
-  doc.moveDown();
-
-  doc.text(`Max: ${data.max}`, { width: headerTableWidth });
-  doc.text(`Min: ${data.min}`, { width: headerTableWidth });
-  doc.text(`Avg: ${data.avg.toFixed(2)}`, { width: headerTableWidth });
-  doc.text(`StdDiv: ${data.stdDiv.toFixed(2)}`, { width: headerTableWidth });
-
+  // We'll stop here—no more "Normal / Notice / Warning / Alert" lines
+  // because we want them in the table now.
+  //
   // Keep track of how far down we've gone
-  const headerTableBottomY = doc.y;
+  const summaryBottomY = doc.y;
 
   doc.restore();
 
   // -------------------------------------------------------------------------
   // 3) Draw the signature boxes on the RIGHT, aligned with the top= startY
   // -------------------------------------------------------------------------
-  // If you want them to start EXACTLY at the same top line:
   doc.save();
-  doc.x = doc.x; // or doc.x = some custom coordinate if you need an offset
-  doc.y = startY; 
-  drawSignatureBoxes(doc); 
-  // The function itself will place them on the far right 
-  // and bump doc.y after finishing.
+  doc.y = startY;
+  drawSignatureBoxes(doc);
+  // That function places itself on the far right and moves doc.y below the boxes.
+  doc.restore();
+
+  // We see how far the signature boxes extended
+  const sigBoxesBottomY = doc.y;
+
+  // The top region's bottom is whichever is greater
+  const topBottom = sigBoxesBottomY; //Math.max(summaryBottomY, sigBoxesBottomY);
+  doc.y = topBottom; // small gap
+
+  // -------------------------------------------------------------------------
+  // 4) Draw the "stats" table at 50% page width (on the LEFT). No vertical lines.
+  //    Each row has a bottom horizontal border except the last one.
+  // -------------------------------------------------------------------------
+  doc.save();
+
+  // We'll define rows for:
+  //  - "Total Data Points: ..."
+  //  - "Date Range: ..."
+  //  - "Normal: ..."
+  //  - "Notice: ..."
+  //  - "Warning: ..."
+  //  - "Alert: ..."
+  //  - "Max: ..."
+  //  - "Min: ..."
+  //  - "Avg: ..."
+  //  - "StdDiv: ..."
+  const statsRows = [
+    `Total Data Points: ${data.totalDatapoints}`,
+    `Date Range: ${data.dateRange}`,
+    `Normal: ${data.normal} (${data.normalPercentage.toFixed(2)}%)`,
+    `Notice: ${data.notice} (${data.noticePercentage.toFixed(2)}%)`,
+    `Warning: ${data.warning} (${data.warningPercentage.toFixed(2)}%)`,
+    `Alert: ${data.alert} (${data.alertPercentage.toFixed(2)}%)`,
+    `Max: ${data.max}`,
+    `Min: ${data.min}`,
+    `Avg: ${data.avg.toFixed(2)}`,
+    `StdDiv: ${data.stdDiv.toFixed(2)}`
+  ];
+
+  // We'll define a row height
+  const rowHeight = 18;
+  const tableLeft = doc.page.margins.left-5;   // current x
+  const tableTop = doc.y;    // current y
+  let currentY = tableTop;
+
+  // For each row, we place the text, then draw a horizontal line below (except last row).
+  statsRows.forEach((rowText, i) => {
+    // Place the text
+    if (i === 0) {
+        doc.fontSize(14).text('コメント:', (doc.page.width/2) + 25, doc.y, { width: 100 });
+    }
+    doc.fontSize(10)
+       .text(rowText, tableLeft + 5, currentY + 3, {
+         width: statsTableWidth - 10,
+         ellipsis: true
+       });
+
+    // If NOT the last row, draw a horizontal line across
+    if (i < statsRows.length - 1) {
+      doc
+        .moveTo(tableLeft, currentY + rowHeight) // start
+        .lineTo(tableLeft + statsTableWidth, currentY + rowHeight) // end
+        .lineWidth(1)
+        .strokeColor('black')
+        .stroke();
+    }
+    // Move down
+    currentY += rowHeight;
+  });
+
+  // The bottom of the table
+  const statsTableBottomY = currentY;
   doc.restore();
 
   // -------------------------------------------------------------------------
-  // 4) The signatureBoxes function will move doc.y below the entire signature area.
-  //    But we also need to ensure doc.y accounts for the header if it was taller.
-
-  // doc.y AFTER the signature boxes is already below them.
-  // We take the max of the header bottom Y vs. doc.y
-  const finalBottom = Math.max(headerTableBottomY, doc.y);
-  doc.y = finalBottom + 20; // add some extra space if you like
+  // 5) Move doc.y below the table if it's taller than the signature or summary
+  // -------------------------------------------------------------------------
+  const finalBottom = Math.max(statsTableBottomY, doc.y);
+  doc.y = finalBottom + 20; // extra space
 }

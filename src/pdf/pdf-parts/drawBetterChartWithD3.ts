@@ -1,4 +1,3 @@
-// For consistency with your CSV code snippet
 interface DataPoint {
   date: Date;
   value: number;
@@ -6,46 +5,38 @@ interface DataPoint {
 
 /**
  * Draws a line chart that spans the full page width (left margin → right margin).
- * The height extends from the current doc.y down toward the bottom margin.
+ * The height extends from the current doc.y down toward the bottom margin,
+ * with the X-axis tick labels rotated 90 degrees.
  */
 export async function drawSimpleLineChartD3Style(
   doc: PDFKit.PDFDocument,
   data: DataPoint[]
 ) {
-  // 0) If no data, skip drawing
   if (!data.length) return;
 
-  // Dynamically import D3 modules (because you're in CommonJS + ESM environment)
+  // Dynamically import D3 modules
   const d3Scale = await import('d3-scale');
   const d3Array = await import('d3-array');
   const d3TimeFormat = await import('d3-time-format');
   const d3Format = await import('d3-format');
 
-  // Example margins (inset inside the chart)
-  // so you have space for axes labels and ticks
-  const margin = { top: 20, right: 0, bottom: 40, left: 0 };
+  // Margins for the "inner" chart
+  const margin = { top: 20, right: 0, bottom: 0, left: 0 };
 
-  // 1) Calculate the outer width/height for the chart bounding box
-  //    - Full width from left margin to right margin
-  //    - Height from current doc.y down to bottom margin
+  // Calculate available area
   const pageWidth = doc.page.width;
   const pageHeight = doc.page.height;
   const marginLeft = doc.page.margins.left;
   const marginRight = doc.page.margins.right;
-  const marginBottom = doc.page.margins.bottom;
+  const marginBottom = doc.page.margins.bottom + 5;
 
-  const chartLeft = marginLeft;   // start at the left margin
-  const chartTop = doc.y;         // start at current doc.y
+  const chartLeft = marginLeft;   
+  const chartTop = doc.y;         
   const chartWidth = pageWidth - marginLeft - marginRight;
-
-  // If you want the chart to fill down to the bottom margin:
   const availableHeight = pageHeight - chartTop - marginBottom;
-  // Or pick a fixed height, e.g. const availableHeight = 400;
-
-  // We'll just use availableHeight
   const chartHeight = availableHeight;
 
-  // 2) Draw a faint bounding box for the entire chart region
+  // Draw a faint bounding box (optional)
   doc
     .save()
     .lineWidth(0.5)
@@ -54,34 +45,31 @@ export async function drawSimpleLineChartD3Style(
     .stroke()
     .restore();
 
-  // 3) Now define the "inner" area (like in your D3 snippet)
-  //    This is the chart area minus the top/right/bottom/left margins
+  // Inner area = chart minus "chart margins"
   const innerWidth = chartWidth - (margin.left + margin.right);
   const innerHeight = chartHeight - (margin.top + margin.bottom);
 
-  // We'll define the top-left corner of the *inner* area
+  // Top-left of the inner area
   const innerLeft = chartLeft + margin.left;
   const innerTop = chartTop + margin.top;
 
-  // 4) Setup D3 scales
-  //    domain for x = [minDate, maxDate]
-  // For y, we can do from 0 to max
+  // 1) Determine min/max for data (y) & time (x)
   const [yMin, yMax] = d3Array.extent(data, (d) => d.value) as [number, number];
   const xDomain = d3Array.extent(data, (d) => d.date) as [Date, Date];
 
+  // 2) Create scales
   const xScale = d3Scale
-  .scaleTime()
-  .domain(xDomain)
-  .range([0, innerWidth]);
+    .scaleTime()
+    .domain(xDomain)
+    .range([0, innerWidth]);
 
   const yScale = d3Scale
-  .scaleLinear()
-  .domain([yMin, yMax])
-  .range([innerHeight, 0])
-  .nice(); // "nice" is optional
+    .scaleLinear()
+    .domain([yMin, yMax])
+    .range([innerHeight, 0])
+    .nice();
 
-  // 5) Draw the X axis line
-  // The bottom of the inner chart is innerTop + innerHeight
+  // 3) Draw X axis line
   const xAxisY = innerTop + innerHeight;
   doc
     .moveTo(innerLeft, xAxisY)
@@ -90,8 +78,8 @@ export async function drawSimpleLineChartD3Style(
     .lineWidth(1)
     .stroke();
 
-  // X-axis ticks
-  const xTicks = xScale.ticks(5); // or 6, your choice
+  // X-axis ticks (rotated labels)
+  const xTicks = xScale.ticks(5);
   const xFormat = d3TimeFormat.timeFormat('%Y-%m-%d');
 
   xTicks.forEach((tickVal) => {
@@ -100,21 +88,36 @@ export async function drawSimpleLineChartD3Style(
 
     // Short tick mark
     doc
-      .moveTo(tickX, xAxisY)
-      .lineTo(tickX, xAxisY + 5)
+      .moveTo(tickX, xAxisY + 4)
+      .lineTo(tickX, xAxisY)
       .stroke();
 
-    // Label
+    // Rotated label
     const label = xFormat(tickVal);
-    doc.fontSize(8).fillColor('black');
-    doc.text(label, tickX - 20, xAxisY + 7, {
-      width: 40,
-      align: 'center'
+
+    // We'll rotate the label by -90 degrees around the point (tickX, xAxisY + 5).
+    // That point becomes the "origin" for the rotated text.
+    doc.save();
+    doc.fontSize(7).fillColor('black');
+
+    // 1) Move the origin to (tickX, xAxisY + 5)
+    doc.translate(tickX-5, xAxisY + 5);
+
+    // 2) Rotate -90 degrees (clockwise)
+    doc.rotate(-90);
+
+    // 3) Place text. Position it so it doesn't overlap the axis line.
+    //    For example, we shift it up by ~10 so it stands out.
+    //    We'll use a small negative x offset so the text is more visible.
+    doc.text(label, -35, 0, {
+      width: 40, // some width to contain text
+      align: 'left'
     });
+
+    doc.restore();
   });
 
-  // 6) Draw the Y axis line
-  // The left of the inner chart is innerLeft
+  // 4) Draw Y axis line
   doc
     .moveTo(innerLeft, innerTop)
     .lineTo(innerLeft, innerTop + innerHeight)
@@ -145,9 +148,8 @@ export async function drawSimpleLineChartD3Style(
     });
   });
 
-  // 7) Plot the line
-  doc.save();
-  doc.strokeColor('steelblue').lineWidth(1.5);
+  // 5) Plot the line
+  doc.save().strokeColor('steelblue').lineWidth(1.5);
 
   // Sort data by date
   const sorted = [...data].sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -165,7 +167,6 @@ export async function drawSimpleLineChartD3Style(
 
   doc.stroke().restore();
 
-  // 8) Advance doc.y so subsequent content is below the chart
+  // 6) Advance doc.y so subsequent content is below the chart
   doc.y = chartTop + chartHeight + 20; 
-  // or doc.y = doc.y + chartHeight + 20; if you want to stack multiple charts
 }

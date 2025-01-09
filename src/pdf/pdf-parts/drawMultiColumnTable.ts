@@ -34,7 +34,7 @@ export function drawDataTable12Cols(
   // "Created At", "Temp (C)", "コメント"
   const colWidthDate = 55;
   const colWidthTemp = 27;
-  const colWidthComment = 40;
+  const colWidthComment = 50;
   const setWidth = colWidthDate + colWidthTemp + colWidthComment;
 
   // 4 sets horizontally => 12 columns total
@@ -89,7 +89,8 @@ export function drawDataTable12Cols(
     doc.fontSize(headerFontSize).font('NotoSansJP');
 
     let alertBreakPointString = colorRanges.map((d) => `     ${d.name}: ${d.min}`).join(', ');
-    doc.fontSize(10).text(alertBreakPointString, doc.page.margins.left, marginTop-30, { width: doc.page.width, height: 10 });
+    var w = doc.widthOfString(alertBreakPointString);
+    doc.fontSize(10).text(alertBreakPointString, (doc.page.width / 2) - w, marginTop-30, { width: doc.page.width, height: 10 });
 
     // Column 1: "Created At"
     drawCellBorder(doc, x, y, colWidthDate, headerHeight);

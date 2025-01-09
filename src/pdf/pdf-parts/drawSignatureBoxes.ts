@@ -7,19 +7,19 @@ export function drawSignatureBoxes(doc: PDFKit.PDFDocument) {
   const pageWidth = doc.page.width;
   const marginLeft = doc.page.margins.left;
   const marginRight = doc.page.margins.right;
-  const usableWidth = pageWidth - marginLeft - marginRight;
+  const usableWidth = pageWidth - marginRight;
 
   // We'll position this signature block to the far right. 
   // Adjust as needed if you are also placing other content on the left.
   // For example, if you used a 60/40 split for a header & signature area, 
   // you'd adapt those calculations accordingly.
   const signatureBlockWidth = usableWidth * 0.3; 
-  const signatureBlockX = marginLeft + (usableWidth - signatureBlockWidth);
+  const signatureBlockX = (doc.page.width/2) + 25;// marginLeft + (usableWidth - signatureBlockWidth);
 
   const topY = doc.y;   // current doc.y is the top where we place this block
 
   // 1) Big top box
-  const topBoxHeight = 40;
+  const topBoxHeight = 35;
   doc
     .rect(signatureBlockX, topY, signatureBlockWidth, topBoxHeight)
     .stroke();

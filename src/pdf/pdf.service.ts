@@ -58,7 +58,6 @@ export class PdfService {
 
         // Build content (this is where you'd call your helper functions)
         drawHeaderAndSignatureBoxes(doc, reportData);
-        // drawGraph(doc, reportData.dataPoints);
 
         // Draw the line chart
         doc.x = doc.page.margins.left;
