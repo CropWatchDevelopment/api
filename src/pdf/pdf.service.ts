@@ -8,7 +8,8 @@ import { pdfReportFormat } from './interfaces/report.interface';
 import { mapToPdfReport } from './data-formatters/legacy-test';
 import { drawHeaderAndSignatureBoxes } from './pdf-parts/drawHeaderAndSignatureBoxes';
 import { drawSimpleLineChartD3Style } from './pdf-parts/drawBetterChartWithD3';
-import { drawDataTable } from './pdf-parts/drawMultiColumnTable';
+import { drawDataTable12Cols } from './pdf-parts/drawMultiColumnTable';
+import { TableColorRange } from './interfaces/TableColorRange';
 
 
 @Injectable()
@@ -64,7 +65,35 @@ export class PdfService {
           doc,
           reportData.dataPoints
         );
-        drawDataTable(doc, reportData.dataPoints.map((d) => ({ createdAt: new Date(d.date).toDateString(), temperature: d.value })));
+
+        const tableColorRange: TableColorRange[] = [
+          {
+            name: 'alert',
+            min: 0,
+            max: 9999,
+            color: 'red'
+          },
+          {
+            name: 'warning',
+            min: -15.1,
+            max: 0,
+            color: 'orange'
+          },
+          {
+            name: 'notice',
+            min: -15.1,
+            max: -17.99,
+            color: 'yellow'
+          },
+          {
+            name: 'normal',
+            min: -18,
+            max: -1000,
+            color: 'white'
+          }
+        ];
+        doc.x = doc.page.margins.left;
+        drawDataTable12Cols(doc, reportData.dataPoints.map((d) => ({ createdAt: new Date(d.date).toDateString(), temperature: d.value })), tableColorRange);
 
         // Finalize the PDF (triggers the 'end' event)
         doc.end();

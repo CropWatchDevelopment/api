@@ -1,37 +1,51 @@
+import { TableColorRange } from "../interfaces/TableColorRange";
+
 interface DataRow {
   createdAt: string;
   temperature: number;
+  comment?: string;
 }
 
 /**
- * Draws a multi-column table:
- *   - Each "column set" has 2 columns: createdAt, temperature
- *   - We fill top→bottom in each set
- *   - Then move left→right to the next set on the same page if there's room
- *   - If no more horizontal space, add a new page, continue at top-left
- *   - Each cell has a border, and text is clipped (ellipsis) if it doesn't fit
+ * Draws a multi-"column set" table in PDFKit:
+ * - Each "column set" = 3 columns: [Created At, Temp (C), コメント].
+ * - 12 columns total => 4 sets horizontally (4 sets × 3 columns = 12).
+ * - Rows fill top→bottom in each set, then left→right across sets.
+ * - If no more space horizontally, we add a new page and continue at top-left.
+ * - Each cell has a border; text is clipped if it doesn't fit.
+ * - Default font size is 6pt (both header & body).
+ * - We add a color fill on the **temperature** cell if it matches any range in `colorRanges`.
  */
-export function drawDataTable(
+export function drawDataTable12Cols(
   doc: PDFKit.PDFDocument,
   data: DataRow[],
+  colorRanges: TableColorRange[],
   options?: {
     rowHeight?: number;
     headerHeight?: number;
     marginBottom?: number;
+    headerFontSize?: number;
+    bodyFontSize?: number;
   }
 ) {
-  if (!data || data.length === 0) return;
+  if (!data?.length) return;
 
-  // We’ll define some column widths:
-  // "createdAt" = 120px, "temperature" = 80px
-  const colWidthDate = 120;
-  const colWidthTemp = 80;
-  const setWidth = colWidthDate + colWidthTemp; // total width for one 2-col set
+  // 3 columns per set:
+  // "Created At", "Temp (C)", "コメント"
+  const colWidthDate = 55;
+  const colWidthTemp = 27;
+  const colWidthComment = 40;
+  const setWidth = colWidthDate + colWidthTemp + colWidthComment;
 
-  // Row & header dimensions
-  const rowHeight = options?.rowHeight ?? 20;
-  const headerHeight = options?.headerHeight ?? 20;
+  // 4 sets horizontally => 12 columns total
+  const setsPerRow = 4;
+
+  // Row / header dimensions
+  const headerHeight = options?.headerHeight ?? 16;
+  const rowHeight = options?.rowHeight ?? 16;
   const marginBottom = options?.marginBottom ?? 20;
+  const headerFontSize = options?.headerFontSize ?? 6;
+  const bodyFontSize = options?.bodyFontSize ?? 6;
 
   // Page geometry
   const pageWidth = doc.page.width;
@@ -41,147 +55,180 @@ export function drawDataTable(
   const marginTop = doc.page.margins.top;
   const marginBot = doc.page.margins.bottom;
 
-  // Ensure we’re starting near the left margin
-  // (If doc.x is already offset, you can override it here)
+  // Start near the left margin
   doc.x = marginLeft;
-
-  // Current coordinates
   let currentX = doc.x;
   let currentY = doc.y;
 
-  // Usable page size
   const usableWidth = pageWidth - marginLeft - marginRight;
   const usableHeight = pageHeight - marginTop - marginBot;
 
-  // How many column sets fit horizontally?
-  // e.g. if setWidth=200, usableWidth=600 => we can fit 3 sets
-  const setsPerRow = Math.floor(usableWidth / setWidth);
-  if (setsPerRow < 1) {
-    // If we can’t fit at least one 2-col set, you might bail or handle differently
-    doc.addPage();
-    doc.x = marginLeft;
-    doc.y = marginTop;
-    return;
+  // Check if 4 sets fit horizontally (4 sets × setWidth)
+  const totalWidthNeeded = setsPerRow * setWidth;
+  if (totalWidthNeeded > usableWidth) {
+    // Potentially handle "not enough horizontal space" case
+    // For now, we'll just continue and let it overflow or you can scale widths.
   }
 
-  // How many “body” rows fit vertically, ignoring the header row?
-  // E.g., each row is rowHeight, plus 1 header row of headerHeight
+  // How many rows fit vertically?
   const maxBodyRows = Math.floor((usableHeight - headerHeight) / rowHeight);
   if (maxBodyRows < 1) {
-    // If we can’t fit even 1 row, new page
     doc.addPage();
     doc.x = marginLeft;
     doc.y = marginTop;
     return;
   }
 
-  // This is the total # of rows we can place in one column set on a single page
-  // (1 header row + maxBodyRows data rows)
-  // Actually, we handle the header separately each time we start a new set
-  // so the data rows are maxBodyRows per set.
-  //
-  // Now let’s iterate over our data, top→bottom in each set, left→right across sets.
   let dataIndex = 0;
   const total = data.length;
 
-  // Helper: draw one “header row” for a set
+  /**
+   * Draws the header row for one set (3 columns).
+   */
   function drawHeader(x: number, y: number) {
-    doc.fontSize(10).font('Helvetica-Bold');
+    doc.fontSize(headerFontSize).font('NotoSansJP');
 
-    // 1) "createdAt" col
+    // Column 1: "Created At"
     drawCellBorder(doc, x, y, colWidthDate, headerHeight);
-    doc.text('Created At', x + 4, y + 5, {
-      width: colWidthDate - 8,
+    doc.text('日時', x + 2, y + 2, {
+      width: colWidthDate - 4,
       ellipsis: true
     });
 
-    // 2) "temperature" col
+    // Column 2: "Temp (C)"
     drawCellBorder(doc, x + colWidthDate, y, colWidthTemp, headerHeight);
-    doc.text('Temp (C)', x + colWidthDate + 4, y + 5, {
-      width: colWidthTemp - 8,
+    doc.text('値', x + colWidthDate + 2, y + 2, {
+      width: colWidthTemp - 4,
+      ellipsis: true
+    });
+
+    // Column 3: "コメント"
+    drawCellBorder(doc, x + colWidthDate + colWidthTemp, y, colWidthComment, headerHeight);
+    doc.text('コメント', x + colWidthDate + colWidthTemp + 2, y + 2, {
+      width: colWidthComment - 4,
       ellipsis: true
     });
   }
 
-  // Helper: draw one “data row” for a set
+  /**
+   * Draws one data row (3 columns).
+   * We highlight the temperature cell background if it fits any range in colorRanges.
+   */
   function drawDataRow(x: number, y: number, row: DataRow) {
-    doc.fontSize(10).font('Helvetica');
+    doc.fontSize(bodyFontSize).font('NotoSansJP');
 
-    // date col
+    // Column 1: Created At
     drawCellBorder(doc, x, y, colWidthDate, rowHeight);
-    doc.text(row.createdAt, x + 4, y + 5, {
-      width: colWidthDate - 8,
+    doc.text(row.createdAt, x + 2, y + 2, {
+      width: colWidthDate - 4,
       ellipsis: true
     });
 
-    // temp col
-    drawCellBorder(doc, x + colWidthDate, y, colWidthTemp, rowHeight);
-    doc.text(String(row.temperature), x + colWidthDate + 4, y + 5, {
-      width: colWidthTemp - 8,
+    // Column 2: Temperature with color fill if it matches a range
+    const tempCellX = x + colWidthDate;
+    fillCellColorIfInRange(doc, tempCellX, y, colWidthTemp, rowHeight, row.temperature, colorRanges);
+    drawCellBorder(doc, tempCellX, y, colWidthTemp, rowHeight);
+    doc.text(String(row.temperature), tempCellX + 2, y + 2, {
+      width: colWidthTemp - 4,
+      ellipsis: true
+    });
+
+    // Column 3: コメント
+    const commentCellX = x + colWidthDate + colWidthTemp;
+    drawCellBorder(doc, commentCellX, y, colWidthComment, rowHeight);
+    doc.text(row.comment ?? '', commentCellX + 2, y + 2, {
+      width: colWidthComment - 4,
       ellipsis: true
     });
   }
 
-  // Helper: check if we need a new page
-  function ensureSpaceForSetsRow(): void {
-    // If currentY + (headerHeight + maxBodyRows * rowHeight) > bottom,
-    // we add a new page and reset X/Y.
-    const needed = headerHeight + maxBodyRows * rowHeight + 20; // some margin
-    const bottomLimit = pageHeight - marginBot;
-    if (currentY + needed > bottomLimit) {
+  /**
+   * Before drawing another "row of sets," ensure we have enough vertical space.
+   * If not, add a new page.
+   */
+  function ensureSpaceForSetsRow() {
+    const needed = headerHeight + maxBodyRows * rowHeight + 10; // some padding
+    if (currentY + needed > pageHeight - marginBot) {
       doc.addPage();
       currentX = marginLeft;
       currentY = doc.page.margins.top;
     }
   }
 
-  // While we have data left:
+  // Main loop over data
   while (dataIndex < total) {
-    // We do an entire “row” of sets, up to setsPerRow horizontally.
+    // Each "row of sets" has 4 sets horizontally
     ensureSpaceForSetsRow();
 
-    // For each set in that row of sets:
     for (let setIndex = 0; setIndex < setsPerRow; setIndex++) {
-      if (dataIndex >= total) break; // no more data
+      if (dataIndex >= total) break;
 
-      // 1) Draw header
+      // Draw header
       drawHeader(currentX, currentY);
+      let bodyY = currentY + headerHeight;
 
-      // 2) Fill up to maxBodyRows data rows
-      let yPos = currentY + headerHeight; // the first data row is below the header
-
+      // Fill up to maxBodyRows
       for (let r = 0; r < maxBodyRows; r++) {
         if (dataIndex >= total) break;
 
-        drawDataRow(currentX, yPos, data[dataIndex]);
-
+        drawDataRow(currentX, bodyY, data[dataIndex]);
+        bodyY += rowHeight;
         dataIndex++;
-        yPos += rowHeight;
       }
 
-      // Move currentX to the next set horizontally
+      // Move horizontally to next set
       currentX += setWidth;
-
-      // If we used up all data, exit
       if (dataIndex >= total) break;
     }
 
-    // We finished a row of sets. Move currentY down by the total used height
-    // That’s the header + the data rows we allocated (maxBodyRows)
-    currentY += headerHeight + (maxBodyRows * rowHeight);
-
-    // Reset currentX to the left margin
+    // Move down for next "row of sets"
+    currentY += headerHeight + maxBodyRows * rowHeight;
     currentX = marginLeft;
   }
 
-  // Finally, move doc.y below the table for subsequent content
+  // Move doc.y below the table
   doc.y = currentY + marginBottom;
 }
 
-/**
- * Draws a 1px rectangle border for the cell at (x, y) with w/h
+/** 
+ * If the numeric value is within any of the specified ranges, fill the cell with that color.
+ * (We assume the colorRanges do not overlap, but if they do, the first match is used.)
  */
-function drawCellBorder(doc: PDFKit.PDFDocument, x: number, y: number, w: number, h: number) {
+function fillCellColorIfInRange(
+  doc: PDFKit.PDFDocument,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  value: number,
+  colorRanges: TableColorRange[]
+) {
+  const color = getColorForValue(value, colorRanges);
+  if (color) {
+    doc.save();
+    doc.rect(x, y, w, h).fillColor(color).fill();
+    doc.restore();
+  }
+}
+
+/** Returns the first matching color if `value` is within [min, max] of a range. */
+function getColorForValue(value: number, ranges: TableColorRange[]): string | null {
+  for (const r of ranges) {
+    if (value >= r.min && value <= r.max) {
+      return r.color;
+    }
+  }
+  return null;
+}
+
+/** Draws a 1px border around the cell at (x,y). */
+function drawCellBorder(
+  doc: PDFKit.PDFDocument,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+) {
   doc
     .lineWidth(1)
     .strokeColor('black')
