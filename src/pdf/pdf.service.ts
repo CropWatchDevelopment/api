@@ -60,12 +60,17 @@ export class PdfService {
         drawHeaderAndSignatureBoxes(doc, reportData);
         // drawGraph(doc, reportData.dataPoints);
 
+        // Draw the line chart
         doc.x = doc.page.margins.left;
+        doc.fontSize(14).text('温度', doc.page.width/2, doc.y, { width: 100 });
         await drawSimpleLineChartD3Style(
           doc,
           reportData.dataPoints
         );
 
+
+
+        // Draw Table and all stuff related to it
         const tableColorRange: TableColorRange[] = [
           {
             name: 'alert',

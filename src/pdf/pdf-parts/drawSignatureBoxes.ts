@@ -30,7 +30,7 @@ export function drawSignatureBoxes(doc: PDFKit.PDFDocument) {
 
   // 2) Row of 3 sub-boxes (承認, 確認, 作成), side-by-side
   const subBoxesY = topY + topBoxHeight + 5;  // gap below the top box
-  const subBoxHeight = 30;
+  const subBoxHeight = 90;
   const labels = ['承認', '確認', '作成'];
 
   // We'll divide the total width by 3

@@ -88,6 +88,9 @@ export function drawDataTable12Cols(
   function drawHeader(x: number, y: number) {
     doc.fontSize(headerFontSize).font('NotoSansJP');
 
+    let alertBreakPointString = colorRanges.map((d) => `     ${d.name}: ${d.min}`).join(', ');
+    doc.fontSize(10).text(alertBreakPointString, doc.page.margins.left, marginTop-30, { width: doc.page.width, height: 10 });
+
     // Column 1: "Created At"
     drawCellBorder(doc, x, y, colWidthDate, headerHeight);
     doc.text('日時', x + 2, y + 2, {

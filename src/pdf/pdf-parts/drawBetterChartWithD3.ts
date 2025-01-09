@@ -23,7 +23,7 @@ export async function drawSimpleLineChartD3Style(
 
   // Example margins (inset inside the chart)
   // so you have space for axes labels and ticks
-  const margin = { top: 20, right: 30, bottom: 40, left: 60 };
+  const margin = { top: 20, right: 0, bottom: 40, left: 0 };
 
   // 1) Calculate the outer width/height for the chart bounding box
   //    - Full width from left margin to right margin
