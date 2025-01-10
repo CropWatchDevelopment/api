@@ -15,11 +15,49 @@ async function bootstrap() {
   });
   const document = SwaggerModule.createDocument(app, getSwaggerConfig(version));
   SwaggerModule.setup('api', app, document, {
-    customCssUrl: '../src/assets/css/swagger-custom.css',
-    customfavIcon: 'https://cropwatch.io/favicon.svg',
+    // customCssUrl: 'assets/css/swagger-custom.css',
+    customCss: `
+      /* 1. Give the top bar a green background (optional) */
+      #swagger-ui .topbar {
+        background: #50C878 !important;
+      }
+
+      /* 2. Center the logo + text horizontally in the top bar */
+      #swagger-ui .topbar .wrapper .topbar-wrapper {
+        display: flex;
+      }
+
+      /* 3. Hide Swagger’s default SVG */
+      .topbar .topbar-wrapper .link svg {
+        display: none !important;
+      }
+
+      /* 4. Display the .link as an inline-flex container w/ your custom logo */
+      .topbar .topbar-wrapper .link {
+        display: inline-flex;              /* to align logo background + text */
+        align-items: center;              /* vertical center between background + text */
+        justify-content: center;
+        width: 200px;                     /* adjust as needed */
+        height: 40px;                     /* adjust as needed */
+        background: url("https://www.cropwatch.io/favicon.svg") no-repeat center / contain;
+        text-decoration: none;            /* remove link underline, if any */
+        margin: 0 10px;                   /* optional side spacing */
+      }
+
+      .topbar .topbar-wrapper .link::after {
+        content: "CropWatch – API";
+        font-size: 16px;           /* adjust text size */
+        color: #fff;               /* make it visible on green background */
+        white-space: nowrap;       /* keep text on one line */
+        margin-left: 10px;         /* spacing between logo and text */
+      }
+    `,
+    customfavIcon: 'https://www.cropwatch.io/favicon.svg',
     customSiteTitle: 'CropWatch API Documentation'
   });
-  await app.listen(process.env.PORT ?? 3000);
+  let port = process.env.PORT ?? 3000;
+  console.log(`Listening on port ${port}`);
+  await app.listen(port);
 }
 bootstrap();
 
