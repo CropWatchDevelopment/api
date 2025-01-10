@@ -1,17 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { DataService } from 'src/data/data.service';
+import { DataService, FindAllParams } from 'src/data/data.service';
 import { ReportsTemplatesService } from 'src/reports_templates/reports_templates.service';
 
 // PDF Import stuff
-import PDFDocument from 'pdfkit';
-import { pdfReportFormat } from './interfaces/report.interface';
 import { mapToPdfReport } from './data-formatters/legacy-test';
-import { drawHeaderAndSignatureBoxes } from './pdf-parts/drawHeaderAndSignatureBoxes';
-import { drawSimpleLineChartD3Style } from './pdf-parts/drawBetterChartWithD3';
-import { drawDataTable12Cols } from './pdf-parts/drawMultiColumnTable';
-import { TableColorRange } from './interfaces/TableColorRange';
-import { CwDeviceTypeService } from 'src/cw_device_type/cw_device_type.service';
 import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
+import { pdfReportFormat } from './interfaces/report.interface';
+import { buildColdChainReport } from './PdfTemplateTypes/ColdChain';
+import { buildCO2Report } from './PdfTemplateTypes/Co2Report';
 
 
 @Injectable()
@@ -19,14 +15,13 @@ export class PdfService {
   constructor(
     private readonly dataService: DataService,
     private readonly reportsTemplatesService: ReportsTemplatesService,
-    private readonly deviceTypeService: CwDeviceTypeService,
     private readonly deviceService: CwDevicesService,
   ) { }
 
-  public async createPdfBinary(user_id: string, devEui: string) {
+  public async createPdfBinary(user_id: string, devEui: string, start: Date, end: Date): Promise<Buffer> {
     if (!user_id) throw new Error('User ID is required');
     if (!devEui) throw new Error('DevEui is required');
-    let rawData = await this.fetchDataAndReportFromDB(devEui, user_id);
+    let rawData = await this.fetchDataAndReportFromDB(devEui, user_id, start, end);
     let device = await this.deviceService.getDeviceByDevEui(devEui);
     const pdfReport = await mapToPdfReport(
       rawData,
@@ -37,92 +32,32 @@ export class PdfService {
       devEui             // devEui
     );
 
-    const fileBuffer = await this.buildPdfReport(pdfReport);
-    return fileBuffer;
-  }
-
-  async buildPdfReport(reportData: pdfReportFormat): Promise<Buffer> {
-    return new Promise<Buffer>(async (resolve, reject) => {
-      try {
-        // Create a new PDF document
-        const doc = new PDFDocument({
-          size: 'A4', // 595.28 x 841.89 (approx)
-          margin: 40
-        });
-
-        doc.registerFont('NotoSansJP', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf');
-        doc.font('NotoSansJP');
-
-        // Collect chunks in memory
-        const buffers: Buffer[] = [];
-        doc.on('data', (chunk) => buffers.push(chunk));
-        doc.on('end', () => {
-          const pdfData = Buffer.concat(buffers);
-          resolve(pdfData);
-        });
-
-        // Build content (this is where you'd call your helper functions)
-        drawHeaderAndSignatureBoxes(doc, reportData);
-
-        // Draw the line chart
-        doc.x = doc.page.margins.left;
-        doc.fontSize(14).text('温度', doc.page.width / 2, doc.y, { width: 100 });
-        await drawSimpleLineChartD3Style(
-          doc,
-          reportData.dataPoints
-        );
-
-
-
-        // Draw Table and all stuff related to it
-        const tableColorRange: TableColorRange[] = [
-          {
-            name: 'alert',
-            min: 0,
-            max: 9999,
-            color: 'red'
-          },
-          {
-            name: 'warning',
-            min: -15.1,
-            max: 0,
-            color: 'orange'
-          },
-          {
-            name: 'notice',
-            min: -15.1,
-            max: -17.99,
-            color: 'yellow'
-          },
-          {
-            name: 'normal',
-            min: -18,
-            max: -1000,
-            color: 'white'
-          }
-        ];
-        doc.x = doc.page.margins.left;
-        drawDataTable12Cols(doc, reportData.dataPoints.map((d) => ({ createdAt: new Date(d.date).toDateString(), temperature: d.value })), tableColorRange);
-
-        // Finalize the PDF (triggers the 'end' event)
-        doc.end();
-      } catch (error) {
-        reject(error);
-      }
-    });
+    if (device.report_endpoint.includes('cold-storage')) {
+      return await buildColdChainReport(pdfReport);
+    } else if (device.report_endpoint.includes('co2-report')) {
+      return await buildCO2Report(rawData);
+    } else {
+      throw new Error('Report endpoint not found');
+    }
   }
 
 
-  private async fetchDataAndReportFromDB(devEui: string, user_id: string) {
+
+
+  private async fetchDataAndReportFromDB(devEui: string, user_id: string, start: Date, end: Date) {
     // Example: fetch 10 items
-    const reportData = await this.dataService.findAll(
-      { devEui, skip: 0, take: 1000, order: 'ASC' },
+    const findAllParams: FindAllParams = {
+      devEui,
+      skip: 0,
+      take: 10,
+      order: 'ASC',
+      start,
+      end,
+    };
+    const reportData = await this.dataService.findAllBetweenDateTimeRange(
+      findAllParams,
       user_id
     );
-    const reportJsonResponse = await this.reportsTemplatesService.getReportTemplateByDevEui(
-      devEui
-    );
-    const reportString = JSON.stringify(reportJsonResponse.template);
-    return { reportString, reportData };
+    return reportData;
   }
 }

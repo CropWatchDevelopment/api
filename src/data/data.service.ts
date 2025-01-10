@@ -12,6 +12,8 @@ export interface FindAllParams {
   skip: number;
   take: number;
   order: 'ASC' | 'DESC';
+  start?: Date;
+  end?: Date;
 }
 
 @Injectable()
@@ -38,6 +40,25 @@ export class DataService {
       devEui,
       skip,
       take,
+      order === 'ASC'
+    );
+  }
+
+  async findAllBetweenDateTimeRange(params: FindAllParams, email: string): Promise<any> {
+    const { devEui, start, end, order } = params;
+    if (!start || !end) {
+      throw new BadRequestException('Start and End date are required');
+    }
+    this.validateDevEui(devEui);
+    await this.validateDeviceOwner(devEui, email);
+    const device = await this.getDevice(devEui);
+    const deviceTypeData = await this.getDeviceTypeData(device.type);
+
+    return this.dataRepository.findAllByTableAndDateTime(
+      deviceTypeData.data_table,
+      devEui,
+      start,
+      end,
       order === 'ASC'
     );
   }

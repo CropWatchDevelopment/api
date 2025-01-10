@@ -19,7 +19,7 @@ async function bootstrap() {
     customCss: `
       /* 1. Give the top bar a green background (optional) */
       #swagger-ui .topbar {
-        background: #50C878 !important;
+        background: #125d2b !important;
       }
 
       /* 2. Center the logo + text horizontally in the top bar */
@@ -27,13 +27,8 @@ async function bootstrap() {
         display: flex;
       }
 
-      /* 3. Hide Swagger’s default SVG */
-      .topbar .topbar-wrapper .link svg {
-        display: none !important;
-      }
-
       /* 4. Display the .link as an inline-flex container w/ your custom logo */
-      .topbar .topbar-wrapper .link {
+      .topbar .topbar-wrapper .link svg {
         display: inline-flex;              /* to align logo background + text */
         align-items: center;              /* vertical center between background + text */
         justify-content: center;
@@ -45,11 +40,11 @@ async function bootstrap() {
       }
 
       .topbar .topbar-wrapper .link::after {
-        content: "CropWatch – API";
+        content: "CropWatch - API";
         font-size: 16px;           /* adjust text size */
         color: #fff;               /* make it visible on green background */
         white-space: nowrap;       /* keep text on one line */
-        margin-left: 10px;         /* spacing between logo and text */
+        margin-left: 75px;         /* spacing between logo and text */
       }
     `,
     customfavIcon: 'https://www.cropwatch.io/favicon.svg',

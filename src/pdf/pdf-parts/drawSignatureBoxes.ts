@@ -7,7 +7,7 @@ export function drawSignatureBoxes(doc: PDFKit.PDFDocument) {
   const pageWidth = doc.page.width;
   const marginLeft = doc.page.margins.left;
   const marginRight = doc.page.margins.right;
-  const usableWidth = pageWidth - marginRight;
+  const usableWidth = pageWidth + marginRight + marginLeft;
 
   // We'll position this signature block to the far right. 
   // Adjust as needed if you are also placing other content on the left.

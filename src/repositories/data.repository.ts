@@ -4,7 +4,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 
 @Injectable()
 export class DataRepository {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(private readonly supabaseService: SupabaseService) { }
 
   public async findAllByTable<T>(tableName: string, devEui: string, skip: number, take: number, order: boolean): Promise<T[]> {
     const { data, error } = await this.supabaseService
@@ -13,6 +13,23 @@ export class DataRepository {
       .select('*')
       .eq('dev_eui', devEui)
       .range(skip, skip + take - 1)
+      .order('created_at', { ascending: order });
+
+    if (error) {
+      throw new Error(`Failed to retrieve data from table ${tableName}: ${error.message}`);
+    }
+
+    return data || [];
+  }
+
+  public async findAllByTableAndDateTime<T>(tableName: string, devEui: string, start: Date, end: Date, order: boolean): Promise<T[]> {
+    const { data, error } = await this.supabaseService
+      .getSupabaseClient()
+      .from(tableName)
+      .select('*')
+      .eq('dev_eui', devEui)
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
       .order('created_at', { ascending: order });
 
     if (error) {
