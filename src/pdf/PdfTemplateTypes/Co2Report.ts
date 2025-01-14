@@ -1,6 +1,6 @@
 import PDFDocument from 'pdfkit';
-import { pdfReportFormat } from "../interfaces/report.interface";
 import { drawDynamicTable, TableColumn } from '../pdf-parts/drawDynamicTable';
+import { drawFourDataGroups } from '../pdf-parts/drawFourDataGroups';
 
 // PARTS:
 
@@ -28,7 +28,7 @@ export async function buildCO2Report(reportData): Promise<Buffer> {
             let header: TableColumn[] = [];
             Object.keys(reportData[0]).forEach((key) => {
                 if (key === 'co2_level' || key === 'created_at' || key === 'temperatureC' || key === 'humidity') {
-                    
+
                     header.push({
                         header: key,
                         field: key,
@@ -36,7 +36,49 @@ export async function buildCO2Report(reportData): Promise<Buffer> {
                     });
                 }
             });
-            drawDynamicTable(doc, header, reportData);
+
+            const dataGroups = {
+                group1: [
+                    { label: '会社:', value: 'Acme Corp' },
+                    { label: '部署:', value: 'Engineering' },
+                    { label: '使用場所:', value: 'Warehouse 7' },
+                    { label: 'センサー名:', value: 'Thermometer A1' },
+                    { label: '測定期間:', value: '2024/04/19 - 2024/04/25' },
+                    { label: 'DevEUI:', value: '373632336F32840A' }
+                ],
+                group2: [
+                    { label: 'データタイプ:', value: 'Temperature' },
+                    { label: 'サンプリング数:', value: '100' },
+                    { label: '最大値:', value: '30.2' },
+                    { label: '最小値:', value: '-5.1' },
+                    { label: '平均値:', value: '12.3' }
+                ],
+                group3: [
+                    { label: 'データタイプ:', value: 'Humidity' },
+                    { label: 'サンプリング数:', value: '100' },
+                    { label: '最大湿度:', value: '90.0%' },
+                    { label: '最小湿度:', value: '35.2%' },
+                    { label: '平均湿度:', value: '62.8%' }
+                ],
+                group4: [
+                    { label: 'データタイプ:', value: 'CO2' },
+                    { label: 'サンプリング数:', value: '100' },
+                    { label: '最大CO2濃度:', value: '850ppm' },
+                    { label: '最小CO2濃度:', value: '400ppm' },
+                    { label: '平均CO2濃度:', value: '550ppm' }
+                ]
+            };
+            doc.moveDown(); // ensure some space
+            drawFourDataGroups(doc, dataGroups, {
+                fontSize: 7,
+                rowHeight: 18,
+                labelWidth: 60,
+                valueWidth: 70,
+                gapBetweenCols: 5
+            });
+            // doc.y is now below all four groups
+
+
 
             // Finalize the PDF (triggers the 'end' event)
             doc.end();
