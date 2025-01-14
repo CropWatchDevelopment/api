@@ -13,6 +13,10 @@ interface DataGroups {
 /**
  * Draws four data groups in a single horizontal row, each with a vertical list of label/value pairs.
  * Adds vertical black lines between each pair of adjacent groups.
+ * Each item row is alternately shaded in 2 different gray tones.
+ *
+ * Also allows controlling the gap on each side of the vertical boundary 
+ * between label and value (labelGap).
  */
 export function drawFourDataGroups(
   doc: PDFKit.PDFDocument,
@@ -24,6 +28,10 @@ export function drawFourDataGroups(
     valueWidth?: number; 
     gapBetweenCols?: number; // horizontal gap between each group
     drawColumnDividers?: boolean; // default true
+    labelGap?: number; // horizontal gap on each side of the vertical boundary
+    alternateRowShading?: boolean; // default true
+    shadeColor1?: string; // first row color
+    shadeColor2?: string; // second row color
   }
 ) {
   // Default configuration
@@ -33,6 +41,11 @@ export function drawFourDataGroups(
   const valueWidth = options?.valueWidth ?? 120; // space for the value
   const gapBetweenCols = options?.gapBetweenCols ?? 20;
   const drawDividers = options?.drawColumnDividers ?? true;
+  const labelGap = options?.labelGap ?? 2;   // the gap on each side of the vertical boundary
+  const alternateRowShading = 
+    options?.alternateRowShading ?? true; // if false, no shading
+  const shadeColor1 = options?.shadeColor1 ?? '#f5f5f5';
+  const shadeColor2 = options?.shadeColor2 ?? '#dddddd';
 
   // We'll place all 4 groups on one row.
   // Each group's bounding box is labelWidth + valueWidth in width.
@@ -61,7 +74,11 @@ export function drawFourDataGroups(
     startY,
     labelWidth,
     valueWidth,
-    rowHeight
+    rowHeight,
+    labelGap,
+    alternateRowShading,
+    shadeColor1,
+    shadeColor2
   );
   const g2BottomY = drawLabelValueList(
     doc,
@@ -70,7 +87,11 @@ export function drawFourDataGroups(
     startY,
     labelWidth,
     valueWidth,
-    rowHeight
+    rowHeight,
+    labelGap,
+    alternateRowShading,
+    shadeColor1,
+    shadeColor2
   );
   const g3BottomY = drawLabelValueList(
     doc,
@@ -79,7 +100,11 @@ export function drawFourDataGroups(
     startY,
     labelWidth,
     valueWidth,
-    rowHeight
+    rowHeight,
+    labelGap,
+    alternateRowShading,
+    shadeColor1,
+    shadeColor2
   );
   const g4BottomY = drawLabelValueList(
     doc,
@@ -88,7 +113,11 @@ export function drawFourDataGroups(
     startY,
     labelWidth,
     valueWidth,
-    rowHeight
+    rowHeight,
+    labelGap,
+    alternateRowShading,
+    shadeColor1,
+    shadeColor2
   );
 
   // The final bottom is the tallest group
@@ -120,6 +149,11 @@ export function drawFourDataGroups(
 /**
  * Draws a vertical list of label/value pairs at the given (x, y).
  * Returns the bottom Y after the last row is drawn.
+ * 
+ * labelGap is the horizontal gap on each side of the boundary between label and value.
+ * 
+ * If alternateRowShading is true, row 0 uses shadeColor1, row 1 uses shadeColor2, 
+ * and so on, alternating.
  */
 function drawLabelValueList(
   doc: PDFKit.PDFDocument,
@@ -128,30 +162,38 @@ function drawLabelValueList(
   y: number,
   labelWidth: number,
   valueWidth: number,
-  rowHeight: number
+  rowHeight: number,
+  labelGap: number,
+  alternateRowShading: boolean,
+  shadeColor1: string,
+  shadeColor2: string
 ): number {
   let currentY = y;
   const totalWidth = labelWidth + valueWidth;
 
-  items.forEach(({ label, value }) => {
-    // Optional: draw a bounding box for each row
-    // doc.rect(x, currentY, totalWidth, rowHeight).stroke();
+  items.forEach(({ label, value }, rowIndex) => {
+    // Alternate shading
+    if (alternateRowShading) {
+      const fillColor = (rowIndex % 2 === 0) ? shadeColor1 : shadeColor2;
+      doc.save();
+      doc
+        .rect(x, currentY, totalWidth, rowHeight)
+        .fillColor(fillColor)
+        .fill();
+      doc.restore();
+    }
 
-    // We can also draw a vertical line between the label & value cell if we want
-    // doc
-    //   .moveTo(x + labelWidth, currentY)
-    //   .lineTo(x + labelWidth, currentY + rowHeight)
-    //   .stroke();
+    // If you want a bounding box or border line, you can do doc.rect(...) and stroke() here
 
-    // Place label
-    doc.text(label, x + 2, currentY + 2, {
-      width: labelWidth - 4,
+    // Label
+    doc.text(label, x + labelGap, currentY + 2, {
+      width: labelWidth - labelGap * 2,
       ellipsis: true
     });
 
-    // Place value
-    doc.text(value ?? '', x + labelWidth + 2, currentY + 2, {
-      width: valueWidth - 4,
+    // Value
+    doc.text(value ?? '', x + labelWidth + labelGap, currentY + 2, {
+      width: valueWidth - labelGap * 2,
       ellipsis: true
     });
 

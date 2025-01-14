@@ -77,19 +77,25 @@ export async function buildCO2Report(reportData): Promise<Buffer> {
                 ]
             };
             doc.moveDown(); // ensure some space
+            doc.x = 0;
             drawFourDataGroups(doc, dataGroups, {
-                fontSize: 7,
+                fontSize: 6,
                 rowHeight: 18,
-                labelWidth: 60,
-                valueWidth: 70,
-                gapBetweenCols: 5
-            });
+                labelWidth: 65,
+                valueWidth: 78,
+                gapBetweenCols: 0,
+                drawColumnDividers: true,
+                labelGap: 10,
+                alternateRowShading: true,
+                shadeColor1: '#f9f9f9',
+                shadeColor2: '#ececec'
+              });
             // doc.y is now below all four groups
 
             // Suppose you only want the chart to be 200 points tall max:
             await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.temperature })), { title: "温度", lineColor: 'red', maxHeight: 150 });
             await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.humidity })), { title: '湿度', lineColor: 'blue', maxHeight: 150 });
-            await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.co2_level })), { title: 'CO₂', lineColor: 'green', maxHeight: 200 });
+            await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.co2_level })), { title: 'CO2', lineColor: 'green', maxHeight: 200 });
 
 
             // Draw the table
