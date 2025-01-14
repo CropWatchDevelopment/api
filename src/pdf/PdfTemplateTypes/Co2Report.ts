@@ -3,6 +3,8 @@ import { drawDynamicTable, TableColumn } from '../pdf-parts/drawDynamicTable';
 import { drawFourDataGroups } from '../pdf-parts/drawFourDataGroups';
 import { drawSimpleLineChartD3Style } from '../pdf-parts/drawBetterChartWithD3';
 import { drawChartWithD3VariableHeight } from '../pdf-parts/drawChartWithD3VariableHeight';
+import { drawDynamicDataTable2, TableHeader } from '../pdf-parts/drawDynamicTable2';
+import moment from 'moment';
 
 // PARTS:
 
@@ -83,14 +85,42 @@ export async function buildCO2Report(reportData): Promise<Buffer> {
                 gapBetweenCols: 5
             });
             // doc.y is now below all four groups
+
+            // Suppose you only want the chart to be 200 points tall max:
+            await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.temperature })), { title: "温度", lineColor: 'red', maxHeight: 150 });
+            await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.humidity })), { title: '湿度', lineColor: 'blue', maxHeight: 150 });
+            await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.co2_level })), { title: 'CO₂', lineColor: 'green', maxHeight: 200 });
+
+
+            // Draw the table
+            const columns: TableHeader[] = [
+                { key: 'createdAt', label: '日時', width: 75 },
+                { key: 'temperature', label: '温度', width: 30 },
+                { key: 'humidity', label: '湿度', width: 30 },
+                { key: 'co2', label: 'CO2', width: 35 },
+                { key: 'comment', label: 'コメント', width: 80 },
+              ];
               
-              // Suppose you only want the chart to be 200 points tall max:
-              await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.temperature })), { title: "温度", lineColor: 'red', maxHeight: 150 });
-              await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.humidity })), { title: '湿度', lineColor: 'blue', maxHeight: 150 });
-              await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.co2_level })), { title: 'CO₂', lineColor: 'green', maxHeight: 200 });
-
-
-
+              // data: e.g. from
+              const data = reportData.map(d => ({
+                createdAt: moment(d.date).format('YYYY/MM/DD HH:mm'),
+                temperature: d.temperature,
+                humidity: d.humidity,
+                co2: d.co2_level,
+                comment: "",
+              }));
+              
+              // colorRanges if you need them
+              const colorRanges = [];
+              
+              // Then:
+              drawDynamicDataTable2(doc, columns, data, colorRanges, {
+                rowHeight: 16,
+                headerHeight: 16,
+                marginBottom: 20,
+                headerFontSize: 8,
+                bodyFontSize: 7
+              });
 
 
             // Finalize the PDF (triggers the 'end' event)
