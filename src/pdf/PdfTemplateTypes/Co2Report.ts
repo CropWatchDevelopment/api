@@ -1,6 +1,8 @@
 import PDFDocument from 'pdfkit';
 import { drawDynamicTable, TableColumn } from '../pdf-parts/drawDynamicTable';
 import { drawFourDataGroups } from '../pdf-parts/drawFourDataGroups';
+import { drawSimpleLineChartD3Style } from '../pdf-parts/drawBetterChartWithD3';
+import { drawChartWithD3VariableHeight } from '../pdf-parts/drawChartWithD3VariableHeight';
 
 // PARTS:
 
@@ -16,6 +18,10 @@ export async function buildCO2Report(reportData): Promise<Buffer> {
 
             doc.registerFont('NotoSansJP', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf');
             doc.font('NotoSansJP');
+
+            doc.x = doc.page.margins.left;
+            doc.fontSize(14).text('Chicken Environment Report', 0, 0, { width: doc.page.width, align: 'center' });
+            doc.x = doc.page.margins.left;
 
             // Collect chunks in memory
             const buffers: Buffer[] = [];
@@ -77,6 +83,13 @@ export async function buildCO2Report(reportData): Promise<Buffer> {
                 gapBetweenCols: 5
             });
             // doc.y is now below all four groups
+              
+              // Suppose you only want the chart to be 200 points tall max:
+              await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.temperature })), { title: "温度", lineColor: 'red', maxHeight: 150 });
+              await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.humidity })), { title: '湿度', lineColor: 'blue', maxHeight: 150 });
+              await drawChartWithD3VariableHeight(doc, reportData.map((d) => ({ date: new Date(d.created_at), value: d.co2_level })), { title: 'CO₂', lineColor: 'green', maxHeight: 200 });
+
+
 
 
 
