@@ -9,7 +9,15 @@ import moment from 'moment';
 // PARTS:
 
 
-export async function buildCO2Report(reportData): Promise<Buffer> {
+export async function buildCO2Report(
+    reportData,
+    devEui: string = 'n/a',
+    companyName: string = 'n/a',
+    department: string = 'n/a',
+    usageLocation: string = 'n/a',
+    sensorName: string = 'n/a',
+    startToEndString: string = 'n/a'
+): Promise<Buffer> {
     return new Promise<Buffer>(async (resolve, reject) => {
         try {
             // Create a new PDF document
@@ -22,7 +30,7 @@ export async function buildCO2Report(reportData): Promise<Buffer> {
             doc.font('NotoSansJP');
 
             doc.x = doc.page.margins.left;
-            doc.fontSize(14).text('Chicken Environment Report', 0, 0, { width: doc.page.width, align: 'center' });
+            doc.fontSize(14).text('CO2 Report', 0, 0, { width: doc.page.width, align: 'center' });
             doc.x = doc.page.margins.left;
 
             // Collect chunks in memory
@@ -47,12 +55,12 @@ export async function buildCO2Report(reportData): Promise<Buffer> {
 
             const dataGroups = {
                 group1: [
-                    { label: '会社:', value: 'Acme Corp' },
-                    { label: '部署:', value: 'Engineering' },
-                    { label: '使用場所:', value: 'Warehouse 7' },
-                    { label: 'センサー名:', value: 'Thermometer A1' },
-                    { label: '測定期間:', value: '2024/04/19 - 2024/04/25' },
-                    { label: 'DevEUI:', value: '373632336F32840A' }
+                    { label: '会社:', value: companyName },
+                    { label: '部署:', value: department },
+                    { label: '使用場所:', value: usageLocation },
+                    { label: 'センサー名:', value: sensorName },
+                    { label: '測定期間:', value: startToEndString },
+                    { label: 'DevEUI:', value: devEui }
                 ],
                 group2: [
                     { label: 'データタイプ:', value: 'Temperature' },
@@ -80,10 +88,10 @@ export async function buildCO2Report(reportData): Promise<Buffer> {
             doc.x = 0;
             drawFourDataGroups(doc, dataGroups, {
                 fontSize: 6,
-                rowHeight: 18,
+                rowHeight: 20,
                 labelWidth: 65,
                 valueWidth: 78,
-                gapBetweenCols: 0,
+                gapBetweenCols: 3,
                 drawColumnDividers: true,
                 labelGap: 10,
                 alternateRowShading: true,
@@ -103,8 +111,8 @@ export async function buildCO2Report(reportData): Promise<Buffer> {
                 { key: 'createdAt', label: '日時', width: 75 },
                 { key: 'temperature', label: '温度', width: 30 },
                 { key: 'humidity', label: '湿度', width: 30 },
-                { key: 'co2', label: 'CO2', width: 35 },
-                { key: 'comment', label: 'コメント', width: 80 },
+                { key: 'co2', label: 'CO2', width: 37 },
+                { key: 'comment', label: 'コメント', width: 85 },
               ];
               
               // data: e.g. from

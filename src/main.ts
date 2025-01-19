@@ -22,6 +22,14 @@ async function bootstrap() {
         background: #125d2b !important;
       }
 
+      .swagger-container {
+        background: #ebebeb !important;
+      }
+
+      #logo_small_svg__SW_TM-logo-on-dark {
+        display: none;
+      }
+
       /* 2. Center the logo + text horizontally in the top bar */
       #swagger-ui .topbar .wrapper .topbar-wrapper {
         display: flex;

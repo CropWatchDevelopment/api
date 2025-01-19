@@ -14,8 +14,8 @@ export class BaseService<T, CreateDto extends Partial<T>, UpdateDto extends Part
     return this.repository.findAll();
   }
 
-  async findById(id: number): Promise<T | null> {
-    return this.repository.findById(id);
+  async findById(id: number, idColumn: string | null = 'id'): Promise<T | null> {
+    return this.repository.findById(id, idColumn);
   }
 
   async create(dto: CreateDto): Promise<T> {

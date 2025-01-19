@@ -9,15 +9,15 @@ export class ProfileRepository {
 
   @ApiBearerAuth('JWT')
   async findById(id: string): Promise<ProfileRow | null> {
-    const {data: user, error: userError } = await this.supabaseService.getSupabaseClient().auth.getUser(id);
-    if (userError) {
-      throw userError;
-    }
+    // const {data: user, error: userError } = await this.supabaseService.getSupabaseClient().auth.getUser(id);
+    // if (userError) {
+    //   throw userError;
+    // }
     const { data, error } = await this.supabaseService
       .getSupabaseClient()
       .from('profiles')
       .select('*')
-      .eq('id', user.user.id)
+      .eq('id', id)
       .single();
     if (error) {
       throw error;

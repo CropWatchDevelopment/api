@@ -8,10 +8,15 @@ import { CwDeviceTypeModule } from 'src/cw_device_type/cw_device_type.module';
 import { CwDeviceOwnersModule } from 'src/cw_device_owners/cw_device_owners.module';
 import { AuthService } from 'src/auth/auth.service';
 import { ReportsTemplatesModule } from 'src/reports_templates/reports_templates.module';
+import { LocationService } from 'src/location/location.service';
+import { LocationModule } from 'src/location/location.module';
+import { ProfilesModule } from 'src/profiles/profiles.module';
 
 @Module({
   imports: [
     DataModule,
+    LocationModule,
+    ProfilesModule,
     CwDevicesModule,
     CwDeviceTypeModule,
     CwDeviceOwnersModule,
