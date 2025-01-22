@@ -37,48 +37,48 @@ export class PdfService {
       location: location.name,
       deviceName: device.name,
       timeSpan: `${moment(start).format('YYYY/MM/DD').toString()} - ${moment(end).format('YYYY/MM/DD').toString()}`
-  };
+    };
 
-  if(device.report_endpoint.includes('cold-storage')) {
-  const tableColorRange: TableColorRange[] = [
-    { name: 'alert', min: 0, max: 9999, color: 'red' },
-    { name: 'warning', min: -15.1, max: 0, color: 'orange' },
-    { name: 'notice', min: -17.99, max: -15.1, color: 'yellow' },
-    { name: 'normal', min: -18, max: -1000, color: 'white' }
-  ];
-  return await buildColdChainReport(rawData, tableColorRange, reportUserData);
-} else if (device.report_endpoint.includes('co2-report')) {
-  return await buildCO2Report(
-    rawData,
-    device.dev_eui,
-    profile.employer,
-    '--',
-    location.name,
-    device.name,
-    `${moment(start).format('YYYY/MM/DD').toString()} - ${moment(end).format('YYYY/MM/DD').toString()}`,
-  );
-} else {
-  throw new Error('Report endpoint not found');
-}
+    if (device.report_endpoint.includes('cold-storage')) {
+      const tableColorRange: TableColorRange[] = [
+        { name: 'alert', min: 0, max: 9999, color: 'red' },
+        { name: 'warning', min: -15.1, max: 0, color: 'orange' },
+        { name: 'notice', min: -17.99, max: -15.1, color: 'yellow' },
+        { name: 'normal', min: -18, max: -1000, color: 'white' }
+      ];
+      return await buildColdChainReport(rawData, tableColorRange, reportUserData);
+    } else if (device.report_endpoint.includes('co2-report')) {
+      return await buildCO2Report(
+        rawData,
+        device.dev_eui,
+        profile.employer,
+        '--',
+        location.name,
+        device.name,
+        `${moment(start).format('YYYY/MM/DD').toString()} - ${moment(end).format('YYYY/MM/DD').toString()}`,
+      );
+    } else {
+      throw new Error('Report endpoint not found');
+    }
   }
 
 
 
 
   private async fetchDataAndReportFromDB(devEui: string, user_id: string, start: Date, end: Date) {
-  // Example: fetch 10 items
-  const findAllParams: FindAllParams = {
-    devEui,
-    skip: 0,
-    take: 10,
-    order: 'ASC',
-    start,
-    end,
-  };
-  const reportData = await this.dataService.findAllBetweenDateTimeRange(
-    findAllParams,
-    user_id
-  );
-  return reportData;
-}
+    // Example: fetch 10 items
+    const findAllParams: FindAllParams = {
+      devEui,
+      skip: 0,
+      take: 10,
+      order: 'ASC',
+      start,
+      end,
+    };
+    const reportData = await this.dataService.findAllBetweenDateTimeRange(
+      findAllParams,
+      user_id
+    );
+    return reportData;
+  }
 }
