@@ -1,4 +1,4 @@
-import { pdfReportFormat } from '../interfaces/report.interface';
+import { TableColorRange } from '../interfaces/TableColorRange';
 import { drawSignatureBoxes } from './drawSignatureBoxes';
 
 /**
@@ -8,8 +8,19 @@ import { drawSignatureBoxes } from './drawSignatureBoxes';
  */
 export function drawHeaderAndSignatureBoxes(
   doc: PDFKit.PDFDocument,
-  data: pdfReportFormat
+  data: any[],
+  tableColorRange: TableColorRange[],
+  reportUserData,
+  // company: string,
+  // department: string | undefined,
+  // useageLocation: string,
+  // sensorName: string,
+  // devEui: string
 ) {
+
+  const { company, department, useageLocation, sensorName, devEui } = reportUserData;
+
+
   // 1) Save the starting position
   const startX = doc.x;
   const startY = doc.y;
@@ -31,13 +42,13 @@ export function drawHeaderAndSignatureBoxes(
   doc.moveDown(1);
 
   doc.fontSize(10);
-  doc.text(`会社: ${data.company}`, { width: headerTableWidth });
-  if (data.department) {
-    doc.text(`部署: ${data.department}`, { width: headerTableWidth });
+  doc.text(`会社: ${company}`, { width: headerTableWidth });
+  if (department) {
+    doc.text(`部署: ${department}`, { width: headerTableWidth });
   }
-  doc.text(`Location: ${data.useageLocation}`, { width: headerTableWidth });
-  doc.text(`Sensor: ${data.sensorName}`, { width: headerTableWidth });
-  doc.text(`DevEUI: ${data.devEui}`, { width: headerTableWidth });
+  doc.text(`使用場所: ${useageLocation}`, { width: headerTableWidth });
+  doc.text(`センサー名: ${sensorName}`, { width: headerTableWidth });
+  doc.text(`DevEUI: ${devEui}`, { width: headerTableWidth });
 
   // We'll stop here—no more "Normal / Notice / Warning / Alert" lines
   // because we want them in the table now.
@@ -69,29 +80,33 @@ export function drawHeaderAndSignatureBoxes(
   // -------------------------------------------------------------------------
   doc.save();
 
-  // We'll define rows for:
-  //  - "Total Data Points: ..."
-  //  - "Date Range: ..."
-  //  - "Normal: ..."
-  //  - "Notice: ..."
-  //  - "Warning: ..."
-  //  - "Alert: ..."
-  //  - "Max: ..."
-  //  - "Min: ..."
-  //  - "Avg: ..."
-  //  - "StdDiv: ..."
-  const statsRows = [
-    `サンプリング数: ${data.totalDatapoints}`,
-    `測定期間: ${data.dateRange}`,
-    `Normal: ${data.normal} (${data.normalPercentage.toFixed(2)}%)`,
-    `Notice: ${data.notice} (${data.noticePercentage.toFixed(2)}%)`,
-    `Warning: ${data.warning} (${data.warningPercentage.toFixed(2)}%)`,
-    `Alert: ${data.alert} (${data.alertPercentage.toFixed(2)}%)`,
-    `最大値: ${data.max}`,
-    `最小値: ${data.min}`,
-    `平均値: ${data.avg.toFixed(2)}`,
-    `標準偏差: ${data.stdDiv.toFixed(2)}`
-  ];
+
+  
+
+
+
+
+
+
+
+  const statsRows = calculateStatsRows(
+    data,
+    tableColorRange
+  );
+
+  
+  // const statsRows = [
+  //   `サンプリング数: ${data.totalDatapoints}`,
+  //   `測定期間: ${data.dateRange}`,
+  //   `Normal: ${data.normal} (${data.normalPercentage.toFixed(2)}%)`,
+  //   `Notice: ${data.notice} (${data.noticePercentage.toFixed(2)}%)`,
+  //   `Warning: ${data.warning} (${data.warningPercentage.toFixed(2)}%)`,
+  //   `Alert: ${data.alert} (${data.alertPercentage.toFixed(2)}%)`,
+  //   `最大値: ${data.max}`,
+  //   `最小値: ${data.min}`,
+  //   `平均値: ${data.avg.toFixed(2)}`,
+  //   `標準偏差: ${data.stdDiv.toFixed(2)}`
+  // ];
 
   // We'll define a row height
   const rowHeight = 18;
@@ -134,3 +149,138 @@ export function drawHeaderAndSignatureBoxes(
   const finalBottom = Math.max(statsTableBottomY, doc.y);
   doc.y = finalBottom + 20; // extra space
 }
+
+
+
+/**
+ * Calculate stats (sampling count, date range, normal/notice/warning/alert counts & percentages,
+ * min, max, avg, standard deviation) and build statsRows array of strings for logging or display.
+ */
+function calculateStatsRows(
+  data: any[],
+  tableColorRange: TableColorRange[]
+): string[] {
+  if (!data || data.length === 0) {
+    // If no data, return an array of strings indicating no data
+    return ['サンプリング数: 0', '測定期間: -', 'No data available'];
+  }
+
+  // 1) Sort by created_at ascending
+  const sorted = [...data].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  // 2) totalDatapoints
+  const totalDatapoints = sorted.length;
+
+  // 3) dateRange: from firstData to lastData
+  const firstData = new Date(sorted[0].created_at);
+  const lastData = new Date(sorted[sorted.length - 1].created_at);
+  const dateRange = `${formatDateForRange(firstData)} - ${formatDateForRange(lastData)}`;
+
+  // 4) Classify each point (normal, notice, warning, alert, etc.) using tableColorRange
+  //    We'll keep track in a dictionary, e.g. { normal: 0, notice: 0, ... }
+  const classificationCounts: Record<string, number> = {};
+  tableColorRange.forEach(range => {
+    classificationCounts[range.name] = 0;
+  });
+
+  for (const rec of sorted) {
+    const t = rec.temperatureC;
+    // find which range this t belongs to
+    const matchedRange = tableColorRange.find(
+      (range) => t >= range.min && t <= range.max
+    );
+    if (matchedRange) {
+      classificationCounts[matchedRange.name] += 1;
+    }
+  }
+
+  // We'll specifically pull out normal/notice/warning/alert
+  // If your tableColorRange has different category names, adapt them below
+  const normalCount = classificationCounts['normal'] || 0;
+  const noticeCount = classificationCounts['notice'] || 0;
+  const warningCount = classificationCounts['warning'] || 0;
+  const alertCount = classificationCounts['alert'] || 0;
+
+  // 5) Calculate percentages
+  const normalPercentage = (normalCount / totalDatapoints) * 100;
+  const noticePercentage = (noticeCount / totalDatapoints) * 100;
+  const warningPercentage = (warningCount / totalDatapoints) * 100;
+  const alertPercentage = (alertCount / totalDatapoints) * 100;
+
+  // 6) min, max, avg, stdDiv
+  const temperatures = sorted.map(item => item.temperatureC);
+  const min = Math.min(...temperatures);
+  const max = Math.max(...temperatures);
+  const avg = average(temperatures);
+  const stdDiv = stddev(temperatures);
+
+  // 7) Build the final statsRows array
+  const statsRows = [
+    `サンプリング数: ${totalDatapoints}`,
+    `測定期間: ${dateRange}`,
+    `Normal: ${normalCount} (${normalPercentage.toFixed(2)}%)`,
+    `Notice: ${noticeCount} (${noticePercentage.toFixed(2)}%)`,
+    `Warning: ${warningCount} (${warningPercentage.toFixed(2)}%)`,
+    `Alert: ${alertCount} (${alertPercentage.toFixed(2)}%)`,
+    `最大値: ${max}`,
+    `最小値: ${min}`,
+    `平均値: ${avg.toFixed(2)}`,
+    `標準偏差: ${stdDiv.toFixed(2)}`
+  ];
+
+  return statsRows;
+}
+
+// --------------------
+// Helper Functions
+// --------------------
+
+/**
+ * Format a Date as "YYYY-MM-DD HH:mm"
+ */
+function formatDateForRange(date: Date): string {
+  const yyyy = date.getFullYear();
+  const MM = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
+}
+
+/**
+ * Compute average
+ */
+function average(nums: number[]): number {
+  if (!nums || nums.length === 0) return 0;
+  const sum = nums.reduce((acc, val) => acc + val, 0);
+  return sum / nums.length;
+}
+
+/**
+ * Compute standard deviation (population-based).
+ */
+function stddev(nums: number[]): number {
+  if (nums.length < 2) return 0;
+  const avgVal = average(nums);
+  const variance =
+    nums.reduce((acc, val) => acc + Math.pow(val - avgVal, 2), 0) / nums.length;
+  return Math.sqrt(variance);
+}
+
+/*
+Example output:
+[
+  'サンプリング数: 100',
+  '測定期間: 2024-12-31 15:02 - 2025-01-01 16:30',
+  'Normal: 35 (35.00%)',
+  'Notice: 10 (10.00%)',
+  'Warning: 15 (15.00%)',
+  'Alert: 40 (40.00%)',
+  '最大値: 5.5',
+  '最小値: -22.1',
+  '平均値: -10.27',
+  '標準偏差: 7.92'
+]
+*/

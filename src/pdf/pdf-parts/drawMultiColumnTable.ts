@@ -18,7 +18,7 @@ interface DataRow {
  */
 export function drawDataTable12Cols(
   doc: PDFKit.PDFDocument,
-  data: DataRow[],
+  data: any[],
   colorRanges: TableColorRange[],
   options?: {
     rowHeight?: number;

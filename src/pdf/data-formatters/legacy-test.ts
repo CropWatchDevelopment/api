@@ -1,20 +1,8 @@
 import { pdfReportFormat } from "../interfaces/report.interface";
 
-// 1) Adjust this interface to reflect your actual raw data shape if needed
-interface RawRecord {
-  id: number;
-  created_at: string;   // e.g., '2024-04-19T04:16:03.151832+00:00'
-  dewPointC: number;
-  humidity: number;
-  temperatureC: number;
-  vpd: number;
-  dev_eui: string;
-  profile_id: string;
-}
-
 // 3) The main transform function
 export function mapToPdfReport(
-  raw: RawRecord[],   // typed as RawRecord[]
+  raw: any[],   // typed as RawRecord[]
   // Hardcode or pass these in as parameters
   company: string,
   department: string | undefined,
