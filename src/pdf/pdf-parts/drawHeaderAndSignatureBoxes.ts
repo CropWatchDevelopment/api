@@ -11,14 +11,9 @@ export function drawHeaderAndSignatureBoxes(
   data: any[],
   tableColorRange: TableColorRange[],
   reportUserData,
-  // company: string,
-  // department: string | undefined,
-  // useageLocation: string,
-  // sensorName: string,
-  // devEui: string
 ) {
 
-  const { company, department, useageLocation, sensorName, devEui } = reportUserData;
+  const { company, department, location, deviceName, dev_eui, timeSpan } = reportUserData;
 
 
   // 1) Save the starting position
@@ -46,9 +41,9 @@ export function drawHeaderAndSignatureBoxes(
   if (department) {
     doc.text(`部署: ${department}`, { width: headerTableWidth });
   }
-  doc.text(`使用場所: ${useageLocation}`, { width: headerTableWidth });
-  doc.text(`センサー名: ${sensorName}`, { width: headerTableWidth });
-  doc.text(`DevEUI: ${devEui}`, { width: headerTableWidth });
+  doc.text(`使用場所: ${location}`, { width: headerTableWidth });
+  doc.text(`センサー名: ${deviceName}`, { width: headerTableWidth });
+  doc.text(`DevEUI: ${dev_eui}`, { width: headerTableWidth });
 
   // We'll stop here—no more "Normal / Notice / Warning / Alert" lines
   // because we want them in the table now.

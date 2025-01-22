@@ -75,7 +75,10 @@ export async function buildColdChainReport(reportData: any[], tableColorRange: T
           createdAt: moment(d.created_at).format('YYYY/MM/DD HH:mm:ss').toString(),
           temperature: d.temperatureC,
         })),
-        tableColorRange
+        tableColorRange,
+        {
+          rowHeight: 22,
+        }
       );
 
       // -------------------------------------------------------------
