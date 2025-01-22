@@ -41,7 +41,15 @@ export class PdfService {
     if (device.report_endpoint.includes('cold-storage')) {
       return await buildColdChainReport(pdfReport);
     } else if (device.report_endpoint.includes('co2-report')) {
-      return await buildCO2Report(rawData, device.dev_eui, profile.employer, '--', location.name, `${moment(start).format('YYYY/MM/DD').toString()} - ${moment(end).format('YYYY/MM/DD').toString()}`);
+      return await buildCO2Report(
+        rawData,
+        device.dev_eui,
+        profile.employer,
+        '--',
+        location.name,
+        device.name,
+        `${moment(start).format('YYYY/MM/DD').toString()} - ${moment(end).format('YYYY/MM/DD').toString()}`,
+      );
     } else {
       throw new Error('Report endpoint not found');
     }

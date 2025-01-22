@@ -14,7 +14,7 @@ async function bootstrap() {
     type: VersioningType.URI,
   });
   const document = SwaggerModule.createDocument(app, getSwaggerConfig(version));
-  SwaggerModule.setup('api', app, document, {
+  SwaggerModule.setup('swagger', app, document, {
     // customCssUrl: 'assets/css/swagger-custom.css',
     customCss: `
       /* 1. Give the top bar a green background (optional) */
