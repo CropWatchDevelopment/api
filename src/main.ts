@@ -2,8 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { VersioningType } from '@nestjs/common';
+import * as fs from 'fs';
+import { RequestLoggerMiddleware } from './middleware/RequestLogger';
 
 async function bootstrap() {
+  const httpsOptions = {
+    key: fs.readFileSync('/home/kevin/Documents/CROPWATCH SSL CERTIFICATE/CSR & ISSUE DOCS/CSR-PK'),
+    cert: fs.readFileSync('/home/kevin/Documents/CROPWATCH SSL CERTIFICATE/CERTIFICATE/STAR_cropwatch_io.crt'),
+  };
   const version = '1';
   const app = await NestFactory.create(AppModule, {
     cors: true,
@@ -13,6 +19,7 @@ async function bootstrap() {
   app.enableVersioning({
     type: VersioningType.URI,
   });
+  app.use((req, res, next) => new RequestLoggerMiddleware().use(req, res, next));
   const document = SwaggerModule.createDocument(app, getSwaggerConfig(version));
   SwaggerModule.setup('swagger', app, document, {
     // customCssUrl: 'assets/css/swagger-custom.css',

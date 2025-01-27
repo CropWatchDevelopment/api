@@ -17,6 +17,7 @@ export class AppController {
   @Get('/')
   @Throttle({ default: { limit: 1, ttl: 6000 } })
   async getHello() {
+    console.log('Hello World!');
     return 'Hello World!';
   }
 }
