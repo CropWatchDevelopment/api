@@ -41,19 +41,22 @@ export function drawDynamicDataTable2(
 ) {
   if (!data?.length || !headers?.length) return;
 
-  // Filter data to include only entries at 30-minute intervals
-  const filteredData = data.reduce((acc: DataRow[], curr: DataRow) => {
-    const timestamp = moment(curr.createdAt, 'YYYY/MM/DD HH:mm');
-    const minutes = timestamp.minutes();
-    // Keep only entries where minutes is 0 or 30
-    if (minutes === 0 || minutes === 30) {
+
+    // *** Added filtering: reduce data to one entry per 30-minute interval ***
+  // Note: This assumes data is sorted by createdAt (ascending)
+  data = data.reduce((acc: any[], curr: any) => {
+    const currentTime = moment(curr.createdAt, "YYYY/MM/DD HH:mm");
+    if (acc.length === 0) {
       acc.push(curr);
+    } else {
+      const lastTime = moment(acc[acc.length - 1].createdAt, "YYYY/MM/DD HH:mm");
+      if (currentTime.diff(lastTime, 'minutes') >= 30) {
+        acc.push(curr);
+      }
     }
     return acc;
   }, []);
-
-  // Replace original data with filtered data
-  data = filteredData;
+  // *** End filtering ***
 
   // Options
   const headerHeight = options?.headerHeight ?? 16;

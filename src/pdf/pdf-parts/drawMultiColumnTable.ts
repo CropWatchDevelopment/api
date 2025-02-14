@@ -1,3 +1,4 @@
+import moment from "moment";
 import { TableColorRange } from "../interfaces/TableColorRange";
 
 interface DataRow {
@@ -29,6 +30,22 @@ export function drawDataTable12Cols(
   }
 ) {
   if (!data?.length) return;
+
+  // *** Filter data to include only one entry per 30-minute interval ***
+  // Assumes data is sorted ascending by createdAt in "YYYY/MM/DD HH:mm:ss" format.
+  data = data.reduce((acc: any[], current: any) => {
+    const currentTime = moment(current.createdAt, "YYYY/MM/DD HH:mm:ss");
+    if (acc.length === 0) {
+      acc.push(current);
+    } else {
+      const lastTime = moment(acc[acc.length - 1].createdAt, "YYYY/MM/DD HH:mm:ss");
+      if (currentTime.diff(lastTime, 'minutes') >= 30) {
+        acc.push(current);
+      }
+    }
+    return acc;
+  }, []);
+  // *** End filtering ***
 
   // 3 columns per set:
   // "Created At", "Temp (C)", "コメント"
@@ -90,7 +107,7 @@ export function drawDataTable12Cols(
 
     let alertBreakPointString = colorRanges.map((d) => `     ${d.name}: ${d.min}`).join(', ');
     var w = doc.widthOfString(alertBreakPointString);
-    doc.fontSize(10).text(alertBreakPointString, (doc.page.width / 2) - w, marginTop-30, { width: doc.page.width, height: 10 });
+    doc.fontSize(10).text(alertBreakPointString, (doc.page.width / 2) - w, marginTop - 30, { width: doc.page.width, height: 10 });
 
     // Column 1: "Created At"
     drawCellBorder(doc, x, y, colWidthDate, headerHeight);

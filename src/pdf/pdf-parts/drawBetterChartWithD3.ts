@@ -2,7 +2,7 @@ import PDFDocument from 'pdfkit';
 
 interface DataRecord {
   created_at: string;    // e.g., '2024-12-31T15:02:15.743152+00:00'
-  temperatureC: number;
+  temperature_c: number;
 }
 
 /**
@@ -72,7 +72,7 @@ export async function drawSimpleLineChartD3Style(
   // 5) Determine min/max for temperatureC (y) & time (x)
   //    Use d3-array's extent, but pass in "d => new Date(d.created_at)" for X,
   //    and "d => d.temperatureC" for Y.
-  const [yMin, yMax] = extent(data, (d) => d.temperatureC) as [number, number];
+  const [yMin, yMax] = extent(data, (d) => d.temperature_c) as [number, number];
   const xDomain = extent(data, (d) => new Date(d.created_at)) as [Date, Date];
 
   // If yMin or xDomain are undefined, that means invalid data. Early return.
@@ -180,7 +180,7 @@ export async function drawSimpleLineChartD3Style(
 
   sorted.forEach((d, i) => {
     const px = innerLeft + xScale(new Date(d.created_at));
-    const py = innerTop + yScale(d.temperatureC);
+    const py = innerTop + yScale(d.temperature_c);
 
     if (i === 0) {
       doc.moveTo(px, py);

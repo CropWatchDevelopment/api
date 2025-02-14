@@ -73,7 +73,7 @@ export async function buildColdChainReport(reportData: any[], tableColorRange: T
         doc,
         reportData.map((d) => ({
           createdAt: moment(d.created_at).format('YYYY/MM/DD HH:mm:ss').toString(),
-          temperature: d.temperatureC,
+          temperature: d.temperature_c,
         })),
         tableColorRange,
         {

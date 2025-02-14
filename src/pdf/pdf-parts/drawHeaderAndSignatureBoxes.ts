@@ -75,37 +75,14 @@ export function drawHeaderAndSignatureBoxes(
   // -------------------------------------------------------------------------
   doc.save();
 
-
-  
-
-
-
-
-
-
-
   const statsRows = calculateStatsRows(
     data,
     tableColorRange
   );
 
-  
-  // const statsRows = [
-  //   `サンプリング数: ${data.totalDatapoints}`,
-  //   `測定期間: ${data.dateRange}`,
-  //   `Normal: ${data.normal} (${data.normalPercentage.toFixed(2)}%)`,
-  //   `Notice: ${data.notice} (${data.noticePercentage.toFixed(2)}%)`,
-  //   `Warning: ${data.warning} (${data.warningPercentage.toFixed(2)}%)`,
-  //   `Alert: ${data.alert} (${data.alertPercentage.toFixed(2)}%)`,
-  //   `最大値: ${data.max}`,
-  //   `最小値: ${data.min}`,
-  //   `平均値: ${data.avg.toFixed(2)}`,
-  //   `標準偏差: ${data.stdDiv.toFixed(2)}`
-  // ];
-
   // We'll define a row height
   const rowHeight = 18;
-  const tableLeft = doc.page.margins.left-5;   // current x
+  const tableLeft = doc.page.margins.left - 5;   // current x
   const tableTop = doc.y;    // current y
   let currentY = tableTop;
 
@@ -113,13 +90,13 @@ export function drawHeaderAndSignatureBoxes(
   statsRows.forEach((rowText, i) => {
     // Place the text
     if (i === 0) {
-        doc.fontSize(14).text('コメント:', (doc.page.width/2) + 25, doc.y, { width: 100 });
+      doc.fontSize(14).text('コメント:', (doc.page.width / 2) + 25, doc.y, { width: 100 });
     }
     doc.fontSize(10)
-       .text(rowText, tableLeft + 5, currentY + 3, {
-         width: statsTableWidth - 10,
-         ellipsis: true
-       });
+      .text(rowText, tableLeft + 5, currentY + 3, {
+        width: statsTableWidth - 10,
+        ellipsis: true
+      });
 
     // If NOT the last row, draw a horizontal line across
     if (i < statsRows.length - 1) {
@@ -181,7 +158,7 @@ function calculateStatsRows(
   });
 
   for (const rec of sorted) {
-    const t = rec.temperatureC;
+    const t = rec.temperature_c;
     // find which range this t belongs to
     const matchedRange = tableColorRange.find(
       (range) => t >= range.min && t <= range.max
@@ -205,7 +182,7 @@ function calculateStatsRows(
   const alertPercentage = (alertCount / totalDatapoints) * 100;
 
   // 6) min, max, avg, stdDiv
-  const temperatures = sorted.map(item => item.temperatureC);
+  const temperatures = sorted.map(item => item.temperature_c);
   const min = Math.min(...temperatures);
   const max = Math.max(...temperatures);
   const avg = average(temperatures);
