@@ -1,3 +1,5 @@
+import moment from "moment";
+
 export interface TableHeader {
   /** The key in the data row to display. */
   key: string;
@@ -27,7 +29,7 @@ export interface DataRow {
 export function drawDynamicDataTable2(
   doc: PDFKit.PDFDocument,
   headers: TableHeader[],
-  data: DataRow[],
+  data: any[],
   colorRanges: TableColorRange[],
   options?: {
     rowHeight?: number;
@@ -38,6 +40,20 @@ export function drawDynamicDataTable2(
   }
 ) {
   if (!data?.length || !headers?.length) return;
+
+  // Filter data to include only entries at 30-minute intervals
+  const filteredData = data.reduce((acc: DataRow[], curr: DataRow) => {
+    const timestamp = moment(curr.createdAt, 'YYYY/MM/DD HH:mm');
+    const minutes = timestamp.minutes();
+    // Keep only entries where minutes is 0 or 30
+    if (minutes === 0 || minutes === 30) {
+      acc.push(curr);
+    }
+    return acc;
+  }, []);
+
+  // Replace original data with filtered data
+  data = filteredData;
 
   // Options
   const headerHeight = options?.headerHeight ?? 16;
@@ -54,8 +70,8 @@ export function drawDynamicDataTable2(
   const marginTop = doc.page.margins.top;
   const marginBot = doc.page.margins.bottom;
 
-  let currentX = doc.x; 
-  let currentY = doc.y; 
+  let currentX = doc.x;
+  let currentY = doc.y;
 
   const usableWidth = pageWidth - marginLeft - marginRight;
   const usableHeight = pageHeight - marginTop - marginBot;
@@ -165,7 +181,7 @@ export function drawDynamicDataTable2(
     }
 
     for (let s = 0; s < setsPerRow; s++) {
-      if (dataIndex >= total) break; 
+      if (dataIndex >= total) break;
       // draw one set at (currentX, currentY)
       const bottomY = drawOneSet(currentX, currentY);
       // move X to the next set

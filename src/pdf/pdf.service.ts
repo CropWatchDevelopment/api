@@ -1,16 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { DataService, FindAllParams } from 'src/data/data.service';
-import { ReportsTemplatesService } from 'src/reports_templates/reports_templates.service';
+import moment from 'moment';
 
-// PDF Import stuff
+// PDF Parts Import stuff
 import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
 import { buildCO2Report } from './PdfTemplateTypes/Co2Report';
 import { LocationService } from 'src/location/location.service';
 import { ProfilesService } from 'src/profiles/profiles.service';
-import moment from 'moment';
 import { TableColorRange } from './interfaces/TableColorRange';
 import { buildColdChainReport } from './PdfTemplateTypes/ColdChain';
-import { mapToPdfReport } from './data-formatters/legacy-test';
 
 
 @Injectable()
@@ -58,7 +56,7 @@ export class PdfService {
         `${moment(start).format('YYYY/MM/DD').toString()} - ${moment(end).format('YYYY/MM/DD').toString()}`,
       );
     } else {
-      throw new Error('Report endpoint not found');
+      throw new Error('Report endpoint not setup for this device');
     }
   }
 
@@ -66,7 +64,6 @@ export class PdfService {
 
 
   private async fetchDataAndReportFromDB(devEui: string, user_id: string, start: Date, end: Date) {
-    // Example: fetch 10 items
     const findAllParams: FindAllParams = {
       devEui,
       skip: 0,

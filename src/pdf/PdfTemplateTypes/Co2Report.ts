@@ -50,9 +50,9 @@ export async function buildCO2Report(
               return;
             }
 
-            const temperatureValues = reportData.map(d => d.temperature);
+            const temperatureValues = reportData.map(d => d.temperature_c);
             const humidityValues = reportData.map(d => d.humidity);
-            const co2Values = reportData.map(d => d.co2_level);
+            const co2Values = reportData.map(d => d.co2);
 
             // Helper functions
             const calcCount = (arr) => arr.length;
@@ -138,7 +138,7 @@ export async function buildCO2Report(
               doc,
               reportData.map((d) => ({
                 date: new Date(d.created_at),
-                value: d.temperature
+                value: d.temperature_c
               })),
               { title: "温度", lineColor: 'red', maxHeight: 150 }
             );
@@ -156,7 +156,7 @@ export async function buildCO2Report(
               doc,
               reportData.map((d) => ({
                 date: new Date(d.created_at),
-                value: d.co2_level
+                value: d.co2
               })),
               { title: 'CO2', lineColor: 'green', maxHeight: 200 }
             );
@@ -173,9 +173,9 @@ export async function buildCO2Report(
             // data: e.g. from
             const data = reportData.map(d => ({
                 createdAt: moment(d.created_at).format('YYYY/MM/DD HH:mm'),
-                temperature: d.temperature,
+                temperature: d.temperature_c,
                 humidity: d.humidity,
-                co2: d.co2_level,
+                co2: d.co2,
                 comment: "",
             }));
               

@@ -55,7 +55,7 @@ export class DataService {
     const deviceTypeData = await this.getDeviceTypeData(device.type);
 
     return this.dataRepository.findAllByTableAndDateTime(
-      deviceTypeData.data_table,
+      deviceTypeData.data_table_v2,
       devEui,
       start,
       end,

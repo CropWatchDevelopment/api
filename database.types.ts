@@ -326,37 +326,58 @@ export type Database = {
       }
       cw_air_data: {
         Row: {
+          battery_level: number | null
           co: number | null
           co2: number | null
           created_at: string
           dev_eui: string
           humidity: number | null
+          is_simulated: boolean
+          lux: number | null
           pressure: number | null
+          rainfall: number | null
           smoke_detected: boolean | null
           temperature_c: number | null
+          uv_index: number | null
           vape_detected: boolean | null
+          wind_direction: number | null
+          wind_speed: number | null
         }
         Insert: {
+          battery_level?: number | null
           co?: number | null
           co2?: number | null
           created_at?: string
           dev_eui: string
           humidity?: number | null
+          is_simulated?: boolean
+          lux?: number | null
           pressure?: number | null
+          rainfall?: number | null
           smoke_detected?: boolean | null
           temperature_c?: number | null
+          uv_index?: number | null
           vape_detected?: boolean | null
+          wind_direction?: number | null
+          wind_speed?: number | null
         }
         Update: {
+          battery_level?: number | null
           co?: number | null
           co2?: number | null
           created_at?: string
           dev_eui?: string
           humidity?: number | null
+          is_simulated?: boolean
+          lux?: number | null
           pressure?: number | null
+          rainfall?: number | null
           smoke_detected?: boolean | null
           temperature_c?: number | null
+          uv_index?: number | null
           vape_detected?: boolean | null
+          wind_direction?: number | null
+          wind_speed?: number | null
         }
         Relationships: []
       }
@@ -585,59 +606,74 @@ export type Database = {
         Row: {
           created_at: string
           data_table: string | null
+          data_table_v2: string
           decoder: string | null
           default_upload_interval: number | null
           device_app: string | null
           id: number
+          isActive: boolean
           manufacturer: string | null
           model: string | null
           name: string
           primary_data: string | null
-          primary_data_notation: string | null
+          primary_data_notation: string
+          primary_data_v2: string
           primary_divider: number
           primary_multiplier: number | null
-          secondary_data: string | null
-          secondary_data_notation: string | null
+          secondary_data: string
+          secondary_data_notation: string
+          secondary_data_v2: string
           secondary_divider: number
           secondary_multiplier: number
+          TTI_application_id: string | null
         }
         Insert: {
           created_at?: string
           data_table?: string | null
+          data_table_v2: string
           decoder?: string | null
           default_upload_interval?: number | null
           device_app?: string | null
           id?: number
+          isActive?: boolean
           manufacturer?: string | null
           model?: string | null
           name: string
           primary_data?: string | null
-          primary_data_notation?: string | null
+          primary_data_notation?: string
+          primary_data_v2: string
           primary_divider?: number
           primary_multiplier?: number | null
-          secondary_data?: string | null
-          secondary_data_notation?: string | null
+          secondary_data?: string
+          secondary_data_notation?: string
+          secondary_data_v2: string
           secondary_divider?: number
           secondary_multiplier?: number
+          TTI_application_id?: string | null
         }
         Update: {
           created_at?: string
           data_table?: string | null
+          data_table_v2?: string
           decoder?: string | null
           default_upload_interval?: number | null
           device_app?: string | null
           id?: number
+          isActive?: boolean
           manufacturer?: string | null
           model?: string | null
           name?: string
           primary_data?: string | null
-          primary_data_notation?: string | null
+          primary_data_notation?: string
+          primary_data_v2?: string
           primary_divider?: number
           primary_multiplier?: number | null
-          secondary_data?: string | null
-          secondary_data_notation?: string | null
+          secondary_data?: string
+          secondary_data_notation?: string
+          secondary_data_v2?: string
           secondary_divider?: number
           secondary_multiplier?: number
+          TTI_application_id?: string | null
         }
         Relationships: []
       }
@@ -1299,6 +1335,7 @@ export type Database = {
           dev_eui: string
           id: number
           people_count: number
+          traffic_hour: string | null
           truck_count: number
         }
         Insert: {
@@ -1309,6 +1346,7 @@ export type Database = {
           dev_eui: string
           id?: number
           people_count?: number
+          traffic_hour?: string | null
           truck_count?: number
         }
         Update: {
@@ -1319,6 +1357,7 @@ export type Database = {
           dev_eui?: string
           id?: number
           people_count?: number
+          traffic_hour?: string | null
           truck_count?: number
         }
         Relationships: [
@@ -2153,6 +2192,23 @@ export type Database = {
               p_bucket_interval: string
               p_time_range: string
               p_metric: string
+            }
+            Returns: {
+              bucket: string
+              dev_eui: string
+              open_val: number
+              close_val: number
+              low_val: number
+              high_val: number
+            }[]
+          }
+        | {
+            Args: {
+              p_dev_eui: string
+              p_bucket_interval: string
+              p_time_range: string
+              p_metric: string
+              p_table: string
             }
             Returns: {
               bucket: string
