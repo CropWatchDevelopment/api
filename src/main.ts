@@ -6,10 +6,12 @@ import * as fs from 'fs';
 import { RequestLoggerMiddleware } from './middleware/RequestLogger';
 
 async function bootstrap() {
-  const httpsOptions = {
-    key: fs.readFileSync('~/CROPWATCH SSL CERTIFICATE/CSR & ISSUE DOCS/CSR-PK'),
-    cert: fs.readFileSync('~/CROPWATCH SSL CERTIFICATE/CERTIFICATE/STAR_cropwatch_io.crt'),
-  };
+  // const keyPath = process.env.PRIVATE_SSL_KEY_PATH;
+  // const certPath = process.env.CERTIFICATE_PATH;
+  // const httpsOptions = {
+  //   key: fs.readFileSync(keyPath),
+  //   cert: fs.readFileSync(certPath),
+  // };
   const version = '1';
   const app = await NestFactory.create(AppModule, {
     cors: true,
