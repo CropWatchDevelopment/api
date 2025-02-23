@@ -7,8 +7,8 @@ import { RequestLoggerMiddleware } from './middleware/RequestLogger';
 
 async function bootstrap() {
   const httpsOptions = {
-    key: fs.readFileSync('/home/kevin/Documents/CROPWATCH SSL CERTIFICATE/CSR & ISSUE DOCS/CSR-PK'),
-    cert: fs.readFileSync('/home/kevin/Documents/CROPWATCH SSL CERTIFICATE/CERTIFICATE/STAR_cropwatch_io.crt'),
+    key: fs.readFileSync('~/CROPWATCH SSL CERTIFICATE/CSR & ISSUE DOCS/CSR-PK'),
+    cert: fs.readFileSync('~/CROPWATCH SSL CERTIFICATE/CERTIFICATE/STAR_cropwatch_io.crt'),
   };
   const version = '1';
   const app = await NestFactory.create(AppModule, {
