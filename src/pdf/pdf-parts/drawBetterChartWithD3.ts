@@ -179,6 +179,7 @@ export async function drawSimpleLineChartD3Style(
   );
 
   sorted.forEach((d, i) => {
+    if (d.temperature_c === null) return;
     const px = innerLeft + xScale(new Date(d.created_at));
     const py = innerTop + yScale(d.temperature_c);
 
