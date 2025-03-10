@@ -9,7 +9,7 @@ async function bootstrap() {
 
   const keyPath = process.env.PRIVATE_SSL_KEY_PATH;
   const certPath = process.env.CERTIFICATE_PATH;
-  const chainPath = process.env.SSL_CHAIN_PATH; // Optional
+  // const chainPath = process.env.SSL_CHAIN_PATH; // Optional
 
   if (!fs.existsSync(keyPath)) {
     console.error(`❌ SSL Key not found: ${keyPath}`);
@@ -23,14 +23,14 @@ async function bootstrap() {
   const httpsOptions = {
     key: fs.readFileSync(keyPath),
     cert: fs.readFileSync(certPath),
-    ca: chainPath ? fs.readFileSync(chainPath) : undefined, // Include chain if provided
+    // ca: chainPath ? fs.readFileSync(chainPath) : undefined, // Include chain if provided
   };
 
 
   const version = '1';
   const app = await NestFactory.create(AppModule, {
     cors: true,
-    // httpsOptions,
+    httpsOptions,
   });
   app.setGlobalPrefix(`v${version}`);
   app.enableCors({
