@@ -3,13 +3,13 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { VersioningType } from '@nestjs/common';
 import * as fs from 'fs';
+import * as tls from 'tls';
 import { RequestLoggerMiddleware } from './middleware/RequestLogger';
 
 async function bootstrap() {
-
   const keyPath = process.env.PRIVATE_SSL_KEY_PATH;
   const certPath = process.env.CERTIFICATE_PATH;
-  // const chainPath = process.env.SSL_CHAIN_PATH; // Optional
+  const chainPath = process.env.SSL_CHAIN_PATH; // Optional
 
   if (!fs.existsSync(keyPath)) {
     console.error(`❌ SSL Key not found: ${keyPath}`);
@@ -23,15 +23,16 @@ async function bootstrap() {
   const httpsOptions = {
     key: fs.readFileSync(keyPath),
     cert: fs.readFileSync(certPath),
-    // ca: chainPath ? fs.readFileSync(chainPath) : undefined, // Include chain if provided
+    ca: chainPath ? fs.readFileSync(chainPath) : undefined, // Include chain if provided
   };
-
 
   const version = '1';
   const app = await NestFactory.create(AppModule, {
     cors: true,
     httpsOptions,
   });
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('trust proxy', true);
   app.setGlobalPrefix(`v${version}`);
   app.enableCors({
     origin: '*', // Allow all origins (change to frontend domain if needed)
@@ -42,55 +43,71 @@ async function bootstrap() {
     type: VersioningType.URI,
   });
   app.use((req, res, next) => new RequestLoggerMiddleware().use(req, res, next));
+
   const document = SwaggerModule.createDocument(app, getSwaggerConfig(version));
   SwaggerModule.setup('swagger', app, document, {
-    // customCssUrl: 'assets/css/swagger-custom.css',
     customCss: `
-      /* 1. Give the top bar a green background (optional) */
       #swagger-ui .topbar {
         background: #125d2b !important;
       }
-
       .swagger-container {
         background: #ebebeb !important;
       }
-
       #logo_small_svg__SW_TM-logo-on-dark {
         display: none;
       }
-
-      /* 2. Center the logo + text horizontally in the top bar */
       #swagger-ui .topbar .wrapper .topbar-wrapper {
         display: flex;
       }
-
-      /* 4. Display the .link as an inline-flex container w/ your custom logo */
       .topbar .topbar-wrapper .link svg {
-        display: inline-flex;              /* to align logo background + text */
-        align-items: center;              /* vertical center between background + text */
+        display: inline-flex;
+        align-items: center;
         justify-content: center;
-        width: 200px;                     /* adjust as needed */
-        height: 40px;                     /* adjust as needed */
+        width: 200px;
+        height: 40px;
         background: url("https://www.cropwatch.io/favicon.svg") no-repeat center / contain;
-        text-decoration: none;            /* remove link underline, if any */
-        margin: 0 10px;                   /* optional side spacing */
+        text-decoration: none;
+        margin: 0 10px;
       }
-
       .topbar .topbar-wrapper .link::after {
         content: "CropWatch - API";
-        font-size: 16px;           /* adjust text size */
-        color: #fff;               /* make it visible on green background */
-        white-space: nowrap;       /* keep text on one line */
-        margin-left: 75px;         /* spacing between logo and text */
+        font-size: 16px;
+        color: #fff;
+        white-space: nowrap;
+        margin-left: 75px;
       }
     `,
     customfavIcon: 'https://www.cropwatch.io/favicon.svg',
     customSiteTitle: 'CropWatch API Documentation'
   });
+
   console.log(`Listening on port ${process.env.PORT}`);
   await app.listen(process.env.PORT);
+
+  // --- Diagnostic: Log the certificate details being served ---
+  logCertificateDetails('api.cropwatch.io', 443);
 }
+
 bootstrap();
+
+function logCertificateDetails(host: string, port: number) {
+  const options = {
+    host,
+    port,
+    servername: host,
+    rejectUnauthorized: false, // We'll log details even if the cert isn't trusted locally
+  };
+
+  const socket = tls.connect(options, () => {
+    const cert = socket.getPeerCertificate();
+    console.log(`Certificate details for ${host}:${port}:`, cert);
+    socket.end();
+  });
+
+  socket.on('error', (err) => {
+    console.error(`Error during TLS connection for ${host}:${port}:`, err);
+  });
+}
 
 function getSwaggerConfig(version: string) {
   const config = new DocumentBuilder()
