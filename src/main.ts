@@ -6,15 +6,31 @@ import * as fs from 'fs';
 import { RequestLoggerMiddleware } from './middleware/RequestLogger';
 
 async function bootstrap() {
-  // const keyPath = process.env.PRIVATE_SSL_KEY_PATH;
-  // const certPath = process.env.CERTIFICATE_PATH;
-  // const httpsOptions = {
-  //   key: fs.readFileSync(keyPath),
-  //   cert: fs.readFileSync(certPath),
-  // };
+
+  const keyPath = process.env.PRIVATE_SSL_KEY_PATH;
+  const certPath = process.env.CERTIFICATE_PATH;
+  const chainPath = process.env.SSL_CHAIN_PATH; // Optional
+
+  if (!fs.existsSync(keyPath)) {
+    console.error(`❌ SSL Key not found: ${keyPath}`);
+    process.exit(1);
+  }
+  if (!fs.existsSync(certPath)) {
+    console.error(`❌ SSL Certificate not found: ${certPath}`);
+    process.exit(1);
+  }
+
+  const httpsOptions = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath),
+    ca: chainPath ? fs.readFileSync(chainPath) : undefined, // Include chain if provided
+  };
+
+
   const version = '1';
   const app = await NestFactory.create(AppModule, {
     cors: true,
+    httpsOptions,
   });
   app.setGlobalPrefix(`v${version}`);
   app.enableCors();
@@ -67,9 +83,8 @@ async function bootstrap() {
     customfavIcon: 'https://www.cropwatch.io/favicon.svg',
     customSiteTitle: 'CropWatch API Documentation'
   });
-  let port = process.env.PORT ?? 3000;
-  console.log(`Listening on port ${port}`);
-  await app.listen(port);
+  console.log(`Listening on port ${process.env.PORT}`);
+  await app.listen(process.env.PORT);
 }
 bootstrap();
 
