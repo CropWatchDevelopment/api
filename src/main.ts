@@ -33,7 +33,11 @@ async function bootstrap() {
     // httpsOptions,
   });
   app.setGlobalPrefix(`v${version}`);
-  app.enableCors();
+  app.enableCors({
+    origin: '*', // Allow all origins (change to frontend domain if needed)
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type,Authorization',
+  });
   app.enableVersioning({
     type: VersioningType.URI,
   });
