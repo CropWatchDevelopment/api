@@ -128,10 +128,7 @@ export function drawHeaderAndSignatureBoxes(
  * Calculate stats (sampling count, date range, normal/notice/warning/alert counts & percentages,
  * min, max, avg, standard deviation) and build statsRows array of strings for logging or display.
  */
-function calculateStatsRows(
-  data: any[],
-  tableColorRange: TableColorRange[]
-): string[] {
+function calculateStatsRows(data, tableColorRange) {
   if (!data || data.length === 0) {
     // If no data, return an array of strings indicating no data
     return ['サンプリング数: 0', '測定期間: -', 'No data available'];
@@ -142,60 +139,69 @@ function calculateStatsRows(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
 
-  // 2) totalDatapoints
+  // 2) Total number of datapoints
   const totalDatapoints = sorted.length;
 
-  // 3) dateRange: from firstData to lastData
+  // 3) Date range: from first to last data point
   const firstData = new Date(sorted[0].created_at);
   const lastData = new Date(sorted[sorted.length - 1].created_at);
   const dateRange = `${formatDateForRange(firstData)} - ${formatDateForRange(lastData)}`;
 
-  // 4) Classify each point (normal, notice, warning, alert, etc.) using tableColorRange
-  //    We'll keep track in a dictionary, e.g. { normal: 0, notice: 0, ... }
-  const classificationCounts: Record<string, number> = {};
-  tableColorRange.forEach(range => {
-    classificationCounts[range.name] = 0;
-  });
+  // 4) Define proper ranges.
+  // Notice: the Normal range should capture temperatures ≤ -18 (down to -1000 for extreme cases)
+  const ranges = {
+    Alert:   { min: 0,      max: 9999 },
+    Warning: { min: -15.1,  max: 0 },
+    Notice:  { min: -17.99, max: -15.1 },
+    Normal:  { min: -1000,  max: -18 }  // Lower bound is -1000, upper bound is -18
+  };
 
+  // Initialize counts for each category
+  const classificationCounts = { Normal: 0, Notice: 0, Warning: 0, Alert: 0 };
+
+  // 5) Classify each temperature reading
   for (const rec of sorted) {
     const t = rec.temperature_c;
-    // find which range this t belongs to
-    const matchedRange = tableColorRange.find(
-      (range) => t >= range.min && t <= range.max
-    );
-    if (matchedRange) {
-      classificationCounts[matchedRange.name] += 1;
+    // Check Alert first: temperatures >= 0
+    if (t >= ranges.Alert.min && t <= ranges.Alert.max) {
+      classificationCounts.Alert++;
+    } 
+    // Warning: -15.1 <= t < 0
+    else if (t >= ranges.Warning.min && t < ranges.Warning.max) {
+      classificationCounts.Warning++;
+    } 
+    // Notice: -17.99 <= t < -15.1
+    else if (t >= ranges.Notice.min && t < ranges.Warning.min) {
+      classificationCounts.Notice++;
+    } 
+    // Normal: -1000 <= t <= -18
+    else if (t >= ranges.Normal.min && t <= ranges.Normal.max) {
+      classificationCounts.Normal++;
     }
+    // If a reading falls outside the defined ranges, you may choose to ignore it
   }
 
-  // We'll specifically pull out normal/notice/warning/alert
-  // If your tableColorRange has different category names, adapt them below
-  const normalCount = classificationCounts['normal'] || 0;
-  const noticeCount = classificationCounts['notice'] || 0;
-  const warningCount = classificationCounts['warning'] || 0;
-  const alertCount = classificationCounts['alert'] || 0;
+  // 6) Calculate percentages
+  const normalPercentage = (classificationCounts.Normal / totalDatapoints) * 100;
+  const noticePercentage = (classificationCounts.Notice / totalDatapoints) * 100;
+  const warningPercentage = (classificationCounts.Warning / totalDatapoints) * 100;
+  const alertPercentage = (classificationCounts.Alert / totalDatapoints) * 100;
 
-  // 5) Calculate percentages
-  const normalPercentage = (normalCount / totalDatapoints) * 100;
-  const noticePercentage = (noticeCount / totalDatapoints) * 100;
-  const warningPercentage = (warningCount / totalDatapoints) * 100;
-  const alertPercentage = (alertCount / totalDatapoints) * 100;
-
-  // 6) min, max, avg, stdDiv
+  // 7) Compute statistical values: min, max, avg, stddev
   const temperatures = sorted.map(item => item.temperature_c);
   const min = Math.min(...temperatures);
   const max = Math.max(...temperatures);
   const avg = average(temperatures);
   const stdDiv = stddev(temperatures);
 
-  // 7) Build the final statsRows array
+  // 8) Build the final statsRows array as strings
   const statsRows = [
     `サンプリング数: ${totalDatapoints}`,
     `測定期間: ${dateRange}`,
-    `Normal: ${normalCount} (${normalPercentage.toFixed(2)}%)`,
-    `Notice: ${noticeCount} (${noticePercentage.toFixed(2)}%)`,
-    `Warning: ${warningCount} (${warningPercentage.toFixed(2)}%)`,
-    `Alert: ${alertCount} (${alertPercentage.toFixed(2)}%)`,
+    `Normal: ${classificationCounts.Normal} (${normalPercentage.toFixed(2)}%)`,
+    `Notice: ${classificationCounts.Notice} (${noticePercentage.toFixed(2)}%)`,
+    `Warning: ${classificationCounts.Warning} (${warningPercentage.toFixed(2)}%)`,
+    `Alert: ${classificationCounts.Alert} (${alertPercentage.toFixed(2)}%)`,
     `最大値: ${max}`,
     `最小値: ${min}`,
     `平均値: ${avg.toFixed(2)}`,
@@ -212,7 +218,7 @@ function calculateStatsRows(
 /**
  * Format a Date as "YYYY-MM-DD HH:mm"
  */
-function formatDateForRange(date: Date): string {
+function formatDateForRange(date) {
   const yyyy = date.getFullYear();
   const MM = String(date.getMonth() + 1).padStart(2, '0');
   const dd = String(date.getDate()).padStart(2, '0');
@@ -222,37 +228,20 @@ function formatDateForRange(date: Date): string {
 }
 
 /**
- * Compute average
+ * Compute average of an array of numbers
  */
-function average(nums: number[]): number {
+function average(nums) {
   if (!nums || nums.length === 0) return 0;
   const sum = nums.reduce((acc, val) => acc + val, 0);
   return sum / nums.length;
 }
 
 /**
- * Compute standard deviation (population-based).
+ * Compute population standard deviation
  */
-function stddev(nums: number[]): number {
+function stddev(nums) {
   if (nums.length < 2) return 0;
   const avgVal = average(nums);
-  const variance =
-    nums.reduce((acc, val) => acc + Math.pow(val - avgVal, 2), 0) / nums.length;
+  const variance = nums.reduce((acc, val) => acc + Math.pow(val - avgVal, 2), 0) / nums.length;
   return Math.sqrt(variance);
 }
-
-/*
-Example output:
-[
-  'サンプリング数: 100',
-  '測定期間: 2024-12-31 15:02 - 2025-01-01 16:30',
-  'Normal: 35 (35.00%)',
-  'Notice: 10 (10.00%)',
-  'Warning: 15 (15.00%)',
-  'Alert: 40 (40.00%)',
-  '最大値: 5.5',
-  '最小値: -22.1',
-  '平均値: -10.27',
-  '標準偏差: 7.92'
-]
-*/
