@@ -85,29 +85,29 @@ async function bootstrap() {
   await app.listen(process.env.PORT);
 
   // --- Diagnostic: Log the certificate details being served ---
-  logCertificateDetails('api.cropwatch.io', 443);
+  // logCertificateDetails('api.cropwatch.io', 443);
 }
 
 bootstrap();
 
-function logCertificateDetails(host: string, port: number) {
-  const options = {
-    host,
-    port,
-    servername: host,
-    rejectUnauthorized: false, // We'll log details even if the cert isn't trusted locally
-  };
+// function logCertificateDetails(host: string, port: number) {
+//   const options = {
+//     host,
+//     port,
+//     servername: host,
+//     rejectUnauthorized: false, // We'll log details even if the cert isn't trusted locally
+//   };
 
-  const socket = tls.connect(options, () => {
-    const cert = socket.getPeerCertificate();
-    console.log(`Certificate details for ${host}:${port}:`, cert);
-    socket.end();
-  });
+//   const socket = tls.connect(options, () => {
+//     const cert = socket.getPeerCertificate();
+//     console.log(`Certificate details for ${host}:${port}:`, cert);
+//     socket.end();
+//   });
 
-  socket.on('error', (err) => {
-    console.error(`Error during TLS connection for ${host}:${port}:`, err);
-  });
-}
+//   socket.on('error', (err) => {
+//     console.error(`Error during TLS connection for ${host}:${port}:`, err);
+//   });
+// }
 
 function getSwaggerConfig(version: string) {
   const config = new DocumentBuilder()
