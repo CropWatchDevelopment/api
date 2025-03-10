@@ -29,7 +29,7 @@ async function bootstrap() {
   const version = '1';
   const app = await NestFactory.create(AppModule, {
     cors: true,
-    httpsOptions,
+    // httpsOptions,
   });
   const expressApp = app.getHttpAdapter().getInstance();
   expressApp.set('trust proxy', true);
