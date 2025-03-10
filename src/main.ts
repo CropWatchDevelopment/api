@@ -30,7 +30,7 @@ async function bootstrap() {
   const version = '1';
   const app = await NestFactory.create(AppModule, {
     cors: true,
-    httpsOptions,
+    // httpsOptions,
   });
   app.setGlobalPrefix(`v${version}`);
   app.enableCors();

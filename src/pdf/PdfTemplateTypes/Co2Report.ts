@@ -29,7 +29,7 @@ export async function buildCO2Report(
             doc.font('NotoSansJP');
 
             doc.x = doc.page.margins.left;
-            doc.fontSize(14).text('CO2 タレポート', 0, 0, { width: doc.page.width, align: 'center' });
+            doc.fontSize(14).text('CO2 レポート', 0, 0, { width: doc.page.width, align: 'center' });
             doc.x = doc.page.margins.left;
 
             // Collect chunks in memory

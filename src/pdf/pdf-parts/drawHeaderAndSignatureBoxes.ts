@@ -33,7 +33,7 @@ export function drawHeaderAndSignatureBoxes(
   // -------------------------------------------------------------------------
   doc.save();
 
-  doc.fontSize(14).text(`タレポート (${timeSpan})`, startX, startY, { width: headerTableWidth });
+  doc.fontSize(14).text(`レポート (${timeSpan})`, startX, startY, { width: headerTableWidth });
   doc.fontSize(12).text(`${location} - ${deviceName}`, startX, startY+16, { width: headerTableWidth });
   doc.moveDown(1);
 
