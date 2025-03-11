@@ -9,3 +9,5 @@ export type ReportsTemplatesRow = Database['public']['Tables']['reports_template
 export type DeviceRow = Database['public']['Tables']['cw_devices']['Row'];
 export type LocationRow = Database['public']['Tables']['cw_locations']['Row'];
 export type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+export type cw_device_x_cw_data_metadataRow = Database['public']['Tables']['cw_device_x_cw_data_metadata']['Row'];
+export type cw_data_metadataRow = Database['public']['Tables']['cw_data_metadata']['Row'];

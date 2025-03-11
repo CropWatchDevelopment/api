@@ -19,6 +19,8 @@ import { AppController } from './app.controller';
 import { HealthModule } from './health/health.module';
 import { PdfModule } from './pdf/pdf.module';
 import { ReportsTemplatesModule } from './reports_templates/reports_templates.module';
+import { ExportModule } from './export/export.module';
+import { DataMetadataModule } from './data-metadata/data-metadata.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { ReportsTemplatesModule } from './reports_templates/reports_templates.mo
     HealthModule,
     PdfModule,
     ReportsTemplatesModule,
+    ExportModule,
+    DataMetadataModule,
   ],
   controllers: [AppController],
   providers: [

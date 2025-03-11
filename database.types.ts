@@ -530,6 +530,36 @@ export type Database = {
           },
         ]
       }
+      cw_data_metadata: {
+        Row: {
+          adder: number
+          created_at: string
+          icon: string | null
+          id: number
+          multiplier: number
+          name: string
+          notation: string
+        }
+        Insert: {
+          adder?: number
+          created_at?: string
+          icon?: string | null
+          id?: number
+          multiplier?: number
+          name: string
+          notation?: string
+        }
+        Update: {
+          adder?: number
+          created_at?: string
+          icon?: string | null
+          id?: number
+          multiplier?: number
+          name?: string
+          notation?: string
+        }
+        Relationships: []
+      }
       cw_device_locations: {
         Row: {
           dev_eui: string
@@ -676,6 +706,45 @@ export type Database = {
           TTI_application_id?: string | null
         }
         Relationships: []
+      }
+      cw_device_x_cw_data_metadata: {
+        Row: {
+          created_at: string
+          cw_data_metadata: number
+          device_type_id: number
+          id: number
+          relation_id: number
+        }
+        Insert: {
+          created_at?: string
+          cw_data_metadata: number
+          device_type_id: number
+          id?: number
+          relation_id?: number
+        }
+        Update: {
+          created_at?: string
+          cw_data_metadata?: number
+          device_type_id?: number
+          id?: number
+          relation_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_device_x_cw_data_metadata_cw_data_metadata_fkey"
+            columns: ["cw_data_metadata"]
+            isOneToOne: false
+            referencedRelation: "cw_data_metadata"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cw_device_x_cw_data_metadata_device_type_id_fkey"
+            columns: ["device_type_id"]
+            isOneToOne: false
+            referencedRelation: "cw_device_type"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cw_devices: {
         Row: {
@@ -1623,6 +1692,54 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      report_user_schedule: {
+        Row: {
+          created_at: string
+          dev_eui: string
+          end_of_month: boolean
+          end_of_week: boolean
+          id: number
+          is_active: boolean
+          report_user_schedule_id: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dev_eui: string
+          end_of_month?: boolean
+          end_of_week?: boolean
+          id?: number
+          is_active?: boolean
+          report_user_schedule_id?: number
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          dev_eui?: string
+          end_of_month?: boolean
+          end_of_week?: boolean
+          id?: number
+          is_active?: boolean
+          report_user_schedule_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_user_schedule_dev_eui_fkey"
+            columns: ["dev_eui"]
+            isOneToOne: false
+            referencedRelation: "cw_devices"
+            referencedColumns: ["dev_eui"]
+          },
+          {
+            foreignKeyName: "report_user_schedule_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reports_templates: {
         Row: {

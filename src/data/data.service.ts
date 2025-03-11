@@ -44,13 +44,13 @@ export class DataService {
     );
   }
 
-  async findAllBetweenDateTimeRange(params: FindAllParams, email: string): Promise<any> {
+  async findAllBetweenDateTimeRange(params: FindAllParams, uid: string): Promise<any> {
     const { devEui, start, end, order } = params;
     if (!start || !end) {
       throw new BadRequestException('Start and End date are required');
     }
     this.validateDevEui(devEui);
-    await this.validateDeviceOwner(devEui, email);
+    await this.validateDeviceOwner(devEui, uid);
     const device = await this.getDevice(devEui);
     const deviceTypeData = await this.getDeviceTypeData(device.type);
 
@@ -69,8 +69,8 @@ export class DataService {
     }
   }
 
-  private async validateDeviceOwner(devEui: string, email: string): Promise<void> {
-    const deviceOwner = await this.deviceOwnerService.getDeviceOwnerByDevEuiAndUID(devEui, email);
+  private async validateDeviceOwner(devEui: string, uid: string): Promise<void> {
+    const deviceOwner = await this.deviceOwnerService.getDeviceOwnerByDevEuiAndUID(devEui, uid);
     if (!deviceOwner) {
       throw new NotAcceptableException('Device does not exist OR Device Owner not found');
     }
