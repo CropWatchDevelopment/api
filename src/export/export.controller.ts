@@ -11,7 +11,7 @@ export enum ExportType {
 
 @ApiBearerAuth('JWT')
 @ApiSecurity('x-api-key', ['x-api-key'])
-@ApiTags('📄 CSV,XML - Data Export')
+@ApiTags('📄 CSV,XML,PDF - Data Export')
 @Controller('Export')
 @Controller('export')
 export class ExportController {

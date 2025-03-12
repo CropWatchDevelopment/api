@@ -90,33 +90,14 @@ async function bootstrap() {
 
 bootstrap();
 
-// function logCertificateDetails(host: string, port: number) {
-//   const options = {
-//     host,
-//     port,
-//     servername: host,
-//     rejectUnauthorized: false, // We'll log details even if the cert isn't trusted locally
-//   };
-
-//   const socket = tls.connect(options, () => {
-//     const cert = socket.getPeerCertificate();
-//     console.log(`Certificate details for ${host}:${port}:`, cert);
-//     socket.end();
-//   });
-
-//   socket.on('error', (err) => {
-//     console.error(`Error during TLS connection for ${host}:${port}:`, err);
-//   });
-// }
-
 function getSwaggerConfig(version: string) {
   const config = new DocumentBuilder()
     .setTitle('CropWatch API')
     .setDescription('API documentation for CropWatch services, offering endpoints for authentication, data management, and monitoring capabilities.')
     .setVersion(`v${version}`)
-    .addServer('http://localhost:3000', 'Local Development Server')
     .addServer('https://api.cropwatch.io', 'Production Server')
-    .setContact('Kevin Cantrell', 'https://cropwatch.io', 'kevin@cropwatch.io')
+    .addServer('http://localhost:3000', 'Local Development Server')
+    .setContact('Support Contact', 'https://cropwatch.io', 'kevin@cropwatch.io')
     .setExternalDoc('CropWatch Knowledge-Base', 'https://kb.cropwatch.io')
     .setLicense('MIT License', 'https://opensource.org/licenses/MIT')
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')

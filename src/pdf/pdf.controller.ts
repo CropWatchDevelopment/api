@@ -15,7 +15,7 @@ import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
 
 @ApiBearerAuth('JWT')
 @ApiSecurity('x-api-key', ['x-api-key'])
-@ApiTags('📄 PDF - Serve a PDF file')
+@ApiTags('📄 CSV,XML,PDF - Data Export')
 @Controller('pdf')
 export class PdfController {
   constructor(private readonly pdfService: PdfService) { }
