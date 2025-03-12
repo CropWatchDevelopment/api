@@ -17,6 +17,7 @@ export class ExportService {
     async getFile(
         user_id: string,
         devEui: string,
+        fileType: string,
         startDate: string,
         endDate: string,
     ): Promise<string> {
@@ -61,8 +62,16 @@ export class ExportService {
             return filtered;
         });
         // convert data to CSV
-        const csv = this.jsonToCsv(filteredData);
-        return csv;
+        let result;
+
+        if (fileType === 'CSV') {
+            result = this.jsonToCsv(filteredData);
+        } else if (fileType === 'XML') {
+            result = this.jsonToXml(filteredData);
+        } else {
+            throw new Error('Invalid file type');
+        }
+        return result;
     }
 
     private jsonToCsv(jsonArray, delimiter = ",") {
@@ -82,6 +91,29 @@ export class ExportService {
 
         // Combine headers and rows
         return [headers.join(delimiter), ...csvRows].join("\n");
+    }
+
+    private jsonToXml(jsonArray, rootElement = "root", itemElement = "item") {
+        if (!Array.isArray(jsonArray) || jsonArray.length === 0) {
+            throw new Error("Input must be a non-empty array.");
+        }
+        function escapeXml(value) {
+            return String(value)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&apos;");
+        }
+        function objectToXml(obj) {
+            return Object.entries(obj)
+                .map(([key, value]) =>
+                    `<${key}>${escapeXml(value !== undefined && value !== null ? value : '')}</${key}>`
+                )
+                .join("");
+        }
+        const xmlItems = jsonArray.map(obj => `<${itemElement}>${objectToXml(obj)}</${itemElement}>`).join("");
+        return `<?xml version="1.0" encoding="UTF-8"?>\n<${rootElement}>${xmlItems}</${rootElement}>`;
     }
 
 }

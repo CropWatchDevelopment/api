@@ -1,8 +1,13 @@
 import { Controller, Get, HttpStatus, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiProperty, ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
 import { ExportService } from './export.service';
 import { Response } from 'express';
+
+export enum ExportType {
+  CSV = 'CSV',
+  XML = 'XML',
+}
 
 @ApiBearerAuth('JWT')
 @ApiSecurity('x-api-key', ['x-api-key'])
@@ -29,12 +34,14 @@ export class ExportController {
     type: 'string',
     description: 'End date (format: YYYY-MM-DD)',
   })
+  @ApiQuery({ name: 'exportType', enum: ExportType, required: true })
   async getFile(
     @Res() res: Response,
     @Req() req,
     @Query('devEui') devEui: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
+    @Query('exportType') exportType: ExportType = ExportType.CSV,
   ) {
     const user_id = req.user.id;
     if (!user_id) {
@@ -50,9 +57,19 @@ export class ExportController {
       throw new Error('End date is required');
     }
 
-    const data = await this.exportService.getFile(user_id, devEui, startDate, endDate);
-    res.header('Content-Type', 'text/csv');
-    res.attachment('export.csv');
-    res.status(HttpStatus.OK).send(data);
+    const data = await this.exportService.getFile(user_id, devEui, exportType, startDate, endDate);
+    if (!data) {
+      throw new Error('Data not found');
+    }
+
+    if (exportType === ExportType.CSV) {
+      res.header('Content-Type', 'text/csv');
+      res.attachment('export.csv');
+      res.status(HttpStatus.OK).send(data);
+    } else {
+      res.header('Content-Type', 'text/xml');
+      res.attachment('export.xml');
+      res.status(HttpStatus.OK).send(data);
+    }
   }
 }
