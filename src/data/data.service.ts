@@ -89,7 +89,7 @@ export class DataService {
       throw new NotFoundException('Device type not found');
     }
     const deviceTypeData = await this.deviceTypeService.findById(deviceType);
-    if (!deviceTypeData || !deviceTypeData.data_table) {
+    if (!deviceTypeData || !deviceTypeData.data_table_v2) {
       throw new NotFoundException('Device type data or data table not found');
     }
     return deviceTypeData;

@@ -534,29 +534,35 @@ export type Database = {
         Row: {
           adder: number
           created_at: string
+          formatting: string | null
           icon: string | null
           id: number
           multiplier: number
           name: string
           notation: string
+          public_name: string | null
         }
         Insert: {
           adder?: number
           created_at?: string
+          formatting?: string | null
           icon?: string | null
           id?: number
           multiplier?: number
           name: string
           notation?: string
+          public_name?: string | null
         }
         Update: {
           adder?: number
           created_at?: string
+          formatting?: string | null
           icon?: string | null
           id?: number
           multiplier?: number
           name?: string
           notation?: string
+          public_name?: string | null
         }
         Relationships: []
       }

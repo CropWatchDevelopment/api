@@ -56,7 +56,11 @@ export class ExportService {
             const filtered = {};
             dataMetadata.forEach((meta) => {
                 if (d[meta.name]) {
-                    filtered[meta.name] = d[meta.name];
+                    if (meta.formatting === 'MM/DD/YYYY HH:mm:ss') {
+                        filtered[meta.public_name] = new Date(d[meta.name]).toLocaleString();
+                    } else {
+                        filtered[meta.public_name] = d[meta.name];
+                    }
                 }
             });
             return filtered;
