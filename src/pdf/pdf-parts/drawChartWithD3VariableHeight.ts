@@ -182,6 +182,7 @@ export async function drawChartWithD3VariableHeight(
   const sorted = [...data].sort((a, b) => a.date.getTime() - b.date.getTime());
 
   sorted.forEach((d, i) => {
+    if (d.value === null) return;
     const px = innerLeft + xScale(d.date);
     const py = innerTop + yScale(d.value);
 
