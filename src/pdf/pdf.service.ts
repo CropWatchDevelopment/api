@@ -20,7 +20,7 @@ export class PdfService {
     private readonly profileService: ProfilesService
   ) { }
 
-  public async createPdfBinary(user_id: string, devEui: string, start: Date, end: Date): Promise<Buffer> {
+  public async createPdfBinary(user_id: string, devEui: string, start: Date, end: Date) {
     if (!user_id) throw new Error('User ID is required');
     if (!devEui) throw new Error('DevEui is required');
     let rawData = await this.fetchDataAndReportFromDB(devEui, user_id, start, end);
@@ -44,9 +44,14 @@ export class PdfService {
         { name: 'notice', min: -17.99, max: -15.1, color: 'yellow' },
         { name: 'normal', min: -18, max: -1000, color: 'white' }
       ];
-      return await buildColdChainReport(rawData, tableColorRange, reportUserData);
+      const pdf = await buildColdChainReport(rawData, tableColorRange, reportUserData);
+      return {
+        pdf,
+        fileName: `${location.name}-${device.name}-${moment(start).format('YYYYMMDD').toString()}-${moment(end).format('YYYYMMDD').toString()}.pdf`
+      }
+
     } else if (device.report_endpoint.includes('co2-report')) {
-      return await buildCO2Report(
+      const pdf = await buildCO2Report(
         rawData,
         device.dev_eui,
         profile.employer,
@@ -55,6 +60,10 @@ export class PdfService {
         device.name,
         `${moment(start).format('YYYY/MM/DD').toString()} - ${moment(end).format('YYYY/MM/DD').toString()}`,
       );
+      return {
+        pdf,
+        fileName: `${location.name}-${device.name}-${moment(start).format('YYYYMMDD').toString()}-${moment(end).format('YYYYMMDD').toString()}.pdf`
+      }
     } else {
       throw new Error('Report endpoint not setup for this device');
     }
@@ -76,6 +85,8 @@ export class PdfService {
       findAllParams,
       user_id
     );
+
     return reportData;
+
   }
 }

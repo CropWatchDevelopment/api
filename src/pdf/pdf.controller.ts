@@ -8,7 +8,7 @@ import {
   Req,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiProduces, ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { PdfService } from './pdf.service';
 import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
@@ -36,6 +36,24 @@ export class PdfController {
     type: 'string',
     description: 'End date (format: YYYY-MM-DD)',
   })
+  @ApiOkResponse({
+    description: 'PDF file',
+    headers: {
+      'Content-Disposition': {
+        description: 'Indicates a file attachment with filename',
+        schema: { type: 'string' },
+      },
+    },
+    content: {
+      'application/pdf': {
+        schema: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @ApiProduces('application/pdf')
   async getFile(
     @Res() res: Response,
     @Req() req,
@@ -59,16 +77,20 @@ export class PdfController {
     const user_id = req.user.id;
 
     // Pass the dates to your service if needed:
-    const pdfBuffer = await this.pdfService.createPdfBinary(
+    const reportResponse = await this.pdfService.createPdfBinary(
       user_id,
       devEui,
       start,
       end,
     );
 
+    const pdfBuffer = reportResponse.pdf;
+    const encodedFilename = encodeURIComponent(reportResponse.fileName);
+    const asciiFilename = "report.pdf";
+    console.log(reportResponse.fileName)
     res.set({
+      "Content-Disposition": `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`,
       'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename="report.pdf"',
       'Content-Length': pdfBuffer.length,
     });
 
