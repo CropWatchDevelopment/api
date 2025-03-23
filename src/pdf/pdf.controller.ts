@@ -85,15 +85,20 @@ export class PdfController {
     );
 
     const pdfBuffer = reportResponse.pdf;
-    const encodedFilename = encodeURIComponent(reportResponse.fileName);
-    const asciiFilename = "report.pdf";
+    const encodedFilename = this.encodeRFC5987ValueChars(reportResponse.fileName);
     console.log(reportResponse.fileName)
     res.set({
-      "Content-Disposition": `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodedFilename}`,
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodedFilename}.pdf`,
       'Content-Type': 'application/pdf',
       'Content-Length': pdfBuffer.length,
     });
 
     res.send(pdfBuffer);
+  }
+
+  private encodeRFC5987ValueChars(str) {
+    return encodeURIComponent(str)
+      // RFC 5987 requires these characters to be percent-encoded
+      .replace(/['()*]/g, c => '%' + c.charCodeAt(0).toString(16));
   }
 }
