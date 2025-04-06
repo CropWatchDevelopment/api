@@ -18,7 +18,11 @@ import moment from 'moment';
  * @param reportData A pdfReportFormat object with .dataPoints, etc.
  * @returns Promise<Buffer>
  */
-export async function buildColdChainReport(reportData: any[], tableColorRange: TableColorRange[], reportUserData): Promise<Buffer> {
+export async function buildColdChainReport(
+  reportData: any[],
+  tableColorRange: TableColorRange[],
+  reportUserData: any
+): Promise<Buffer> {
   return new Promise<Buffer>(async (resolve, reject) => {
     try {
       // -------------------------------------------------------------
@@ -54,20 +58,46 @@ export async function buildColdChainReport(reportData: any[], tableColorRange: T
       }
 
       // -------------------------------------------------------------
-      // 3) Draw Header & Signature Boxes (same as original)
+      // 3) Destructure user data and define footer drawing function
+      // -------------------------------------------------------------
+      const { company, department, location, deviceName, dev_eui, timeSpan } = reportUserData;
+
+      // Keep track of the current page number (first page is 1)
+      let pageNumber = 1;
+
+      // Helper function to draw the footer (using the location and page number)
+      const drawFooter = (doc: PDFKit.PDFDocument, location: string, pageNumber: number) => {
+        // Position the footer above the bottom margin
+        const footerY = doc.page.height - doc.page.margins.bottom - 19;
+        doc.fontSize(10)
+          .fillColor('grey')
+          .text(`${location} - Page ${pageNumber}`, doc.page.margins.left, footerY, {
+            width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+            align: 'right'
+          });
+      };
+
+      // Register footer on every new page
+      doc.on('pageAdded', () => {
+        pageNumber++;
+        drawFooter(doc, location, pageNumber);
+      });
+
+      // -------------------------------------------------------------
+      // 4) Draw Header & Signature Boxes (same as original)
       // -------------------------------------------------------------
       drawHeaderAndSignatureBoxes(doc, reportData, tableColorRange, reportUserData);
 
       // -------------------------------------------------------------
-      // 4) Draw the line chart (same as original)
+      // 5) Draw the line chart (same as original)
       // -------------------------------------------------------------
       doc.x = doc.page.margins.left;
       doc.fontSize(14).text('温度', doc.page.width / 2, doc.y, { width: 100 });
-      await drawSimpleLineChartD3Style(
-        doc,
-        reportData
-      );
+      await drawSimpleLineChartD3Style(doc, reportData);
 
+      // -------------------------------------------------------------
+      // 6) Draw the data table (same as original)
+      // -------------------------------------------------------------
       doc.x = doc.page.margins.left;
       drawDataTable12Cols(
         doc,
@@ -76,13 +106,16 @@ export async function buildColdChainReport(reportData: any[], tableColorRange: T
           temperature: d.temperature_c,
         })),
         tableColorRange,
-        {
-          rowHeight: 22,
-        }
+        { rowHeight: 22 }
       );
 
       // -------------------------------------------------------------
-      // 6) Finalize the PDF (triggers the 'end' event)
+      // 7) Draw the footer (location & page number) on the current page
+      // -------------------------------------------------------------
+      drawFooter(doc, location, pageNumber);
+
+      // -------------------------------------------------------------
+      // 8) Finalize the PDF (triggers the 'end' event)
       // -------------------------------------------------------------
       doc.end();
 
