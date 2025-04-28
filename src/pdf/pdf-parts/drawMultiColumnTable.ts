@@ -250,9 +250,5 @@ function drawCellBorder(
   w: number,
   h: number
 ) {
-  doc
-    .lineWidth(1)
-    .strokeColor('black')
-    .rect(x, y, w, h)
-    .stroke();
+  doc.lineWidth(1).strokeColor('black').rect(x, y, w, h).stroke();
 }

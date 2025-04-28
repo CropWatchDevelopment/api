@@ -10,5 +10,5 @@ export class ReportsTemplatesController {
     @Get()
     GetReportTemplates() {
         return this.reportTemplatesService.findAll();
-    }
+  }
 }

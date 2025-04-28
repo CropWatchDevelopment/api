@@ -6,7 +6,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 @Controller('profiles')
 export class ProfilesController {
   constructor(private readonly profilesService: ProfilesService) {}
-  
+
   @Get()
   @ApiBearerAuth('JWT')
   findOne(@Req() req) {

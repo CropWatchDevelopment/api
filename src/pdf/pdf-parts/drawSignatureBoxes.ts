@@ -54,6 +54,6 @@ export function drawSignatureBoxes(doc: PDFKit.PDFDocument) {
 
   // 4) Move doc.y to below this entire signature block 
   //    so subsequent content starts below it.
-  doc.y = Math.max(doc.y, signatureBoxesBottomY + 20); 
+  doc.y = Math.max(doc.y, signatureBoxesBottomY + 20);
   // +20 for a bit of spacing
 }

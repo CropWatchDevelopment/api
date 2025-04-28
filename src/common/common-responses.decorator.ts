@@ -29,6 +29,6 @@ export function ApiGetResponses() {
 export function ApiDeleteResponses() {
   return applyDecorators(
     ApiResponse({ status: 204, description: 'No Content' }),
-    CommonResponses()
+    CommonResponses(),
   );
 }

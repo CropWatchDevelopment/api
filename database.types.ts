@@ -128,7 +128,7 @@ export type Database = {
             foreignKeyName: "public_babylon_connections_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: 'profiles';
             referencedColumns: ["id"]
           },
           {

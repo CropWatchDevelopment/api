@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable, NotAcceptableException, NotFoundException, NotImplementedException } from '@nestjs/common';
 import { CreateDatumDto } from './dto/create-datum.dto';
 import { UpdateDatumDto } from './dto/update-datum.dto';
-import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
-import { CwDeviceTypeService } from 'src/cw_device_type/cw_device_type.service';
-import { Database } from 'database.types';
-import { DataRepository } from 'src/repositories/data.repository';
-import { CwDeviceOwnersService } from 'src/cw_device_owners/cw_device_owners.service';
+import { CwDevicesService } from '../cw_devices/cw_devices.service';
+import { CwDeviceTypeService } from '../cw_device_type/cw_device_type.service';
+import { Database } from '../../database.types';
+import { DataRepository } from '../repositories/data.repository';
+import { CwDeviceOwnersService } from '../cw_device_owners/cw_device_owners.service';
 
 export interface FindAllParams {
   devEui?: string;

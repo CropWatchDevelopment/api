@@ -17,7 +17,7 @@ export class ProfileRepository {
       .getSupabaseClient()
       .from('profiles')
       .select('*')
-      .eq('id',  id)
+      .eq('id', id)
       .single();
     if (error) {
       throw error;

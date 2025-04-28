@@ -76,7 +76,9 @@ export class AuthService {
       // this.jwtService.sign(session);
       return session;
     } catch (error) {
-      throw new UnauthorizedException('Unable to sign in with email and password');
+      throw new UnauthorizedException(
+        'Unable to sign in with email and password',
+      );
     }
   }
 }

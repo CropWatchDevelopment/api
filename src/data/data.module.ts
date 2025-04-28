@@ -1,16 +1,16 @@
 import { Module } from '@nestjs/common';
 import { DataService } from './data.service';
 import { DataController } from './data.controller';
-import { CwDeviceTypeService } from 'src/cw_device_type/cw_device_type.service';
-import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
-import { DataRepository } from 'src/repositories/data.repository';
-import { DeviceRepository } from 'src/repositories/cw_devices.repository';
-import { DeviceTypeRepository } from 'src/repositories/cw_device_type.repository';
-import { SupabaseService } from 'src/supabase/supabase.service';
-import { CwDeviceOwnersService } from 'src/cw_device_owners/cw_device_owners.service';
-import { DeviceOwnerRepository } from 'src/repositories/cw_device_owners';
-import { CwDevicesModule } from 'src/cw_devices/cw_devices.module';
-import { CwDeviceTypeModule } from 'src/cw_device_type/cw_device_type.module';
+import { CwDeviceTypeService } from '../cw_device_type/cw_device_type.service';
+import { CwDevicesService } from '../cw_devices/cw_devices.service';
+import { DataRepository } from '../repositories/data.repository';
+import { DeviceRepository } from '../repositories/cw_devices.repository';
+import { DeviceTypeRepository } from '../repositories/cw_device_type.repository';
+import { SupabaseService } from '../supabase/supabase.service';
+import { CwDeviceOwnersService } from '../cw_device_owners/cw_device_owners.service';
+import { DeviceOwnerRepository } from '../repositories/cw_device_owners';
+import { CwDevicesModule } from '../cw_devices/cw_devices.module';
+import { CwDeviceTypeModule } from '../cw_device_type/cw_device_type.module';
 
 @Module({
   imports: [
@@ -34,4 +34,4 @@ import { CwDeviceTypeModule } from 'src/cw_device_type/cw_device_type.module';
     DataRepository,
   ]
 })
-export class DataModule { }
+export class DataModule {}

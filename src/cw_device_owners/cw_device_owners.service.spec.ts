@@ -114,7 +114,10 @@ describe('CwDeviceOwnersService', () => {
     it('should return a device owner by dev_eui and user_id', async () => {
       const result = await service.getDeviceOwnerByDevEuiAndUID('test-dev-eui', 'test-user');
       expect(result).toEqual({ id: 1, dev_eui: 'test-dev-eui', user_id: 'test-user' });
-      expect(repository.findByDevEuiAndUID).toHaveBeenCalledWith('test-dev-eui', 'test-user');
+      expect(repository.findByDevEuiAndUID).toHaveBeenCalledWith(
+        'test-dev-eui',
+        'test-user',
+      );
     });
   });
 });

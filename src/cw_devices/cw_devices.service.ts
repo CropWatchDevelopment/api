@@ -14,5 +14,4 @@ export class CwDevicesService extends BaseService<DevicesRow, CreateDeviceDto, U
   public async getDeviceByDevEui(devEui: string): Promise<DevicesRow> {
     return this.deviceRepository.findByDevEui({ dev_eui: devEui });
   }
-
 }

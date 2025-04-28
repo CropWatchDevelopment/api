@@ -54,6 +54,5 @@ export class RelayService {
     private hexToBase64(hexString) {
         const bytes = new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
         return btoa(String.fromCharCode(...bytes));
-    }
-    
+  }
 }

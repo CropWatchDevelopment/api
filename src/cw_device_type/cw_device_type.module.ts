@@ -7,11 +7,7 @@ import { DeviceTypeRepository } from 'src/repositories/cw_device_type.repository
 
 @Module({
   imports: [SupabaseModule, AuthModule],
-  providers: [
-    CwDeviceTypeService,
-    DeviceTypeRepository,
-    
-  ],
+  providers: [CwDeviceTypeService, DeviceTypeRepository],
   controllers: [CwDeviceTypeController],
   exports: [CwDeviceTypeService],
 })

@@ -25,6 +25,6 @@ export default async function handler(req: Request, res: Response) {
     cachedApp = await bootstrap();
     Logger.log('NestJS app bootstrapped for serverless');
   }
-  
+
   return server(req, res);
 }

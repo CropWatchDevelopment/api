@@ -221,7 +221,10 @@ function fillCellColorIfInRange(
 }
 
 /** Return first matching color if value is in [range.min, range.max]. */
-function getColorForValue(value: number, ranges: TableColorRange[]): string | null {
+function getColorForValue(
+  value: number,
+  ranges: TableColorRange[],
+): string | null {
   for (const r of ranges) {
     if (value >= r.min && value <= r.max) return r.color;
   }
@@ -234,7 +237,7 @@ function drawCellBorder(
   x: number,
   y: number,
   w: number,
-  h: number
+  h: number,
 ) {
   doc.lineWidth(1).strokeColor('black').rect(x, y, w, h).stroke();
 }

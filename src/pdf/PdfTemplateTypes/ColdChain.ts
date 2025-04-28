@@ -118,7 +118,6 @@ export async function buildColdChainReport(
       // 8) Finalize the PDF (triggers the 'end' event)
       // -------------------------------------------------------------
       doc.end();
-
     } catch (error) {
       reject(error);
     }

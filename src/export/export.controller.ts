@@ -57,7 +57,13 @@ export class ExportController {
       throw new Error('End date is required');
     }
 
-    const data = await this.exportService.getFile(user_id, devEui, exportType, startDate, endDate);
+    const data = await this.exportService.getFile(
+      user_id,
+      devEui,
+      exportType,
+      startDate,
+      endDate,
+    );
     if (!data) {
       throw new Error('Data not found');
     }

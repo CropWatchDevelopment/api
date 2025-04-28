@@ -39,4 +39,4 @@ export function drawHeaderTable(doc: PDFKit.PDFDocument, data: pdfReportFormat) 
     
     doc.moveDown(2); // Some spacing before the next section
   }
-  
+ 

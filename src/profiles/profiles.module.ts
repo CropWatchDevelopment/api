@@ -10,4 +10,4 @@ import { SupabaseModule } from 'src/supabase/supabase.module';
   providers: [ProfilesService, ProfileRepository],
   exports: [ProfilesService]
 })
-export class ProfilesModule { }
+export class ProfilesModule {}

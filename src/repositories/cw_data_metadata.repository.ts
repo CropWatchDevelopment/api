@@ -25,5 +25,5 @@ export class DataMetadataRepository extends BaseDataMetadataRepository {
             throw new Error(`Metadata ${typeId} not found.`);
         }
         return data as cw_data_metadataRow[];
-    }
+  }
 }

@@ -12,5 +12,4 @@ export class LocationService extends BaseService<LocationRow, CreateLocationDto,
   constructor(repository: LocationRepository) {
     super(repository);
   }
-
 }
