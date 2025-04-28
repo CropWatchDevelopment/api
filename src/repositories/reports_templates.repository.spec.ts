@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ReportTemplatesRepository } from './reports_templates.repository';
 import { SupabaseService } from '../supabase/supabase.service';
-import { ReportsTemplatesRow } from 'src/common/database-types';
+import { ReportsTemplatesRow } from '../common/database-types';
 
 describe('ReportTemplatesRepository', () => {
   let repository: ReportTemplatesRepository;

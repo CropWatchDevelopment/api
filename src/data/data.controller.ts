@@ -3,10 +3,9 @@ import { DataService } from './data.service';
 import { CreateDatumDto } from './dto/create-datum.dto';
 import { UpdateDatumDto } from './dto/update-datum.dto';
 import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { CwDeviceTypeService } from 'src/cw_device_type/cw_device_type.service';
-import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
+import { CwDeviceTypeService } from '../cw_device_type/cw_device_type.service';
+import { CwDevicesService } from '../cw_devices/cw_devices.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
-
 
 @Controller('data')
 @ApiTags('CRUD operations for data related to devices rigistered to current JWT')

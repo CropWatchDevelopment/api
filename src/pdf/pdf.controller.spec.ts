@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import PdfPrinter from 'pdfmake';
 import { PdfService } from './pdf.service';
-import { DataService } from 'src/data/data.service';
-import { ReportsTemplatesService } from 'src/reports_templates/reports_templates.service';
+import { DataService } from '../data/data.service';
+import { ReportsTemplatesService } from '../reports_templates/reports_templates.service';
 
 describe('PdfService', () => {
   let pdfService: PdfService;

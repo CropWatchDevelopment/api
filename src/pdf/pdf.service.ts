@@ -1,15 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { DataService, FindAllParams } from 'src/data/data.service';
+import { DataService, FindAllParams } from '../data/data.service';
 import moment from 'moment';
 
 // PDF Parts Import stuff
-import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
+import { CwDevicesService } from '../cw_devices/cw_devices.service';
 import { buildCO2Report } from './PdfTemplateTypes/Co2Report';
-import { LocationService } from 'src/location/location.service';
-import { ProfilesService } from 'src/profiles/profiles.service';
+import { LocationService } from '../location/location.service';
+import { ProfilesService } from '../profiles/profiles.service';
 import { TableColorRange } from './interfaces/TableColorRange';
 import { buildColdChainReport } from './PdfTemplateTypes/ColdChain';
-
 
 @Injectable()
 export class PdfService {

@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataController } from './data.controller';
 import { DataService } from './data.service';
-import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
-import { CwDeviceTypeService } from 'src/cw_device_type/cw_device_type.service';
+import { CwDevicesService } from '../cw_devices/cw_devices.service';
+import { CwDeviceTypeService } from '../cw_device_type/cw_device_type.service';
 
 describe('DataController', () => {
   let controller: DataController;
