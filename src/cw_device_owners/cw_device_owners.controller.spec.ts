@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CwDeviceOwnersController } from './cw_device_owners.controller';
 import { CwDeviceOwnersService } from './cw_device_owners.service';
-import { DevicesOwnersRow } from 'src/common/database-types';
+import { DevicesOwnersRow } from '../common/database-types';
 import { CreateDeviceOwnerDto } from './dto/create-device-owner.dto';
 import { UpdateDeviceOwnerDto } from './dto/update-device-owner.dto';
 

@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CwDeviceOwnersService } from './cw_device_owners.service';
 import { SupabaseService } from '../supabase/supabase.service';
-import { DevicesOwnersRow } from 'src/common/database-types';
-import { DeviceOwnerRepository } from 'src/repositories/cw_device_owners';
+import { DevicesOwnersRow } from '../common/database-types';
+import { DeviceOwnerRepository } from '../repositories/cw_device_owners.repository';
 import { createMockSupabaseClient } from 'src/__mocks__/supabase';
 import { CreateDeviceOwnerDto } from './dto/create-device-owner.dto';
 import { UpdateDeviceOwnerDto } from './dto/update-device-owner.dto';

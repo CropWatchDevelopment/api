@@ -11,7 +11,7 @@ import {
 import { ApiBearerAuth, ApiOkResponse, ApiProduces, ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { PdfService } from './pdf.service';
-import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
+import { SupabaseAuthGuard } from '../auth/guards/supabase.guard';
 
 @ApiBearerAuth('JWT')
 @ApiSecurity('x-api-key', ['x-api-key'])

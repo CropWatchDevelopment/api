@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LocationService } from './location.service';
 import { BaseRepository } from '../repositories/base.repository';
-import { LocationRow } from 'src/common/database-types';
+import { LocationRow } from '../common/database-types';
 import { CreateLocationDto } from './dto/create-location.dto';
 
 describe('LocationService', () => {

@@ -1,9 +1,9 @@
 import { Controller } from '@nestjs/common';
-import { BaseController } from 'src/bases/base.controller';
+import { BaseController } from '../bases/base.controller';
 import { CreateDeviceTypeDto } from './dto/create-device-type.dto';
 import { CwDeviceTypeService } from './cw_device_type.service';
 import { ApiTags } from '@nestjs/swagger';
-import { DeviceTypeRow } from 'src/common/database-types';
+import { DeviceTypeRow } from '../common/database-types';
 import { UpdateDeviceTypeDto } from './dto/update-device-type.dto';
 
 @ApiTags('Device Type')

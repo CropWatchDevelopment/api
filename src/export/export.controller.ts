@@ -1,6 +1,6 @@
 import { Controller, Get, HttpStatus, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiProperty, ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
-import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
+import { SupabaseAuthGuard } from '../auth/guards/supabase.guard';
 import { ExportService } from './export.service';
 import { Response } from 'express';
 

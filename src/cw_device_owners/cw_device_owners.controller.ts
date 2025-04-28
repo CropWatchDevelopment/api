@@ -3,8 +3,8 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { CwDeviceOwnersService } from './cw_device_owners.service';
 import { ApiTags } from '@nestjs/swagger';
 import { CreateDeviceOwnerDto } from './dto/create-device-owner.dto';
-import { BaseController } from 'src/bases/base.controller';
-import { DevicesOwnersRow } from 'src/common/database-types';
+import { BaseController } from '../bases/base.controller';
+import { DevicesOwnersRow } from '../common/database-types';
 import { UpdateDeviceOwnerDto } from './dto/update-device-owner.dto';
 
 @ApiTags('🔒Device-Owners - CRUD operations for linkages between current JWT users profile and devices')

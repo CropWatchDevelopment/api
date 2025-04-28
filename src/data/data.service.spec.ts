@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataService } from './data.service';
-import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
-import { CwDeviceTypeService } from 'src/cw_device_type/cw_device_type.service';
-import { CwDeviceOwnersService } from 'src/cw_device_owners/cw_device_owners.service';
-import { DataRepository } from 'src/repositories/data.repository';
+import { CwDevicesService } from '../cw_devices/cw_devices.service';
+import { CwDeviceTypeService } from '../cw_device_type/cw_device_type.service';
+import { CwDeviceOwnersService } from '../cw_device_owners/cw_device_owners.service';
+import { DataRepository } from '../repositories/data.repository';
 import { BadRequestException, NotAcceptableException, NotFoundException } from '@nestjs/common';
 
 describe('DataService', () => {

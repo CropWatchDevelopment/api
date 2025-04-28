@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ProfilesService } from './profiles.service';
-import { ProfileRepository } from 'src/repositories/profiles.repositories';
+import { ProfileRepository } from '../repositories/profiles.repositories';
 
 
 describe('ProfilesService', () => {
