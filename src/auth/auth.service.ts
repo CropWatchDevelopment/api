@@ -1,6 +1,6 @@
 // Import necessary modules from Supabase and NestJS
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logger, HttpException, HttpStatus } from '@nestjs/common';
-import { SupabaseClient, User, createClient } from '@supabase/supabase-js';
+import { Injectable, UnauthorizedException, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -19,13 +19,26 @@ export class AuthService {
   }
 
   // Function to validate a JWT token using Supabase
-  async validateUser(token: string): Promise<User> {
+  async validateUser(token: string): Promise<any> {
     try {
-      const { data: user, error } = await this.supabase.auth.getUser(token);
+      // Fix: getSession doesn't take parameters in this version
+      const { data, error } = await this.supabase.auth.getSession();
+      
       if (error) {
         throw new UnauthorizedException(error.message);
       }
-      return user.user;
+      
+      // If we have a session but want to validate a specific token
+      if (!data.session || data.session.access_token !== token) {
+        // Try to get user info directly
+        const { data: userData, error: userError } = await this.supabase.auth.getUser(token);
+        if (userError) {
+          throw new UnauthorizedException(userError.message);
+        }
+        return userData.user;
+      }
+      
+      return data.session?.user;
     } catch (error) {
       throw new UnauthorizedException(error.message);
     }

@@ -63,12 +63,12 @@ export class ExportController {
     }
 
     if (exportType === ExportType.CSV) {
-      res.header('Content-Type', 'text/csv');
-      res.attachment('export.csv');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="export.csv"');
       res.status(HttpStatus.OK).send(data);
     } else {
-      res.header('Content-Type', 'text/xml');
-      res.attachment('export.xml');
+      res.setHeader('Content-Type', 'text/xml');
+      res.setHeader('Content-Disposition', 'attachment; filename="export.xml"');
       res.status(HttpStatus.OK).send(data);
     }
   }

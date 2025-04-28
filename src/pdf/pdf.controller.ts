@@ -60,7 +60,7 @@ export class PdfController {
     @Query('devEui') devEui: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
-  ): Promise<void> {
+  ) {
     // Convert string inputs to dates
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -87,12 +87,12 @@ export class PdfController {
     const pdfBuffer = reportResponse.pdf;
     const encodedFilename = this.encodeRFC5987ValueChars(reportResponse.fileName);
     console.log(reportResponse.fileName)
-    res.set({
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodedFilename}.pdf`,
-      'Content-Type': 'application/pdf',
-      'Content-Length': pdfBuffer.length,
-    });
-
+    
+    // Fix for the response methods by using Express response methods
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodedFilename}.pdf`);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    
     res.send(pdfBuffer);
   }
 

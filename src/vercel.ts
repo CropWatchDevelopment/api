@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { Logger } from '@nestjs/common';
 
 const server = express();
@@ -20,7 +20,7 @@ async function bootstrap() {
 
 let cachedApp: any;
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: Request, res: Response) {
   if (!cachedApp) {
     cachedApp = await bootstrap();
     Logger.log('NestJS app bootstrapped for serverless');

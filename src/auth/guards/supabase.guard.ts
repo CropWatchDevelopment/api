@@ -1,8 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
 import { AuthService } from "../auth.service";
-import { User } from "@supabase/supabase-js";
 
-// AuthGuard implementation using the AuthService
 // AuthGuard implementation using the AuthService
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
@@ -24,9 +22,9 @@ export class SupabaseAuthGuard implements CanActivate {
       request.user = await this.validateBearerToken(authHeader);
       return true;
     }
+    
+    throw new UnauthorizedException('No valid authentication provided');
   }
-
-
 
   private getApiKey(request: any): string | undefined {
     return request.headers['x-api-key'];
@@ -46,7 +44,7 @@ export class SupabaseAuthGuard implements CanActivate {
     }
   }
 
-  private async validateBearerToken(authHeader: string): Promise<User> {
+  private async validateBearerToken(authHeader: string): Promise<any> {
     if (!authHeader) {
       throw new UnauthorizedException('Authorization header not found');
     }
