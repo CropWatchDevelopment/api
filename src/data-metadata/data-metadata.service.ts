@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { BaseService } from '../bases/base.service';
 import { cw_data_metadataRow } from '../common/database-types';
-import { DataMetadataRepository } from 'src/repositories/cw_data_metadata.repository';
+import { DataMetadataRepository } from '../repositories/cw_data_metadata.repository';
 import { CreateMetadataDto } from './dto/create-metadata.dto';
 import { UpdateMetadataDto } from './dto/update-metadata.dto';
 

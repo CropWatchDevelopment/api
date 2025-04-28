@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CwDeviceTypeService } from './cw_device_type.service';
-import { DeviceTypeRepository } from 'src/repositories/cw_device_type.repository';
-
+import { DeviceTypeRepository } from '../repositories/cw_device_type.repository';
 
 describe('CwDeviceTypeService', () => {
   let service: CwDeviceTypeService;

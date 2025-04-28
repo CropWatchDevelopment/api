@@ -1,6 +1,6 @@
 import { Controller, Get, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
+import { SupabaseAuthGuard } from '../auth/guards/supabase.guard';
 import { GeolocationService } from './geolocation.service';
 
 @ApiTags('Addresses')

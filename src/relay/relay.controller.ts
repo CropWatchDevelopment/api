@@ -1,7 +1,7 @@
 import { Controller, Get, Req, Query } from '@nestjs/common';
 import { RelayService } from './relay.service';
 import { ApiTags, ApiQuery, ApiResponse } from '@nestjs/swagger';
-import { Public } from 'src/auth/public.decorator';
+import { Public } from '../auth/public.decorator';
 
 export enum RelayState {
     Open = 'open (OFF)', // OFF

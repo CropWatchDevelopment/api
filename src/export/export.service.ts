@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { CwDevicesService } from 'src/cw_devices/cw_devices.service';
-import { DataMetadataService } from 'src/data-metadata/data-metadata.service';
-import { DataService, FindAllParams } from 'src/data/data.service';
-import { ProfilesService } from 'src/profiles/profiles.service';
+import { CwDevicesService } from '../cw_devices/cw_devices.service';
+import { DataMetadataService } from '../data-metadata/data-metadata.service';
+import { DataService, FindAllParams } from '../data/data.service';
+import { ProfilesService } from '../profiles/profiles.service';
 
 @Injectable()
 export class ExportService {
