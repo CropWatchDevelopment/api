@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { BaseRepository } from './base.repository';
-import { ReportsTemplatesRow } from 'src/common/database-types';
+import { ReportsTemplatesRow } from '../common/database-types';
 
 @Injectable()
 export class ReportTemplatesRepository extends BaseRepository<ReportsTemplatesRow> {

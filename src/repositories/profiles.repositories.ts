@@ -1,7 +1,7 @@
-import { Injectable, Req } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import { ProfileRow } from '../common/database-types';
 import { ApiBearerAuth } from '@nestjs/swagger';
-import { ProfileRow } from 'src/common/database-types';
 
 @Injectable()
 export class ProfileRepository {

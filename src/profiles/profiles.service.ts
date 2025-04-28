@@ -1,6 +1,6 @@
-import { Injectable, Req } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateProfileDto } from './dto/create-profile.dto';
-import { ProfileRepository } from 'src/repositories/profiles.repositories';
+import { ProfileRepository } from '../repositories/profiles.repositories';
 
 @Injectable()
 export class ProfilesService {
