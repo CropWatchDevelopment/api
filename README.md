@@ -7,6 +7,7 @@
 <a href="https://codeclimate.com/github/CropWatchDevelopment/api/maintainability"><img src="https://api.codeclimate.com/v1/badges/13721cab5a018f30332c/maintainability" /></a>
 <a href="https://codeclimate.com/github/CropWatchDevelopment/api/test_coverage"><img src="https://api.codeclimate.com/v1/badges/13721cab5a018f30332c/test_coverage" /></a>
 </p>
+<a href="https://qlty.sh/gh/CropWatchDevelopment/projects/api"><img src="https://qlty.sh/badges/ac981c2a-eeb9-4bb6-b743-c50db67b624a/maintainability.svg" alt="Maintainability" /></a>
 
 ## Overview
 

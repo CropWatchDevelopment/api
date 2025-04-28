@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { CwDeviceOwnersService } from './cw_device_owners.service';
 import { CwDeviceOwnersController } from './cw_device_owners.controller';
 import { SupabaseModule } from '../supabase/supabase.module';
-import { DeviceOwnerRepository } from 'src/repositories/cw_device_owners';
+import { DeviceOwnerRepository } from '../repositories/cw_device_owners.repository';
 
 @Module({
   imports: [SupabaseModule],
