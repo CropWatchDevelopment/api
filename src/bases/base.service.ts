@@ -1,4 +1,4 @@
-import { BaseRepository } from 'src/repositories/base.repository';
+import { BaseRepository } from '../repositories/base.repository';
 
 export interface BaseServiceInterface<T, CreateDto, UpdateDto> {
   findAll(): Promise<T[]>;

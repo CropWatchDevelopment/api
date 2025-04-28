@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { BaseRepository } from './base.repository';
-import { LocationRow } from 'src/common/database-types';
+import { LocationRow } from '../common/database-types';
 
 @Injectable()
 export class LocationRepository extends BaseRepository<LocationRow> {

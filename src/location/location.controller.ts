@@ -2,8 +2,8 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { LocationService } from './location.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { BaseController } from 'src/bases/base.controller';
-import { LocationsRow } from 'src/common/database-types';
+import { BaseController } from '../bases/base.controller';
+import { LocationsRow } from '../common/database-types';
 import { UpdateLocationDto } from './dto/update-location.dto';
 
 @ApiTags('Locations')

@@ -1,3 +1,14 @@
+// Register module aliases
+import 'module-alias/register';
+import * as path from 'path';
+import moduleAlias from 'module-alias';
+
+// Set up module aliases
+moduleAlias.addAliases({
+  '@': path.join(__dirname, '../'),
+  'src': path.join(__dirname, '../')
+});
+
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';

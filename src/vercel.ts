@@ -1,8 +1,18 @@
+// Register module aliases at the start of the application
+import 'module-alias/register';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import express, { Request, Response } from 'express';
 import { Logger } from '@nestjs/common';
+import * as path from 'path';
+
+// Register path aliases
+import moduleAlias from 'module-alias';
+moduleAlias.addAliases({
+  '@': path.join(__dirname, '../'),
+  'src': path.join(__dirname, '../')
+});
 
 const server = express();
 

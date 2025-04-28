@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { SupabaseService } from 'src/supabase/supabase.service';
-import { cw_data_metadataRow } from 'src/common/database-types';
+import { SupabaseService } from '../supabase/supabase.service';
+import { cw_data_metadataRow } from '../common/database-types';
 import { createRepository } from './repository-factory';
 
 const BaseDataMetadataRepository = createRepository<cw_data_metadataRow>('cw_data_metadata');

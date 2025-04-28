@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { SupabaseService } from 'src/supabase/supabase.service';
-import { DeviceTypeRow } from 'src/common/database-types';
+import { SupabaseService } from '../supabase/supabase.service';
+import { DeviceTypeRow } from '../common/database-types';
 import { createRepository } from './repository-factory';
 
 const BaseDeviceTypeRepository = createRepository<DeviceTypeRow>('cw_device_type');
