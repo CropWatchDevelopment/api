@@ -25,7 +25,7 @@ export async function buildCO2Report(
                 margin: 40
             });
 
-            doc.registerFont('NotoSansJP', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf');
+            doc.registerFont('NotoSansJP', '../../assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf');
             doc.font('NotoSansJP');
 
             doc.x = doc.page.margins.left;

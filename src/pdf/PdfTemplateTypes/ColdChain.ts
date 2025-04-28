@@ -34,7 +34,7 @@ export async function buildColdChainReport(
       });
 
       // Register fonts if needed
-      doc.registerFont('NotoSansJP', 'src/assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf');
+      doc.registerFont('NotoSansJP', '../../assets/fonts/Noto_Sans_JP/static/NotoSansJP-Regular.ttf');
       doc.font('NotoSansJP');
 
       // Collect chunks in memory
