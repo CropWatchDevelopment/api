@@ -2,9 +2,9 @@
 import { Injectable } from '@nestjs/common';
 import { CreateDeviceOwnerDto } from './dto/create-device-owner.dto';
 import { UpdateDeviceOwnerDto } from './dto/update-device-owner.dto';
-import { DeviceOwnerRepository } from 'src/repositories/cw_device_owners';
-import { BaseService } from 'src/bases/base.service';
-import { DeviceOwnerRow } from 'src/common/database-types';
+import { DeviceOwnerRepository } from '../repositories/cw_device_owners.repository';
+import { BaseService } from '../bases/base.service';
+import { DeviceOwnerRow } from '../common/database-types';
 
 @Injectable()
 export class CwDeviceOwnersService extends BaseService<DeviceOwnerRow, CreateDeviceOwnerDto, UpdateDeviceOwnerDto> {

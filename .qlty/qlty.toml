@@ -40,8 +40,8 @@ exclude_patterns = [
   "**/templates/**",
   "**/testdata/**",
   "**/vendor/**",
-  "**/documentation/**,
-  "**/database.types.ts,
+  "**/documentation/**",
+  "**/database.types.ts",
 ]
 
 test_patterns = [
