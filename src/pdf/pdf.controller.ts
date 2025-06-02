@@ -92,7 +92,7 @@ export class PdfController {
     const encodedFilename = this.encodeRFC5987ValueChars(reportResponse.fileName);
     console.log(reportResponse.fileName)
     res.set({
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodedFilename}.pdf`,
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodedFilename}`,
       'Content-Type': 'application/pdf',
       'Content-Length': pdfBuffer.length,
     });
