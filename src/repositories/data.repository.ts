@@ -1,6 +1,7 @@
 // src/data/data.repository.ts
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
+import moment from 'moment-timezone';
 
 @Injectable()
 export class DataRepository {
@@ -19,7 +20,11 @@ export class DataRepository {
       throw new Error(`Failed to retrieve data from table ${tableName}: ${error.message}`);
     }
 
-    return data || [];
+    if (data && data.length > 0) {
+      return this.convertDataToJapanTimezone(data);
+    }
+
+    return [];
   }
 
   public async findAllByTableAndDateTime<T>(tableName: string, devEui: string, start: Date, end: Date, order: boolean): Promise<T[]> {
@@ -36,7 +41,11 @@ export class DataRepository {
       throw new Error(`Failed to retrieve data from table ${tableName}: ${error.message}`);
     }
 
-    return data || [];
+    if (data && data.length > 0) {
+      return this.convertDataToJapanTimezone(data);
+    }
+
+    return [];
   }
 
   public async findByIdInTable<T>(tableName: string, id: number): Promise<T | null> {
@@ -50,7 +59,22 @@ export class DataRepository {
     if (error) {
       throw new Error(`Failed to find record with id ${id} in table ${tableName}: ${error.message}`);
     }
+    
+    let result = null;
+    result = this.convertDataToJapanTimezone(data);
 
-    return data || null;
+    return result || null;
+  }
+
+  private convertDataToJapanTimezone(data: any[]): any[] {
+    return data.map(item => {
+      if (item.created_at) {
+        item.created_at = moment
+          .utc(item.created_at, "YYYY-MM-DD HH:mm:ss.SSSSSSZ")
+          .tz("Asia/Tokyo")
+          .format("YYYY-MM-DD HH:mm:ss.SSSSSS");
+      }
+      return item;
+    });
   }
 }

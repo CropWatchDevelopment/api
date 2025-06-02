@@ -7,11 +7,12 @@ import {
   UseGuards,
   Req,
   Query,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiProduces, ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { PdfService } from './pdf.service';
-import { SupabaseAuthGuard } from '../auth/guards/supabase.guard';
+import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
 
 @ApiBearerAuth('JWT')
 @ApiSecurity('x-api-key', ['x-api-key'])
@@ -60,7 +61,7 @@ export class PdfController {
     @Query('devEui') devEui: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
-  ) {
+  ): Promise<void> {
     // Convert string inputs to dates
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -85,15 +86,19 @@ export class PdfController {
     );
 
     const pdfBuffer = reportResponse.pdf;
+    if (!Buffer.isBuffer(pdfBuffer)) {
+      throw new InternalServerErrorException('Failed to generate PDF');
+    }
     const encodedFilename = this.encodeRFC5987ValueChars(reportResponse.fileName);
     console.log(reportResponse.fileName)
-    
-    // Fix for the response methods by using Express response methods
-    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodedFilename}.pdf`);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Length', pdfBuffer.length);
-    
-    res.send(pdfBuffer);
+    res.set({
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodedFilename}.pdf`,
+      'Content-Type': 'application/pdf',
+      'Content-Length': pdfBuffer.length,
+    });
+
+    res.end(pdfBuffer); // Use end() to send raw buffer
+    // Do not return anything when using @Res()
   }
 
   private encodeRFC5987ValueChars(str) {

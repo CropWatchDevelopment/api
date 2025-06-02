@@ -1,7 +1,5 @@
 import PDFDocument from 'pdfkit';
-import { drawDynamicTable, TableColumn } from '../pdf-parts/drawDynamicTable';
 import { drawFourDataGroups } from '../pdf-parts/drawFourDataGroups';
-import { drawSimpleLineChartD3Style } from '../pdf-parts/drawBetterChartWithD3';
 import { drawChartWithD3VariableHeight } from '../pdf-parts/drawChartWithD3VariableHeight';
 import { drawDynamicDataTable2, TableHeader } from '../pdf-parts/drawDynamicTable2';
 import moment from 'moment';

@@ -25,10 +25,6 @@ export class DataService {
     private readonly dataRepository: DataRepository,
   ) { }
 
-  // create(createDatumDto: CreateDatumDto) {
-  //   return new NotImplementedException();
-  // }
-
   async findAll(params: FindAllParams, email: string): Promise<any> {
     const { devEui, skip, take, order } = params;
     this.validateDevEui(devEui);

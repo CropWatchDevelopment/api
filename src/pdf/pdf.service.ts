@@ -44,6 +44,7 @@ export class PdfService {
         { name: 'normal', min: -18, max: -1000, color: 'white' }
       ];
       const pdf = await buildColdChainReport(rawData, tableColorRange, reportUserData);
+      if (!Buffer.isBuffer(pdf)) throw new Error('PDF generation failed (cold-chain)');
       return {
         pdf,
         fileName: `${location.name}-${device.name}-${moment(start).format('YYYYMMDD').toString()}-${moment(end).format('YYYYMMDD').toString()}.pdf`
@@ -59,6 +60,7 @@ export class PdfService {
         device.name,
         `${moment(start).format('YYYY/MM/DD').toString()} - ${moment(end).format('YYYY/MM/DD').toString()}`,
       );
+      if (!Buffer.isBuffer(pdf)) throw new Error('PDF generation failed (co2-report)');
       return {
         pdf,
         fileName: `${location.name}-${device.name}-${moment(start).format('YYYYMMDD').toString()}-${moment(end).format('YYYYMMDD').toString()}.pdf`
@@ -67,9 +69,6 @@ export class PdfService {
       throw new Error('Report endpoint not setup for this device');
     }
   }
-
-
-
 
   private async fetchDataAndReportFromDB(devEui: string, user_id: string, start: Date, end: Date) {
     const findAllParams: FindAllParams = {
