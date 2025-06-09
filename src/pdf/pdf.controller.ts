@@ -90,12 +90,19 @@ export class PdfController {
       throw new InternalServerErrorException('Failed to generate PDF');
     }
     const encodedFilename = this.encodeRFC5987ValueChars(reportResponse.fileName);
-    console.log(reportResponse.fileName)
+    console.log('Setting headers:', {
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodedFilename}`,
+      'Content-Type': 'application/pdf',
+      'Content-Length': pdfBuffer.length,
+    });
     res.set({
       "Content-Disposition": `attachment; filename*=UTF-8''${encodedFilename}`,
       'Content-Type': 'application/pdf',
       'Content-Length': pdfBuffer.length,
     });
+
+    // Verify headers were set
+    console.log('Response headers after setting:', res.getHeaders());
 
     res.end(pdfBuffer); // Use end() to send raw buffer
     // Do not return anything when using @Res()
