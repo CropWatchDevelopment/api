@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-const { execSync } = require('child_process');
-const os = require('os');
-const fs = require('fs');
-const path = require('path');
+import { execSync } from 'child_process';
+import os from 'os';
+import fs from 'fs';
+import path from 'path';
 
 // helper to run shell commands
 function run(cmd) {
