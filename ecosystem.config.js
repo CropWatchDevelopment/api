@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'cropwatch-api',
-      script: 'dist/main.js',
+      script: 'dist/src/main.js',
       instances: 1, // or 'max' for all CPU cores
       exec_mode: 'fork', // or 'cluster' for load balancing
       watch: false, // set to true if you want to restart on file changes
