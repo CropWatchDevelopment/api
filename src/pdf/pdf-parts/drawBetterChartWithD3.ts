@@ -48,9 +48,10 @@ export async function drawSimpleLineChartD3Style(
 
   const chartLeft = marginLeft;
   const chartTop = doc.y; // current vertical position in the document
-  const chartWidth = pageWidth - marginLeft - marginRight;
-  const availableHeight = pageHeight - chartTop - marginBottom;
-  const chartHeight = availableHeight;
+  // Reduce chart width by 20px for PDF exports
+  const chartWidth = pageWidth - marginLeft - marginRight - 20; // was -100, now -20
+  const availableHeight = pageHeight - chartTop - marginBottom - 20; // add a bottom padding to avoid overflow
+  const chartHeight = availableHeight > 0 ? availableHeight : 100; // minimum height safeguard
 
   // Optional: Draw a faint bounding box around the chart area
   doc
@@ -62,12 +63,12 @@ export async function drawSimpleLineChartD3Style(
     .restore();
 
   // Inner area = chart minus the internal margins
-  const innerWidth = chartWidth - (margin.left + margin.right);
-  const innerHeight = chartHeight - (margin.top + margin.bottom);
+  const innerWidth = chartWidth - (margin.left + margin.right + 10); // add 10px padding inside
+  const innerHeight = chartHeight - (margin.top + margin.bottom + 10); // add 10px padding inside
 
   // Top-left of the inner area
-  const innerLeft = chartLeft + margin.left;
-  const innerTop = chartTop + margin.top;
+  const innerLeft = chartLeft + margin.left + 5; // shift right by 5px
+  const innerTop = chartTop + margin.top + 5; // shift down by 5px
 
   // 5) Determine min/max for temperatureC (y) & time (x)
   //    Use d3-array's extent, but pass in "d => new Date(d.created_at)" for X,
@@ -180,8 +181,11 @@ export async function drawSimpleLineChartD3Style(
 
   sorted.forEach((d, i) => {
     if (d.temperature_c === null) return;
-    const px = innerLeft + xScale(new Date(d.created_at));
-    const py = innerTop + yScale(d.temperature_c);
+    // Clamp px and py to stay within the inner chart area
+    let px = innerLeft + xScale(new Date(d.created_at));
+    let py = innerTop + yScale(d.temperature_c);
+    px = Math.max(innerLeft, Math.min(innerLeft + innerWidth, px));
+    py = Math.max(innerTop, Math.min(innerTop + innerHeight, py));
 
     if (i === 0) {
       doc.moveTo(px, py);

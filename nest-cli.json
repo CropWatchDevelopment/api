@@ -7,7 +7,7 @@
     "assets": [
       {
         "include": "assets/**/*",
-        "outDir": "dist/src"
+        "outDir": "dist/assets"
       }
     ]
   }

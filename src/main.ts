@@ -1,6 +1,7 @@
 // Register module aliases
 import 'module-alias/register';
 import * as path from 'path';
+
 import moduleAlias from 'module-alias';
 
 // Set up module aliases
@@ -102,9 +103,28 @@ async function bootstrap() {
 bootstrap();
 
 function getSwaggerConfig(version: string) {
-  const config = new DocumentBuilder()
+  const buildInfoPath = path.join(process.cwd(), 'build-info.txt');
+  let buildInfo = '';
+  try {
+    buildInfo = fs.readFileSync(buildInfoPath, 'utf8').trim();
+  } catch (err) {
+    console.warn(`⚠️  Could not read build-info.txt: ${err.message}`);
+  }
+
+  const baseDescription =
+    'API documentation for CropWatch services, offering endpoints for authentication, data management, and monitoring capabilities.';
+  const fullDescription = [
+    baseDescription,
+    '',
+    '**Build Info**',
+    '```',
+    buildInfo,
+    '```'
+  ].join('\n');
+
+  return new DocumentBuilder()
     .setTitle('CropWatch API')
-    .setDescription('API documentation for CropWatch services, offering endpoints for authentication, data management, and monitoring capabilities.')
+    .setDescription(fullDescription)
     .setVersion(`v${version}`)
     .addServer('https://api.cropwatch.io', 'Production Server')
     .addServer('http://localhost:3000', 'Local Development Server')
@@ -114,5 +134,4 @@ function getSwaggerConfig(version: string) {
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'JWT')
     .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'x-api-key')
     .build();
-  return config;
 }
