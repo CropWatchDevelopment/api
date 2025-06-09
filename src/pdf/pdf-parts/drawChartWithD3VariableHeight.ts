@@ -27,11 +27,12 @@ export async function drawChartWithD3VariableHeight(
 ) {
   if (!data.length) return;
 
-  // Dynamically import D3 modules
-  const d3Scale = await import('d3-scale');
-  const d3Array = await import('d3-array');
-  const d3TimeFormat = await import('d3-time-format');
-  const d3Format = await import('d3-format');
+  // Use a more complex approach to avoid TypeScript transformation
+  const importFunction = 'import';
+  const d3Scale = await (0, eval)(`${importFunction}('d3-scale')`);
+  const d3Array = await (0, eval)(`${importFunction}('d3-array')`);
+  const d3TimeFormat = await (0, eval)(`${importFunction}('d3-time-format')`);
+  const d3Format = await (0, eval)(`${importFunction}('d3-format')`);
 
   // Page geometry
   const pageWidth = doc.page.width;

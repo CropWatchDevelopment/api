@@ -8,7 +8,7 @@
   "type": "commonjs",
   "scripts": {
     "prebuild": "node ./scripts/build-info.js",
-    "build": "nest build",
+    "build": "nest build && node ./scripts/fix-d3-imports.js",
     "vercel-build": "npm run build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

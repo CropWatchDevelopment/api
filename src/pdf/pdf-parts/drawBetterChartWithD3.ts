@@ -20,11 +20,12 @@ export async function drawSimpleLineChartD3Style(
   doc: PDFKit.PDFDocument,
   data: DataRecord[]
 ) {
-  // 1) Dynamically import only the pieces we need.
-  const d3Scale       = await import('d3-scale');
-  const d3Array       = await import('d3-array');
-  const d3TimeFormat  = await import('d3-time-format');
-  const d3Format      = await import('d3-format');
+  // Use a more complex approach to avoid TypeScript transformation
+  const importFunction = 'import';
+  const d3Scale = await (0, eval)(`${importFunction}('d3-scale')`);
+  const d3Array = await (0, eval)(`${importFunction}('d3-array')`);
+  const d3TimeFormat = await (0, eval)(`${importFunction}('d3-time-format')`);
+  const d3Format = await (0, eval)(`${importFunction}('d3-format')`);
 
   // 2) Destructure the actual functions from the dynamic imports
   //    for convenience:
