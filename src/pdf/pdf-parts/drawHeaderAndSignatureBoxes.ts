@@ -1,3 +1,4 @@
+import moment from 'moment';
 import { TableColorRange } from '../interfaces/TableColorRange';
 import { drawSignatureBoxes } from './drawSignatureBoxes';
 
@@ -220,11 +221,12 @@ function calculateStatsRows(data, tableColorRange) {
  * Format a Date as "YYYY-MM-DD HH:mm"
  */
 function formatDateForRange(date) {
-  const yyyy = date.getFullYear();
-  const MM = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  const hh = String(date.getHours()).padStart(2, '0');
-  const mm = String(date.getMinutes()).padStart(2, '0');
+  const dateToDisplay = moment(date).tz('Asia/Tokyo').toDate();
+  const yyyy = dateToDisplay.getFullYear();
+  const MM = String(dateToDisplay.getMonth() + 1).padStart(2, '0');
+  const dd = String(dateToDisplay.getDate()).padStart(2, '0');
+  const hh = String(dateToDisplay.getHours()).padStart(2, '0');
+  const mm = String(dateToDisplay.getMinutes()).padStart(2, '0');
   return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
 }
 
