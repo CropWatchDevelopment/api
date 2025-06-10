@@ -13,6 +13,7 @@ import { ApiBearerAuth, ApiOkResponse, ApiProduces, ApiQuery, ApiSecurity, ApiTa
 import { Response } from 'express';
 import { PdfService } from './pdf.service';
 import { SupabaseAuthGuard } from 'src/auth/guards/supabase.guard';
+import moment from 'moment';
 
 @ApiBearerAuth('JWT')
 @ApiSecurity('x-api-key', ['x-api-key'])
@@ -63,8 +64,8 @@ export class PdfController {
     @Query('endDate') endDate: string,
   ): Promise<void> {
     // Convert string inputs to dates
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = moment(startDate).tz('Asia/Tokyo').toDate();
+    const end = moment(endDate).tz('Asia/Tokyo').toDate();
 
     // Adjust to start-of-day and end-of-day
     start.setHours(0, 0, 0, 0);
