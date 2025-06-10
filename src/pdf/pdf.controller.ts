@@ -64,12 +64,8 @@ export class PdfController {
     @Query('endDate') endDate: string,
   ): Promise<void> {
     // Convert string inputs to dates
-    const start = moment(startDate).tz('Asia/Tokyo').toDate();
-    const end = moment(endDate).tz('Asia/Tokyo').toDate();
-
-    // Adjust to start-of-day and end-of-day
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
+    const start = moment(startDate).tz('Asia/Tokyo').startOf('day').toDate();
+    const end = moment(endDate).tz('Asia/Tokyo').endOf('day').toDate();
 
     // Validate that start is not after end
     if (start > end) {
