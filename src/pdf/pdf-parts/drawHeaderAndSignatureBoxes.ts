@@ -221,13 +221,8 @@ function calculateStatsRows(data, tableColorRange) {
  * Format a Date as "YYYY-MM-DD HH:mm"
  */
 function formatDateForRange(date) {
-  const dateToDisplay = moment(date).tz('Asia/Tokyo').toDate();
-  const yyyy = dateToDisplay.getFullYear();
-  const MM = String(dateToDisplay.getMonth() + 1).padStart(2, '0');
-  const dd = String(dateToDisplay.getDate()).padStart(2, '0');
-  const hh = String(dateToDisplay.getHours()).padStart(2, '0');
-  const mm = String(dateToDisplay.getMinutes()).padStart(2, '0');
-  return `${yyyy}-${MM}-${dd} ${hh}:${mm}`;
+  const dateToDisplay = moment(date).tz('Asia/Tokyo').format('YYYY-MM-DD HH:mm').toString();
+  return dateToDisplay;
 }
 
 /**
