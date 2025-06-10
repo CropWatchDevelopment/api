@@ -221,7 +221,7 @@ function calculateStatsRows(data, tableColorRange) {
  * Format a Date as "YYYY-MM-DD HH:mm"
  */
 function formatDateForRange(date) {
-  const dateToDisplay = moment(date).tz('Asia/Tokyo').format('YYYY-MM-DD HH:mm').toString();
+  const dateToDisplay = moment(moment(date).tz('Asia/Tokyo').toDate()).format('YYYY-MM-DD HH:mm').toString();
   return dateToDisplay;
 }
 
