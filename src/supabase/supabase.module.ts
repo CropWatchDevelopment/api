@@ -11,10 +11,10 @@ import { SupabaseService } from './supabase.service';
       provide: SUPABASE_CLIENT,
       inject: [ConfigService],
       useFactory: (configService: ConfigService): SupabaseClient => {
-        const url = configService.get<string>('SUPABASE_URL');
-        const anonKey = configService.get<string>('SUPABASE_ANON_KEY');
+        const url = configService.get<string>('PRIVATE_SUPABASE_URL');
+        const anonKey = configService.get<string>('PRIVATE_SUPABASE_ANON_KEY');
         if (!url || !anonKey) {
-          throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY are required');
+          throw new Error('PRIVATE_SUPABASE_URL and PRIVATE_SUPABASE_ANON_KEY are required');
         }
         return createClient(url, anonKey, {
           auth: { autoRefreshToken: false, persistSession: false },
@@ -25,9 +25,9 @@ import { SupabaseService } from './supabase.service';
       provide: SUPABASE_ADMIN_CLIENT,
       inject: [ConfigService],
       useFactory: (configService: ConfigService): SupabaseClient | null => {
-        const url = configService.get<string>('SUPABASE_URL');
+        const url = configService.get<string>('PRIVATE_SUPABASE_URL');
         const serviceRoleKey = configService.get<string>(
-          'SUPABASE_SERVICE_ROLE_KEY',
+          'PRIVATE_SUPABASE_SERVICE_ROLE_KEY',
         );
         if (!url || !serviceRoleKey) {
           return null;

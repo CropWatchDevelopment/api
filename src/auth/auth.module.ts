@@ -17,7 +17,7 @@ import { SupabaseModule } from '../supabase/supabase.module';
             useFactory: (configService: ConfigService) => {
               return {
                 global: true,
-                secret: configService.get<string>('JWT_SECRET'),
+                secret: configService.get<string>('PRIVATE_SUPABASE_JWT_SECRET'),
                 signOptions: { expiresIn: 40000 },
               }
             },
