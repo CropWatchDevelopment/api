@@ -1,8 +1,10 @@
 import { BadRequestException, Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { AirService } from './air.service';
+import { AirDataDto } from './dto/air-data.dto';
 import { CreateAirDto } from './dto/create-air.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
-import { ApiBearerAuth, ApiParam, ApiQuery, ApiSecurity } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiInternalServerErrorResponse, ApiOkResponse, ApiParam, ApiQuery, ApiSecurity, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @Controller('air')
 @ApiBearerAuth('bearerAuth')
@@ -22,6 +24,22 @@ export class AirController {
 
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ description: 'Air data returned successfully.', type: AirDataDto, isArray: true })
+  @ApiBadRequestResponse({
+    description: 'Invalid dev_eui, start/end, or timezone.',
+    type: ErrorResponseDto,
+    example: { statusCode: 400, error: 'Bad Request', message: 'Validation failed' },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+    example: { statusCode: 401, error: 'Unauthorized', message: 'Unauthorized' },
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to fetch air data.',
+    type: ErrorResponseDto,
+    example: { statusCode: 500, error: 'Internal Server Error', message: 'Failed to fetch air data' },
+  })
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiQuery({
     name: 'start',

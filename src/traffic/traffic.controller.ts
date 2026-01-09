@@ -1,9 +1,11 @@
 import { BadRequestException, Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { TrafficService } from './traffic.service';
+import { TrafficDataDto } from './dto/traffic-data.dto';
 import type { CreateTrafficDto } from './dto/create-traffic.dto';
 import type { UpdateTrafficDto } from './dto/update-traffic.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
-import { ApiBearerAuth, ApiParam, ApiQuery, ApiSecurity } from '@nestjs/swagger';
+import { ApiBadRequestResponse, ApiBearerAuth, ApiInternalServerErrorResponse, ApiOkResponse, ApiParam, ApiQuery, ApiSecurity, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @Controller('traffic')
 @ApiBearerAuth('bearerAuth')
@@ -18,6 +20,22 @@ export class TrafficController {
 
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ description: 'Traffic data returned successfully.', type: TrafficDataDto, isArray: true })
+  @ApiBadRequestResponse({
+    description: 'Invalid dev_eui, start/end, or timezone.',
+    type: ErrorResponseDto,
+    example: { statusCode: 400, error: 'Bad Request', message: 'Validation failed' },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+    example: { statusCode: 401, error: 'Unauthorized', message: 'Unauthorized' },
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to fetch traffic data.',
+    type: ErrorResponseDto,
+    example: { statusCode: 500, error: 'Internal Server Error', message: 'Failed to fetch traffic data' },
+  })
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiQuery({
     name: 'start',
