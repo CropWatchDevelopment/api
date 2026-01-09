@@ -1,0 +1,27 @@
+/* Hide Swagger logo and replace with branded header */
+.swagger-ui .topbar .topbar-wrapper img {
+  display: none;
+}
+
+.swagger-ui .topbar .topbar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.swagger-ui .topbar .topbar-wrapper::before {
+  content: "CROPWATCH - DEVELOPMENT";
+  color: #0f4c81;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.swagger-ui .topbar .topbar-wrapper::after {
+  content: "";
+  width: 22px;
+  height: 22px;
+  background: url("/favicon.svg") no-repeat center / contain;
+  display: inline-block;
+}
