@@ -10,6 +10,11 @@ async function bootstrap() {
     .setDescription('API documentation for CropWatch application')
     .setVersion('23.8.1')
     .addTag('CropWatch API')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'bearerAuth',
+    )
+    .addApiKey({ type: 'apiKey', in: 'header', name: 'x-api-key' }, 'apiKey')
     .setLicense('Terms of Use', 'https://CropWatch.io/legal/terms-of-use')
     .setContact('CropWatch Support', 'https://CropWatch.io/support', 'support@cropwatch.io')
     .setBasePath('v23')

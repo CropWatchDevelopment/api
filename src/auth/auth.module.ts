@@ -4,6 +4,7 @@ import { PassportModule } from '@nestjs/passport'
 import { JwtModule } from '@nestjs/jwt';
 import { JwtAuthGuard } from './guards/jwt.auth.guard';
 import { SupabaseStrategy } from './strategies/supabase.strategy';
+import { AuthController } from './auth.controller';
 
 @Module({
     imports: [
@@ -21,6 +22,7 @@ import { SupabaseStrategy } from './strategies/supabase.strategy';
           }),
     ],
     providers: [JwtAuthGuard, SupabaseStrategy],
-    exports: [JwtAuthGuard, JwtModule]
+    exports: [JwtAuthGuard, JwtModule],
+    controllers: [AuthController]
 })
 export class AuthModule {}
