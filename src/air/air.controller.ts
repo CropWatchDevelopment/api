@@ -1,10 +1,12 @@
 import { BadRequestException, Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
 import { AirService } from './air.service';
 import { CreateAirDto } from './dto/create-air.dto';
-import { UpdateAirDto } from './dto/update-air.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
+import { ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
 
 @Controller('air')
+@ApiBearerAuth('bearerAuth')
+@ApiSecurity('apiKey')
 export class AirController {
   constructor(private readonly airService: AirService) {}
 
