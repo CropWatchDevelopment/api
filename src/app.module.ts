@@ -11,6 +11,8 @@ import { TrafficModule } from './traffic/traffic.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -25,8 +27,19 @@ import { join } from 'path';
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'static'),
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 2000,
+        limit: 2,
+        blockDuration: 5000,
+      }
+    ]),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule { }
