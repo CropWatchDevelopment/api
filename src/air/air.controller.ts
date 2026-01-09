@@ -2,7 +2,7 @@ import { BadRequestException, Controller, Get, Post, Body, Patch, Param, Delete,
 import { AirService } from './air.service';
 import { CreateAirDto } from './dto/create-air.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
-import { ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiParam, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 
 @Controller('air')
 @ApiBearerAuth('bearerAuth')
@@ -22,6 +22,28 @@ export class AirController {
 
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiQuery({
+    name: 'start',
+    required: false,
+    description: 'ISO 8601 date/time. Defaults to 24 hours before end/now.',
+    schema: { type: 'string', default: 'now-24h' },
+    example: '2024-01-01T00:00:00Z',
+  })
+  @ApiQuery({
+    name: 'end',
+    required: false,
+    description: 'ISO 8601 date/time. Defaults to now.',
+    schema: { type: 'string', default: 'now' },
+    example: '2024-01-02T00:00:00Z',
+  })
+  @ApiQuery({
+    name: 'timezone',
+    required: false,
+    description: 'IANA timezone (e.g., America/Chicago). Defaults to UTC.',
+    schema: { type: 'string', default: 'UTC' },
+    example: 'UTC',
+  })
   findOne(
     @Param('dev_eui') devEui: string,
     @Query('start') start?: string,

@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
+import { SupabaseModule } from '../supabase/supabase.module';
 import { WaterService } from './water.service';
 import { WaterController } from './water.controller';
 
 @Module({
+  imports: [SupabaseModule],
   controllers: [WaterController],
   providers: [WaterService],
 })
