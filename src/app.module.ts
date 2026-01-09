@@ -9,7 +9,6 @@ import { WaterModule } from './water/water.module';
 import { PowerModule } from './power/power.module';
 import { TrafficModule } from './traffic/traffic.module';
 import { RealtimeModule } from './realtime/realtime.module';
-import { MetaModule } from './meta/meta.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
@@ -23,7 +22,6 @@ import { join } from 'path';
     PowerModule,
     TrafficModule,
     RealtimeModule,
-    MetaModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'static'),
     }),
