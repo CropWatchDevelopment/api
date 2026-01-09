@@ -11,7 +11,7 @@
 
 .swagger-ui .topbar .topbar-wrapper::before {
   content: "CROPWATCH - DEVELOPMENT";
-  color: #0f4c81;
+  color: white;
   font-weight: 700;
   letter-spacing: 0.08em;
   font-size: 14px;
@@ -24,4 +24,8 @@
   height: 22px;
   background: url("/favicon.svg") no-repeat center / contain;
   display: inline-block;
+}
+
+.swagger-ui .topbar .topbar-wrapper .link:first-of-type {
+  display: none;
 }
