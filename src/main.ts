@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
-import { getAbsoluteFSPath } from 'swagger-ui-dist';
+import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -24,7 +24,9 @@ async function bootstrap() {
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, documentFactory, {
     customSiteTitle: 'API Docs',
-    customSwaggerUiPath: getAbsoluteFSPath(),
+    customSwaggerUiPath: join(process.cwd(), 'static', 'docs'),
+    customCssUrl: '/cw-swagger.css',
+    customfavIcon: '/favico.svg',
   });
   app.use(helmet());
   await app.listen(process.env.PORT ?? 3000);
