@@ -26,15 +26,15 @@ export class AirController {
   @ApiQuery({
     name: 'start',
     required: false,
-    description: 'ISO 8601 date/time. Defaults to 24 hours before end/now.',
-    schema: { type: 'string', default: 'now-24h' },
+    description: 'ISO 8601 date/time. Defaults to now.',
+    schema: { type: 'string', default: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() }, // SHOULD be the date in ISO 8601, minus 24 hours
     example: '2024-01-01T00:00:00Z',
   })
   @ApiQuery({
     name: 'end',
     required: false,
     description: 'ISO 8601 date/time. Defaults to now.',
-    schema: { type: 'string', default: 'now' },
+    schema: { type: 'string', default: new Date().toISOString() }, // SHOULD be NOW in ISO 8601
     example: '2024-01-02T00:00:00Z',
   })
   @ApiQuery({
