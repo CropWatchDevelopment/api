@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import helmet from 'helmet';
+import { getAbsoluteFSPath } from 'swagger-ui-dist';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,19 +22,9 @@ async function bootstrap() {
     .setBasePath('v23')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup("docs", app, documentFactory, {
-    customSiteTitle: "API Docs",
-    // load JS from CDN
-    customJs: [
-      "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.19.0/swagger-ui-bundle.min.js",
-      "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.19.0/swagger-ui-standalone-preset.min.js",
-    ],
-    // load CSS from CDN
-    customCssUrl: [
-      "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.19.0/swagger-ui.min.css",
-      "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.19.0/swagger-ui-standalone-preset.min.css",
-      "https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.19.0/swagger-ui.css",
-    ],
+  SwaggerModule.setup('docs', app, documentFactory, {
+    customSiteTitle: 'API Docs',
+    customSwaggerUiPath: getAbsoluteFSPath(),
   });
   app.use(helmet());
   await app.listen(process.env.PORT ?? 3000);
