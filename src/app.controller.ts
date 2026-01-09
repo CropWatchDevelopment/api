@@ -1,23 +1,23 @@
-import { Controller, Get, UseInterceptors } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
-import { Throttle } from '@nestjs/throttler';
-import { Public } from './auth/public.decorator';
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import { AppService } from './app.service';
+import { JwtAuthGuard } from './auth/guards/jwt.auth.guard';
 
-// @ApiBearerAuth('authorization')
-// @UseInterceptors(CacheInterceptor)
-// @CacheTTL(20)
-@ApiTags('app')
 @Controller()
 export class AppController {
-  constructor() {}
+  constructor(private readonly appService: AppService) {}
 
-  // @UseInterceptors(CacheInterceptor)
-  @Public()
-  @Get('/')
-  @Throttle({ default: { limit: 1, ttl: 6000 } })
-  async getHello() {
-    console.log('Hello World!');
-    return 'Hello World!';
+  // @Get()
+  // getHello(): string {
+  //   return this.appService.getHello();
+  // }
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  async protected(@Req() req) {
+    console.log(req)
+    return {
+      "message": "AuthGuard works 🎉",
+      "authenticated_user": req.user
+    };
   }
 }
