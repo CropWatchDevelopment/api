@@ -31,17 +31,17 @@ export class AppController {
       },
     },
   })
-  getHello(): { endpoints: Array<{ method: string; path: string }> } {
-    const httpAdapter = this.httpAdapterHost.httpAdapter;
-    const instance = httpAdapter?.getInstance?.();
-    const stack =
-      instance?._router?.stack ??
-      instance?.router?.stack ??
-      instance?.stack ??
-      [];
-    const endpoints = this.extractEndpoints(stack);
+  getHello(): string {// { endpoints: Array<{ method: string; path: string }> } {
+    // const httpAdapter = this.httpAdapterHost.httpAdapter;
+    // const instance = httpAdapter?.getInstance?.();
+    // const stack =
+    //   instance?._router?.stack ??
+    //   instance?.router?.stack ??
+    //   instance?.stack ??
+    //   [];
+    // const endpoints = this.extractEndpoints(stack);
 
-    return { endpoints };
+    return "Its dangerous to go alone! Take this... API documentation at /docs";
   }
 
   private extractEndpoints(
