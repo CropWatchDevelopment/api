@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CropWatch API | Industrial-Grade Monitoring</title>
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Space+Grotesk:wght@500;600&display=swap"
+        rel="stylesheet" />
+
+    <style>
+        :root {
+            --cw-blue-700: #0c2d48;
+            --cw-blue-900: #0b1f34;
+            --cw-blue-950: #071325;
+            --cw-gold-500: #f5a623;
+            --cw-gold-400: #ffcf74;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-slate-50 text-slate-900 [font-family:Manrope,system-ui,-apple-system,sans-serif]">
+    <header class="sticky top-0 z-50 border-b border-white/10 bg-[rgba(11,31,52,0.92)] backdrop-blur">
+        <div
+            class="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <a class="flex items-center gap-3 text-white no-underline sm:min-w-[240px]" href="#top"
+                aria-label="CropWatch API home">
+                <div
+                    class="grid h-11 w-11 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-sky-400 to-sky-700 shadow-[0_12px_30px_rgba(12,45,72,0.45)]">
+                    <img class="h-10 w-10" src="/favicon.svg" alt="CropWatch Logo"
+                        onerror="this.onerror=null; this.src='/favicon.ico';" />
+                </div>
+                <div>
+                    <div class="text-base font-extrabold tracking-wide leading-none">CropWatch API</div>
+                    <div class="text-sm text-white/70">Industrial IoT telemetry for harsh sites</div>
+                </div>
+            </a>
+
+            <nav aria-label="Primary" class="flex flex-wrap items-center gap-1">
+                <a class="nav-link rounded-lg px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white aria-[current=page]:bg-sky-400/10 aria-[current=page]:text-white aria-[current=page]:ring-1 aria-[current=page]:ring-sky-300/30"
+                    href="#overview">Overview</a>
+                <a class="nav-link rounded-lg px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white aria-[current=page]:bg-sky-400/10 aria-[current=page]:text-white aria-[current=page]:ring-1 aria-[current=page]:ring-sky-300/30"
+                    href="#auth">Auth</a>
+                <a class="nav-link rounded-lg px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white aria-[current=page]:bg-sky-400/10 aria-[current=page]:text-white aria-[current=page]:ring-1 aria-[current=page]:ring-sky-300/30"
+                    href="#endpoints">Endpoints</a>
+                <a class="nav-link rounded-lg px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white aria-[current=page]:bg-sky-400/10 aria-[current=page]:text-white aria-[current=page]:ring-1 aria-[current=page]:ring-sky-300/30"
+                    href="#examples">Usage</a>
+            </nav>
+
+            <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+                <a class="inline-flex items-center justify-center w-full rounded-full bg-[var(--cw-gold-500)] px-4 py-2 text-sm font-extrabold text-[var(--cw-blue-950)] transition hover:bg-[var(--cw-gold-400)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cw-gold-400)] focus-visible:ring-offset-2 focus-visible:ring-offset-[rgba(11,31,52,0.92)]"
+                    href="/docs">Open Interactive Docs</a>
+            </div>
+        </div>
+    </header>
+
+    <main id="top">
+        <section
+            class="bg-[radial-gradient(circle_at_20%_20%,rgba(76,195,255,0.10),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(245,166,35,0.10),transparent_30%),linear-gradient(135deg,var(--cw-blue-900),var(--cw-blue-700))] text-white">
+            <div class="mx-auto grid w-full max-w-6xl items-center gap-8 px-4 py-12 lg:grid-cols-2">
+                <div>
+                    <div
+                        class="inline-flex items-center gap-2 rounded-full bg-[rgba(245,166,35,0.12)] px-3 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-[#ffd48a]">
+                        Industrial-Ready IoT</div>
+                    <h1 class="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl">Verify Everything. Stream
+                        Everywhere.</h1>
+                    <p class="mt-4 max-w-2xl text-base leading-relaxed text-white/75">
+                        Securely collect air, soil, water, power, traffic, and realtime sensor data with a single API.
+                        Built
+                        on dual-sensor resilience, LoRaWAN connectivity, and enterprise-grade authentication, CropWatch
+                        keeps critical environments observable from freezer lines to open fields.
+                    </p>
+
+                    <div class="mt-6 flex flex-wrap gap-3">
+                        <a class="inline-flex items-center justify-center rounded-xl bg-[var(--cw-gold-500)] px-5 py-3 text-sm font-extrabold text-[var(--cw-blue-950)] shadow-[0_14px_35px_rgba(245,166,35,0.32)] transition hover:bg-[var(--cw-gold-400)]"
+                            href="/docs">Open interactive docs</a>
+                        <a class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-extrabold text-white/95 transition hover:bg-white/15"
+                            href="#examples">See a quick call</a>
+                    </div>
+
+                    <div class="mt-6 flex flex-wrap gap-2">
+                        <div
+                            class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white/90">
+                            JWT + API Key dual control</div>
+                        <div
+                            class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white/90">
+                            Rate limited &amp; helmet-secured</div>
+                        <div
+                            class="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-white/90">
+                            Built with NestJS 11</div>
+                    </div>
+                </div>
+
+                <div
+                    class="rounded-2xl border border-white/10 bg-[radial-gradient(circle_at_30%_30%,rgba(76,195,255,0.20),transparent_60%),linear-gradient(145deg,rgba(17,44,70,0.95),rgba(7,19,37,0.96))] p-6 shadow-[0_24px_60px_rgba(6,15,27,0.45)]">
+                    <div
+                        class="inline-flex items-center gap-2 rounded-full bg-[rgba(245,166,35,0.12)] px-3 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-[#ffd48a]">
+                        Developer quickstart</div>
+
+                    <p class="mt-4 text-sm leading-relaxed text-white/75">Base URL and headers you’ll use on every call.
+                    </p>
+
+                    <div class="mt-4 grid gap-3">
+                        <div
+                            class="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 [font-family:Space\ Grotesk,ui-monospace,monospace] text-sm text-white">
+                            <span id="baseUrl">https://your-api-host</span>
+                            <button
+                                class="copy-btn shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-white/20"
+                                data-copy="#baseUrl">Copy</button>
+                        </div>
+                        <div
+                            class="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 [font-family:Space\ Grotesk,ui-monospace,monospace] text-sm text-white">
+                            <span>Authorization: Bearer &lt;jwt&gt;</span>
+                            <button
+                                class="copy-btn shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-white/20"
+                                data-copy-text="Authorization: Bearer <jwt>">Copy</button>
+                        </div>
+                        <div
+                            class="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-3 [font-family:Space\ Grotesk,ui-monospace,monospace] text-sm text-white">
+                            <span>x-api-key: &lt;api-key&gt;</span>
+                            <button
+                                class="copy-btn shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-xs font-extrabold text-white transition hover:bg-white/20"
+                                data-copy-text="x-api-key: <api-key>">Copy</button>
+                        </div>
+                        <div class="text-sm text-white/70">Rate limit: 2 requests / 2 seconds (5s block).</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="mx-auto w-full max-w-6xl space-y-8 px-4 py-10">
+            <section id="overview"
+                class="scroll-mt-24 rounded-2xl border border-slate-900/10 bg-white p-6 shadow-[0_16px_40px_rgba(7,18,33,0.12)]">
+                <div class="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-700/60">Platform</div>
+                <h2 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">What the CropWatch API delivers
+                </h2>
+                <div class="mt-5 grid gap-4 md:grid-cols-2">
+                    <div
+                        class="rounded-xl border border-white/10 bg-[rgba(17,44,70,0.95)] p-5 shadow-[0_14px_40px_rgba(7,18,33,0.35)]">
+                        <h3 class="text-lg font-semibold text-slate-100">Unified sensor streams</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-slate-200/80">One schema for air, soil, water,
+                            power, and traffic telemetry. Query by device dev_eui with precise time windows and optional
+                            IANA timezone alignment.</p>
+                    </div>
+                    <div
+                        class="rounded-xl border border-white/10 bg-[rgba(17,44,70,0.95)] p-5 shadow-[0_14px_40px_rgba(7,18,33,0.35)]">
+                        <h3 class="text-lg font-semibold text-slate-100">Defense-in-depth</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-slate-200/80">Bearer JWT for identity + header-based
+                            API key for workload gating. Helmet middleware and rate limits (2 req / 2s, 5s block) resist
+                            spikes and abuse.</p>
+                    </div>
+                    <div
+                        class="rounded-xl border border-white/10 bg-[rgba(17,44,70,0.95)] p-5 shadow-[0_14px_40px_rgba(7,18,33,0.35)]">
+                        <h3 class="text-lg font-semibold text-slate-100">Documentation ready</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-slate-200/80">Interactive Swagger UI at /docs ships
+                            with live schemas, sample responses, and tagged operations for every module.</p>
+                    </div>
+                    <div
+                        class="rounded-xl border border-white/10 bg-[rgba(17,44,70,0.95)] p-5 shadow-[0_14px_40px_rgba(7,18,33,0.35)]">
+                        <h3 class="text-lg font-semibold text-slate-100">Static assets on edge</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-slate-200/80">Prebuilt static artifacts and swagger
+                            theme are served directly from the API, keeping onboarding close to the data plane.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="auth"
+                class="scroll-mt-24 rounded-2xl border border-slate-900/10 bg-white p-6 shadow-[0_16px_40px_rgba(7,18,33,0.12)]">
+                <div class="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-700/60">Security</div>
+                <h2 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">Authentication &amp; access</h2>
+                <div class="mt-5 grid gap-4 md:grid-cols-3">
+                    <div
+                        class="rounded-xl border border-white/10 bg-[rgba(17,44,70,0.95)] p-5 shadow-[0_14px_40px_rgba(7,18,33,0.35)]">
+                        <h3 class="text-lg font-semibold text-slate-100">Dual credentials</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-slate-200/80">Every call supplies a Bearer token in
+                            Authorization and an x-api-key header. Tokens are validated by JwtAuthGuard and requests
+                            without both are rejected.</p>
+                    </div>
+                    <div
+                        class="rounded-xl border border-white/10 bg-[rgba(17,44,70,0.95)] p-5 shadow-[0_14px_40px_rgba(7,18,33,0.35)]">
+                        <h3 class="text-lg font-semibold text-slate-100">Rate limits</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-slate-200/80">ThrottlerGuard enforces 2 requests per
+                            2 seconds (5s block). Design batch jobs to respect this cadence or space retries with
+                            jitter.</p>
+                    </div>
+                    <div
+                        class="rounded-xl border border-white/10 bg-[rgba(17,44,70,0.95)] p-5 shadow-[0_14px_40px_rgba(7,18,33,0.35)]">
+                        <h3 class="text-lg font-semibold text-slate-100">Transport</h3>
+                        <p class="mt-2 text-sm leading-relaxed text-slate-200/80">Serve over TLS in production. Add the
+                            JWT and api key per request; avoid embedding keys in client-side apps.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="endpoints"
+                class="scroll-mt-24 rounded-2xl border border-slate-900/10 bg-white p-6 shadow-[0_16px_40px_rgba(7,18,33,0.12)]">
+                <div class="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-700/60">Coverage</div>
+                <h2 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">Core endpoints</h2>
+                <div class="mt-5 grid gap-3 md:grid-cols-2">
+                    <div class="endpoint rounded-xl border border-white/10 bg-[rgba(12,31,52,0.90)] p-4">
+                        <div
+                            class="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-sm font-extrabold text-white">
+                            GET</div>
+                        <div class="mt-3">
+                            <code
+                                class="inline-block rounded-lg bg-white/10 px-2 py-1 [font-family:Space\ Grotesk,ui-monospace,monospace] text-xs tracking-wide text-white">/air/{dev_eui}?start&amp;end&amp;timezone</code>
+                        </div>
+                        <p class="mt-2 text-sm leading-relaxed text-white/75">Returns air telemetry for a device.
+                            Defaults to the last 24h ending now. start/end expect ISO 8601.</p>
+                    </div>
+                    <div class="endpoint rounded-xl border border-white/10 bg-[rgba(12,31,52,0.90)] p-4">
+                        <div
+                            class="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-sm font-extrabold text-white">
+                            GET</div>
+                        <div class="mt-3">
+                            <code
+                                class="inline-block rounded-lg bg-white/10 px-2 py-1 [font-family:Space\ Grotesk,ui-monospace,monospace] text-xs tracking-wide text-white">/soil/{dev_eui}?start&amp;end&amp;timezone</code>
+                        </div>
+                        <p class="mt-2 text-sm leading-relaxed text-white/75">Pull soil moisture/temperature readings
+                            with optional timezone shift for reporting.</p>
+                    </div>
+                    <div class="endpoint rounded-xl border border-white/10 bg-[rgba(12,31,52,0.90)] p-4">
+                        <div
+                            class="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-sm font-extrabold text-white">
+                            GET</div>
+                        <div class="mt-3">
+                            <code
+                                class="inline-block rounded-lg bg-white/10 px-2 py-1 [font-family:Space\ Grotesk,ui-monospace,monospace] text-xs tracking-wide text-white">/water/{dev_eui}?start&amp;end&amp;timezone</code>
+                        </div>
+                        <p class="mt-2 text-sm leading-relaxed text-white/75">Fetch water quality/level metrics for a
+                            device across the selected window.</p>
+                    </div>
+                    <div class="endpoint rounded-xl border border-white/10 bg-[rgba(12,31,52,0.90)] p-4">
+                        <div
+                            class="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-sm font-extrabold text-white">
+                            GET</div>
+                        <div class="mt-3">
+                            <code
+                                class="inline-block rounded-lg bg-white/10 px-2 py-1 [font-family:Space\ Grotesk,ui-monospace,monospace] text-xs tracking-wide text-white">/power/{dev_eui}?start&amp;end&amp;timezone</code>
+                        </div>
+                        <p class="mt-2 text-sm leading-relaxed text-white/75">Retrieve power telemetry to validate
+                            uptime and load profiles.</p>
+                    </div>
+                    <div class="endpoint rounded-xl border border-white/10 bg-[rgba(12,31,52,0.90)] p-4">
+                        <div
+                            class="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-sm font-extrabold text-white">
+                            GET</div>
+                        <div class="mt-3">
+                            <code
+                                class="inline-block rounded-lg bg-white/10 px-2 py-1 [font-family:Space\ Grotesk,ui-monospace,monospace] text-xs tracking-wide text-white">/traffic/{dev_eui}?start&amp;end&amp;timezone</code>
+                        </div>
+                        <p class="mt-2 text-sm leading-relaxed text-white/75">Access traffic sensor counts and flow
+                            metrics for monitored corridors.</p>
+                    </div>
+                    <div class="endpoint rounded-xl border border-white/10 bg-[rgba(12,31,52,0.90)] p-4">
+                        <div
+                            class="inline-flex items-center rounded-lg bg-white/10 px-3 py-2 text-sm font-extrabold text-white">
+                            GET</div>
+                        <div class="mt-3">
+                            <code
+                                class="inline-block rounded-lg bg-white/10 px-2 py-1 [font-family:Space\ Grotesk,ui-monospace,monospace] text-xs tracking-wide text-white">/realtime/{dev_eui}?start&amp;end&amp;timezone</code>
+                        </div>
+                        <p class="mt-2 text-sm leading-relaxed text-white/75">Live-friendly endpoint for rapid polling
+                            or websockets via the realtime module.</p>
+                    </div>
+                </div>
+                <p class="mt-4 text-sm text-slate-900/70">Tip: all read endpoints accept ISO timestamps; when omitted,
+                    the API defaults to the previous 24 hours ending at now.</p>
+            </section>
+
+            <section id="examples"
+                class="scroll-mt-24 rounded-2xl border border-slate-900/10 bg-white p-6 shadow-[0_16px_40px_rgba(7,18,33,0.12)]">
+                <div class="text-xs font-extrabold uppercase tracking-[0.14em] text-slate-700/60">Usage</div>
+                <h2 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">Make your first call</h2>
+                <div class="mt-5 grid gap-4 md:grid-cols-3">
+                    <div
+                        class="rounded-xl border border-white/10 bg-[rgba(17,44,70,0.95)] p-5 shadow-[0_14px_40px_rgba(7,18,33,0.35)] md:col-span-2">
+                        <h3 class="text-lg font-semibold text-slate-100">cURL</h3>
+                        <p class="mt-2 text-sm text-slate-200/80">Replace placeholders with your credentials and device
+                            id.</p>
+                        <pre
+                            class="mt-4 overflow-x-auto rounded-xl border border-white/10 bg-[var(--cw-blue-950)] p-4 text-sm text-white"><code class="[font-family:Space\ Grotesk,ui-monospace,monospace]">curl -X GET \
+              "https://your-api-host/air/DEV_EUI?start=2025-01-01T00:00:00Z&end=2025-01-02T00:00:00Z" \
+              -H "Authorization: Bearer &lt;jwt&gt;" \
+              -H "x-api-key: &lt;api-key&gt;"
+            </code></pre>
+                        <p class="mt-3 text-sm text-slate-200/70">Expect an array of readings shaped per module DTOs
+                            (see /docs for schema).</p>
+                    </div>
+                    <div
+                        class="rounded-xl border border-white/10 bg-[rgba(17,44,70,0.95)] p-5 shadow-[0_14px_40px_rgba(7,18,33,0.35)]">
+                        <h3 class="text-lg font-semibold text-slate-100">Common parameters</h3>
+                        <ul class="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-200/80">
+                            <li><strong class="text-slate-100">start</strong>/<strong
+                                    class="text-slate-100">end</strong>: ISO 8601; defaults to the last 24h.</li>
+                            <li><strong class="text-slate-100">timezone</strong>: IANA zone (e.g., America/Chicago);
+                                defaults to UTC.</li>
+                            <li><strong class="text-slate-100">dev_eui</strong>: required device identifier for all
+                                telemetry endpoints.</li>
+                        </ul>
+                        <div class="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
+                            <h3 class="text-base font-extrabold text-slate-100">Explore interactively</h3>
+                            <p class="mt-2 text-sm text-slate-200/80">Visit <a
+                                    class="font-extrabold text-[#f2a516] hover:underline" href="/docs">/docs</a> to try
+                                operations, inspect schemas, and copy snippets.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer
+        class="relative overflow-hidden bg-gradient-to-b from-[var(--cw-blue-700)] via-[var(--cw-blue-900)] to-[var(--cw-blue-950)] text-white">
+        <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.12),_transparent_65%)] opacity-70"
+            aria-hidden="true"></div>
+        <div class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[var(--cw-gold-500)] to-transparent opacity-70"
+            aria-hidden="true"></div>
+
+        <div class="relative mx-auto w-full max-w-6xl px-4 py-16">
+            <div class="grid gap-12 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
+                <section class="space-y-4">
+                    <h2 class="text-lg font-semibold uppercase tracking-wide text-white/80">About CropWatch</h2>
+                    <p class="text-sm leading-relaxed text-white/80">Delivering Quality &amp; ROI since 2019. Trusted by
+                        leading manufacturers and hospitality, cold-chain, and enterprise operations worldwide.</p>
+                    <p class="text-sm leading-relaxed text-white/70">We pair ruggedized hardware with operations experts
+                        to ensure compliance-ready telemetry from day one.</p>
+                </section>
+
+                <nav aria-label="Social channels" class="space-y-3">
+                    <h3 class="text-sm font-semibold uppercase tracking-wide text-white/70">Social channels</h3>
+                    <ul class="space-y-2 text-sm text-white/75">
+                        <li><a class="transition hover:text-[#f2a516]" target="_blank" rel="noopener noreferrer"
+                                href="https://www.linkedin.com/company/cropwatch-system">LinkedIn</a></li>
+                        <li><a class="transition hover:text-[#f2a516]" target="_blank" rel="noopener noreferrer"
+                                href="https://www.youtube.com/@cropwatch4407">YouTube</a></li>
+                        <li><a class="transition hover:text-[#f2a516]" target="_blank" rel="noopener noreferrer"
+                                href="https://github.com/CropWatchDevelopment">GitHub</a></li>
+                    </ul>
+                </nav>
+
+                <nav aria-label="Products" class="space-y-3">
+                    <h3 class="text-sm font-semibold uppercase tracking-wide text-white/70">Products</h3>
+                    <ul class="space-y-2 text-sm text-white/75">
+                        <li><a class="transition hover:text-[#f2a516]" href="/products/cw-air-th">CW-AIR-TH</a></li>
+                        <li><a class="transition hover:text-[#f2a516]" href="/products/gateways">Gateways</a></li>
+                        <li><a class="transition hover:text-[#f2a516]" href="/products/coming-soon">Replacement
+                                Sensors</a></li>
+                        <li><a class="transition hover:text-[#f2a516]" href="/docs">API</a></li>
+                    </ul>
+                </nav>
+
+                <nav aria-label="Connect" class="space-y-3">
+                    <h3 class="text-sm font-semibold uppercase tracking-wide text-white/70">Connect</h3>
+                    <ul class="space-y-2 text-sm text-white/75">
+                        <li><a class="transition hover:text-[#f2a516]" href="/contact">Contact Us</a></li>
+                        <li><a class="transition hover:text-[#f2a516]" href="/case-studies">Case Studies</a></li>
+                        <li><a class="transition hover:text-[#f2a516]" href="/faq">FAQ</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+        <div class="relative border-t border-white/10 bg-[var(--cw-blue-950)]">
+            <div
+                class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-6 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
+                <p>© 2026 CropWatch LLC. All rights reserved.</p>
+                <ul class="flex flex-wrap items-center gap-3">
+                    <li class="flex items-center gap-3"><a class="transition hover:text-[#f2a516]"
+                            href="/legal/privacy-policy">Privacy Policy</a></li>
+                    <li class="flex items-center gap-3"><span aria-hidden="true" class="text-white/40">|</span><a
+                            class="transition hover:text-[#f2a516]" href="/legal/terms-of-service">Terms of Service</a>
+                    </li>
+                    <li class="flex items-center gap-3"><span aria-hidden="true" class="text-white/40">|</span><a
+                            class="transition hover:text-[#f2a516]" href="/sitemap">Sitemap</a></li>
+                </ul>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</body>
+
+</html>

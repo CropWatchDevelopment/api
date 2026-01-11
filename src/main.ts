@@ -26,9 +26,19 @@ async function bootstrap() {
     customSiteTitle: 'API Docs',
     customSwaggerUiPath: join(process.cwd(), 'static', 'docs'),
     customCssUrl: '/cw-swagger.css',
-    customfavIcon: '/favico.svg',
+    customfavIcon: '/favicon.svg',
   });
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:'],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4'],
+      },
+    },
+  }));
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

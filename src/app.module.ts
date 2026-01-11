@@ -25,7 +25,7 @@ import { APP_GUARD } from '@nestjs/core';
     TrafficModule,
     RealtimeModule,
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'static'),
+      rootPath: join(process.cwd(), 'static'),
     }),
     ThrottlerModule.forRoot([
       {
