@@ -9,7 +9,7 @@ async function bootstrap() {
   app.enableCors();
 
   const config = new DocumentBuilder()
-    .setTitle('CropWatch API')
+    .setTitle('CropWatch RESTful API')
     .setDescription('API documentation for CropWatch application')
     .setVersion('23.8.1')
     .addTag('CropWatch API')
