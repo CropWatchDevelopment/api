@@ -23,10 +23,16 @@ export class TrafficDataDto {
   line_number: number | null;
 
   @ApiProperty()
+  motorcycle_count: number;
+
+  @ApiProperty()
   people_count: number;
 
   @ApiProperty({ nullable: true, required: false })
   traffic_hour: string | null;
+
+  @ApiProperty()
+  train_count: number;
 
   @ApiProperty()
   truck_count: number;
