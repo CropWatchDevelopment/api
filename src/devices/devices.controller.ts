@@ -22,7 +22,7 @@ export class DevicesController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  @ApiOkResponse({ description: "Current user's devices returned successfully.", type: DeviceDto, isArray: true })
+  @ApiOkResponse({ description: "Current all of the user's authenticated devices returned when run successfully.", type: DeviceDto, isArray: true })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid bearer token.',
     type: ErrorResponseDto,

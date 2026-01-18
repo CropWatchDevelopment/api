@@ -3,10 +3,11 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { TableRow } from '../types/supabase';
 import { CreateWaterDto } from './dto/create-water.dto';
 import { UpdateWaterDto } from './dto/update-water.dto';
+import { getTimeZoneName } from 'src/helpers/getTimeZoneName';
 
 @Injectable()
 export class WaterService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(private readonly supabaseService: SupabaseService) { }
 
   // create(createWaterDto: CreateWaterDto) {
   //   return 'This action adds a new water';
@@ -78,16 +79,9 @@ export class WaterService {
   }
 
   private getTimeZoneOffset(timeZone: string, date: Date): string {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone,
-      timeZoneName: 'shortOffset',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    }).formatToParts(date);
 
-    const tzName = parts.find((part) => part.type === 'timeZoneName')?.value ?? 'GMT';
+    const tzName = getTimeZoneName(timeZone, date);
+
     const match = tzName.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
     if (!match) {
       return 'Z';

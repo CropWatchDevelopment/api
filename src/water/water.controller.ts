@@ -41,20 +41,20 @@ export class WaterController {
     name: 'start',
     required: false,
     description: 'ISO 8601 date/time. Defaults to 24 hours before end/now.',
-    schema: { type: 'string', default: 'now-24h' },
+    schema: { type: 'string', default: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() },
     example: '2024-01-01T00:00:00Z',
   })
   @ApiQuery({
     name: 'end',
     required: false,
-    description: 'ISO 8601 date/time. Defaults to now.',
-    schema: { type: 'string', default: 'now' },
+    description: 'ISO 8601 date/time. Defaults to now (page loaded time).',
+    schema: { type: 'string', default: new Date().toISOString() },
     example: '2024-01-02T00:00:00Z',
   })
   @ApiQuery({
     name: 'timezone',
     required: false,
-    description: 'IANA timezone (e.g., America/Chicago). Defaults to UTC.',
+    description: 'IANA timezone (e.g., Asia/Tokyo). Defaults to UTC.',
     schema: { type: 'string', default: 'UTC' },
     example: 'UTC',
   })

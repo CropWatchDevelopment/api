@@ -1250,8 +1250,10 @@ export type Database = {
           dev_eui: string
           id: number
           line_number: number | null
+          motorcycle_count: number
           people_count: number
           traffic_hour: string | null
+          train_count: number
           truck_count: number
         }
         Insert: {
@@ -1262,8 +1264,10 @@ export type Database = {
           dev_eui: string
           id?: number
           line_number?: number | null
+          motorcycle_count?: number
           people_count?: number
           traffic_hour?: string | null
+          train_count?: number
           truck_count?: number
         }
         Update: {
@@ -1274,8 +1278,10 @@ export type Database = {
           dev_eui?: string
           id?: number
           line_number?: number | null
+          motorcycle_count?: number
           people_count?: number
           traffic_hour?: string | null
+          train_count?: number
           truck_count?: number
         }
         Relationships: [
@@ -1932,6 +1938,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cw_traffic_daily_totals: {
+        Args: { dev_eui: string; end_ts: string; start_ts: string; tz?: string }
+        Returns: {
+          total_bicycles: number
+          total_buses: number
+          total_cars: number
+          total_people: number
+          total_trucks: number
+          traffic_day: string
+        }[]
+      }
       delete_avatar: {
         Args: { avatar_url: string }
         Returns: Record<string, unknown>
