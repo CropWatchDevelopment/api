@@ -1,0 +1,8 @@
+# Ignore all auto-generated type files
+exclude_patterns = [
+    "**/database.types.ts",
+    "**/swagger-ui-bundle.js",
+    "**/swagger-ui-standalone-preset.js",
+    "**/swagger-ui-standalone-preset.js",
+    "**/database.types.ts"
+]
