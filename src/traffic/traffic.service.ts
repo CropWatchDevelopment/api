@@ -3,7 +3,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { TableRow } from '../types/supabase';
 import { CreateTrafficDto } from './dto/create-traffic.dto';
 import { UpdateTrafficDto } from './dto/update-traffic.dto';
-import { getTimeZoneName } from 'src/helpers/getTimeZoneName';
+import { getTimeZoneName } from './../helpers/getTimeZoneName';
 
 @Injectable()
 export class TrafficService {
@@ -73,7 +73,7 @@ export class TrafficService {
       return date.toISOString();
     }
 
-    const parts = new Intl.DateTimeFormat('en-CA', {
+    const parts = new Intl.DateTimeFormat('en-US', {
       timeZone,
       year: 'numeric',
       month: '2-digit',

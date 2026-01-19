@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { TableRow } from '../types/supabase';
-import { CreateWaterDto } from './dto/create-water.dto';
-import { UpdateWaterDto } from './dto/update-water.dto';
-import { getTimeZoneName } from 'src/helpers/getTimeZoneName';
+// import { CreateWaterDto } from './dto/create-water.dto';
+// import { UpdateWaterDto } from './dto/update-water.dto';
+import { getTimeZoneName } from './../helpers/getTimeZoneName';
 
 @Injectable()
 export class WaterService {
@@ -61,7 +61,7 @@ export class WaterService {
       return date.toISOString();
     }
 
-    const parts = new Intl.DateTimeFormat('en-CA', {
+    const parts = new Intl.DateTimeFormat('en-US', {
       timeZone,
       year: 'numeric',
       month: '2-digit',

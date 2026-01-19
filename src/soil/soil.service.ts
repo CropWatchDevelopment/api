@@ -3,7 +3,7 @@ import { SupabaseService } from '../supabase/supabase.service';
 import { TableRow } from '../types/supabase';
 import { CreateSoilDto } from './dto/create-soil.dto';
 import { UpdateSoilDto } from './dto/update-soil.dto';
-import { getTimeZoneName } from 'src/helpers/getTimeZoneName';
+import { getTimeZoneName } from './../helpers/getTimeZoneName';
 
 @Injectable()
 export class SoilService {
@@ -61,7 +61,7 @@ export class SoilService {
       return date.toISOString();
     }
 
-    const parts = new Intl.DateTimeFormat('en-CA', {
+    const parts = new Intl.DateTimeFormat('en-US', {
       timeZone,
       year: 'numeric',
       month: '2-digit',

@@ -1,9 +1,9 @@
 import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { TableRow } from '../types/supabase';
-import { CreateAirDto } from './dto/create-air.dto';
-import { UpdateAirDto } from './dto/update-air.dto';
-import { getTimeZoneName } from 'src/helpers/getTimeZoneName';
+// import { CreateAirDto } from './dto/create-air.dto';
+// import { UpdateAirDto } from './dto/update-air.dto';
+import { getTimeZoneName } from './../helpers/getTimeZoneName';
 
 @Injectable()
 export class AirService {
@@ -65,7 +65,7 @@ export class AirService {
       return date.toISOString();
     }
 
-    const parts = new Intl.DateTimeFormat('en-CA', {
+    const parts = new Intl.DateTimeFormat('en-US', {
       timeZone,
       year: 'numeric',
       month: '2-digit',
