@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Type } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { TimezoneFormatterService } from './timezone-formatter.service';
 
@@ -10,7 +11,7 @@ import { TimezoneFormatterService } from './timezone-formatter.service';
  */
 export async function createTestingModuleWithCommonProviders(
   additionalProviders: any[] = [],
-  controllers: any[] = [],
+  controllers: Type<any>[] = [],
 ): Promise<TestingModule> {
   const moduleConfig: any = {
     providers: [
