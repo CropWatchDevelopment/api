@@ -29,3 +29,8 @@
 .swagger-ui .topbar .topbar-wrapper .link:first-of-type {
   display: none;
 }
+
+.dark-mode-toggle {
+  position: absolute !important;
+  right: 30px;
+}
