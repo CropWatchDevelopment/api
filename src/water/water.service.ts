@@ -1,13 +1,16 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { TableRow } from '../types/supabase';
 // import { CreateWaterDto } from './dto/create-water.dto';
 // import { UpdateWaterDto } from './dto/update-water.dto';
-import { getTimeZoneName } from './../helpers/getTimeZoneName';
+import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 
 @Injectable()
 export class WaterService {
-  constructor(private readonly supabaseService: SupabaseService) { }
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly timezoneFormatter: TimezoneFormatterService,
+  ) { }
 
   // create(createWaterDto: CreateWaterDto) {
   //   return 'This action adds a new water';
@@ -21,7 +24,7 @@ export class WaterService {
   ): Promise<TableRow<'cw_water_data'>[]> {
     const normalizedTimeZone = timezone?.trim() || null;
     if (normalizedTimeZone) {
-      this.assertValidTimeZone(normalizedTimeZone);
+      this.timezoneFormatter.assertValidTimeZone(normalizedTimeZone);
     }
 
     const { data, error } = await this.supabaseService
@@ -39,62 +42,7 @@ export class WaterService {
 
     return (data ?? []).map((row) => ({
       ...row,
-      created_at: this.formatTimestamp(row.created_at, normalizedTimeZone),
+      created_at: this.timezoneFormatter.formatTimestamp(row.created_at, normalizedTimeZone),
     }));
-  }
-
-  private assertValidTimeZone(timeZone: string): void {
-    try {
-      new Intl.DateTimeFormat('en-US', { timeZone }).format(new Date());
-    } catch (error) {
-      throw new BadRequestException('timezone must be a valid IANA time zone');
-    }
-  }
-
-  private formatTimestamp(value: string, timeZone: string | null): string {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return value;
-    }
-
-    if (!timeZone) {
-      return date.toISOString();
-    }
-
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    }).formatToParts(date);
-
-    const byType = new Map(parts.map((part) => [part.type, part.value]));
-    const dateTime = `${byType.get('year')}-${byType.get('month')}-${byType.get('day')}T${byType.get('hour')}:${byType.get('minute')}:${byType.get('second')}`;
-
-    return `${dateTime}${this.getTimeZoneOffset(timeZone, date)}`;
-  }
-
-  private getTimeZoneOffset(timeZone: string, date: Date): string {
-
-    const tzName = getTimeZoneName(timeZone, date);
-
-    const match = tzName.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
-    if (!match) {
-      return 'Z';
-    }
-
-    const sign = match[1] === '-' ? '-' : '+';
-    const hours = match[2].padStart(2, '0');
-    const minutes = (match[3] ?? '00').padStart(2, '0');
-
-    if (hours === '00' && minutes === '00') {
-      return 'Z';
-    }
-
-    return `${sign}${hours}:${minutes}`;
   }
 }
