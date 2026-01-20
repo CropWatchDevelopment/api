@@ -12,9 +12,7 @@ import type { TableRow } from '../types/supabase';
 export class DevicesService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async findAll(
-    jwtPayload: any,
-  ): Promise<TableRow<'cw_devices'>[]> {
+  async findAll(jwtPayload: any): Promise<TableRow<'cw_devices'>[]> {
     const userId = this.getUserId(jwtPayload);
     const client = this.supabaseService.getClient();
 
@@ -41,7 +39,8 @@ export class DevicesService {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const client = this.supabaseService.getAdminClient() ?? this.supabaseService.getClient();
+    const client =
+      this.supabaseService.getAdminClient() ?? this.supabaseService.getClient();
     const { data, error } = await client
       .from('cw_devices')
       .select('*')

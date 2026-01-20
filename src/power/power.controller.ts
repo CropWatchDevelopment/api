@@ -1,5 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { ApiBadRequestResponse, ApiCreatedResponse, ApiInternalServerErrorResponse, ApiNotFoundResponse, ApiOkResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
+import {
+  ApiBadRequestResponse,
+  ApiCreatedResponse,
+  ApiInternalServerErrorResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+} from '@nestjs/swagger';
 import { PowerService } from './power.service';
 import type { CreatePowerDto } from './dto/create-power.dto';
 import type { UpdatePowerDto } from './dto/update-power.dto';
@@ -41,15 +55,22 @@ export class PowerController {
   @ApiNotFoundResponse({
     description: 'Power record not found.',
     type: ErrorResponseDto,
-    example: { statusCode: 404, error: 'Not Found', message: 'Power record not found' },
+    example: {
+      statusCode: 404,
+      error: 'Not Found',
+      message: 'Power record not found',
+    },
   })
   @ApiInternalServerErrorResponse({
     description: 'Failed to fetch power record.',
     type: ErrorResponseDto,
-    example: { statusCode: 500, error: 'Internal Server Error', message: 'Failed to fetch power record' },
+    example: {
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: 'Failed to fetch power record',
+    },
   })
   findOne(@Param('id') id: string) {
     return this.powerService.findOne(+id);
   }
-
 }

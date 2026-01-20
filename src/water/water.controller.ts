@@ -1,10 +1,30 @@
-import { BadRequestException, Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { WaterService } from './water.service';
 import { WaterDataDto } from './dto/water-data.dto';
 import type { CreateWaterDto } from './dto/create-water.dto';
 import type { UpdateWaterDto } from './dto/update-water.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiInternalServerErrorResponse, ApiOkResponse, ApiParam, ApiQuery, ApiSecurity, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiInternalServerErrorResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiSecurity,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @Controller('water')
@@ -20,28 +40,47 @@ export class WaterController {
 
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)
-  @ApiOkResponse({ description: 'Water data returned successfully.', type: WaterDataDto, isArray: true })
+  @ApiOkResponse({
+    description: 'Water data returned successfully.',
+    type: WaterDataDto,
+    isArray: true,
+  })
   @ApiBadRequestResponse({
     description: 'Invalid dev_eui, start/end, or timezone.',
     type: ErrorResponseDto,
-    example: { statusCode: 400, error: 'Bad Request', message: 'Validation failed' },
+    example: {
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'Validation failed',
+    },
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid bearer token.',
     type: ErrorResponseDto,
-    example: { statusCode: 401, error: 'Unauthorized', message: 'Unauthorized' },
+    example: {
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Unauthorized',
+    },
   })
   @ApiInternalServerErrorResponse({
     description: 'Failed to fetch water data.',
     type: ErrorResponseDto,
-    example: { statusCode: 500, error: 'Internal Server Error', message: 'Failed to fetch water data' },
+    example: {
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: 'Failed to fetch water data',
+    },
   })
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiQuery({
     name: 'start',
     required: false,
     description: 'ISO 8601 date/time. Defaults to 24 hours before end/now.',
-    schema: { type: 'string', default: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() },
+    schema: {
+      type: 'string',
+      default: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    },
     example: '2024-01-01T00:00:00Z',
   })
   @ApiQuery({
@@ -85,5 +124,4 @@ export class WaterController {
 
     return this.waterService.findOne(devEui, startDate, endDate, timezone);
   }
-
 }

@@ -4,9 +4,7 @@ import { UpdateRealtimeDto } from './dto/update-realtime.dto';
 
 @Injectable()
 export class RealtimeService {
-
   findOne(id: number) {
     return `This action returns a #${id} realtime`;
   }
-
 }

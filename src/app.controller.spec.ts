@@ -17,7 +17,9 @@ describe('AppController', () => {
     it('should serve the API homepage (index.html)', () => {
       const sendFile = jest.fn();
       appController.getHello({ sendFile } as any);
-      expect(sendFile).toHaveBeenCalledWith(join(process.cwd(), 'static', 'index.html'));
+      expect(sendFile).toHaveBeenCalledWith(
+        join(process.cwd(), 'static', 'index.html'),
+      );
     });
   });
 });

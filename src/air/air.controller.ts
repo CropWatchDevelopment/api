@@ -1,9 +1,29 @@
-import { BadRequestException, Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AirService } from './air.service';
 import { AirDataDto } from './dto/air-data.dto';
 import { CreateAirDto } from './dto/create-air.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
-import { ApiBadRequestResponse, ApiBearerAuth, ApiInternalServerErrorResponse, ApiOkResponse, ApiParam, ApiQuery, ApiSecurity, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiInternalServerErrorResponse,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiSecurity,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @Controller('air')
@@ -24,28 +44,47 @@ export class AirController {
 
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)
-  @ApiOkResponse({ description: 'Air data returned successfully.', type: AirDataDto, isArray: true })
+  @ApiOkResponse({
+    description: 'Air data returned successfully.',
+    type: AirDataDto,
+    isArray: true,
+  })
   @ApiBadRequestResponse({
     description: 'Invalid dev_eui, start/end, or timezone.',
     type: ErrorResponseDto,
-    example: { statusCode: 400, error: 'Bad Request', message: 'Validation failed' },
+    example: {
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'Validation failed',
+    },
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid bearer token.',
     type: ErrorResponseDto,
-    example: { statusCode: 401, error: 'Unauthorized', message: 'Unauthorized' },
+    example: {
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Unauthorized',
+    },
   })
   @ApiInternalServerErrorResponse({
     description: 'Failed to fetch air data.',
     type: ErrorResponseDto,
-    example: { statusCode: 500, error: 'Internal Server Error', message: 'Failed to fetch air data' },
+    example: {
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: 'Failed to fetch air data',
+    },
   })
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiQuery({
     name: 'start',
     required: false,
     description: 'ISO 8601 date/time. Defaults to now (page loaded time).',
-    schema: { type: 'string', default: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString() }, // SHOULD be the date in ISO 8601, minus 24 hours
+    schema: {
+      type: 'string',
+      default: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    }, // SHOULD be the date in ISO 8601, minus 24 hours
     example: '2024-01-01T00:00:00Z',
   })
   @ApiQuery({
@@ -89,5 +128,4 @@ export class AirController {
 
     return this.airService.findOne(devEui, startDate, endDate, timezone);
   }
-
 }
