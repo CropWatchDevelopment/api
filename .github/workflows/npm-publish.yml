@@ -39,7 +39,7 @@ jobs:
           files: coverage/lcov.info
 
       # Notify Vercel (commit status)
-      - name: Notify Vercel status (api: lint)
+      - name: "Notify Vercel status (api: lint)"
         uses: vercel/repository-dispatch/actions/status@v1
         with:
           name: "Vercel - api: lint"
