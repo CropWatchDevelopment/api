@@ -27,6 +27,15 @@
             background-color: #f1f1f1;
         }
 
+        /* Corporate multi-gradient tab background */
+        .tab.cw-tab--corporate {
+            border-color: rgba(148, 163, 184, 0.5);
+            background-image:
+                linear-gradient(135deg, rgba(248, 250, 252, 0.92), rgba(226, 232, 240, 0.9)),
+                linear-gradient(225deg, rgba(71, 85, 105, 0.18), rgba(30, 41, 59, 0.12)),
+                linear-gradient(90deg, rgba(148, 163, 184, 0.25), rgba(71, 85, 105, 0.15));
+        }
+
         /* Style the buttons inside the tab */
         .tab button {
             background-color: inherit;
@@ -56,6 +65,14 @@
             border: 1px solid #ccc;
             border-top: none;
         }
+
+        /* Corporate multi-gradient background for main section */
+        #top.cw-main--corporate {
+            background-image:
+                radial-gradient(circle at 20% 10%, rgba(148, 163, 184, 0.28), transparent 45%),
+                radial-gradient(circle at 80% 0%, rgba(100, 116, 139, 0.22), transparent 40%),
+                linear-gradient(135deg, rgba(241, 245, 249, 0.95), rgba(226, 232, 240, 0.95) 45%, rgba(203, 213, 225, 0.95));
+        }
     </style>
 </head>
 
@@ -81,8 +98,6 @@
                     href="#auth">Auth</a>
                 <a class="nav-link rounded-lg px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white aria-[current=page]:bg-sky-400/10 aria-[current=page]:text-white aria-[current=page]:ring-1 aria-[current=page]:ring-sky-300/30"
                     href="#endpoints">Endpoints</a>
-                <a class="nav-link rounded-lg px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white aria-[current=page]:bg-sky-400/10 aria-[current=page]:text-white aria-[current=page]:ring-1 aria-[current=page]:ring-sky-300/30"
-                    href="#examples">Usage</a>
             </nav>
 
             <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
@@ -92,7 +107,7 @@
         </div>
     </header>
 
-    <main id="top">
+    <main id="top" class="cw-main--corporate">
         <section
             class="bg-[radial-gradient(circle_at_20%_20%,rgba(76,195,255,0.10),transparent_35%),radial-gradient(circle_at_80%_0%,rgba(245,166,35,0.10),transparent_30%),linear-gradient(135deg,var(--cw-blue-900),var(--cw-blue-700))] text-white">
             <div class="mx-auto grid w-full max-w-6xl items-center gap-8 px-4 py-12 lg:grid-cols-2">
@@ -229,7 +244,7 @@
 
                     <div
                         class="rounded-xl border mt-5 border-white/10 bg-[rgba(17,44,70,0.95)] p-5 shadow-[0_14px_40px_rgba(7,18,33,0.35)]">
-                        <div class="tab">
+                        <div class="tab cw-tab--corporate">
                             <button class="tablinks" data-tab-target="London">cURL</button>
                             <button class="tablinks" data-tab-target="Paris">JavaScript</button>
                         </div>
