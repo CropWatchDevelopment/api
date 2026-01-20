@@ -1,0 +1,66 @@
+name: Node.js Package
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+  statuses: write # needed for commit status updates (Vercel status action)
+  packages: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Prefer npm ci in CI for reproducible installs
+      - name: Install dependencies
+        run: npm ci
+
+      # Generate coverage (ensure coverage/lcov.info exists after this)
+      - name: Test (with coverage)
+        run: npm test -- --coverage
+
+      - name: Build
+        run: npm run build
+
+      # Upload coverage to QLTY
+      - name: Upload coverage to QLTY
+        uses: qltysh/qlty-action/coverage@v2
+        with:
+          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+          files: coverage/lcov.info
+
+      # Notify Vercel (commit status)
+      - name: Notify Vercel status (api: lint)
+        uses: vercel/repository-dispatch/actions/status@v1
+        with:
+          name: "Vercel - api: lint"
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish to npm
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
