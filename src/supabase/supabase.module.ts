@@ -14,7 +14,9 @@ import { SupabaseService } from './supabase.service';
         const url = configService.get<string>('PRIVATE_SUPABASE_URL');
         const anonKey = configService.get<string>('PRIVATE_SUPABASE_ANON_KEY');
         if (!url || !anonKey) {
-          throw new Error('PRIVATE_SUPABASE_URL and PRIVATE_SUPABASE_ANON_KEY are required');
+          throw new Error(
+            'PRIVATE_SUPABASE_URL and PRIVATE_SUPABASE_ANON_KEY are required',
+          );
         }
         return createClient(url, anonKey, {
           auth: { autoRefreshToken: false, persistSession: false },

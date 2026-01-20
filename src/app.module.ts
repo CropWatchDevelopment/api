@@ -34,14 +34,11 @@ import { DevicesModule } from './devices/devices.module';
         ttl: 2000,
         limit: 2,
         blockDuration: 5000,
-      }
+      },
     ]),
     DevicesModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-  ],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule { }
+export class AppModule {}

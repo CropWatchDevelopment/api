@@ -5,7 +5,9 @@ describe('TrafficService', () => {
   let service: TrafficService;
 
   beforeEach(async () => {
-    const module = await createTestingModuleWithCommonProviders([TrafficService]);
+    const module = await createTestingModuleWithCommonProviders([
+      TrafficService,
+    ]);
 
     service = module.get<TrafficService>(TrafficService);
   });

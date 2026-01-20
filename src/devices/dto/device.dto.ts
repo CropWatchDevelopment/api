@@ -4,13 +4,24 @@ export class DeviceDto {
   @ApiProperty({ description: 'LoRaWAN dev_eui', example: 'A1B2C3D4E5F60708' })
   dev_eui: string;
 
-  @ApiProperty({ description: 'Device display name', example: 'Greenhouse Sensor 1' })
+  @ApiProperty({
+    description: 'Device display name',
+    example: 'Greenhouse Sensor 1',
+  })
   name: string;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Device type id (cw_device_type.id)' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Device type id (cw_device_type.id)',
+  })
   type: number | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Upload interval in minutes' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Upload interval in minutes',
+  })
   upload_interval: number | null;
 
   @ApiProperty({ required: false, nullable: true })
@@ -19,16 +30,32 @@ export class DeviceDto {
   @ApiProperty({ required: false, nullable: true })
   long: number | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Install date (YYYY-MM-DD)' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Install date (YYYY-MM-DD)',
+  })
   installed_at: string | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Battery last changed date (YYYY-MM-DD)' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Battery last changed date (YYYY-MM-DD)',
+  })
   battery_changed_at: string | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Owner user id (uuid)' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Owner user id (uuid)',
+  })
   user_id: string | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Warranty start date (YYYY-MM-DD)' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Warranty start date (YYYY-MM-DD)',
+  })
   warranty_start_date: string | null;
 
   @ApiProperty({ required: false, nullable: true })
@@ -40,7 +67,11 @@ export class DeviceDto {
   @ApiProperty({ required: false, nullable: true })
   sensor_serial: string | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Location id (cw_locations.location_id)' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Location id (cw_locations.location_id)',
+  })
   location_id: number | null;
 
   @ApiProperty({ required: false, nullable: true })
@@ -49,7 +80,11 @@ export class DeviceDto {
   @ApiProperty({ required: false, nullable: true })
   battery_level: number | null;
 
-  @ApiProperty({ required: false, nullable: true, description: 'Last time device uplinked (ISO 8601)' })
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Last time device uplinked (ISO 8601)',
+  })
   last_data_updated_at: string | null;
 
   @ApiProperty({ required: false, nullable: true })

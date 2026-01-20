@@ -15,10 +15,14 @@ describe('TimezoneFormatterService', () => {
 
   it('returns ISO string when no timezone is provided', () => {
     const value = '2024-01-01T00:00:00Z';
-    expect(service.formatTimestamp(value, null)).toBe(new Date(value).toISOString());
+    expect(service.formatTimestamp(value, null)).toBe(
+      new Date(value).toISOString(),
+    );
   });
 
   it('throws for invalid timezone', () => {
-    expect(() => service.assertValidTimeZone('Not/AZone')).toThrow(BadRequestException);
+    expect(() => service.assertValidTimeZone('Not/AZone')).toThrow(
+      BadRequestException,
+    );
   });
 });

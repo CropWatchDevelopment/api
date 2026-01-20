@@ -19,7 +19,11 @@ async function bootstrap() {
     )
     .addApiKey({ type: 'apiKey', in: 'header', name: 'x-api-key' }, 'apiKey')
     .setLicense('Terms of Use', 'https://CropWatch.io/legal/terms-of-use')
-    .setContact('CropWatch Support', 'https://CropWatch.io/support', 'support@cropwatch.io')
+    .setContact(
+      'CropWatch Support',
+      'https://CropWatch.io/support',
+      'support@cropwatch.io',
+    )
     .setBasePath('v23')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
@@ -29,18 +33,24 @@ async function bootstrap() {
     customCssUrl: '/cw-swagger.css',
     customfavIcon: '/favicon.svg',
   });
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        connectSrc: ["'self'", 'https://cdn.jsdelivr.net'],
-        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-        imgSrc: ["'self'", 'data:'],
-        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          connectSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            'https://fonts.googleapis.com',
+          ],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+          imgSrc: ["'self'", 'data:'],
+          scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+        },
       },
-    },
-  }));
+    }),
+  );
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();

@@ -1,4 +1,11 @@
-import { BadRequestException, Controller, Get, Param, Req, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Param,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { DevicesService } from './devices.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
@@ -22,16 +29,29 @@ export class DevicesController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  @ApiOkResponse({ description: "Current all of the user's authenticated devices returned when run successfully.", type: DeviceDto, isArray: true })
+  @ApiOkResponse({
+    description:
+      "Current all of the user's authenticated devices returned when run successfully.",
+    type: DeviceDto,
+    isArray: true,
+  })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid bearer token.',
     type: ErrorResponseDto,
-    example: { statusCode: 401, error: 'Unauthorized', message: 'Unauthorized' },
+    example: {
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Unauthorized',
+    },
   })
   @ApiInternalServerErrorResponse({
     description: 'Failed to fetch devices.',
     type: ErrorResponseDto,
-    example: { statusCode: 500, error: 'Internal Server Error', message: 'Failed to fetch devices' },
+    example: {
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: 'Failed to fetch devices',
+    },
   })
   findAll(@Req() req) {
     return this.devicesService.findAll(req.user);
@@ -39,26 +59,45 @@ export class DevicesController {
 
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)
-  @ApiOkResponse({ description: "Current user's device returned successfully.", type: DeviceDto })
+  @ApiOkResponse({
+    description: "Current user's device returned successfully.",
+    type: DeviceDto,
+  })
   @ApiBadRequestResponse({
     description: 'Invalid dev_eui.',
     type: ErrorResponseDto,
-    example: { statusCode: 400, error: 'Bad Request', message: 'dev_eui is required' },
+    example: {
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'dev_eui is required',
+    },
   })
   @ApiUnauthorizedResponse({
     description: 'Missing or invalid bearer token.',
     type: ErrorResponseDto,
-    example: { statusCode: 401, error: 'Unauthorized', message: 'Unauthorized' },
+    example: {
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Unauthorized',
+    },
   })
   @ApiNotFoundResponse({
     description: 'Device not found.',
     type: ErrorResponseDto,
-    example: { statusCode: 404, error: 'Not Found', message: 'Device not found' },
+    example: {
+      statusCode: 404,
+      error: 'Not Found',
+      message: 'Device not found',
+    },
   })
   @ApiInternalServerErrorResponse({
     description: 'Failed to fetch device.',
     type: ErrorResponseDto,
-    example: { statusCode: 500, error: 'Internal Server Error', message: 'Failed to fetch device' },
+    example: {
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: 'Failed to fetch device',
+    },
   })
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   findOne(@Req() req, @Param('dev_eui') devEui: string) {

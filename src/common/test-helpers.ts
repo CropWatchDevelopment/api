@@ -16,13 +16,16 @@ export async function createTestingModuleWithCommonProviders(
     providers: [
       { provide: SupabaseService, useValue: {} },
       TimezoneFormatterService,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       ...additionalProviders,
     ],
   };
 
   if (controllers.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     moduleConfig.controllers = controllers;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   return await Test.createTestingModule(moduleConfig).compile();
 }
