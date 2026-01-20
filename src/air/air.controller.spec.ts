@@ -1,21 +1,15 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AirController } from './air.controller';
 import { AirService } from './air.service';
-import { SupabaseService } from '../supabase/supabase.service';
-import { TimezoneFormatterService } from '../common/timezone-formatter.service';
+import { createTestingModuleWithCommonProviders } from '../common/test-helpers';
 
 describe('AirController', () => {
   let controller: AirController;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AirController],
-      providers: [
-        AirService,
-        { provide: SupabaseService, useValue: {} },
-        TimezoneFormatterService,
-      ],
-    }).compile();
+    const module = await createTestingModuleWithCommonProviders(
+      [AirService],
+      [AirController],
+    );
 
     controller = module.get<AirController>(AirController);
   });

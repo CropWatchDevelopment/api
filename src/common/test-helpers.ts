@@ -1,0 +1,28 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { SupabaseService } from '../supabase/supabase.service';
+import { TimezoneFormatterService } from './timezone-formatter.service';
+
+/**
+ * Creates a testing module with common providers (SupabaseService and TimezoneFormatterService)
+ * @param additionalProviders - Additional providers to include in the module
+ * @param controllers - Controllers to include in the module
+ * @returns Compiled TestingModule
+ */
+export async function createTestingModuleWithCommonProviders(
+  additionalProviders: any[] = [],
+  controllers: any[] = [],
+): Promise<TestingModule> {
+  const moduleConfig: any = {
+    providers: [
+      { provide: SupabaseService, useValue: {} },
+      TimezoneFormatterService,
+      ...additionalProviders,
+    ],
+  };
+
+  if (controllers.length > 0) {
+    moduleConfig.controllers = controllers;
+  }
+
+  return await Test.createTestingModule(moduleConfig).compile();
+}

@@ -1,19 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { WaterService } from './water.service';
-import { SupabaseService } from '../supabase/supabase.service';
-import { TimezoneFormatterService } from '../common/timezone-formatter.service';
+import { createTestingModuleWithCommonProviders } from '../common/test-helpers';
 
 describe('WaterService', () => {
   let service: WaterService;
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        WaterService,
-        { provide: SupabaseService, useValue: {} },
-        TimezoneFormatterService,
-      ],
-    }).compile();
+    const module = await createTestingModuleWithCommonProviders([WaterService]);
 
     service = module.get<WaterService>(WaterService);
   });
