@@ -31,7 +31,7 @@ jobs:
 
       # Generate coverage (ensure coverage/lcov.info exists after this)
       - name: Test (with coverage)
-        run: pnpm test -- --coverage
+        run: pnpm run test:cov
 
       - name: Build
         run: pnpm run build
