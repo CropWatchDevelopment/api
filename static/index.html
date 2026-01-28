@@ -80,16 +80,21 @@
     <header class="sticky top-0 z-50 border-b border-white/10 bg-[rgba(11,31,52,0.92)] backdrop-blur">
         <div
             class="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <a class="flex items-center gap-3 text-white no-underline sm:min-w-[240px]" href="#top"
-                aria-label="CropWatch API home">
+            <div class="flex flex-row items-center gap-4">
                 <div class="grid h-11 w-11 place-items-center overflow-hidden shadow-[0_12px_30px_rgba(12,45,72,0.45)]">
-                    <img class="h-10 w-10" src="/favicon.svg" alt="CropWatch Logo" data-fallback-src="/favicon.ico" />
+                    <a href="https://cropwatch.io" rel="noopener noreferrer">
+                        <img class="h-10 w-10" src="/favicon.svg" alt="CropWatch Logo"
+                            data-fallback-src="/favicon.ico" />
+                    </a>
                 </div>
-                <div>
-                    <div class="text-base font-extrabold tracking-wide leading-none">CropWatch API</div>
-                    <div class="text-sm text-white/70">Data Integrations</div>
-                </div>
-            </a>
+                <a class="flex items-center gap-3 text-white no-underline sm:min-w-[240px]" href="#top"
+                    aria-label="CropWatch API home">
+                    <div>
+                        <div class="text-base font-extrabold tracking-wide leading-none">CropWatch API</div>
+                        <div class="text-sm text-white/70">Data Integrations</div>
+                    </div>
+                </a>
+            </div>
 
             <nav aria-label="Primary" class="flex flex-wrap items-center gap-1">
                 <a class="nav-link rounded-lg px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/5 hover:text-white aria-[current=page]:bg-sky-400/10 aria-[current=page]:text-white aria-[current=page]:ring-1 aria-[current=page]:ring-sky-300/30"
@@ -290,11 +295,13 @@ async function login() {
     return data;
 }</code>
                             </pre>
-                             <p class="mt-2 text-sm leading-relaxed text-slate-200/80">
+                            <p class="mt-2 text-sm leading-relaxed text-slate-200/80">
                                 A successful login returns a JSON object containing a JWT token.
-                                The object returned will contain a "access_token", this will be your bearer token for subsequent requests.
-                                It will also contain an "expires_in" field indicating the token's validity period in seconds, use this to determine when a JWT refresh is needed.
-                             </p>
+                                The object returned will contain a "access_token", this will be your bearer token for
+                                subsequent requests.
+                                It will also contain an "expires_in" field indicating the token's validity period in
+                                seconds, use this to determine when a JWT refresh is needed.
+                            </p>
                         </div>
 
                     </div>
