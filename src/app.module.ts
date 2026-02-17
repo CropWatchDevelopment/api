@@ -15,6 +15,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { DevicesModule } from './devices/devices.module';
 import { RulesModule } from './rules/rules.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { RulesModule } from './rules/rules.module';
     ]),
     DevicesModule,
     RulesModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

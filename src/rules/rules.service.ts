@@ -24,18 +24,44 @@ export class RulesService {
     }
 
     createRuleDto.profile_id = userId; // HARD FORCE THE profile_id FOR SECURITY, DO NOT TRUST THE CLIENT TO PROVIDE THE CORRECT profile_id
+    const ruleInsertPayload = { ...createRuleDto };
+    const ruleCriteria = createRuleDto.cw_rule_criteria;
+    delete ruleInsertPayload.cw_rule_criteria;
 
-    const { data, error } = await this.supabaseService
+    const { data: ruleData, error: ruleError } = await this.supabaseService
       .getClient(accessToken)
       .from('cw_rules')
-      .insert(createRuleDto)
+      .insert(ruleInsertPayload)
       .select('*')
       .single();
-    if (error) {
+    if (ruleError || !ruleData) {
       throw new InternalServerErrorException('Failed to create rule');
     }
 
-    return data;
+    if (ruleCriteria && ruleCriteria.length > 0) {
+      const ruleCriteriaInsertPayload = ruleCriteria.map((criteria) => ({
+        ...criteria,
+        ruleGroupId: ruleData.ruleGroupId, // Associate criteria with the newly created rule's group ID
+      }));
+
+      const { error: criteriaError } = await this.supabaseService
+        .getClient(accessToken)
+        .from('cw_rule_criteria')
+        .insert(ruleCriteriaInsertPayload);
+
+      if (criteriaError) {
+        // If criteria insertion fails, delete the previously created rule to maintain data integrity
+        await this.supabaseService
+          .getClient(accessToken)
+          .from('cw_rules')
+          .delete()
+          .eq('id', ruleData.id);
+
+        throw new InternalServerErrorException('Failed to create rule criteria');
+      }
+    }
+
+    return ruleData;
   }
 
   async findAll(jwtPayload: any, authHeader: string) {
@@ -45,24 +71,24 @@ export class RulesService {
 
     const { data, error } = await client
       .from('cw_rules')
-      .select('*')
+      .select('*, cw_rule_criteria(*)') // Fetch associated criteria for each rule
       .order('name', { ascending: true })
       .eq('profile_id', userId);
     if (error) {
       throw new InternalServerErrorException('Failed to fetch rules');
     }
 
-    return data ?? [];
+    return data;
   }
 
-  async findOne(id: string, jwtPayload: any, authHeader: string) {
+  async findOne(id: number, jwtPayload: any, authHeader: string) {
     const userId = this.getUserId(jwtPayload);
     const accessToken = this.getAccessToken(authHeader);
 
     const { data, error } = await this.supabaseService
       .getClient(accessToken)
       .from('cw_rules')
-      .select('*')
+      .select('*, cw_rule_criteria(*)')
       .eq('profile_id', userId)
       .eq('id', id)
       .single();
@@ -70,12 +96,23 @@ export class RulesService {
       throw new InternalServerErrorException('Failed to fetch rules');
     }
 
-    return data ?? [];
+    return data;
   }
 
   async update(ruleId: number, updateRuleDto: UpdateRuleDto, jwtPayload: any, authHeader: string) {
     const userId = this.getUserId(jwtPayload);
     const accessToken = this.getAccessToken(authHeader);
+    const ruleUpdatePayload = { ...updateRuleDto };
+    ruleUpdatePayload.profile_id = userId; // HARD FORCE THE profile_id FOR SECURITY, DO NOT TRUST THE CLIENT TO PROVIDE THE CORRECT profile_id
+    delete ruleUpdatePayload.cw_rule_criteria; // Remove criteria from the main update payload, handle it separately
+
+    const criteria = Array.isArray(updateRuleDto.cw_rule_criteria)
+      ? [...updateRuleDto.cw_rule_criteria]
+      : undefined;
+
+    if (!criteria || criteria.length === 0) {
+      throw new BadRequestException('At least one criteria must be provided to update a rule');
+    }
 
     if (!updateRuleDto.dev_eui) {
       throw new BadRequestException('dev_eui must be provided');
@@ -84,19 +121,38 @@ export class RulesService {
     if (!hasRulePermission) {
       throw new UnauthorizedException('User does not have permission to update this rule');
     }
-    const hasLocationPermission: boolean = await this.hasPermissionToLocation(userId, updateRuleDto.dev_eui, accessToken);
-    if (!hasLocationPermission) {
-      throw new UnauthorizedException('User does not have permission to update this rule');
-    }
 
     const { error } = await this.supabaseService
       .getClient(accessToken)
       .from('cw_rules')
-      .update(updateRuleDto)
+      .update(ruleUpdatePayload)
       .eq('profile_id', userId)
       .eq('id', ruleId);
     if (error) {
       throw new InternalServerErrorException('Failed to update rule');
+    }
+
+    // handle criteria updates if provided
+    if (criteria && criteria.length > 0) {
+      if (!ruleUpdatePayload.ruleGroupId) {
+        throw new BadRequestException('ruleGroupId must be provided to update criteria');
+      }
+      const ruleCriteriaInsertPayload = criteria.map((criteria) => ({
+        ...criteria,
+        ruleGroupId: ruleUpdatePayload.ruleGroupId,
+      }));
+
+
+      const { error: criteriaError } = await this.supabaseService
+        .getClient(accessToken)
+        .from('cw_rule_criteria')
+        .upsert(ruleCriteriaInsertPayload)
+        .eq('ruleGroupId', ruleUpdatePayload.ruleGroupId)
+        .select('*');
+
+      if (criteriaError) {
+        throw new InternalServerErrorException('Failed to update rule criteria');
+      }
     }
 
     return updateRuleDto;

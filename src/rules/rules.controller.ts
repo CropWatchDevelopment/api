@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, Req, UseGuards } fro
 import { RulesService } from './rules.service';
 import { CreateRuleDto } from './dto/create-rule.dto';
 import { UpdateRuleDto } from './dto/update-rule.dto';
-import { ApiBearerAuth, ApiOkResponse, ApiSecurity } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiSecurity } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { RuleDto } from './dto/rule.dto';
 
@@ -19,6 +19,7 @@ export class RulesController {
     type: RuleDto,
     isArray: false,
   })
+  @ApiBody({ type: CreateRuleDto })
   @Post()
   create(@Body() createRuleDto: CreateRuleDto, @Req() req) {
     const authHeader = req.headers?.authorization;
@@ -61,6 +62,7 @@ export class RulesController {
     type: RuleDto,
     isArray: false,
   })
+  @ApiBody({ type: UpdateRuleDto })
   @Patch(':id')
   update(@Param('id') id: number, @Body() updateRuleDto: UpdateRuleDto, @Req() req) {
     const authHeader = req.headers?.authorization ?? '';

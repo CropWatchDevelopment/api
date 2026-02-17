@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Database } from '../../../database.types';
+import { RuleCriteriaDto } from './rule-criteria.dto';
 
 type RuleRow = Database['public']['Tables']['cw_rules']['Row'];
 
@@ -39,4 +40,12 @@ export class RuleDto implements RuleRow {
 
 	@ApiProperty({ nullable: true, required: false, format: 'date-time' })
 	last_triggered: string | null;
+
+	@ApiProperty({
+		type: () => RuleCriteriaDto,
+		isArray: true,
+		required: false,
+		description: 'Rows from cw_rule_criteria linked by ruleGroupId.',
+	})
+	cw_rule_criteria?: RuleCriteriaDto[];
 }

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Database } from '../../../database.types';
+import { RuleCriteriaDto } from './rule-criteria.dto';
 
 type RuleInsert = Database['public']['Tables']['cw_rules']['Insert'];
 
@@ -39,4 +40,12 @@ export class CreateRuleDto implements RuleInsert {
 
 	@ApiProperty({ required: false })
 	trigger_count?: number;
+
+	@ApiProperty({
+		type: () => RuleCriteriaDto,
+		isArray: true,
+		required: false,
+		description: 'Criteria entries for this rule (cw_rule_criteria).',
+	})
+	cw_rule_criteria?: RuleCriteriaDto[];
 }
