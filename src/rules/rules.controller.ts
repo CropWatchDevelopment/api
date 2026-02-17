@@ -49,7 +49,7 @@ export class RulesController {
     isArray: false,
   })
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() req) {
+  findOne(@Param('id') id: number, @Req() req) {
     const authHeader = req.headers?.authorization ?? '';
     return this.rulesService.findOne(id, req.user, authHeader);
   }
