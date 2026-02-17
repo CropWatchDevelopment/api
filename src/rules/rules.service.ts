@@ -29,8 +29,6 @@ export class RulesService {
       .getClient(accessToken)
       .from('cw_rules')
       .insert(createRuleDto)
-      .eq('profile_id', userId)
-      .eq('dev_eui', createRuleDto.dev_eui)
       .select('*')
       .single();
     if (error) {
