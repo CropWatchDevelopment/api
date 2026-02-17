@@ -24,7 +24,6 @@ async function bootstrap() {
       'https://CropWatch.io/support',
       'support@cropwatch.io',
     )
-    .setBasePath('v23')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, documentFactory, {
