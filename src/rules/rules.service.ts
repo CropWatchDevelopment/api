@@ -63,7 +63,6 @@ export class RulesService {
       .getClient(accessToken)
       .from('cw_rules')
       .select('*')
-      .order('name', { ascending: true })
       .eq('profile_id', userId)
       .eq('id', id)
       .single();
