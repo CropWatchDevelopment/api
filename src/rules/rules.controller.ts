@@ -3,7 +3,7 @@ import { RulesService } from './rules.service';
 import { CreateRuleDto } from './dto/create-rule.dto';
 import { UpdateRuleDto } from './dto/update-rule.dto';
 import { ApiBearerAuth, ApiOkResponse, ApiSecurity } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { RuleDto } from './dto/rule.dto';
 
 @ApiBearerAuth('bearerAuth')
