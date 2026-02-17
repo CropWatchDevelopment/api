@@ -20,7 +20,7 @@ export class RulesService {
 
     const hasLocationPermission: boolean = await this.hasPermissionToLocation(userId, createRuleDto.dev_eui, accessToken);
     if (!hasLocationPermission) {
-      throw new UnauthorizedException('User does not have permission to update this rule');
+      throw new UnauthorizedException('User does not have permission to create this rule');
     }
 
     createRuleDto.profile_id = userId; // HARD FORCE THE profile_id FOR SECURITY, DO NOT TRUST THE CLIENT TO PROVIDE THE CORRECT profile_id
