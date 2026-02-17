@@ -10,6 +10,10 @@
     }
   ],
   "rewrites": [
+    { "source": "/favicon.svg", "destination": "/static/favicon.svg" },
+    { "source": "/favicon.ico", "destination": "/static/favicon.ico" },
+    { "source": "/cw-swagger.css", "destination": "/static/cw-swagger.css" },
+    { "source": "/docs/(.*)", "destination": "/static/docs/$1" },
     { "source": "/(.*)", "destination": "/src/main.ts" }
   ]
 }
