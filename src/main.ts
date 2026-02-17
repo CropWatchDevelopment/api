@@ -31,6 +31,9 @@ async function bootstrap() {
     customSwaggerUiPath: join(process.cwd(), 'static', 'docs'),
     customCssUrl: '/cw-swagger.css',
     customfavIcon: '/favicon.svg',
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
   });
   app.use(
     helmet({
