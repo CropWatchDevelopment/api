@@ -16,6 +16,7 @@ import {
   ApiInternalServerErrorResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiParam,
   ApiQuery,
   ApiSecurity,
@@ -115,6 +116,11 @@ export class DevicesController {
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiParam({ name: 'skip (0)', description: 'Number of records to skip for pagination', required: false })
   @ApiParam({ name: 'take (144)', description: 'Number of records to take for pagination', required: false })
+  @ApiOperation({
+    summary: 'Get the latest FULL data for a device (paginated)',
+    description: `
+    Returns the latest, data from the table record for a device paginated.`,
+  })
   data(@Req() req, @Param('dev_eui') devEui: string) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
@@ -127,30 +133,49 @@ export class DevicesController {
   @Get(':dev_eui/data-within-range')
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
-   @ApiQuery({
-      name: 'start',
-      required: false,
-      description: 'ISO 8601 date/time. Defaults to 24 hours before end/now.',
-      schema: {
-        type: 'string',
-        format: 'date-time',
-        default: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      },
-      example: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    })
-     @ApiQuery({
-        name: 'end',
-        required: false,
-        description: 'ISO 8601 date/time. Defaults to now.',
-        schema: {
-          type: 'string',
-          format: 'date-time',
-          default: new Date().toISOString(),
-        },
-        example: new Date().toISOString(),
-      })
-  @ApiParam({ name: 'skip (0)', description: 'Number of records to skip for pagination', required: false })
-  @ApiParam({ name: 'take (144)', description: 'Number of records to take for pagination', required: false })
+  @ApiQuery({
+    name: 'start',
+    required: false,
+    description: 'ISO 8601 date/time. Defaults to 24 hours before end/now.',
+    schema: {
+      type: 'string',
+      format: 'date-time',
+      default: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    },
+    example: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+  })
+  @ApiQuery({
+    name: 'end',
+    required: false,
+    description: 'ISO 8601 date/time. Defaults to now.',
+    schema: {
+      type: 'string',
+      format: 'date-time',
+      default: new Date().toISOString(),
+    },
+    example: new Date().toISOString(),
+  })
+  @ApiParam({
+    name: 'skip (0)', description: 'Number of records to skip for pagination', schema: {
+      type: 'number',
+      format: 'int32',
+      default: 0,
+    }, required: false
+  })
+  @ApiParam({
+    name: 'take (144)', description: 'Number of records to take for pagination', schema: {
+      type: 'number',
+      format: 'int32',
+      default: 144,
+    }, required: false
+  })
+  @ApiOperation({
+    summary: 'Get device FULL data within a date/time range and paginated',
+    description: `
+    Returns paginated sensor full data for a device filtered to a specific date/time window.
+    Within the time window, the skip/take will be applied to the filtered data for pagination. For example, if there are 100 records in the time window and skip=10 and take=20, records 11-30 will be returned.
+    Defaults to the last 24 hours if no range is provided.`,
+  })
   dataWithinRange(@Req() req, @Param('dev_eui') devEui: string) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
@@ -165,6 +190,11 @@ export class DevicesController {
   @Get(':dev_eui/latest-data')
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOperation({
+    summary: 'Get the 1 latest FULL data value for a device',
+    description: `
+    Returns the full latest data record for a device.`,
+  })
   latestData(@Req() req, @Param('dev_eui') devEui: string) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
@@ -175,6 +205,11 @@ export class DevicesController {
   @Get(':dev_eui/latest-primary-data')
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOperation({
+    summary: 'Get the latest primary data for a device',
+    description: `
+    Returns the latest, 2 primary data values from the table record for a device.`,
+  })
   latestPrimaryData(@Req() req, @Param('dev_eui') devEui: string) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');

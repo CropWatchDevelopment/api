@@ -34,3 +34,12 @@
   position: absolute !important;
   right: 30px;
 }
+
+.opblock-summary-path-description-wrapper {
+    display: flex !important;
+    align-items: center !important;
+}
+
+.opblock-summary-description {
+    margin-left: auto !important;
+}
