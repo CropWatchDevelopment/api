@@ -2,7 +2,9 @@ import {
   BadRequestException,
   Controller,
   Get,
+  NotImplementedException,
   Param,
+  Post,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +17,7 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiParam,
+  ApiQuery,
   ApiSecurity,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -25,7 +28,7 @@ import { DeviceDto } from './dto/device.dto';
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class DevicesController {
-  constructor(private readonly devicesService: DevicesService) {}
+  constructor(private readonly devicesService: DevicesService) { }
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -54,7 +57,7 @@ export class DevicesController {
     },
   })
   findAll(@Req() req) {
-    return this.devicesService.findAll(req.user);
+    return this.devicesService.findAll(req.user, req.headers.authorization);
   }
 
   @Get(':dev_eui')
@@ -104,6 +107,85 @@ export class DevicesController {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
-    return this.devicesService.findOne(req.user, devEui);
+    return this.devicesService.findOne(req.user, devEui, req.headers.authorization);
+  }
+
+  @Get(':dev_eui/data')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiParam({ name: 'skip (0)', description: 'Number of records to skip for pagination', required: false })
+  @ApiParam({ name: 'take (144)', description: 'Number of records to take for pagination', required: false })
+  data(@Req() req, @Param('dev_eui') devEui: string) {
+    if (!devEui?.trim()) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    const skip = parseInt(req.query.skip, 10) || 0;
+    const take = parseInt(req.query.take, 10) || 144;
+    return this.devicesService.findData(req.user, devEui, skip, take, req.headers.authorization);
+  }
+
+  @Get(':dev_eui/data-within-range')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+   @ApiQuery({
+      name: 'start',
+      required: false,
+      description: 'ISO 8601 date/time. Defaults to 24 hours before end/now.',
+      schema: {
+        type: 'string',
+        format: 'date-time',
+        default: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      },
+      example: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    })
+     @ApiQuery({
+        name: 'end',
+        required: false,
+        description: 'ISO 8601 date/time. Defaults to now.',
+        schema: {
+          type: 'string',
+          format: 'date-time',
+          default: new Date().toISOString(),
+        },
+        example: new Date().toISOString(),
+      })
+  @ApiParam({ name: 'skip (0)', description: 'Number of records to skip for pagination', required: false })
+  @ApiParam({ name: 'take (144)', description: 'Number of records to take for pagination', required: false })
+  dataWithinRange(@Req() req, @Param('dev_eui') devEui: string) {
+    if (!devEui?.trim()) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    const skip = parseInt(req.query.skip, 10) || 0;
+    const take = parseInt(req.query.take, 10) || 144;
+    const start = req.query.start || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const end = req.query.end || new Date().toISOString();
+    return this.devicesService.findDataWithinRange(req.user, devEui, req.headers.authorization, start, end, skip, take);
+  }
+
+  @Get(':dev_eui/latest-data')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  latestData(@Req() req, @Param('dev_eui') devEui: string) {
+    if (!devEui?.trim()) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    return this.devicesService.findLatestData(req.user, devEui, req.headers.authorization);
+  }
+
+  @Get(':dev_eui/latest-primary-data')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  latestPrimaryData(@Req() req, @Param('dev_eui') devEui: string) {
+    if (!devEui?.trim()) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    return this.devicesService.findLatestData(req.user, devEui, req.headers.authorization, true);
+  }
+
+  @Post(':dev_eui')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  create(@Req() req, @Param('dev_eui') devEui: string) {
+    throw NotImplementedException;
   }
 }
