@@ -57,6 +57,11 @@ export class DevicesController {
       message: 'Failed to fetch devices',
     },
   })
+  @ApiOperation({
+    summary: 'Get all devices for the authenticated user',
+    description: `
+    Returns all devices for the authenticated user.`,
+  })
   findAll(@Req() req) {
     return this.devicesService.findAll(req.user, req.headers.authorization);
   }
@@ -104,6 +109,11 @@ export class DevicesController {
     },
   })
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOperation({
+    summary: 'Get a specific device for the authenticated user',
+    description: `
+    Returns a specific device for the authenticated user.`,
+  })
   findOne(@Req() req, @Param('dev_eui') devEui: string) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
@@ -220,6 +230,15 @@ export class DevicesController {
   @Post(':dev_eui')
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOperation({
+    summary: 'Create a new device for the authenticated user',
+    description: `
+    Creates a new device for the authenticated user.
+    This will require a "seat" token for the user, which can be obtained from the /payments endpoints.
+    This endpoint is not yet implemented and will return a 501 Not Implemented response until it is implemented.
+    Please contact support if you would like this feature to be prioritized.
+    `,
+  })
   create(@Req() req, @Param('dev_eui') devEui: string) {
     throw NotImplementedException;
   }
