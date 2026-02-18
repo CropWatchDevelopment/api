@@ -16,6 +16,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { DevicesModule } from './devices/devices.module';
 import { RulesModule } from './rules/rules.module';
 import { ReportsModule } from './reports/reports.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { ReportsModule } from './reports/reports.module';
     DevicesModule,
     RulesModule,
     ReportsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

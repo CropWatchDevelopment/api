@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
@@ -20,8 +20,12 @@ export class ReportsController {
     isArray: false,
   })
   @Post()
-  create(@Body() createReportDto: CreateReportDto) {
-    return this.reportsService.create(createReportDto);
+  create(@Body() createReportDto: CreateReportDto, @Req() req) {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) {
+      throw new Error('Authorization header is required');
+    }
+    return this.reportsService.create(createReportDto, req.user, authHeader);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -32,8 +36,12 @@ export class ReportsController {
     isArray: true,
   })
   @Get()
-  findAll() {
-    return this.reportsService.findAll();
+  findAll(@Req() req) {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) {
+      throw new Error('Authorization header is required');
+    }
+    return this.reportsService.findAll(req.user, authHeader);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -44,8 +52,12 @@ export class ReportsController {
     isArray: false,
   })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.reportsService.findOne(+id);
+  findOne(@Param('id') id: string, @Req() req) {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) {
+      throw new Error('Authorization header is required');
+    }
+    return this.reportsService.findOne(id, req.user, authHeader);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -55,20 +67,28 @@ export class ReportsController {
     type: ReportDto,
     isArray: false,
   })
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateReportDto: UpdateReportDto) {
-    return this.reportsService.update(+id, updateReportDto);
+  @Patch(':report_id')
+  update(@Param('report_id') report_id: string, @Body() updateReportDto: UpdateReportDto, @Req() req) {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) {
+      throw new Error('Authorization header is required');
+    }
+    return this.reportsService.update(report_id, updateReportDto, req.user, authHeader);
   }
 
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
-      "Create a new rule configuration. Only the fields included in the request body will be used.",
+      "Remove an existing report. Only the fields included in the request body will be used.",
     type: Number,
     isArray: false,
   })
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.reportsService.remove(+id);
+  @Delete(':report_id')
+  remove(@Param('report_id') report_id: string, @Req() req) {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) {
+      throw new Error('Authorization header is required');
+    }
+    return this.reportsService.remove(report_id, req.user, authHeader);
   }
 }
