@@ -188,6 +188,64 @@ export class DevicesService {
     return latestData;
   }
 
+  public async findAllLatestData(jwtPayload: any, skip: number = 0, take: number = 10, authHeader: string) {
+    const accessToken = this.getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+    const userId = this.getUserId(jwtPayload);
+
+    const { data: device, error: deviceError } = await client
+      .from('cw_devices')
+      .select('*, cw_device_type(*), cw_locations(name)')
+      .eq('user_id', userId)
+      .range(skip, skip + take - 1)
+      .limit(take)
+      .order('name', { ascending: false });
+
+    if (deviceError) {
+      throw new InternalServerErrorException('Failed to fetch device');
+    }
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+    if (device.length === 0) {
+      throw new NotFoundException('No devices found');
+    }
+
+    const devicesWithLatestData = await Promise.all(
+      device.map(async (d) => {
+        const deviceType = d.cw_device_type;
+        if (!deviceType) {
+          throw new NotFoundException(`Device type not found for device ${d.dev_eui}`);
+        }
+        const { data: latestData, error: dataError } = await client
+          .from(deviceType.data_table_v2)
+          .select('*')
+          .eq('dev_eui', d.dev_eui)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (dataError) {
+          throw new InternalServerErrorException(`Failed to fetch latest data for device ${d.dev_eui}`);
+        }
+
+        const primaryField = deviceType.primary_data_v2;
+        const secondaryField = deviceType.secondary_data_v2;
+        return {
+          dev_eui: d.dev_eui,
+          name: d.name,
+          location_name: d.cw_locations?.name ?? 'n/a',
+          created_at: latestData.created_at,
+          [primaryField]: latestData[primaryField],
+          [secondaryField]: latestData[secondaryField],
+        };
+      })
+    );
+
+    return devicesWithLatestData;
+  }
+
   public async findLatestData(jwtPayload: any, devEui: string, authHeader: string, primaryAndSecondaryOnly = false) {
     const accessToken = this.getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);

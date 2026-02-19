@@ -66,6 +66,21 @@ export class DevicesController {
     return this.devicesService.findAll(req.user, req.headers.authorization);
   }
 
+  @Get('latest-primary-data')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'skip (0)', description: 'Number of records to skip for pagination', required: false })
+  @ApiParam({ name: 'take (10)', description: 'Number of records to take for pagination', required: false })
+  @ApiOperation({
+    summary: 'Get the latest primary data for all devices (paginated)',
+    description: `
+    Returns the latest, 2 primary data values from the table record for all devices.`,
+  })
+  allLatestPrimaryData(@Req() req) {
+    const skip = parseInt(req.query.skip, 10) || 0;
+    const take = parseInt(req.query.take, 10) || 10;
+    return this.devicesService.findAllLatestData(req.user, skip, take, req.headers.authorization);
+  }
+
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
