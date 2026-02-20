@@ -3,7 +3,7 @@ import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
 import { ApiBearerAuth, ApiOkResponse, ApiSecurity } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { ReportDto } from './dto/report.dto';
 
 @ApiBearerAuth('bearerAuth')
