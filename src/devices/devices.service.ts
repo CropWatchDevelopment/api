@@ -327,6 +327,8 @@ export class DevicesService {
           created_at: latestData.created_at,
           [primaryField]: latestData[primaryField],
           [secondaryField]: latestData[secondaryField],
+          // if humidity, add it here
+          humidity: latestData.humidity,
         };
       })
     );
@@ -404,6 +406,7 @@ export class DevicesService {
         created_at: latestData.created_at,
         [primaryField]: latestData[primaryField],
         [secondaryField]: latestData[secondaryField],
+        humidity: latestData.humidity,
       };
     }
 
