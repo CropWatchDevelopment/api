@@ -63,7 +63,11 @@ export class DevicesController {
     Returns all devices for the authenticated user.`,
   })
   findAll(@Req() req) {
-    return this.devicesService.findAll(req.user, req.headers.authorization);
+    const parsedSkip = parseInt(req.query.skip, 10);
+    const parsedTake = parseInt(req.query.take, 10);
+    const skip = Number.isNaN(parsedSkip) ? 0 : parsedSkip;
+    const take = Number.isNaN(parsedTake) ? undefined : parsedTake;
+    return this.devicesService.findAll(req.user, req.headers.authorization, skip, take);
   }
 
   @Get('latest-primary-data')

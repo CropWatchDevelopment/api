@@ -8,27 +8,65 @@ import {
 import { SupabaseService } from '../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
 
+export interface PagedDevicesResponse<T> {
+  total: number;
+  skip: number;
+  take: number;
+  data: T[];
+}
+
 @Injectable()
 export class DevicesService {
 
   constructor(private readonly supabaseService: SupabaseService) { }
 
-  async findAll(jwtPayload: any, authHeader: string): Promise<TableRow<'cw_devices'>[]> {
+  async findAll(
+    jwtPayload: any,
+    authHeader: string,
+    skip: number = 0,
+    take?: number,
+  ): Promise<PagedDevicesResponse<TableRow<'cw_devices'>>> {
     const accessToken = this.getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = this.getUserId(jwtPayload);
 
-    const { data, error } = await client
+    const { count, error: countError } = await client
+      .from('cw_devices')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (countError) {
+      throw new InternalServerErrorException('Failed to fetch devices');
+    }
+
+    const resolvedTake = typeof take === 'number' ? take : (count ?? 0);
+
+    let devicesQuery = client
       .from('cw_devices')
       .select('*')
       .eq('user_id', userId)
       .order('name', { ascending: true });
 
+    if (resolvedTake > 0) {
+      devicesQuery = devicesQuery
+        .range(skip, skip + resolvedTake - 1)
+        .limit(resolvedTake);
+    }
+
+    const { data, error } = await devicesQuery;
+
     if (error) {
       throw new InternalServerErrorException('Failed to fetch devices');
     }
 
-    return data ?? [];
+    const responseTake = typeof take === 'number' ? take : (count ?? data?.length ?? 0);
+
+    return {
+      total: count ?? 0,
+      skip,
+      take: responseTake,
+      data: data ?? [],
+    };
   }
 
   async findOne(
@@ -62,7 +100,13 @@ export class DevicesService {
     return data;
   }
 
-  public async findData(jwtPayload: any, devEui: string, skip: number = 0, take: number = 144, authHeader: string) {
+  public async findData(
+    jwtPayload: any,
+    devEui: string,
+    skip: number = 0,
+    take: number = 144,
+    authHeader: string,
+  ): Promise<PagedDevicesResponse<any>> {
     const accessToken = this.getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = this.getUserId(jwtPayload);
@@ -100,6 +144,15 @@ export class DevicesService {
       throw new NotFoundException('Device type not found');
     }
 
+    const { count, error: countError } = await client
+      .from(deviceType.data_table_v2)
+      .select('*', { count: 'exact', head: true })
+      .eq('dev_eui', normalizedDevEui);
+
+    if (countError) {
+      throw new InternalServerErrorException('Failed to fetch Data');
+    }
+
     const { data: latestData, error: dataError } = await client
       .from(deviceType.data_table_v2)
       .select('*')
@@ -116,7 +169,12 @@ export class DevicesService {
       throw new NotFoundException('Data not found');
     }
 
-    return latestData;
+    return {
+      total: count ?? 0,
+      skip,
+      take,
+      data: latestData,
+    };
   }
 
   public async findDataWithinRange(
@@ -127,7 +185,7 @@ export class DevicesService {
     end: Date | string = new Date().toISOString(),
     skip: number = 0,
     take: number = 144,
-  ) {
+  ): Promise<PagedDevicesResponse<any>> {
     const accessToken = this.getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = this.getUserId(jwtPayload);
@@ -168,6 +226,17 @@ export class DevicesService {
     const startDate = new Date(start);
     const endDate = new Date(end);
 
+    const { count, error: countError } = await client
+      .from(deviceType.data_table_v2)
+      .select('*', { count: 'exact', head: true })
+      .eq('dev_eui', normalizedDevEui)
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString());
+
+    if (countError) {
+      throw new InternalServerErrorException('Failed to fetch Data');
+    }
+
     const { data: latestData, error: dataError } = await client
       .from(deviceType.data_table_v2)
       .select('*')
@@ -185,13 +254,32 @@ export class DevicesService {
       throw new NotFoundException('Data not found');
     }
 
-    return latestData;
+    return {
+      total: count ?? 0,
+      skip,
+      take,
+      data: latestData,
+    };
   }
 
-  public async findAllLatestData(jwtPayload: any, skip: number = 0, take: number = 10, authHeader: string) {
+  public async findAllLatestData(
+    jwtPayload: any,
+    skip: number = 0,
+    take: number = 10,
+    authHeader: string,
+  ): Promise<PagedDevicesResponse<any>> {
     const accessToken = this.getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = this.getUserId(jwtPayload);
+
+    const { count, error: countError } = await client
+      .from('cw_devices')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (countError) {
+      throw new InternalServerErrorException('Failed to fetch device');
+    }
 
     const { data: device, error: deviceError } = await client
       .from('cw_devices')
@@ -243,7 +331,12 @@ export class DevicesService {
       })
     );
 
-    return devicesWithLatestData;
+    return {
+      total: count ?? 0,
+      skip,
+      take,
+      data: devicesWithLatestData,
+    };
   }
 
   public async findLatestData(jwtPayload: any, devEui: string, authHeader: string, primaryAndSecondaryOnly = false) {
