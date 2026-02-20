@@ -54,17 +54,23 @@ export class CreateCheckoutSessionDto {
 
   @ApiPropertyOptional({
     type: 'object',
-    additionalProperties: true,
+    additionalProperties: {
+      oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }],
+    },
     description: 'Metadata copied to order/subscription.',
+    example: { plan: 'pro', seats: 5, trial: true },
   })
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, string | number | boolean>;
 
   @ApiPropertyOptional({
     type: 'object',
-    additionalProperties: true,
+    additionalProperties: {
+      oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }],
+    },
     description: 'Metadata copied to customer when created.',
+    example: { source: 'dashboard', region: 'us-east-1' },
   })
-  customer_metadata?: Record<string, unknown>;
+  customer_metadata?: Record<string, string | number | boolean>;
 
   @ApiPropertyOptional({ default: true })
   allow_discount_codes?: boolean;

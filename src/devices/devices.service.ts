@@ -100,6 +100,45 @@ export class DevicesService {
     return data;
   }
 
+  public async findAllStatus(jwtPayload: any, authHeader: string): Promise<{ online: number; offline: number }> {
+    const accessToken = this.getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+    const userId = this.getUserId(jwtPayload);
+
+    const { data: devices, error: devicesError } = await client
+      .from('cw_devices')
+      .select('last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)')
+      .eq('user_id', userId);
+
+    if (devicesError) {
+      throw new InternalServerErrorException('Failed to fetch devices');
+    }
+
+    if (!devices || devices.length === 0) {
+      throw new NotFoundException('No devices found');
+    }
+
+    const now = new Date();
+
+    let onlineCount = 0;
+    let offlineCount = 0;
+
+    devices.forEach((device) => {
+      const lastUpdated = new Date(device.last_data_updated_at);
+      const minutesSinceLastUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60);
+      const deviceType = Array.isArray(device.cw_device_type)
+        ? device.cw_device_type[0]
+        : device.cw_device_type;
+      if (minutesSinceLastUpdate <= (device.upload_interval ? device.upload_interval : (deviceType?.default_upload_interval as number))) {
+        onlineCount++;
+      } else {
+        offlineCount++;
+      }
+    });
+
+    return { online: onlineCount, offline: offlineCount };
+  }
+
   public async findData(
     jwtPayload: any,
     devEui: string,

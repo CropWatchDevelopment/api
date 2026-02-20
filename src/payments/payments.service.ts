@@ -10,6 +10,8 @@ import { ConfigService } from '@nestjs/config';
 import { CreateCheckoutSessionDto } from './dto/create-checkout-session.dto';
 import { CreateCustomerPortalSessionDto } from './dto/create-customer-portal-session.dto';
 
+type CheckoutMetadataValue = string | number | boolean;
+
 @Injectable()
 export class PaymentsService {
   constructor(private readonly configService: ConfigService) {}
@@ -60,10 +62,12 @@ export class PaymentsService {
     if (createCheckoutSessionDto.customer_billing_address) {
       payload.customer_billing_address = createCheckoutSessionDto.customer_billing_address;
     }
-    if (createCheckoutSessionDto.metadata) {
+    if (createCheckoutSessionDto.metadata !== undefined) {
+      this.assertCheckoutMetadata('metadata', createCheckoutSessionDto.metadata);
       payload.metadata = createCheckoutSessionDto.metadata;
     }
-    if (createCheckoutSessionDto.customer_metadata) {
+    if (createCheckoutSessionDto.customer_metadata !== undefined) {
+      this.assertCheckoutMetadata('customer_metadata', createCheckoutSessionDto.customer_metadata);
       payload.customer_metadata = createCheckoutSessionDto.customer_metadata;
     }
     if (typeof createCheckoutSessionDto.allow_discount_codes === 'boolean') {
@@ -182,6 +186,32 @@ export class PaymentsService {
       throw new InternalServerErrorException('POLAR_ACCESS_TOKEN is not configured');
     }
     return token;
+  }
+
+  private assertCheckoutMetadata(fieldName: string, value: unknown): void {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      throw new BadRequestException(
+        `${fieldName} must be an object with string, number, or boolean values`,
+      );
+    }
+
+    for (const [key, entryValue] of Object.entries(value)) {
+      if (!this.isValidCheckoutMetadataValue(entryValue)) {
+        throw new BadRequestException(
+          `${fieldName}.${key} must be a string, number, or boolean`,
+        );
+      }
+    }
+  }
+
+  private isValidCheckoutMetadataValue(value: unknown): value is CheckoutMetadataValue {
+    if (typeof value === 'string' || typeof value === 'boolean') {
+      return true;
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value);
+    }
+    return false;
   }
 
   private getPolarApiBaseUrl(): string {
