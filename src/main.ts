@@ -16,19 +16,37 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('CropWatch RESTful API')
-    .setDescription('API documentation for CropWatch application')
-    .setVersion(getCommit())
+    .setDescription(
+      `CropWatch API powers authenticated device monitoring, automation, and subscription workflows.
+
+Business scope:
+- Monitor field and greenhouse devices with time-series telemetry (air, soil, water, traffic).
+- Manage device inventory, online/offline status, and latest sensor values for operations dashboards.
+- Configure automation with threshold-based rules and scheduled reports with recipients/alert points.
+- Manage subscription billing with Polar checkout, customer portal, subscription state, and product catalog.
+
+Developer notes:
+- URI versioning is enabled (current default routes are under /v1).
+- Authentication uses Supabase JWT bearer tokens from POST /v1/auth/login.
+- Most endpoints are user-scoped and require Authorization: Bearer <token>.
+- Telemetry queries support ISO 8601 start/end filters plus optional IANA timezone formatting.
+- Device data endpoints support pagination (skip/take) and latest/full payload variants.
+- Swagger includes an x-api-key scheme for deployments that enforce API keys upstream.`,
+    )
+    .setVersion(`Current Commit: ${getCommit()}`)
     .addTag('CropWatch API')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'bearerAuth',
     )
     .addApiKey({ type: 'apiKey', in: 'header', name: 'x-api-key' }, 'apiKey')
-    .setLicense('Terms of Use', 'https://CropWatch.io/legal/terms-of-use')
+    .setLicense('License & Distribution', 'https://www.cropwatch.io/legal/license')
+    .setTermsOfService('https://www.cropwatch.io/legal/terms-of-service')
+    .setExternalDoc('GitHub Repository', 'https://github.com/CropWatchDevelopment/api')
     .setContact(
       'CropWatch Support',
-      'https://CropWatch.io/support',
-      'support@cropwatch.io',
+      'https://github.com/CropWatchDevelopment/api/issues',
+      'kevin@cropwatch.io',
     )
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
