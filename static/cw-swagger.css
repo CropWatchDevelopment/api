@@ -7,32 +7,130 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
-.swagger-ui .topbar .topbar-wrapper::after {
+.swagger-ui .topbar {
+  position: relative;
+}
+
+.swagger-ui .topbar .topbar-wrapper::before {
   content: "CROPWATCH - DEVELOPMENT";
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding-left: 32px;
+  margin-right: 8px;
+  background: url("/favicon.svg") no-repeat left center / 22px 22px;
   color: white;
   font-weight: 700;
   letter-spacing: 0.08em;
   font-size: 14px;
   text-transform: uppercase;
-}
-
-.swagger-ui .topbar .topbar-wrapper::before {
-  content: "";
-  width: 22px;
-  height: 22px;
-  background: url("/favicon.svg") no-repeat center / contain;
-  display: inline-block;
+  pointer-events: none;
 }
 
 .swagger-ui .topbar .topbar-wrapper .link:first-of-type {
   display: none;
 }
 
+.swagger-ui .topbar .download-url-wrapper {
+  margin-left: auto;
+}
+
+/* Force the dropdown/select used by Swagger's URL selector to be visible */
+.swagger-ui .topbar .download-url-wrapper .select-label select {
+  display: block !important;
+  visibility: visible !important;
+  z-index: 9999;
+}
+
+@media (max-width: 768px) {
+  .swagger-ui .topbar .download-url-wrapper {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
 .dark-mode-toggle {
   position: absolute !important;
-  right: 30px;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.dark-mode-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.dark-mode-toggle.is-dark {
+  border-color: rgba(245, 166, 35, 0.7);
+  background: rgba(245, 166, 35, 0.2);
+}
+
+html.cw-swagger-dark,
+html.cw-swagger-dark body {
+  background: #0b1220;
+}
+
+html.cw-swagger-dark .swagger-ui,
+html.cw-swagger-dark .swagger-ui .info .title,
+html.cw-swagger-dark .swagger-ui .info p,
+html.cw-swagger-dark .swagger-ui .opblock-tag,
+html.cw-swagger-dark .swagger-ui .response-col_status,
+html.cw-swagger-dark .swagger-ui .response-col_description,
+html.cw-swagger-dark .swagger-ui .parameter__name,
+html.cw-swagger-dark .swagger-ui .parameter__type,
+html.cw-swagger-dark .swagger-ui .model-title,
+html.cw-swagger-dark .swagger-ui .model,
+html.cw-swagger-dark .swagger-ui label {
+  color: #e2e8f0;
+}
+
+html.cw-swagger-dark .swagger-ui .scheme-container,
+html.cw-swagger-dark .swagger-ui .opblock,
+html.cw-swagger-dark .swagger-ui section.models,
+html.cw-swagger-dark .swagger-ui .model-box,
+html.cw-swagger-dark .swagger-ui .responses-inner {
+  background: #0f172a;
+}
+
+html.cw-swagger-dark .swagger-ui .opblock .opblock-summary,
+html.cw-swagger-dark .swagger-ui .opblock .opblock-section-header,
+html.cw-swagger-dark .swagger-ui section.models,
+html.cw-swagger-dark .swagger-ui .model-box,
+html.cw-swagger-dark .swagger-ui table tbody tr td {
+  border-color: #334155;
+}
+
+html.cw-swagger-dark .swagger-ui input[type="text"],
+html.cw-swagger-dark .swagger-ui input[type="password"],
+html.cw-swagger-dark .swagger-ui input[type="search"],
+html.cw-swagger-dark .swagger-ui textarea,
+html.cw-swagger-dark .swagger-ui select {
+  background: #111827;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
+@media (max-width: 768px) {
+  .dark-mode-toggle {
+    top: 12px;
+    transform: none;
+  }
 }
 
 .opblock-summary-path-description-wrapper {

@@ -1,22 +1,22 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from './v1/auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
-import { AirModule } from './air/air.module';
-import { SoilModule } from './soil/soil.module';
-import { WaterModule } from './water/water.module';
-import { PowerModule } from './power/power.module';
-import { TrafficModule } from './traffic/traffic.module';
-import { RealtimeModule } from './realtime/realtime.module';
+import { AirModule } from './v1/air/air.module';
+import { SoilModule } from './v1/soil/soil.module';
+import { WaterModule } from './v1/water/water.module';
+import { PowerModule } from './v1/power/power.module';
+import { TrafficModule } from './v1/traffic/traffic.module';
+import { RealtimeModule } from './v1/realtime/realtime.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
-import { DevicesModule } from './devices/devices.module';
-import { RulesModule } from './rules/rules.module';
-import { ReportsModule } from './reports/reports.module';
-import { PaymentsModule } from './payments/payments.module';
+import { DevicesModule } from './v1/devices/devices.module';
+import { RulesModule } from './v1/rules/rules.module';
+import { ReportsModule } from './v1/reports/reports.module';
+import { PaymentsModule } from './v1/payments/payments.module';
 
 @Module({
   imports: [
@@ -35,7 +35,7 @@ import { PaymentsModule } from './payments/payments.module';
       {
         name: 'default',
         ttl: 2000,
-        limit: 2,
+        limit: 20,
         blockDuration: 5000,
       },
     ]),
