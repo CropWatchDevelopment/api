@@ -88,7 +88,7 @@ export class LocationsService {
       .select(`
     *,
     owner_match:cw_location_owners(),
-    cw_location_owners(*)
+    cw_location_owners(*, profiles(id, full_name, email))
   `)
       .eq('location_id', id)
       .eq('owner_match.user_id', userId)
@@ -124,7 +124,7 @@ export class LocationsService {
       .select(`
     *,
     owner_match:cw_location_owners(),
-    cw_location_owners(*)
+    cw_location_owners(*, profiles(id, full_name, email))
   `)
       .eq('location_id', id)
       .eq('owner_match.user_id', userId)
