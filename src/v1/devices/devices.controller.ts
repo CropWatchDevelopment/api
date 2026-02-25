@@ -100,6 +100,18 @@ export class DevicesController {
     return this.devicesService.findAllLatestData(req.user, skip, take, req.headers.authorization);
   }
 
+  @Get('location/:location_id')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'location_id', description: 'Location ID', type: Number, required: true })
+  @ApiOperation({
+    summary: 'Get the latest primary data for all devices in a location (paginated)',
+    description: `
+    Returns the latest, 2 primary data values from the table record for all devices in a specific location.`,
+  })
+  allDevicesInLocation(@Req() req, @Param('location_id') locationId: number) {
+    return this.devicesService.findAllDevicesInLocation(req.user, locationId, req.headers.authorization);
+  }
+
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({

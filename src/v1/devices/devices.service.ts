@@ -414,6 +414,31 @@ export class DevicesService {
     };
   }
 
+  public async findAllDevicesInLocation(jwtPayload: any, locationId: number, authHeader: string): Promise<TableRow<'cw_devices'>[]> {
+    const accessToken = getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+    const userId = getUserId(jwtPayload);
+
+    const { data: devices, error: devicesError } = await client
+      .from('cw_devices')
+      .select('*, owner_match:cw_device_owners()')
+      .eq('location_id', locationId)
+      .eq('owner_match.user_id', userId)
+      .gt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
+      .order('name', { ascending: true });
+
+    if (devicesError) {
+      throw new InternalServerErrorException('Failed to fetch devices');
+    }
+
+    if (!devices || devices.length === 0) {
+      throw new NotFoundException('No devices found for this location');
+    }
+
+    return devices;
+  }
+
   public async findLatestData(jwtPayload: any, devEui: string, authHeader: string, primaryAndSecondaryOnly = false) {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
@@ -454,7 +479,7 @@ export class DevicesService {
       throw new NotFoundException('Device type not found');
     }
 
-const { data: latestData, error: dataError } = await client
+    const { data: latestData, error: dataError } = await client
       .from(deviceType.data_table_v2)
       .select('*')
       .eq('dev_eui', normalizedDevEui)

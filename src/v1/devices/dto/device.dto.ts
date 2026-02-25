@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { DeviceOwnerDto } from './device-owner.dto';
 
 export class DeviceDto {
   @ApiProperty({ description: 'LoRaWAN dev_eui', example: 'A1B2C3D4E5F60708' })
@@ -98,4 +99,12 @@ export class DeviceDto {
 
   @ApiProperty({ required: false, nullable: true })
   group: string | null;
+
+  @ApiProperty({
+    type: () => DeviceOwnerDto,
+    isArray: true,
+    required: false,
+    description: 'Rows from cw_device_owners linked by dev_eui.',
+  })
+  cw_device_owners?: DeviceOwnerDto[];
 }
