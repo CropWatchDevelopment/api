@@ -5,6 +5,7 @@ import { UpdateRuleDto } from './dto/update-rule.dto';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiSecurity } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { RuleDto } from './dto/rule.dto';
+import { IRuleCountDto } from './dto/ruleCount.dto';
 
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
@@ -40,6 +41,32 @@ export class RulesController {
   findAll(@Req() req) {
     const authHeader = req.headers?.authorization ?? '';
     return this.rulesService.findAll(req.user, authHeader);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description:
+      "Current all of the user's triggered rules configurations.",
+    type: Number,
+    isArray: false,
+  })
+  @Get('triggered')
+  findAllTriggered(@Req() req) {
+    const authHeader = req.headers?.authorization ?? '';
+    return this.rulesService.findAllTriggered(req.user, authHeader);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description:
+      "Gets the count of the user's triggered rules configurations.",
+    type: IRuleCountDto,
+    isArray: false,
+  })
+  @Get('triggered/count')
+  findTriggeredCount(@Req() req) {
+    const authHeader = req.headers?.authorization ?? '';
+    return this.rulesService.findTriggeredCount(req.user, authHeader);
   }
 
   @UseGuards(JwtAuthGuard)

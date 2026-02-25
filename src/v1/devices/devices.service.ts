@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
+import { getAccessToken, getUserId } from 'src/supabase/supabase-token.helper';
 
 export interface PagedDevicesResponse<T> {
   total: number;
@@ -26,9 +27,9 @@ export class DevicesService {
     skip: number = 0,
     take?: number,
   ): Promise<PagedDevicesResponse<TableRow<'cw_devices'>>> {
-    const accessToken = this.getAccessToken(authHeader);
+    const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
-    const userId = this.getUserId(jwtPayload);
+    const userId = getUserId(jwtPayload);
 
     const { count, error: countError } = await client
       .from('cw_devices')
@@ -43,8 +44,14 @@ export class DevicesService {
 
     let devicesQuery = client
       .from('cw_devices')
-      .select('*')
-      .eq('user_id', userId)
+      .select(`
+    *,
+    owner_match:cw_device_owners(),
+    cw_device_owners(*)
+  `)
+      .eq('owner_match.user_id', userId)
+      .gt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .order('name', { ascending: true });
 
     if (resolvedTake > 0) {
@@ -74,20 +81,27 @@ export class DevicesService {
     devEui: string,
     authHeader: string,
   ): Promise<TableRow<'cw_devices'>> {
-    const accessToken = this.getAccessToken(authHeader);
+    const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
-    const userId = this.getUserId(jwtPayload);
+    const userId = getUserId(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const { data, error } = await client
+    let { data, error } = await client
       .from('cw_devices')
-      .select('*')
-      .eq('user_id', userId)
+      .select(`
+    *,
+    owner_match:cw_device_owners(),
+    cw_device_owners(*)
+  `)
       .eq('dev_eui', normalizedDevEui)
-      .maybeSingle();
+      .eq('owner_match.user_id', userId)
+      .gt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
+      .order('name', { ascending: true })
+      .single();
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -101,14 +115,17 @@ export class DevicesService {
   }
 
   public async findAllStatus(jwtPayload: any, authHeader: string): Promise<{ online: number; offline: number }> {
-    const accessToken = this.getAccessToken(authHeader);
+    const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
-    const userId = this.getUserId(jwtPayload);
+    const userId = getUserId(jwtPayload);
 
     const { data: devices, error: devicesError } = await client
       .from('cw_devices')
-      .select('last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)')
-      .eq('user_id', userId);
+      .select('owner_match:cw_device_owners(), last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)')
+      .eq('owner_match.user_id', userId)
+      .gt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
+      .order('name', { ascending: true });
 
     if (devicesError) {
       throw new InternalServerErrorException('Failed to fetch devices');
@@ -146,9 +163,9 @@ export class DevicesService {
     take: number = 144,
     authHeader: string,
   ): Promise<PagedDevicesResponse<any>> {
-    const accessToken = this.getAccessToken(authHeader);
+    const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
-    const userId = this.getUserId(jwtPayload);
+    const userId = getUserId(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -156,10 +173,16 @@ export class DevicesService {
 
     const { data: device, error: deviceError } = await client
       .from('cw_devices')
-      .select('*')
-      .eq('user_id', userId)
+      .select(`
+    *,
+    owner_match:cw_device_owners(),
+    cw_device_owners(*)
+  `)
+      .eq('owner_match.user_id', userId)
+      .gt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .eq('dev_eui', normalizedDevEui)
-      .maybeSingle();
+      .single();
 
     if (deviceError) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -225,9 +248,9 @@ export class DevicesService {
     skip: number = 0,
     take: number = 144,
   ): Promise<PagedDevicesResponse<any>> {
-    const accessToken = this.getAccessToken(authHeader);
+    const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
-    const userId = this.getUserId(jwtPayload);
+    const userId = getUserId(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -235,10 +258,16 @@ export class DevicesService {
 
     const { data: device, error: deviceError } = await client
       .from('cw_devices')
-      .select('*')
-      .eq('user_id', userId)
+      .select(`
+    *,
+    owner_match:cw_device_owners(),
+    cw_device_owners(*)
+  `)
+      .eq('owner_match.user_id', userId)
+      .gt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .eq('dev_eui', normalizedDevEui)
-      .maybeSingle();
+      .single();
 
     if (deviceError) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -307,14 +336,17 @@ export class DevicesService {
     take: number = 10,
     authHeader: string,
   ): Promise<PagedDevicesResponse<any>> {
-    const accessToken = this.getAccessToken(authHeader);
+    const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
-    const userId = this.getUserId(jwtPayload);
+    const userId = getUserId(jwtPayload);
 
     const { count, error: countError } = await client
       .from('cw_devices')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
+      .select('*, owner_match:cw_device_owners()', { count: 'exact', head: true })
+      .eq('owner_match.user_id', userId)
+      .gt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
+      .order('name', { ascending: true });
 
     if (countError) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -322,8 +354,10 @@ export class DevicesService {
 
     const { data: device, error: deviceError } = await client
       .from('cw_devices')
-      .select('*, cw_device_type(*), cw_locations(name)')
-      .eq('user_id', userId)
+      .select('*, cw_device_type(*), cw_locations(name), owner_match:cw_device_owners()')
+      .eq('owner_match.user_id', userId)
+      .gt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .range(skip, skip + take - 1)
       .limit(take)
       .order('name', { ascending: false });
@@ -381,9 +415,9 @@ export class DevicesService {
   }
 
   public async findLatestData(jwtPayload: any, devEui: string, authHeader: string, primaryAndSecondaryOnly = false) {
-    const accessToken = this.getAccessToken(authHeader);
+    const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
-    const userId = this.getUserId(jwtPayload);
+    const userId = getUserId(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -391,10 +425,12 @@ export class DevicesService {
 
     const { data: device, error: deviceError } = await client
       .from('cw_devices')
-      .select('*')
-      .eq('user_id', userId)
+      .select('*, owner_match:cw_device_owners()')
+      .eq('owner_match.user_id', userId)
+      .gt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .eq('dev_eui', normalizedDevEui)
-      .maybeSingle();
+      .single();
 
     if (deviceError) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -418,7 +454,7 @@ export class DevicesService {
       throw new NotFoundException('Device type not found');
     }
 
-    const { data: latestData, error: dataError } = await client
+const { data: latestData, error: dataError } = await client
       .from(deviceType.data_table_v2)
       .select('*')
       .eq('dev_eui', normalizedDevEui)
@@ -450,28 +486,5 @@ export class DevicesService {
     }
 
     return latestData;
-  }
-
-  /*********************************************************************
- * 
- * Private functions to handle common tasks such as extracting user ID from JWT payload,
- * 
- ********************************************************************/
-
-  private getUserId(jwtPayload: any): string {
-    const userId = jwtPayload?.sub;
-    if (typeof userId !== 'string' || !userId.trim()) {
-      throw new UnauthorizedException('Invalid bearer token');
-    }
-    return userId;
-  }
-
-  private getAccessToken(authHeader: string): string {
-    const rawHeader = authHeader?.trim() ?? '';
-    const [scheme, token] = rawHeader.split(' ');
-    if (scheme?.toLowerCase() !== 'bearer' || !token) {
-      throw new UnauthorizedException('Missing bearer token');
-    }
-    return token;
   }
 }

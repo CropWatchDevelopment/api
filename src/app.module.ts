@@ -17,6 +17,7 @@ import { DevicesModule } from './v1/devices/devices.module';
 import { RulesModule } from './v1/rules/rules.module';
 import { ReportsModule } from './v1/reports/reports.module';
 import { PaymentsModule } from './v1/payments/payments.module';
+import { LocationsModule } from './v1/locations/locations.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { PaymentsModule } from './v1/payments/payments.module';
     RulesModule,
     ReportsModule,
     PaymentsModule,
+    LocationsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
