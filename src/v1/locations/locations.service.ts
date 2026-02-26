@@ -255,8 +255,72 @@ export class LocationsService {
     }
   }
 
-  remove(id: number) {
-    throw new NotImplementedException('Location deletion is not implemented yet, Contact support if you want to delete a location.');
+  async removeLocationPermission(location_id: number, permissionId: number, jwtPayload: any, authHeader: string) {
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+
+    // Check if current user has permissions to remove another user's permissions from the location
+    const { data: requestingUser, error } = await client
+      .from('cw_locations')
+      .select(`
+    *,
+    owner_match:cw_location_owners(),
+    cw_location_owners(*)
+  `)
+      .eq('location_id', location_id)
+      .eq('owner_match.user_id', userId)
+      .eq('owner_match.permission_level', 1)
+      .or(`owner_id.eq.${userId},owner_match.not.is.null`)
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch location permissions');
+    }
+    if (!requestingUser) {
+      throw new UnauthorizedException('You do not have permission to update this location');
+    }
+
+
+    // GET THE ROW WITH THE ACTUAL USER ID THAT WE WILL DELETE EVERYWHERE LATER ON
+    const { data: locationPermissionRecord, error: locationPermissionRecordError } = await client
+      .from('cw_location_owners')
+      .select('*')
+      .eq('id', permissionId)
+      .eq('location_id', location_id)
+      .maybeSingle();
+    if (locationPermissionRecordError) throw new InternalServerErrorException('Failed to fetch location permission record');
+    if (!locationPermissionRecord) throw new NotFoundException('Location permission record not found');
+
+    const user_id_to_delete = locationPermissionRecord.user_id;
+
+    // delete location permission
+    const { error: deleteLocationPermissionError } = await client
+      .from('cw_location_owners')
+      .delete()
+      .eq('id', permissionId)
+      .eq('location_id', location_id);
+    if (deleteLocationPermissionError) throw new InternalServerErrorException('Failed to delete location permission');
+
+    // get All devices inside of location
+    const { data: locationDevices, error: locationDevicesError } = await client
+      .from('cw_devices')
+      .select('dev_eui')
+      .eq('location_id', location_id);
+    if (locationDevicesError) throw new InternalServerErrorException('Failed to fetch location devices');
+
+    // delete user's permissions from all devices in the location
+    for (const device of locationDevices ?? []) {
+      const { error: deleteDevicePermissionError } = await client
+        .from('cw_device_owners')
+        .delete()
+        .eq('user_id', user_id_to_delete)
+        .eq('dev_eui', device.dev_eui);
+      if (deleteDevicePermissionError) throw new InternalServerErrorException('Failed to delete device permission');
+    }
+
+    return { message: 'Location permission and associated device permissions successfully deleted' };
+
   }
 
 }

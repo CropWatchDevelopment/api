@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import { LocationsService } from './locations.service';
 import { CreateLocationDto } from './dto/create-location.dto';
@@ -93,8 +94,14 @@ export class LocationsController {
     return this.locationsService.updateLocationPermission(+id, updateLocationOwnerDto, applyToAllDevicesFlag, req.user, authHeader);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.locationsService.remove(+id);
+  @Delete(':id/permission')
+  @UseGuards(JwtAuthGuard)
+  remove(@Param('id') id: number, @Query('permission_id') permissionId: number, @Req() req) {
+    if (!id || !permissionId) {
+      throw new BadRequestException('Location ID and Permission ID are required');
+    }
+
+    const authHeader = req.headers?.authorization ?? '';
+    return this.locationsService.removeLocationPermission(id, permissionId, req.user, authHeader);
   }
 }
