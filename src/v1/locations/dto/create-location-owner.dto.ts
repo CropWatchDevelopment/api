@@ -19,6 +19,9 @@ export class CreateLocationOwnerDto implements LocationOwnerInsert {
   @ApiProperty({ required: false })
   id?: number;
 
+  @ApiProperty({ required: false })
+  user_email?: string; // This field is not part of the database schema but will be used to look up the user ID based on the provided email when creating a new location owner record.
+
   @ApiProperty({ required: false, nullable: true })
   is_active?: boolean | null;
 

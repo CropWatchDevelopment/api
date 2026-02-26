@@ -72,11 +72,10 @@ export class LocationsController {
     description: 'The location permission has been successfully updated.',
     type: LocationDto,
   })
-
-  async createLocationPermission(@Param('id') id: string, @Param('newUserEmail') newUserEmail: string, @Body() createLocationOwnerDto: CreateLocationOwnerDto, @Query('applyToAllDevices') applyToAllDevices: string = 'false', @Req() req) {
+  async createLocationPermission(@Param('id') id: string, @Body() createLocationOwnerDto: CreateLocationOwnerDto, @Query('permission_level') permissionLevel: number, @Query('applyToAllDevices') applyToAllDevices: string = 'false', @Req() req) {
     const authHeader = req.headers?.authorization ?? '';
     const applyToAllDevicesFlag = applyToAllDevices === 'true';
-    return this.locationsService.createLocationPermission(+id, createLocationOwnerDto, newUserEmail, applyToAllDevicesFlag, req.user, authHeader);
+    return this.locationsService.createLocationPermission(+id, createLocationOwnerDto, permissionLevel, applyToAllDevicesFlag, req.user, authHeader);
   }
 
   @Patch(':id/permission')

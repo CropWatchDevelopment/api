@@ -113,7 +113,7 @@ export class LocationsService {
     return `This action updates a #${id} location`;
   }
 
-  async createLocationPermission(id: number, createLocationOwnerDto: CreateLocationOwnerDto, newUserEmail: string, applyPermissionToAllDevices: boolean, jwtPayload: any, authHeader: string) {
+  async createLocationPermission(id: number, createLocationOwnerDto: CreateLocationOwnerDto, permissionLevel: number, applyPermissionToAllDevices: boolean, jwtPayload: any, authHeader: string) {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
@@ -137,11 +137,13 @@ export class LocationsService {
     // If we got here, then it means we have the necessary permissions to update location permissions, so we can proceed with upserting the location owner and potentially updating device permissions as well.
     
     //First off, get UID for new user's email
+    
     const { data: userData, error: userError } = await client
-      .from('profiles')
-      .select('id')
-      .eq('email', newUserEmail)
-      .maybeSingle();
+    .from('profiles')
+    .select('id')
+    .eq('email', createLocationOwnerDto.user_email)
+    .maybeSingle();
+
     if (userError) throw new InternalServerErrorException('Failed to fetch user data');
     if (!userData) throw new NotFoundException('User with the provided email not found');
 
@@ -152,12 +154,11 @@ export class LocationsService {
       .upsert(
         {
           user_id: userData.id,
-          permission_level: createLocationOwnerDto.permission_level,
+          permission_level: permissionLevel,
           location_id: id,
           is_active: true, // as we are inserting for the fist time, this should always be true.
           admin_user_id: userId,
         },
-        { onConflict: 'location_id,user_id' },
       )
       .single();
     if (locationOwnerError) throw new InternalServerErrorException('Failed to update location owner');
@@ -169,7 +170,7 @@ export class LocationsService {
       .eq('location_id', id);
     if (locationDevicesError) throw new InternalServerErrorException('Failed to fetch location devices');
 
-    const locationPermissionLevel = createLocationOwnerDto.permission_level ?? 4;
+    const locationPermissionLevel = permissionLevel ?? 4;
 
     // add check if user selected to add current permission to all location's devices
     // if true, add user's new permission level to all devices, if false, add user to devices with lowest permission level (4) to ensure they can access the devices through the location
@@ -178,7 +179,7 @@ export class LocationsService {
         .from('cw_device_owners')
         .upsert(
           {
-            user_id: createLocationOwnerDto.user_id,
+            user_id: userData.id,
             dev_eui: device.dev_eui,
             permission_level: applyPermissionToAllDevices ? locationPermissionLevel : 4,
           },
@@ -187,6 +188,8 @@ export class LocationsService {
         .single();
       if (deviceOwnerError) throw new InternalServerErrorException('Failed to update device owner');
     }
+
+    return { message: 'Location permission successfully updated' };
   }
 
   async updateLocationPermission(id: number, updateLocationOwnerDto: UpdateLocationOwnerDto, applyPermissionToAllDevices: boolean, jwtPayload: any, authHeader: string) {
