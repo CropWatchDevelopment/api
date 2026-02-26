@@ -296,6 +296,59 @@ export class LocationsService {
     }
   }
 
+  async updateUserPermissionLevel(id: number, updateLocationOwnerDto: any, applyPermissionToAllDevices: boolean, jwtPayload: any, authHeader: string) {
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+
+    const email = updateLocationOwnerDto.email;
+    const permission_level = updateLocationOwnerDto.permission_level;
+    const location_id = updateLocationOwnerDto.location_id;
+    
+    // check if you have permission to update location permissions
+    const { data: locationCurrentPermission, error: locationPermissionError } = await client
+      .from('cw_locations')
+      .select(`
+    *,
+    owner_match:cw_location_owners(),
+    cw_location_owners(*)
+  `)
+      .eq('location_id', id)
+      .eq('owner_match.user_id', userId)
+      .eq('owner_match.permission_level', 1)
+      .or(`owner_id.eq.${userId},owner_match.not.is.null`)
+      .maybeSingle();
+    if (locationPermissionError) throw new InternalServerErrorException('Failed to fetch location permissions');
+    if (!locationCurrentPermission) throw new UnauthorizedException('You do not have permission to update this location');
+
+    // If we got here, then it means we have the necessary permissions to update location permissions, so we can proceed with upserting the location owner and potentially updating device permissions as well.
+    const { data: userData, error: userError } = await client
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (userError) throw new InternalServerErrorException('Failed to fetch user data');
+    if (!userData) throw new NotFoundException('User with the provided email not found');
+
+    // upsert user to location
+    const { error: locationOwnerError } = await client
+      .from('cw_location_owners')
+      .update(
+        {
+          user_id: userData.id,
+          permission_level: permission_level,
+          location_id: location_id,
+          is_active: true, // as we are inserting for the fist time, this should always be true.
+        })
+        .eq('location_id', location_id)
+        .eq('user_id', userData.id)
+      .single();
+    if (locationOwnerError) throw new InternalServerErrorException('Failed to update location owner');
+
+    return { message: 'Location permission level successfully updated' };
+  }
+
   async removeLocationPermission(location_id: number, permissionId: number, jwtPayload: any, authHeader: string) {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);

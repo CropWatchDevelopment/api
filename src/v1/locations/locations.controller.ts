@@ -88,11 +88,24 @@ export class LocationsController {
     description: 'The location permission has been successfully updated.',
     type: LocationDto,
   })
-
   async updateLocationPermission(@Param('id') id: string, @Body() updateLocationOwnerDto: UpdateLocationOwnerDto, @Query('applyToAllDevices') applyToAllDevices: string = 'false', @Req() req) {
     const authHeader = req.headers?.authorization ?? '';
     const applyToAllDevicesFlag = applyToAllDevices === 'true';
     return this.locationsService.updateLocationPermission(+id, updateLocationOwnerDto, applyToAllDevicesFlag, req.user, authHeader);
+  }
+
+  @Patch(':id/permission-level')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'id', description: 'ID of the location to update permissions for', type: Number })
+  @ApiQuery({ name: 'applyToAllDevices', description: 'Whether to apply the permission change to all devices associated with the location', type: Boolean, required: false })
+  @ApiOkResponse({
+    description: 'The location permission has been successfully updated.',
+    type: LocationDto,
+  })
+  async updateUserPermissionLevel(@Param('id') id: string, @Body() updateLocationUserPermissionLevelDto: any, @Query('applyToAllDevices') applyToAllDevices: string = 'false', @Req() req) {
+    const authHeader = req.headers?.authorization ?? '';
+    const applyToAllDevicesFlag = applyToAllDevices === 'true';
+    return this.locationsService.updateUserPermissionLevel(+id, updateLocationUserPermissionLevelDto, applyToAllDevicesFlag, req.user, authHeader);
   }
 
   @Delete(':id/permission')
