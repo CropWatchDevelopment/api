@@ -109,8 +109,46 @@ export class LocationsService {
     return data;
   }
 
-  update(id: number, updateLocationDto: UpdateLocationDto) {
-    return `This action updates a #${id} location`;
+  async update(id: number, updateLocationDto: UpdateLocationDto, jwtPayload: any, authHeader: string) {
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+
+    // check if you have permission to update location permissions
+    const { data: locationCurrentPermission, error: locationPermissionError } = await client
+      .from('cw_locations')
+      .select(`
+    *,
+    owner_match:cw_location_owners(),
+    cw_location_owners(*, profiles(id, full_name, email))
+  `)
+      .eq('location_id', id)
+      .eq('owner_match.user_id', userId)
+      .eq('owner_match.permission_level', 1)
+      .or(`owner_id.eq.${userId},owner_match.not.is.null`)
+      .maybeSingle();
+    if (locationPermissionError) throw new InternalServerErrorException('Failed to fetch location permissions');
+    if (!locationCurrentPermission) throw new UnauthorizedException('You do not have permission to update this location');
+
+    const { data, error } = await client
+      .from('cw_locations')
+      .update({
+        name: updateLocationDto.name,
+      })
+      .eq('location_id', id)
+      .eq('owner_id', userId)
+      .select('*')
+      .single();
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to update location');
+    }
+
+    if (!data) {
+      throw new NotFoundException('Location not found or you do not have permission to update');
+    }
+
+    return data;
   }
 
   async createLocationPermission(id: number, createLocationOwnerDto: CreateLocationOwnerDto, permissionLevel: number, applyPermissionToAllDevices: boolean, jwtPayload: any, authHeader: string) {
@@ -135,14 +173,14 @@ export class LocationsService {
     if (!locationCurrentPermission) throw new UnauthorizedException('You do not have permission to update this location');
 
     // If we got here, then it means we have the necessary permissions to update location permissions, so we can proceed with upserting the location owner and potentially updating device permissions as well.
-    
+
     //First off, get UID for new user's email
-    
+
     const { data: userData, error: userError } = await client
-    .from('profiles')
-    .select('id')
-    .eq('email', createLocationOwnerDto.user_email)
-    .maybeSingle();
+      .from('profiles')
+      .select('id')
+      .eq('email', createLocationOwnerDto.user_email)
+      .maybeSingle();
 
     if (userError) throw new InternalServerErrorException('Failed to fetch user data');
     if (!userData) throw new NotFoundException('User with the provided email not found');

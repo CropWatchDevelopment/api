@@ -59,8 +59,10 @@ export class LocationsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateLocationDto: UpdateLocationDto) {
-    return this.locationsService.update(+id, updateLocationDto);
+  @UseGuards(JwtAuthGuard)
+  update(@Param('id') id: string, @Body() updateLocationDto: UpdateLocationDto, @Req() req) {
+    const authHeader = req.headers?.authorization ?? '';
+    return this.locationsService.update(+id, updateLocationDto, req.user, authHeader);
   }
 
   @Post(':id/permission')
