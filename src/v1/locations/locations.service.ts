@@ -58,6 +58,28 @@ export class LocationsService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
 
+
+
+    if (jwtPayload.email.endsWith('@cropwatch.io')) {
+      // If the user is a Cropwatch employee, return all locations
+      const { data, error } = await client
+        .from('cw_locations')
+        .select(`
+    *,
+    owner_match:cw_location_owners(),
+    cw_location_owners(*)
+  `)
+        .order('name', { ascending: true });
+      if (error) {
+        throw new InternalServerErrorException('Failed to fetch locations');
+      }
+      return data;
+    }
+
+
+
+
+
     const { data, error } = await client
       .from('cw_locations')
       .select(`
@@ -69,7 +91,6 @@ export class LocationsService {
       .gt('owner_match.permission_level', 4)
       .or(`owner_id.eq.${userId},owner_match.not.is.null`)
       .order('name', { ascending: true });
-
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch locations');
@@ -304,7 +325,7 @@ export class LocationsService {
     const email = updateLocationOwnerDto.email;
     const permission_level = updateLocationOwnerDto.permission_level;
     const location_id = updateLocationOwnerDto.location_id;
-    
+
     // check if you have permission to update location permissions
     const { data: locationCurrentPermission, error: locationPermissionError } = await client
       .from('cw_locations')
@@ -341,8 +362,8 @@ export class LocationsService {
           location_id: location_id,
           is_active: true, // as we are inserting for the fist time, this should always be true.
         })
-        .eq('location_id', location_id)
-        .eq('user_id', userData.id)
+      .eq('location_id', location_id)
+      .eq('user_id', userData.id)
       .single();
     if (locationOwnerError) throw new InternalServerErrorException('Failed to update location owner');
 

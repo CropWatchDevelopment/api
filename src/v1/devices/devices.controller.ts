@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   NotImplementedException,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -24,6 +26,7 @@ import {
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { DeviceDto } from './dto/device.dto';
+import { UpdateDevicePermissionDto } from './dto/UpdateDevicePermission.dto';
 
 @Controller('devices')
 @ApiBearerAuth('bearerAuth')
@@ -286,6 +289,36 @@ export class DevicesController {
     `,
   })
   create(@Req() req, @Param('dev_eui') devEui: string) {
-    throw NotImplementedException;
+    throw new NotImplementedException();
+  }
+
+  @Patch(':dev_eui/permission-level')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOperation({
+    summary: 'Update the permission level for a device',
+    description: `
+    Updates the permission level for a device.
+    This will require a "seat" token for the user, which can be obtained from the /payments endpoints.
+    This endpoint is not yet implemented and will return a 501 Not Implemented response until it is implemented.
+    Please contact support if you would like this feature to be prioritized.
+    `,
+  })
+  updatePermissionLevel(
+    @Req() req,
+    @Param('dev_eui') devEui: string,
+    @Body() body: UpdateDevicePermissionDto,
+  ) {
+    console.log(req);
+    if (!devEui?.trim()) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    if (!body.targetUserEmail?.trim()) {
+      throw new BadRequestException('Target User Email is required');
+    }
+    if (!body.permissionLevel) {
+      throw new BadRequestException('Permission Level is required');
+    }
+    return this.devicesService.updatePermissionLevel(req.user, devEui, body.targetUserEmail, body.permissionLevel, req.headers.authorization);
   }
 }

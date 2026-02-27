@@ -512,4 +512,61 @@ export class DevicesService {
 
     return latestData;
   }
+
+  async updatePermissionLevel(jwtPayload: any, devEui: string, targetUserEmail: string, permissionLevel: number, authHeader: string) {
+    const accessToken = getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+    const userId = getUserId(jwtPayload);
+    const normalizedDevEui = devEui?.trim();
+    if (!normalizedDevEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    if (!targetUserEmail) {
+      throw new BadRequestException('targetUserEmail is required');
+    }
+    if (!permissionLevel) {
+      throw new BadRequestException('permissionLevel is required');
+    }
+
+    // Check we have permission to do the permission update
+    const { data: RequestingUserHasPermission, error: deviceError } = await client
+      .from('cw_devices')
+      .select('*, owner_match:cw_device_owners()')
+      .eq('owner_match.user_id', userId)
+      .eq('owner_match.permission_level', 1)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
+      .eq('dev_eui', normalizedDevEui)
+      .single();
+
+    if (!RequestingUserHasPermission || deviceError) {
+      throw new UnauthorizedException('You do not have permission to update this device');
+    }
+
+    // Get the user we plan to update permission for
+
+    const { data: targetUser, error: targetUserError } = await client
+      .from('profiles')
+      .select('id')
+      .eq('email', targetUserEmail)
+      .single();
+
+    if (!targetUser || targetUserError) {
+      throw new UnauthorizedException('You do not have permission to update this device');
+    }
+
+    // do the thing
+    const { data, error } = await client
+      .from('cw_device_owners')
+      .update({ permission_level: permissionLevel })
+      .eq('dev_eui', devEui)
+      .eq('user_id', targetUser.id)
+      .select('*');
+
+    if (!data || error)
+    {
+       throw new BadRequestException('You do not have permission to update this device');
+    }
+
+    return data;
+  }
 }
