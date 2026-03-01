@@ -397,6 +397,7 @@ export class DevicesService {
           dev_eui: d.dev_eui,
           name: d.name,
           location_name: d.cw_locations?.name ?? 'n/a',
+          location_id: d.location_id,
           created_at: latestData.created_at,
           [primaryField]: latestData[primaryField],
           [secondaryField]: latestData[secondaryField],
@@ -504,6 +505,7 @@ export class DevicesService {
       return {
         dev_eui: normalizedDevEui,
         created_at: latestData.created_at,
+        location_id: device.location_id,
         [primaryField]: latestData[primaryField],
         [secondaryField]: latestData[secondaryField],
         humidity: latestData.humidity,

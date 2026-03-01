@@ -9,10 +9,12 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { AirService } from './air.service';
 import { AirDataDto } from './dto/air-data.dto';
 import { CreateAirDto } from './dto/create-air.dto';
+import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
   ApiBadRequestResponse,
@@ -26,18 +28,24 @@ import {
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
-@Controller('air')
+@Controller({ path: 'air', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class AirController {
-  constructor(private readonly airService: AirService) {}
+  constructor(private readonly airService: AirService) { }
 
   // @Post()
   // create(@Body() createAirDto: CreateAirDto) {
   //   return this.airService.create(createAirDto);
   // }
 
-  // @Get()
+  @Post('notes')
+  @UseGuards(JwtAuthGuard)
+  async createNote(@Body() createAirNoteDto: CreateAirAnnotationDto, @Body() body: { note: string; created_at: string, dev_eui: string }, @Req() req) {
+    return this.airService.createNote(createAirNoteDto, req.user, req.headers.authorization);
+  }
+
+  // @Get()AIR_NOTES_ENDPOINT
   // findAll() {
   //   return this.airService.findAll();
   // }

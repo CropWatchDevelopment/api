@@ -335,6 +335,35 @@ export type Database = {
         }
         Relationships: []
       }
+      cw_air_annotations: {
+        Row: {
+          created_at: string
+          dev_eui: string
+          id: number
+          note: string | null
+        }
+        Insert: {
+          created_at: string
+          dev_eui: string
+          id?: number
+          note?: string | null
+        }
+        Update: {
+          created_at?: string
+          dev_eui?: string
+          id?: number
+          note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_air_annotations_air_fk"
+            columns: ["dev_eui", "created_at"]
+            isOneToOne: false
+            referencedRelation: "cw_air_data"
+            referencedColumns: ["dev_eui", "created_at"]
+          },
+        ]
+      }
       cw_air_data: {
         Row: {
           battery_level: number | null
