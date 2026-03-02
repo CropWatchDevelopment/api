@@ -206,18 +206,32 @@ export class DevicesService {
       throw new NotFoundException('Device type not found');
     }
 
+
     const { count, error: countError } = await client
       .from(deviceType.data_table_v2)
-      .select('*', { count: 'exact', head: true })
+      .select(`*`, { count: 'exact', head: true })
       .eq('dev_eui', normalizedDevEui);
 
     if (countError) {
       throw new InternalServerErrorException('Failed to fetch Data');
     }
 
+    const getAnnotations = deviceType.data_table_v2 === 'cw_air_data' ? '*, cw_air_annotations(*)' : '*';
+
+    // Safeguard against odd queryied tables
+    if (![
+      'cw_air_data',
+      'cw_soil_data',
+      'cw_water_data',
+      'cw_weather_data',
+      'cw_power_data',
+    ].includes(deviceType.data_table_v2)) {
+
+    }
+
     const { data: latestData, error: dataError } = await client
       .from(deviceType.data_table_v2)
-      .select('*')
+      .select(getAnnotations)
       .eq('dev_eui', normalizedDevEui)
       .order('created_at', { ascending: false })
       .range(skip, skip + take - 1)
@@ -564,9 +578,8 @@ export class DevicesService {
       .eq('user_id', targetUser.id)
       .select('*');
 
-    if (!data || error)
-    {
-       throw new BadRequestException('You do not have permission to update this device');
+    if (!data || error) {
+      throw new BadRequestException('You do not have permission to update this device');
     }
 
     return data;

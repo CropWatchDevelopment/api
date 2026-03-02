@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './guards/jwt.auth.guard';
 import {
   ApiBadRequestResponse,
@@ -18,7 +19,7 @@ import { LoginResponseDto } from './dto/login-response.dto';
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -39,6 +40,7 @@ export class AuthController {
     return req.user;
   }
 
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
   @Post('login')
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiOkResponse({
@@ -86,3 +88,4 @@ export class AuthController {
     return this.authService.loginWithPassword(body.email, body.password);
   }
 }
+

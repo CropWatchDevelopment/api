@@ -69,7 +69,7 @@ export class DevicesController {
     const parsedSkip = parseInt(req.query.skip, 10);
     const parsedTake = parseInt(req.query.take, 10);
     const skip = Number.isNaN(parsedSkip) ? 0 : parsedSkip;
-    const take = Number.isNaN(parsedTake) ? undefined : parsedTake;
+    const take = Math.min(Number.isNaN(parsedTake) ? 100 : parsedTake, 1000);
     return this.devicesService.findAll(req.user, req.headers.authorization, skip, take);
   }
 
@@ -309,7 +309,6 @@ export class DevicesController {
     @Param('dev_eui') devEui: string,
     @Body() body: UpdateDevicePermissionDto,
   ) {
-    console.log(req);
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
