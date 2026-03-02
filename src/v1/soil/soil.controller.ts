@@ -27,7 +27,7 @@ import {
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
-@Controller('soil')
+@Controller({ path: 'soil', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class SoilController {

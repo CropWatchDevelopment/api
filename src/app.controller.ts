@@ -1,11 +1,13 @@
 import { Controller, Get, Res } from '@nestjs/common';
-import { ApiOkResponse } from '@nestjs/swagger';
+import { ApiExcludeEndpoint, ApiOkResponse } from '@nestjs/swagger';
 import { join } from 'path';
 import type { Response } from 'express';
 
 @Controller()
 export class AppController {
+
   @Get()
+  @ApiExcludeEndpoint()
   @ApiOkResponse({
     description: 'API introduction homepage (HTML).',
     content: {

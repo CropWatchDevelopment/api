@@ -2,6 +2,8 @@ import { BadRequestException, Injectable, InternalServerErrorException, NotFound
 import { CreateRuleDto } from './dto/create-rule.dto';
 import { UpdateRuleDto } from './dto/update-rule.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { count } from 'rxjs/internal/operators/count';
+import { error } from 'console';
 
 @Injectable()
 export class RulesService {
@@ -79,6 +81,45 @@ export class RulesService {
     }
 
     return data;
+  }
+
+  async findAllTriggered(jwtPayload: any, authHeader: string) {
+    const userId = this.getUserId(jwtPayload);
+    const accessToken = this.getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+
+    const { data, error } = await client
+      .from('cw_rules')
+      .select('*, cw_rule_criteria(*)') // Fetch associated criteria for each rule
+      .order('name', { ascending: true })
+      .eq('profile_id', userId)
+      .eq('is_triggered', true);
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch rules');
+    }
+
+    return data;
+  }
+
+  async findTriggeredCount(jwtPayload: any, authHeader: string) {
+    const userId = this.getUserId(jwtPayload);
+    const accessToken = this.getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+
+    const triggered = await this.findAllTriggered(jwtPayload, authHeader);
+    if (!triggered) {
+      throw new InternalServerErrorException('Failed to fetch rules');
+    }
+
+    const totalRuleCount = await this.findAll(jwtPayload, authHeader);
+    if (!totalRuleCount) {
+      throw new InternalServerErrorException('Failed to fetch rules');
+    }
+
+    const triggered_count = triggered.length;
+    const total_count = totalRuleCount.length;
+
+    return { triggered_count, total_count };
   }
 
   async findOne(id: number, jwtPayload: any, authHeader: string) {

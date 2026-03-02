@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   NotImplementedException,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -24,8 +26,9 @@ import {
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { DeviceDto } from './dto/device.dto';
+import { UpdateDevicePermissionDto } from './dto/UpdateDevicePermission.dto';
 
-@Controller('devices')
+@Controller({ path: 'devices', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class DevicesController {
@@ -66,7 +69,7 @@ export class DevicesController {
     const parsedSkip = parseInt(req.query.skip, 10);
     const parsedTake = parseInt(req.query.take, 10);
     const skip = Number.isNaN(parsedSkip) ? 0 : parsedSkip;
-    const take = Number.isNaN(parsedTake) ? undefined : parsedTake;
+    const take = Math.min(Number.isNaN(parsedTake) ? 100 : parsedTake, 1000);
     return this.devicesService.findAll(req.user, req.headers.authorization, skip, take);
   }
 
@@ -98,6 +101,18 @@ export class DevicesController {
     const skip = parseInt(req.query.skip, 10) || 0;
     const take = parseInt(req.query.take, 10) || 10;
     return this.devicesService.findAllLatestData(req.user, skip, take, req.headers.authorization);
+  }
+
+  @Get('location/:location_id')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'location_id', description: 'Location ID', type: Number, required: true })
+  @ApiOperation({
+    summary: 'Get the latest primary data for all devices in a location (paginated)',
+    description: `
+    Returns the latest, 2 primary data values from the table record for all devices in a specific location.`,
+  })
+  allDevicesInLocation(@Req() req, @Param('location_id') locationId: number) {
+    return this.devicesService.findAllDevicesInLocation(req.user, locationId, req.headers.authorization);
   }
 
   @Get(':dev_eui')
@@ -274,6 +289,35 @@ export class DevicesController {
     `,
   })
   create(@Req() req, @Param('dev_eui') devEui: string) {
-    throw NotImplementedException;
+    throw new NotImplementedException();
+  }
+
+  @Patch(':dev_eui/permission-level')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOperation({
+    summary: 'Update the permission level for a device',
+    description: `
+    Updates the permission level for a device.
+    This will require a "seat" token for the user, which can be obtained from the /payments endpoints.
+    This endpoint is not yet implemented and will return a 501 Not Implemented response until it is implemented.
+    Please contact support if you would like this feature to be prioritized.
+    `,
+  })
+  updatePermissionLevel(
+    @Req() req,
+    @Param('dev_eui') devEui: string,
+    @Body() body: UpdateDevicePermissionDto,
+  ) {
+    if (!devEui?.trim()) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    if (!body.targetUserEmail?.trim()) {
+      throw new BadRequestException('Target User Email is required');
+    }
+    if (!body.permissionLevel) {
+      throw new BadRequestException('Permission Level is required');
+    }
+    return this.devicesService.updatePermissionLevel(req.user, devEui, body.targetUserEmail, body.permissionLevel, req.headers.authorization);
   }
 }

@@ -14,7 +14,7 @@ import { CreateCustomerPortalSessionDto } from './dto/create-customer-portal-ses
 
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
-@Controller('payments')
+@Controller({ path: 'payments', version: '1' })
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 

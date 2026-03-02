@@ -17,6 +17,7 @@ import { DevicesModule } from './v1/devices/devices.module';
 import { RulesModule } from './v1/rules/rules.module';
 import { ReportsModule } from './v1/reports/reports.module';
 import { PaymentsModule } from './v1/payments/payments.module';
+import { LocationsModule } from './v1/locations/locations.module';
 
 @Module({
   imports: [
@@ -33,16 +34,25 @@ import { PaymentsModule } from './v1/payments/payments.module';
     }),
     ThrottlerModule.forRoot([
       {
+        // app wide, if you send more than 10 requests in 1 minute, you get a 2-minute ban.
         name: 'default',
         ttl: 2000,
-        limit: 20,
-        blockDuration: 5000,
+        limit: 10,
+        blockDuration: 6000,
       },
+      {
+        // If you send more than 100 requests in 1 minute, you get a 24-hour ban.
+        name: 'long',
+        ttl: 60000,
+        limit: 100,
+        blockDuration: 86400000, // 24 hours
+      }
     ]),
     DevicesModule,
     RulesModule,
     ReportsModule,
     PaymentsModule,
+    LocationsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
