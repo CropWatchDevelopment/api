@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
-import { getAccessToken, getUserId } from 'src/supabase/supabase-token.helper';
+import { getAccessToken, getUserId } from '../../supabase/supabase-token.helper';
 
 export interface PagedDevicesResponse<T> {
   total: number;
