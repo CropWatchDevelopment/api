@@ -2,10 +2,10 @@ import { Injectable, InternalServerErrorException, NotFoundException, NotImpleme
 import { CreateLocationDto } from './dto/create-location.dto';
 import { CreateLocationOwnerDto } from './dto/create-location-owner.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
-import { SupabaseService } from 'src/supabase/supabase.service';
+import { SupabaseService } from '../../supabase/supabase.service';
 import { error } from 'console';
 import { LocationDto } from './dto/location.dto';
-import { getAccessToken, getUserId } from 'src/supabase/supabase-token.helper';
+import { getAccessToken, getUserId } from '../../supabase/supabase-token.helper';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
 
 @Injectable()
