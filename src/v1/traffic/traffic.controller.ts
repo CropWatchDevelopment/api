@@ -27,7 +27,7 @@ import {
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
-@Controller('traffic')
+@Controller({ path: 'traffic', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class TrafficController {

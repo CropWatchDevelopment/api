@@ -8,7 +8,7 @@ import { ReportDto } from './dto/report.dto';
 
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
-@Controller('reports')
+@Controller({ path: 'reports', version: '1' })
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) { }
 

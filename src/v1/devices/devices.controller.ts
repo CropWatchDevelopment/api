@@ -28,7 +28,7 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { DeviceDto } from './dto/device.dto';
 import { UpdateDevicePermissionDto } from './dto/UpdateDevicePermission.dto';
 
-@Controller('devices')
+@Controller({ path: 'devices', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class DevicesController {

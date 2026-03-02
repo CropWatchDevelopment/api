@@ -9,7 +9,7 @@ import { IRuleCountDto } from './dto/ruleCount.dto';
 
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
-@Controller('rules')
+@Controller({ path: 'rules', version: '1' })
 export class RulesController {
   constructor(private readonly rulesService: RulesService) { }
 

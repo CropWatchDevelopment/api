@@ -19,7 +19,7 @@ import type { CreatePowerDto } from './dto/create-power.dto';
 import type { UpdatePowerDto } from './dto/update-power.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
-@Controller('power')
+@Controller({ path: 'power', version: '1' })
 export class PowerController {
   constructor(private readonly powerService: PowerService) {}
 
