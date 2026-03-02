@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LocationsController } from './locations.controller';
 import { LocationsService } from './locations.service';
+import { SupabaseService } from '../../supabase/supabase.service';
 
 describe('LocationsController', () => {
   let controller: LocationsController;
@@ -8,7 +9,16 @@ describe('LocationsController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [LocationsController],
-      providers: [LocationsService],
+      providers: [
+        LocationsService,
+        {
+          provide: SupabaseService,
+          useValue: {
+            getClient: () => null,
+            getAdminClient: () => null,
+          },
+        },
+      ],
     }).compile();
 
     controller = module.get<LocationsController>(LocationsController);
