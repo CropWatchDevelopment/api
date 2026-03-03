@@ -111,6 +111,9 @@ export class DevicesController {
   @UseGuards(JwtAuthGuard)
   @ApiQuery({ name: 'skip', description: 'Number of records to skip for pagination', required: false })
   @ApiQuery({ name: 'take', description: 'Number of records to take for pagination', required: false })
+  @ApiQuery({ name: 'group', description: 'Filter by device group', required: false })
+  @ApiQuery({ name: 'name', description: 'Filter by device name', required: false })
+  @ApiQuery({ name: 'location', description: 'Filter by device location', required: false })
   @ApiOperation({
     summary: 'Get the latest primary data for all devices (paginated)',
     description: `
@@ -119,7 +122,10 @@ export class DevicesController {
   allLatestPrimaryData(@Req() req) {
     const skip = parseInt(req.query.skip, 10) || 0;
     const take = parseInt(req.query.take, 10) || 10;
-    return this.devicesService.findAllLatestData(req.user, skip, take, req.headers.authorization);
+    const searchGroup = req.query.group ? String(req.query.group) : undefined;
+    const searchName = req.query.name ? String(req.query.name) : undefined;
+    const searchLocation = req.query.location ? String(req.query.location) : undefined;
+    return this.devicesService.findAllLatestData(req.user, skip, take, req.headers.authorization, searchGroup, searchName, searchLocation);
   }
 
   @Get('location/:location_id')
