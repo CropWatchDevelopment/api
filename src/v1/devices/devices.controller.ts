@@ -65,12 +65,20 @@ export class DevicesController {
     description: `
     Returns all devices for the authenticated user.`,
   })
+  @ApiQuery({ name: 'skip', description: 'Number of records to skip for pagination', required: false })
+  @ApiQuery({ name: 'take', description: 'Number of records to take for pagination', required: false })
+  @ApiQuery({ name: 'group', description: 'Filter by device group', required: false })
+  @ApiQuery({ name: 'name', description: 'Filter by device name', required: false })
+  @ApiQuery({ name: 'location', description: 'Filter by device location', required: false })
   findAll(@Req() req) {
     const parsedSkip = parseInt(req.query.skip, 10);
     const parsedTake = parseInt(req.query.take, 10);
     const skip = Number.isNaN(parsedSkip) ? 0 : parsedSkip;
     const take = Math.min(Number.isNaN(parsedTake) ? 100 : parsedTake, 1000);
-    return this.devicesService.findAll(req.user, req.headers.authorization, skip, take);
+    const searchGroup = req.query.group ? String(req.query.group) : undefined;
+    const searchName = req.query.name ? String(req.query.name) : undefined;
+    const searchLocation = req.query.location ? String(req.query.location) : undefined;
+    return this.devicesService.findAll(req.user, req.headers.authorization, skip, take, searchGroup, searchName, searchLocation);
   }
 
   @Get('status')
@@ -101,8 +109,8 @@ export class DevicesController {
 
   @Get('latest-primary-data')
   @UseGuards(JwtAuthGuard)
-  @ApiParam({ name: 'skip (0)', description: 'Number of records to skip for pagination', required: false })
-  @ApiParam({ name: 'take (10)', description: 'Number of records to take for pagination', required: false })
+  @ApiQuery({ name: 'skip', description: 'Number of records to skip for pagination', required: false })
+  @ApiQuery({ name: 'take', description: 'Number of records to take for pagination', required: false })
   @ApiOperation({
     summary: 'Get the latest primary data for all devices (paginated)',
     description: `
