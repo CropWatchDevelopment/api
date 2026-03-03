@@ -26,6 +26,9 @@ export class DevicesService {
     authHeader: string,
     skip: number = 0,
     take?: number,
+    searchGroup?: string,
+    searchName?: string,
+    searchLocation?: string,
   ): Promise<PagedDevicesResponse<TableRow<'cw_devices'>>> {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
@@ -51,8 +54,19 @@ export class DevicesService {
   `)
       .eq('owner_match.user_id', userId)
       .gt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .order('name', { ascending: true });
+      .or(`user_id.eq.${userId},owner_match.not.is.null`);
+
+    if (searchGroup) {
+      devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
+    }
+    if (searchName) {
+      devicesQuery = devicesQuery.ilike('name', `%${searchName}%`);
+    }
+    if (searchLocation) {
+      devicesQuery = devicesQuery.ilike('location', `%${searchLocation}%`);
+    }
+
+    devicesQuery = devicesQuery.order('name', { ascending: true });
 
     if (resolvedTake > 0) {
       devicesQuery = devicesQuery
@@ -94,7 +108,9 @@ export class DevicesService {
       .select(`
     *,
     owner_match:cw_device_owners(),
-    cw_device_owners(*)
+    cw_device_owners(*),
+    cw_locations(name, location_id),
+    cw_device_type(*)
   `)
       .eq('dev_eui', normalizedDevEui)
       .eq('owner_match.user_id', userId)
