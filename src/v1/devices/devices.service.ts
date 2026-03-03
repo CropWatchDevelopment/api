@@ -156,6 +156,40 @@ export class DevicesService {
     return { online: onlineCount, offline: offlineCount };
   }
 
+  public async findAllDeviceGroups(jwtPayload: any, authHeader: string): Promise<{ group: string | null; count: number }[]> {
+    const accessToken = getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+    const userId = getUserId(jwtPayload);
+
+    const { data: groups, error } = await client
+      .from('cw_devices')
+      .select('owner_match:cw_device_owners(), cw_device_owners(*), group')
+      .eq('owner_match.user_id', userId)
+      .gt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
+      .not('group', 'is', null);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch device groups');
+    }
+
+    if (!groups || groups.length === 0) {
+      throw new NotFoundException('No device groups found');
+    }
+
+    const groupCounts = groups.reduce((acc, item) => {
+      const existing = acc.find(g => g.group === item.group);
+      if (existing) {
+        existing.count++;
+      } else {
+        acc.push({ group: item.group, count: 1 });
+      }
+      return acc;
+    }, [] as { group: string | null; count: number }[]);
+
+    return groupCounts;
+  }
+
   public async findData(
     jwtPayload: any,
     devEui: string,
@@ -410,8 +444,10 @@ export class DevicesService {
         return {
           dev_eui: d.dev_eui,
           name: d.name,
+          device_type: deviceType.name,
           location_name: d.cw_locations?.name ?? 'n/a',
           location_id: d.location_id,
+          group: d.group,
           created_at: latestData.created_at,
           [primaryField]: latestData[primaryField],
           [secondaryField]: latestData[secondaryField],
@@ -518,6 +554,7 @@ export class DevicesService {
       }
       return {
         dev_eui: normalizedDevEui,
+        device_type: deviceType.name,
         created_at: latestData.created_at,
         location_id: device.location_id,
         [primaryField]: latestData[primaryField],

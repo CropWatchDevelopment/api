@@ -88,6 +88,17 @@ export class DevicesController {
     return this.devicesService.findAllStatus(req.user, req.headers.authorization);
   }
 
+  @Get('groups')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Returns device groups for the authenticated user',
+    description: `
+    Returns the device groups for the authenticated user.`,
+  })
+  findAllDeviceGroups(@Req() req) {
+    return this.devicesService.findAllDeviceGroups(req.user, req.headers.authorization);
+  }
+
   @Get('latest-primary-data')
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'skip (0)', description: 'Number of records to skip for pagination', required: false })
