@@ -399,32 +399,57 @@ export class DevicesService {
     skip: number = 0,
     take: number = 10,
     authHeader: string,
+    searchGroup?: string,
+    searchName?: string,
+    searchLocation?: string,
   ): Promise<PagedDevicesResponse<any>> {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
 
-    const { count, error: countError } = await client
+    let countQuery = client
       .from('cw_devices')
-      .select('*, owner_match:cw_device_owners()', { count: 'exact', head: true })
+      .select('owner_match:cw_device_owners(), cw_locations(name)', { count: 'exact', head: true })
       .eq('owner_match.user_id', userId)
       .gt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .order('name', { ascending: true });
+      .or(`user_id.eq.${userId},owner_match.not.is.null`);
+
+    if (searchGroup) {
+      countQuery = countQuery.ilike('group', `%${searchGroup}%`);
+    }
+    if (searchName) {
+      countQuery = countQuery.ilike('name', `%${searchName}%`);
+    }
+    if (searchLocation) {
+      countQuery = countQuery.ilike('cw_locations.name', `%${searchLocation}%`);
+    }
+
+    const { count, error: countError } = await countQuery;
 
     if (countError) {
       throw new InternalServerErrorException('Failed to fetch device');
     }
 
-    const { data: device, error: deviceError } = await client
+    let devicesQuery = client
       .from('cw_devices')
       .select('*, cw_device_type(*), cw_locations(name), owner_match:cw_device_owners()')
       .eq('owner_match.user_id', userId)
       .gt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .range(skip, skip + take - 1)
-      .limit(take)
-      .order('name', { ascending: false });
+      .or(`user_id.eq.${userId},owner_match.not.is.null`);
+
+    if (searchGroup) {
+      devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
+    }
+    if (searchName) {
+      devicesQuery = devicesQuery.ilike('name', `%${searchName}%`);
+    }
+    if (searchLocation) {
+      devicesQuery = devicesQuery.ilike('cw_locations.name', `%${searchLocation}%`);
+    }
+
+    const { data: device, error: deviceError } = await devicesQuery
+      .order('name', { ascending: false })
+      .range(skip, skip + take - 1);
 
     if (deviceError) {
       throw new InternalServerErrorException('Failed to fetch device');
