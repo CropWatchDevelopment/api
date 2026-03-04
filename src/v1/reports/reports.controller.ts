@@ -47,6 +47,38 @@ export class ReportsController {
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
+      "Fetch the history of a specific report by its device EUI. Only the fields included in the request body will be used.",
+    // type: any,
+    isArray: true,
+  })
+  @Get('history/:dev_eui')
+  findAllHistory(@Param('dev_eui') dev_eui: string, @Req() req) {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) {
+      throw new Error('Authorization header is required');
+    }
+    return this.reportsService.findAllHistory(dev_eui, req.user, authHeader);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description:
+      "Fetch the history of a specific report by its device EUI. Only the fields included in the request body will be used.",
+    // type: any,
+    isArray: true,
+  })
+  @Get('download/:dev_eui/:report_id')
+  downloadReport(@Param('dev_eui') dev_eui: string, @Param('report_id') report_id: string, @Req() req) {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) {
+      throw new Error('Authorization header is required');
+    }
+    return this.reportsService.downloadReport(dev_eui, report_id, req.user, authHeader);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description:
       "Fetch a specific report by its ID.",
     type: ReportDto,
     isArray: false,
