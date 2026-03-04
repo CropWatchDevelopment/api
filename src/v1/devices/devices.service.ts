@@ -193,6 +193,11 @@ export class DevicesService {
       throw new NotFoundException('No device groups found');
     }
 
+    // const groupCounts = groups.groupBy(g => g.group).map(group => ({
+    //   group: group.key,
+    //   count: group.value.length,
+    // }));
+
     const groupCounts = groups.reduce((acc, item) => {
       const existing = acc.find(g => g.group === item.group);
       if (existing) {
@@ -402,14 +407,23 @@ export class DevicesService {
     searchGroup?: string,
     searchName?: string,
     searchLocation?: string,
+    groupedByLocation?: boolean,
   ): Promise<PagedDevicesResponse<any>> {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const hasLocationFilter = typeof searchLocation === 'string' && searchLocation.trim().length > 0;
+    const locationIdFilter = hasLocationFilter ? Number(searchLocation) : undefined;
+    const countLocationSelect = hasLocationFilter
+      ? 'cw_locations!inner(location_id, name)'
+      : 'cw_locations(name)';
+    const dataLocationSelect = hasLocationFilter
+      ? 'cw_locations!inner(location_id, name)'
+      : 'cw_locations(location_id, name)';
 
     let countQuery = client
       .from('cw_devices')
-      .select('owner_match:cw_device_owners(), cw_locations(name)', { count: 'exact', head: true })
+      .select(`owner_match:cw_device_owners(), ${countLocationSelect}`, { count: 'exact', head: true })
       .eq('owner_match.user_id', userId)
       .gt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`);
@@ -420,8 +434,8 @@ export class DevicesService {
     if (searchName) {
       countQuery = countQuery.ilike('name', `%${searchName}%`);
     }
-    if (searchLocation) {
-      countQuery = countQuery.ilike('cw_locations.name', `%${searchLocation}%`);
+    if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
+      countQuery = countQuery.eq('cw_locations.location_id', locationIdFilter);
     }
 
     const { count, error: countError } = await countQuery;
@@ -432,7 +446,7 @@ export class DevicesService {
 
     let devicesQuery = client
       .from('cw_devices')
-      .select('*, cw_device_type(*), cw_locations(name), owner_match:cw_device_owners()')
+      .select(`*, cw_device_type(*), ${dataLocationSelect}, owner_match:cw_device_owners()`)
       .eq('owner_match.user_id', userId)
       .gt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`);
@@ -443,8 +457,11 @@ export class DevicesService {
     if (searchName) {
       devicesQuery = devicesQuery.ilike('name', `%${searchName}%`);
     }
-    if (searchLocation) {
-      devicesQuery = devicesQuery.ilike('cw_locations.name', `%${searchLocation}%`);
+    if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
+      devicesQuery = devicesQuery.eq('cw_locations.location_id', locationIdFilter);
+    }
+    if (groupedByLocation) {
+      devicesQuery = devicesQuery.ilike('cw_locations.group', `%${groupedByLocation}%`);
     }
 
     const { data: device, error: deviceError } = await devicesQuery
