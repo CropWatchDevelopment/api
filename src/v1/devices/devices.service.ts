@@ -407,7 +407,7 @@ export class DevicesService {
     searchGroup?: string,
     searchName?: string,
     searchLocation?: string,
-    groupedByLocation?: boolean,
+    locationGroup?: string,
   ): Promise<PagedDevicesResponse<any>> {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
@@ -415,11 +415,11 @@ export class DevicesService {
     const hasLocationFilter = typeof searchLocation === 'string' && searchLocation.trim().length > 0;
     const locationIdFilter = hasLocationFilter ? Number(searchLocation) : undefined;
     const countLocationSelect = hasLocationFilter
-      ? 'cw_locations!inner(location_id, name)'
-      : 'cw_locations(name)';
+      ? 'cw_locations!inner(location_id, name, group)'
+      : 'cw_locations(location_id, name, group)';
     const dataLocationSelect = hasLocationFilter
-      ? 'cw_locations!inner(location_id, name)'
-      : 'cw_locations(location_id, name)';
+      ? 'cw_locations!inner(location_id, name, group)'
+      : 'cw_locations(location_id, name, group)';
 
     let countQuery = client
       .from('cw_devices')
@@ -434,8 +434,10 @@ export class DevicesService {
     if (searchName) {
       countQuery = countQuery.ilike('name', `%${searchName}%`);
     }
-    if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
-      countQuery = countQuery.eq('cw_locations.location_id', locationIdFilter);
+    if (locationGroup) {
+      countQuery = countQuery.eq('cw_locations.group', locationGroup);
+      countQuery = countQuery.not('cw_locations', 'is', null);
+      countQuery = countQuery.not('cw_locations.group', 'is', null);
     }
 
     const { count, error: countError } = await countQuery;
@@ -460,8 +462,10 @@ export class DevicesService {
     if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
       devicesQuery = devicesQuery.eq('cw_locations.location_id', locationIdFilter);
     }
-    if (groupedByLocation) {
-      devicesQuery = devicesQuery.ilike('cw_locations.group', `%${groupedByLocation}%`);
+    if (locationGroup) {
+      devicesQuery = devicesQuery.eq('cw_locations.group', locationGroup);
+      devicesQuery = devicesQuery.not('cw_locations', 'is', null);
+      devicesQuery = devicesQuery.not('cw_locations.group', 'is', null);
     }
 
     const { data: device, error: deviceError } = await devicesQuery

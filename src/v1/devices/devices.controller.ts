@@ -114,7 +114,7 @@ export class DevicesController {
   @ApiQuery({ name: 'group-by-device-group', description: 'Filter by device group', required: false })
   @ApiQuery({ name: 'name', description: 'Filter by device name', required: false })
   @ApiQuery({ name: 'location', description: 'Filter by device location', required: false })
-  @ApiQuery({ name: 'grouped-by-location', description: 'Group devices by location', required: false })
+  @ApiQuery({ name: 'locationGroup', description: 'Group devices by location', required: false })
   @ApiOperation({
     summary: 'Get the latest primary data for all devices (paginated)',
     description: `
@@ -124,10 +124,10 @@ export class DevicesController {
     const skip = parseInt(req.query.skip, 10) || 0;
     const take = parseInt(req.query.take, 10) || 10;
     const searchDeviceGroup = req.query['group-by-device-group'] ? String(req.query['group-by-device-group']) : undefined;
-    const groupedByLocation = req.query['grouped-by-location'] ? Boolean(req.query['grouped-by-location']) : undefined;
+    const locationGroup = req.query.locationGroup ? String(req.query.locationGroup) : undefined;
     const searchName = req.query.name ? String(req.query.name) : undefined;
     const searchLocation = req.query.location ? String(req.query.location) : undefined;
-    return this.devicesService.findAllLatestData(req.user, skip, take, req.headers.authorization, searchDeviceGroup, searchName, searchLocation, groupedByLocation);
+    return this.devicesService.findAllLatestData(req.user, skip, take, req.headers.authorization, searchDeviceGroup, searchName, searchLocation, locationGroup);
   }
 
   @Get('location/:location_id')
