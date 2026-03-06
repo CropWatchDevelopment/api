@@ -14,6 +14,7 @@ import {
 import { AuthService } from './auth.service';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
+import { RegisterDto, RegisterResponseDto } from './dto/register.dto';
 
 @Controller({ path: 'auth', version: '1' })
 @ApiBearerAuth('bearerAuth')
@@ -87,5 +88,34 @@ export class AuthController {
   async login(@Body() body: { email: string; password: string }) {
     return this.authService.loginWithPassword(body.email, body.password);
   }
-}
 
+
+  // @Throttle({ default: { limit: 3, ttl: 60000 } })
+  // @Post('register')
+  // @ApiOperation({ summary: 'Register a new user with name, company, and consent agreements' })
+  // @ApiOkResponse({
+  //   description: 'Registration successful. Returns access token and user data.',
+  //   type: RegisterResponseDto,
+  // })
+  // @ApiBadRequestResponse({
+  //   description: 'Invalid registration payload or missing required agreements.',
+  //   type: ErrorResponseDto,
+  //   example: {
+  //     statusCode: 400,
+  //     error: 'Bad Request',
+  //     message: 'Validation failed',
+  //   },
+  // })
+  // @ApiInternalServerErrorResponse({
+  //   description: 'Failed to register.',
+  //   type: ErrorResponseDto,
+  //   example: {
+  //     statusCode: 500,
+  //     error: 'Internal Server Error',
+  //     message: 'Failed to register',
+  //   },
+  // })
+  // async register(@Body() body: RegisterDto) {
+  //   return this.authService.register(body);
+  // }
+}
