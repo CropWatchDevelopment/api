@@ -271,7 +271,7 @@ export class DevicesService {
       throw new InternalServerErrorException('Failed to fetch Data');
     }
 
-    const getAnnotations = deviceType.data_table_v2 === 'cw_air_data' ? '*, cw_air_annotations(*)' : '*';
+    const getAnnotations = deviceType.data_table_v2 === 'cw_air_data' ? '*, cw_air_annotations(*), cw_air_alerts(*)' : '*';
 
     // Safeguard against odd queryied tables
     if (![
@@ -286,7 +286,7 @@ export class DevicesService {
 
     const { data: latestData, error: dataError } = await client
       .from(deviceType.data_table_v2)
-      .select(getAnnotations)
+      .select(`${getAnnotations}`)
       .eq('dev_eui', normalizedDevEui)
       .order('created_at', { ascending: false })
       .range(skip, skip + take - 1)
