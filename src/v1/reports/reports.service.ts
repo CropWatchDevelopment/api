@@ -1,8 +1,9 @@
-import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { ReportDto } from './dto/report.dto';
+import { FileObject } from '@supabase/storage-js';
 
 @Injectable()
 export class ReportsService {
@@ -56,6 +57,92 @@ export class ReportsService {
 
     return data;
   }
+
+  async findAllHistory(dev_eui: string, jwtPayload: any, authHeader: string): Promise<FileObject[] | null> {
+    const userId = this.getUserId(jwtPayload);
+    const accessToken = this.getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+
+    const { data: permissionData, error: permissionError } = await client
+      .from('reports')
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
+      .order('created_at', { ascending: false })
+      .eq('user_id', userId)
+      .eq('dev_eui', dev_eui);
+    if (permissionError) {
+      throw new InternalServerErrorException('Failed to fetch report history');
+    }
+
+    const { data, error } = await client
+      .storage
+      .from('Reports')
+      .list(dev_eui, {
+        limit: 110,
+        offset: 0,
+        sortBy: { column: 'name', order: 'asc' },
+      })
+
+    return data;
+  }
+
+  async downloadReport(dev_eui: string, report_id: string, jwtPayload: any, authHeader: string): Promise<{ url: string } | null> {
+    const userId = this.getUserId(jwtPayload);
+    const accessToken = this.getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+    const adminClient = this.supabaseService.getAdminClient();
+    const normalizedDevEui = dev_eui?.trim();
+    const normalizedReportId = report_id?.trim();
+    const dbReportId = normalizedReportId?.replace(/\.pdf$/i, '');
+
+    if (!normalizedDevEui || !normalizedReportId || !dbReportId) {
+      throw new BadRequestException('dev_eui and report_id are required');
+    }
+
+    const { data: permissionData, error: permissionError } = await client
+      .from('reports')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('dev_eui', normalizedDevEui)
+      .limit(1);
+    if (permissionError) {
+      throw new InternalServerErrorException('Failed to fetch report for download');
+    }
+    if (!permissionData?.length) {
+      throw new UnauthorizedException('User does not have permission to download this report');
+    }
+
+    const storageClient = adminClient ?? client;
+    const bucketCandidates = ['Reports', 'reports'];
+    const candidatePaths = Array.from(new Set(
+      normalizedReportId.toLowerCase().endsWith('.pdf')
+        ? [`${normalizedDevEui}/${normalizedReportId}`, `${normalizedDevEui}/${dbReportId}.pdf`]
+        : [`${normalizedDevEui}/${normalizedReportId}`, `${normalizedDevEui}/${normalizedReportId}.pdf`],
+    ));
+
+    let lastStorageError: unknown = null;
+    for (const bucket of bucketCandidates) {
+      for (const path of candidatePaths) {
+        const { data, error } = await storageClient
+          .storage
+          .from(bucket)
+          .createSignedUrl(path, 60, { download: true });
+
+        if (!error && data?.signedUrl) {
+          return { url: data.signedUrl };
+        }
+
+        lastStorageError = error;
+      }
+    }
+
+    console.error('Failed to generate report signed URL', {
+      dev_eui: normalizedDevEui,
+      report_id: dbReportId,
+      error: lastStorageError,
+    });
+    throw new InternalServerErrorException('Failed to generate report download URL');
+  }
+
 
   async findOne(report_id: string, jwtPayload: any, authHeader: string): Promise<ReportDto> {
     const userId = this.getUserId(jwtPayload);

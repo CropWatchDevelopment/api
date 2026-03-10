@@ -48,6 +48,19 @@ export class LocationsController {
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
+      "Current all of the user's location groups.",
+    type: String,
+    isArray: true,
+  })
+  @Get('groups')
+  findLocationGroups(@Req() req) {
+    const authHeader = req.headers?.authorization ?? '';
+    return this.locationsService.findAllLocationGroups(req.user, authHeader);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description:
       "Get a user's location configuration by ID.",
     type: LocationDto,
     isArray: false,

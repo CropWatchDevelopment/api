@@ -4,12 +4,62 @@ import { AppModule } from './app.module';
 import { getCommit } from './utils/gitCommit';
 import helmet from 'helmet';
 import { join } from 'path';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
+import { STATUS_CODES } from 'http';
 import { doubleCsrf } from 'csrf-csrf';
+import type { NextFunction, Request, Response } from 'express';
+
+function getRequesterIp(req: Request): string {
+  const forwardedFor = req.headers['x-forwarded-for'];
+
+  if (typeof forwardedFor === 'string' && forwardedFor.trim().length > 0) {
+    return forwardedFor.split(',')[0].trim();
+  }
+
+  if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
+    return forwardedFor[0].split(',')[0].trim();
+  }
+
+  return req.ip || req.socket.remoteAddress || 'unknown';
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const logger = new Logger('NestApplication');
+  const expressApp = app.getHttpAdapter().getInstance() as any;
+
+  expressApp.set('trust proxy', true);
   app.enableCors();
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const endpoint = req.originalUrl || req.url || 'unknown';
+    const method = req.method || 'UNKNOWN';
+    const requesterIp = getRequesterIp(req);
+    let hasLogged = false;
+
+    const logRequest = (result: string) => {
+      if (hasLogged) {
+        return;
+      }
+
+      hasLogged = true;
+      logger.log(`${requesterIp} - ${endpoint} - ${method} - ${result}`);
+    };
+
+    res.on('finish', () => {
+      const statusCode = res.statusCode;
+      const statusText = STATUS_CODES[statusCode] ?? 'UNKNOWN';
+
+      logRequest(`${statusCode} ${statusText}`);
+    });
+
+    res.on('close', () => {
+      if (!res.writableEnded) {
+        logRequest('CLIENT_CLOSED_REQUEST');
+      }
+    });
+
+    next();
+  });
 
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
@@ -72,7 +122,6 @@ Developer notes:
   const v2Doc = filterByPrefix(fullDoc, '/v2');
 
   // register raw JSON endpoints on the underlying Express instance
-  const expressApp = app.getHttpAdapter().getInstance() as any;
   expressApp.get('/docs-json-v1', (_req: any, res: any) => res.json(v1Doc));
   expressApp.get('/docs-json-v2', (_req: any, res: any) => res.json(v2Doc));
 

@@ -76,10 +76,6 @@ export class LocationsService {
       return data;
     }
 
-
-
-
-
     const { data, error } = await client
       .from('cw_locations')
       .select(`
@@ -170,6 +166,30 @@ export class LocationsService {
     }
 
     return data;
+  }
+
+  async findAllLocationGroups(jwtPayload: any, authHeader: string): Promise<string[]> {
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+
+    const { data, error } = await client
+      .from('cw_locations')
+      .select('owner_match:cw_location_owners(), cw_location_owners(*), group')
+      .eq('owner_id', userId)
+      .eq('owner_match.user_id', userId) // Ensure we only get location groups WE are owners of
+      .or(`owner_id.eq.${userId},owner_match.not.is.null`) // OR locations that we have permission to access
+      .gt('owner_match.permission_level', 4) // AND we have a permission level GREATER THAN 4 (disabled)
+      .not('group', 'is', null)
+      .order('name', { ascending: true });
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch location groups');
+    }
+
+    const uniqueGroupArray = Array.from(new Set(data.map(item => item.group))).filter(group => group !== null);
+
+    return uniqueGroupArray;
   }
 
   async createLocationPermission(id: number, createLocationOwnerDto: CreateLocationOwnerDto, permissionLevel: number, applyPermissionToAllDevices: boolean, jwtPayload: any, authHeader: string) {

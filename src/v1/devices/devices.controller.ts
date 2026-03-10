@@ -27,6 +27,7 @@ import {
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { DeviceDto } from './dto/device.dto';
 import { UpdateDevicePermissionDto } from './dto/UpdateDevicePermission.dto';
+import { UpdateDeviceNameGroupLocalDto } from './dto/UpdateDeviceNameGroupLocal.dto';
 
 @Controller({ path: 'devices', version: '1' })
 @ApiBearerAuth('bearerAuth')
@@ -111,9 +112,10 @@ export class DevicesController {
   @UseGuards(JwtAuthGuard)
   @ApiQuery({ name: 'skip', description: 'Number of records to skip for pagination', required: false })
   @ApiQuery({ name: 'take', description: 'Number of records to take for pagination', required: false })
-  @ApiQuery({ name: 'group', description: 'Filter by device group', required: false })
+  @ApiQuery({ name: 'group-by-device-group', description: 'Filter by device group', required: false })
   @ApiQuery({ name: 'name', description: 'Filter by device name', required: false })
   @ApiQuery({ name: 'location', description: 'Filter by device location', required: false })
+  @ApiQuery({ name: 'locationGroup', description: 'Group devices by location', required: false })
   @ApiOperation({
     summary: 'Get the latest primary data for all devices (paginated)',
     description: `
@@ -122,10 +124,11 @@ export class DevicesController {
   allLatestPrimaryData(@Req() req) {
     const skip = parseInt(req.query.skip, 10) || 0;
     const take = parseInt(req.query.take, 10) || 10;
-    const searchGroup = req.query.group ? String(req.query.group) : undefined;
+    const searchDeviceGroup = req.query['group-by-device-group'] ? String(req.query['group-by-device-group']) : undefined;
+    const locationGroup = req.query.locationGroup ? String(req.query.locationGroup) : undefined;
     const searchName = req.query.name ? String(req.query.name) : undefined;
     const searchLocation = req.query.location ? String(req.query.location) : undefined;
-    return this.devicesService.findAllLatestData(req.user, skip, take, req.headers.authorization, searchGroup, searchName, searchLocation);
+    return this.devicesService.findAllLatestData(req.user, skip, take, req.headers.authorization, searchDeviceGroup, searchName, searchLocation, locationGroup);
   }
 
   @Get('location/:location_id')
@@ -344,5 +347,31 @@ export class DevicesController {
       throw new BadRequestException('Permission Level is required');
     }
     return this.devicesService.updatePermissionLevel(req.user, devEui, body.targetUserEmail, body.permissionLevel, req.headers.authorization);
+  }
+
+  @Patch(':dev_eui')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOperation({
+    summary: 'Update a device',
+    description: `
+    Updates a device for the authenticated user.
+    `,
+  })
+  updateDevice(
+    @Req() req,
+    @Param('dev_eui') devEui: string,
+    @Body() body: UpdateDeviceNameGroupLocalDto,
+  ) {
+    if (!devEui?.trim()) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    if (!body.name?.trim()) {
+      throw new BadRequestException('Device name is required');
+    }
+    if (!body.location_id) {
+      throw new BadRequestException('Device location is required');
+    }
+    return this.devicesService.updateDevice(req.user, devEui, body.name, body.group ?? null, body.location_id, req.headers.authorization);
   }
 }

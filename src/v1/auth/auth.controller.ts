@@ -88,4 +88,3 @@ export class AuthController {
     return this.authService.loginWithPassword(body.email, body.password);
   }
 }
-
