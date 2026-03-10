@@ -5,6 +5,7 @@ import { UpdateReportDto } from './dto/update-report.dto';
 import { ApiBearerAuth, ApiOkResponse, ApiSecurity } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { ReportDto } from './dto/report.dto';
+import type { ReportHistoryList } from './reports.service';
 
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
@@ -52,7 +53,7 @@ export class ReportsController {
     isArray: true,
   })
   @Get('history/:dev_eui')
-  findAllHistory(@Param('dev_eui') dev_eui: string, @Req() req) {
+  findAllHistory(@Param('dev_eui') dev_eui: string, @Req() req): Promise<ReportHistoryList> {
     const authHeader = req.headers?.authorization;
     if (!authHeader) {
       throw new Error('Authorization header is required');

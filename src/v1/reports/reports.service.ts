@@ -3,7 +3,32 @@ import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { ReportDto } from './dto/report.dto';
-import { FileObject } from '@supabase/storage-js';
+
+export interface ReportHistoryBucket {
+  id: string;
+  name: string;
+  owner: string;
+  public: boolean;
+  created_at: string;
+  updated_at: string;
+  type?: string;
+  file_size_limit?: number;
+  allowed_mime_types?: string[];
+}
+
+export interface ReportHistoryItem {
+  name: string;
+  bucket_id: string;
+  owner: string;
+  id: string;
+  updated_at: string;
+  created_at: string;
+  last_accessed_at: string;
+  metadata: Record<string, unknown>;
+  buckets: ReportHistoryBucket;
+}
+
+export type ReportHistoryList = ReportHistoryItem[] | null;
 
 @Injectable()
 export class ReportsService {
@@ -58,7 +83,7 @@ export class ReportsService {
     return data;
   }
 
-  async findAllHistory(dev_eui: string, jwtPayload: any, authHeader: string): Promise<FileObject[] | null> {
+  async findAllHistory(dev_eui: string, jwtPayload: any, authHeader: string): Promise<ReportHistoryList> {
     const userId = this.getUserId(jwtPayload);
     const accessToken = this.getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
