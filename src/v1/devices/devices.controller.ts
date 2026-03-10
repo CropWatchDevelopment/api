@@ -27,6 +27,7 @@ import {
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { DeviceDto } from './dto/device.dto';
 import { UpdateDevicePermissionDto } from './dto/UpdateDevicePermission.dto';
+import { UpdateDeviceNameGroupLocalDto } from './dto/UpdateDeviceNameGroupLocal.dto';
 
 @Controller({ path: 'devices', version: '1' })
 @ApiBearerAuth('bearerAuth')
@@ -346,5 +347,31 @@ export class DevicesController {
       throw new BadRequestException('Permission Level is required');
     }
     return this.devicesService.updatePermissionLevel(req.user, devEui, body.targetUserEmail, body.permissionLevel, req.headers.authorization);
+  }
+
+  @Patch(':dev_eui')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOperation({
+    summary: 'Update a device',
+    description: `
+    Updates a device for the authenticated user.
+    `,
+  })
+  updateDevice(
+    @Req() req,
+    @Param('dev_eui') devEui: string,
+    @Body() body: UpdateDeviceNameGroupLocalDto,
+  ) {
+    if (!devEui?.trim()) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    if (!body.name?.trim()) {
+      throw new BadRequestException('Device name is required');
+    }
+    if (!body.location_id) {
+      throw new BadRequestException('Device location is required');
+    }
+    return this.devicesService.updateDevice(req.user, devEui, body.name, body.group ?? null, body.location_id, req.headers.authorization);
   }
 }
