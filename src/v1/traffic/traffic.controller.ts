@@ -9,6 +9,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { TrafficService } from './traffic.service';
 import { TrafficDataDto } from './dto/traffic-data.dto';
@@ -99,6 +100,7 @@ export class TrafficController {
   })
   findOne(
     @Param('dev_eui') devEui: string,
+    @Req() req,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('timezone') timezone?: string,
@@ -122,6 +124,12 @@ export class TrafficController {
       throw new BadRequestException('start must be before end');
     }
 
-    return this.trafficService.findOne(devEui, startDate, endDate, timezone);
+    return this.trafficService.findOne(
+      devEui,
+      startDate,
+      endDate,
+      req.user,
+      timezone,
+    );
   }
 }

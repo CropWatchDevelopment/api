@@ -9,6 +9,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { WaterService } from './water.service';
 import { WaterDataDto } from './dto/water-data.dto';
@@ -99,6 +100,7 @@ export class WaterController {
   })
   findOne(
     @Param('dev_eui') devEui: string,
+    @Req() req,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('timezone') timezone?: string,
@@ -122,6 +124,12 @@ export class WaterController {
       throw new BadRequestException('start must be before end');
     }
 
-    return this.waterService.findOne(devEui, startDate, endDate, timezone);
+    return this.waterService.findOne(
+      devEui,
+      startDate,
+      endDate,
+      req.user,
+      timezone,
+    );
   }
 }

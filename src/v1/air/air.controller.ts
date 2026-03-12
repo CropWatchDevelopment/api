@@ -42,11 +42,7 @@ export class AirController {
     @Body() createAirNoteDto: CreateAirAnnotationDto,
     @Req() req,
   ) {
-    const authHeader = Array.isArray(req.headers.authorization)
-      ? req.headers.authorization[0]
-      : req.headers.authorization;
-
-    return this.airService.createNote(createAirNoteDto, authHeader);
+    return this.airService.createNote(createAirNoteDto, req.user);
   }
 
   // @Get()AIR_NOTES_ENDPOINT
@@ -115,6 +111,7 @@ export class AirController {
   })
   findOne(
     @Param('dev_eui') devEui: string,
+    @Req() req,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('timezone') timezone?: string,
@@ -138,6 +135,12 @@ export class AirController {
       throw new BadRequestException('start must be before end');
     }
 
-    return this.airService.findOne(devEui, startDate, endDate, timezone);
+    return this.airService.findOne(
+      devEui,
+      startDate,
+      endDate,
+      req.user,
+      timezone,
+    );
   }
 }

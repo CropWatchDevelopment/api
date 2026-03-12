@@ -9,6 +9,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { SoilService } from './soil.service';
 import { SoilDataDto } from './dto/soil-data.dto';
@@ -99,6 +100,7 @@ export class SoilController {
   })
   findOne(
     @Param('dev_eui') devEui: string,
+    @Req() req,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('timezone') timezone?: string,
@@ -122,6 +124,12 @@ export class SoilController {
       throw new BadRequestException('start must be before end');
     }
 
-    return this.soilService.findOne(devEui, startDate, endDate, timezone);
+    return this.soilService.findOne(
+      devEui,
+      startDate,
+      endDate,
+      req.user,
+      timezone,
+    );
   }
 }

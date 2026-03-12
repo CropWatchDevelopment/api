@@ -26,13 +26,15 @@ import { SupabaseService } from './supabase.service';
     {
       provide: SUPABASE_ADMIN_CLIENT,
       inject: [ConfigService],
-      useFactory: (configService: ConfigService): SupabaseClient | null => {
+      useFactory: (configService: ConfigService): SupabaseClient => {
         const url = configService.get<string>('PRIVATE_SUPABASE_URL');
         const serviceRoleKey = configService.get<string>(
           'PRIVATE_SUPABASE_SERVICE_ROLE_KEY',
         );
         if (!url || !serviceRoleKey) {
-          return null;
+          throw new Error(
+            'PRIVATE_SUPABASE_URL and PRIVATE_SUPABASE_SERVICE_ROLE_KEY are required',
+          );
         }
         return createClient(url, serviceRoleKey, {
           auth: { autoRefreshToken: false, persistSession: false },
