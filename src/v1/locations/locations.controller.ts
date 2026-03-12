@@ -27,6 +27,7 @@ export class LocationsController {
   constructor(private readonly locationsService: LocationsService) { }
 
   @Post()
+  @UseGuards(JwtAuthGuard)
   create(@Body() createLocationDto: CreateLocationDto, @Req() req) {
     const authHeader = req.headers?.authorization ?? '';
     return this.locationsService.create(createLocationDto, req.user, authHeader);
@@ -87,10 +88,47 @@ export class LocationsController {
     description: 'The location permission has been successfully updated.',
     type: LocationDto,
   })
-  async createLocationPermission(@Param('id') id: string, @Body() createLocationOwnerDto: CreateLocationOwnerDto, @Query('permission_level') permissionLevel: number, @Query('applyToAllDevices') applyToAllDevices: string = 'false', @Req() req) {
+  async createLocationPermission(
+    @Param('id') id: string,
+    @Body() createLocationOwnerDto: CreateLocationOwnerDto,
+    @Query('newUserEmail') newUserEmail: string | undefined,
+    @Query('permission_level') permissionLevel: number,
+    @Query('applyToAllDevices') applyToAllDevices: string = 'false',
+    @Req() req,
+  ) {
     const authHeader = req.headers?.authorization ?? '';
-    const applyToAllDevicesFlag = applyToAllDevices === 'true';
-    return this.locationsService.createLocationPermission(+id, createLocationOwnerDto, permissionLevel, applyToAllDevicesFlag, req.user, authHeader);
+    const locationId = Number.parseInt(id, 10);
+    const normalizedNewUserEmail = createLocationOwnerDto.user_email?.trim() || newUserEmail?.trim();
+    const applyToAllDevicesFlag = applyToAllDevices === 'true' || createLocationOwnerDto.applyToAllDevices === true;
+
+    if (!Number.isInteger(locationId) || locationId < 1) {
+      throw new BadRequestException('Location ID is required');
+    }
+    if (!normalizedNewUserEmail) {
+      throw new BadRequestException('New user email is required');
+    }
+    if (!Number.isInteger(permissionLevel) || permissionLevel < 1 || permissionLevel > 4) {
+      throw new BadRequestException('Permission level must be between 1 and 4');
+    }
+    if (
+      typeof createLocationOwnerDto.location_id === 'number' &&
+      createLocationOwnerDto.location_id !== locationId
+    ) {
+      throw new BadRequestException('location_id in body must match route parameter');
+    }
+
+    return this.locationsService.createLocationPermission(
+      locationId,
+      {
+        ...createLocationOwnerDto,
+        location_id: locationId,
+        user_email: normalizedNewUserEmail,
+      },
+      permissionLevel,
+      applyToAllDevicesFlag,
+      req.user,
+      authHeader,
+    );
   }
 
   @Patch(':id/permission')

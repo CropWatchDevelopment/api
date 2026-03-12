@@ -337,8 +337,13 @@ export class DevicesController {
     @Param('dev_eui') devEui: string,
     @Body() body: UpdateDevicePermissionDto,
   ) {
-    if (!devEui?.trim()) {
+    const normalizedDevEui = devEui?.trim();
+
+    if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
+    }
+    if (body.dev_eui?.trim() && body.dev_eui.trim() !== normalizedDevEui) {
+      throw new BadRequestException('dev_eui in body must match route parameter');
     }
     if (!body.targetUserEmail?.trim()) {
       throw new BadRequestException('Target User Email is required');
@@ -346,7 +351,13 @@ export class DevicesController {
     if (!body.permissionLevel) {
       throw new BadRequestException('Permission Level is required');
     }
-    return this.devicesService.updatePermissionLevel(req.user, devEui, body.targetUserEmail, body.permissionLevel, req.headers.authorization);
+    return this.devicesService.updatePermissionLevel(
+      req.user,
+      normalizedDevEui,
+      body.targetUserEmail,
+      body.permissionLevel,
+      req.headers.authorization,
+    );
   }
 
   @Patch(':dev_eui')

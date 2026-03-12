@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsArray, IsISO8601, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { Database } from '../../../../database.types';
 import { CreateReportAlertPointDto } from './create-report-alert-point.dto';
 import { CreateReportRecipientDto } from './create-report-recipient.dto';
@@ -8,21 +10,35 @@ type ReportInsert = Database['public']['Tables']['reports']['Insert'];
 
 export class CreateReportDto implements ReportInsert {
 	@ApiProperty({ required: false, format: 'date-time' })
+	@IsOptional()
+	@IsISO8601()
 	created_at?: string;
 
 	@ApiProperty()
+	@IsString()
+	@IsNotEmpty()
 	dev_eui: string;
 
 	@ApiProperty({ required: false })
+	@IsOptional()
+	@Type(() => Number)
+	@IsInt()
+	@Min(1)
 	id?: number;
 
 	@ApiProperty()
+	@IsString()
+	@IsNotEmpty()
 	name: string;
 
 	@ApiProperty({ required: false })
+	@IsOptional()
+	@IsString()
 	report_id?: string;
 
 	@ApiProperty({ required: false, nullable: true })
+	@IsOptional()
+	@IsString()
 	user_id?: string | null;
 
 	@ApiProperty({
@@ -31,6 +47,8 @@ export class CreateReportDto implements ReportInsert {
 		required: false,
 		description: 'Rows from report_user_schedule linked to this report.',
 	})
+	@IsOptional()
+	@IsArray()
 	report_user_schedule?: CreateReportUserScheduleDto[];
 
 	@ApiProperty({
@@ -39,6 +57,8 @@ export class CreateReportDto implements ReportInsert {
 		required: false,
 		description: 'Rows from report_alert_points linked to this report.',
 	})
+	@IsOptional()
+	@IsArray()
 	report_alert_points?: CreateReportAlertPointDto[];
 
 	@ApiProperty({
@@ -47,5 +67,7 @@ export class CreateReportDto implements ReportInsert {
 		required: false,
 		description: 'Rows from report_recipients linked to this report.',
 	})
+	@IsOptional()
+	@IsArray()
 	report_recipients?: CreateReportRecipientDto[];
 }

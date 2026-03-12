@@ -179,7 +179,7 @@ export class LocationsService {
       .eq('owner_id', userId)
       .eq('owner_match.user_id', userId) // Ensure we only get location groups WE are owners of
       .or(`owner_id.eq.${userId},owner_match.not.is.null`) // OR locations that we have permission to access
-      .gt('owner_match.permission_level', 4) // AND we have a permission level GREATER THAN 4 (disabled)
+      .lt('owner_match.permission_level', 4) // AND we have a permission level LESS THAN 4 (enabled)
       .not('group', 'is', null)
       .order('name', { ascending: true });
 
