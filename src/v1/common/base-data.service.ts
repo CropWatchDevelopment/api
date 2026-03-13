@@ -83,7 +83,7 @@ export abstract class BaseDataService<T extends TableName> {
       .select('dev_eui, owner_match:cw_device_owners()')
       .eq('dev_eui', devEui)
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .maybeSingle();
 

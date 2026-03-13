@@ -44,7 +44,7 @@ export class DevicesService {
     cw_device_owners(*)
   `, { count: 'exact' })
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`);
 
     if (searchGroup) {
@@ -105,7 +105,7 @@ export class DevicesService {
   `)
       .eq('dev_eui', normalizedDevEui)
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .order('name', { ascending: true })
       .single();
@@ -130,7 +130,7 @@ export class DevicesService {
       .from('cw_devices')
       .select('owner_match:cw_device_owners(), last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)')
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .order('name', { ascending: true });
 
@@ -172,7 +172,7 @@ export class DevicesService {
       .from('cw_devices')
       .select('owner_match:cw_device_owners(), cw_device_owners(*), group')
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .not('group', 'is', null);
 
@@ -229,7 +229,7 @@ export class DevicesService {
     cw_device_owners(*)
   `)
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .eq('dev_eui', normalizedDevEui)
       .single();
@@ -328,7 +328,7 @@ export class DevicesService {
     cw_device_owners(*)
   `)
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .eq('dev_eui', normalizedDevEui)
       .single();
@@ -411,7 +411,7 @@ export class DevicesService {
         { count: 'exact' },
       )
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`);
 
     if (searchGroup) {
@@ -519,7 +519,7 @@ export class DevicesService {
       .select('*, owner_match:cw_device_owners()')
       .eq('location_id', locationId)
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .order('name', { ascending: true });
 
@@ -547,7 +547,7 @@ export class DevicesService {
       .from('cw_devices')
       .select('*, owner_match:cw_device_owners()')
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .eq('dev_eui', normalizedDevEui)
       .single();

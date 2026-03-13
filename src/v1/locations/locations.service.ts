@@ -84,7 +84,7 @@ export class LocationsService {
     cw_location_owners(*)
   `)
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`owner_id.eq.${userId},owner_match.not.is.null`)
       .order('name', { ascending: true });
 
@@ -109,7 +109,7 @@ export class LocationsService {
   `)
       .eq('location_id', id)
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`owner_id.eq.${userId},owner_match.not.is.null`)
       .order('name', { ascending: true })
       .maybeSingle();
