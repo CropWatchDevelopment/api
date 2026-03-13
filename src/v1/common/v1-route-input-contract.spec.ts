@@ -1,4 +1,8 @@
-import { INestApplication, ValidationPipe, VersioningType } from '@nestjs/common';
+import {
+  INestApplication,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
 import request from 'supertest';
@@ -57,9 +61,16 @@ type RejectionCase = {
 const AUTH_HEADER = 'Bearer test-token';
 const MOCK_USER = { email: 'user@example.com', id: 'user-123' };
 const ISO_DATETIME_PLACEHOLDER = '<ISO_8601_DATETIME>';
-const ISO_DATETIME_REGEX =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
-const HTTP_METHODS = ['get', 'post', 'put', 'patch', 'delete', 'options', 'head'] as const;
+const ISO_DATETIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+const HTTP_METHODS = [
+  'get',
+  'post',
+  'put',
+  'patch',
+  'delete',
+  'options',
+  'head',
+] as const;
 
 function createMockedMethods(methodNames: string[]): MockedMethods {
   return Object.fromEntries(
@@ -86,7 +97,9 @@ function expectNoServiceCalls(serviceRegistry: ServiceRegistry) {
   }
 }
 
-function compactObject<T extends Record<string, unknown>>(value: T): Partial<T> {
+function compactObject<T extends Record<string, unknown>>(
+  value: T,
+): Partial<T> {
   return Object.fromEntries(
     Object.entries(value).filter(([, entryValue]) => entryValue !== undefined),
   ) as Partial<T>;
@@ -253,7 +266,10 @@ function collectReferencedSchemas(
       continue;
     }
 
-    collectedSchemas[schemaName] = normalizeSchema(schema, referencedSchemaNames);
+    collectedSchemas[schemaName] = normalizeSchema(
+      schema,
+      referencedSchemaNames,
+    );
 
     for (const nextSchemaName of [...referencedSchemaNames].sort()) {
       if (!pendingSchemaNames.includes(nextSchemaName)) {
@@ -274,35 +290,34 @@ function extractV1InputContract(document: OpenAPIObject) {
       .map((path) => {
         const pathItem = document.paths[path] ?? {};
         const operations = Object.fromEntries(
-          HTTP_METHODS.filter((method) => pathItem[method])
-            .map((method) => {
-              const operation = pathItem[method] as Record<string, unknown>;
-              const parameters = ((operation.parameters ?? []) as unknown[])
-                .map((parameter) =>
-                  normalizeParameter(parameter, referencedSchemaNames),
-                )
-                .sort((left, right) => {
-                  const leftRecord = left as Record<string, string>;
-                  const rightRecord = right as Record<string, string>;
-                  return `${leftRecord.in}:${leftRecord.name}`.localeCompare(
-                    `${rightRecord.in}:${rightRecord.name}`,
-                  );
-                });
-              const requestBody = normalizeRequestBody(
-                operation.requestBody,
-                referencedSchemaNames,
-              );
+          HTTP_METHODS.filter((method) => pathItem[method]).map((method) => {
+            const operation = pathItem[method] as Record<string, unknown>;
+            const parameters = ((operation.parameters ?? []) as unknown[])
+              .map((parameter) =>
+                normalizeParameter(parameter, referencedSchemaNames),
+              )
+              .sort((left, right) => {
+                const leftRecord = left as Record<string, string>;
+                const rightRecord = right as Record<string, string>;
+                return `${leftRecord.in}:${leftRecord.name}`.localeCompare(
+                  `${rightRecord.in}:${rightRecord.name}`,
+                );
+              });
+            const requestBody = normalizeRequestBody(
+              operation.requestBody,
+              referencedSchemaNames,
+            );
 
-              return [
-                method,
-                sortDeep(
-                  compactObject({
-                    parameters: parameters.length > 0 ? parameters : undefined,
-                    requestBody,
-                  }),
-                ),
-              ];
-            }),
+            return [
+              method,
+              sortDeep(
+                compactObject({
+                  parameters: parameters.length > 0 ? parameters : undefined,
+                  requestBody,
+                }),
+              ),
+            ];
+          }),
         );
 
         return [path, operations];
@@ -488,7 +503,7 @@ describe('V1 Route Input Contracts', () => {
             dev_eui: 'DEV-001',
             note: 'Sensor cleaned',
           },
-          AUTH_HEADER,
+          MOCK_USER,
         ],
         method: 'createNote',
         service: 'air',
@@ -510,6 +525,7 @@ describe('V1 Route Input Contracts', () => {
           'DEV-001',
           new Date('2026-01-01T00:00:00.000Z'),
           new Date('2026-01-02T00:00:00.000Z'),
+          MOCK_USER,
           'America/Chicago',
         ],
         method: 'findOne',
@@ -952,7 +968,11 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [{ dev_eui: 'DEV-001', name: 'Weekly Summary' }, MOCK_USER, AUTH_HEADER],
+        args: [
+          { dev_eui: 'DEV-001', name: 'Weekly Summary' },
+          MOCK_USER,
+          AUTH_HEADER,
+        ],
         method: 'create',
         service: 'reports',
       },
@@ -1151,6 +1171,7 @@ describe('V1 Route Input Contracts', () => {
           'DEV-001',
           new Date('2026-01-01T00:00:00.000Z'),
           new Date('2026-01-02T00:00:00.000Z'),
+          MOCK_USER,
           'UTC',
         ],
         method: 'findOne',
@@ -1168,6 +1189,7 @@ describe('V1 Route Input Contracts', () => {
           'DEV-001',
           new Date('2026-01-01T00:00:00.000Z'),
           new Date('2026-01-02T00:00:00.000Z'),
+          MOCK_USER,
           'Asia/Tokyo',
         ],
         method: 'findOne',
@@ -1185,6 +1207,7 @@ describe('V1 Route Input Contracts', () => {
           'DEV-001',
           new Date('2026-01-01T00:00:00.000Z'),
           new Date('2026-01-02T00:00:00.000Z'),
+          MOCK_USER,
           'America/Denver',
         ],
         method: 'findOne',
@@ -1243,9 +1266,7 @@ describe('V1 Route Input Contracts', () => {
         rogue: true,
         targetUserEmail: 'user@example.com',
       },
-      expectedMessage: [
-        'property rogue should not exist',
-      ],
+      expectedMessage: ['property rogue should not exist'],
       expectedStatus: 400,
       method: 'patch',
       name: 'PATCH /v1/devices/:dev_eui/permission-level rejects unknown body properties',
