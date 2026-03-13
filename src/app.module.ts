@@ -37,14 +37,14 @@ import { LocationsModule } from './v1/locations/locations.module';
         // app wide, if you send more than 10 requests in 1 minute, you get a 2-minute ban.
         name: 'default',
         ttl: 2000,
-        limit: 200,
+        limit: 2000,
         blockDuration: 6000,
       },
       {
         // If you send more than 100 requests in 1 minute, you get a 24-hour ban.
         name: 'long',
         ttl: 60000,
-        limit: 200,
+        limit: 2000,
         blockDuration: 86400000, // 24 hours
       }
     ]),
