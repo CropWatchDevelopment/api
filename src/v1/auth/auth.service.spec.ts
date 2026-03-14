@@ -23,7 +23,8 @@ describe('AuthService', () => {
         {
           provide: SupabaseService,
           useValue: {
-            getClient: jest.fn().mockReturnValue(mockClient),
+            getAuthClient: jest.fn().mockReturnValue(mockClient),
+            getClient: jest.fn(),
           },
         },
       ],
