@@ -33,15 +33,15 @@ describe('AirController', () => {
   });
 
   describe('createNote', () => {
-    it('passes the request body and auth header to the service', async () => {
+    it('passes the request body and authenticated user to the service', async () => {
       const dto: CreateAirAnnotationDto = {
         created_at: '2026-03-07T00:00:00.000Z',
         dev_eui: 'ABC123',
         note: 'stable reading',
       };
       const req = {
-        headers: {
-          authorization: 'Bearer valid-token',
+        user: {
+          sub: 'user-123',
         },
       };
       const expected = { data: { ...dto, id: 1 }, error: null };
@@ -49,10 +49,7 @@ describe('AirController', () => {
       mockAirService.createNote.mockResolvedValue(expected);
 
       await expect(controller.createNote(dto, req)).resolves.toEqual(expected);
-      expect(mockAirService.createNote).toHaveBeenCalledWith(
-        dto,
-        'Bearer valid-token',
-      );
+      expect(mockAirService.createNote).toHaveBeenCalledWith(dto, req.user);
     });
 
     it('accepts a valid payload under the global validation pipe settings', async () => {

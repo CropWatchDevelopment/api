@@ -14,7 +14,7 @@ export class AuthService {
     }
 
     const { data, error } = await this.supabaseService
-      .getClient()
+      .getAuthClient()
       .auth.signInWithPassword({
         email,
         password,

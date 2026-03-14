@@ -1,4 +1,5 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { IsArray, IsOptional } from 'class-validator';
 import { Database } from '../../../../database.types';
 import { CreateRuleDto } from './create-rule.dto';
 import { RuleCriteriaDto } from './rule-criteria.dto';
@@ -14,5 +15,7 @@ export class UpdateRuleDto
 		required: false,
 		description: 'Criteria entries for this rule (cw_rule_criteria).',
 	})
+	@IsOptional()
+	@IsArray()
 	cw_rule_criteria?: RuleCriteriaDto[];
 }

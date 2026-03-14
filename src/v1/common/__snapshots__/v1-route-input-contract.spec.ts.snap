@@ -1,0 +1,1584 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 1`] = `
+{
+  "components": {
+    "schemas": {
+      "CreateAirAnnotationDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "dev_eui": {
+            "type": "string",
+          },
+          "note": {
+            "nullable": true,
+            "type": "object",
+          },
+        },
+        "required": [
+          "created_at",
+          "dev_eui",
+        ],
+        "type": "object",
+      },
+      "CreateCheckoutSessionDto": {
+        "properties": {
+          "allow_discount_codes": {
+            "type": "boolean",
+          },
+          "allow_trial": {
+            "type": "boolean",
+          },
+          "customer_billing_address": {
+            "$ref": "#/components/schemas/CustomerBillingAddressDto",
+          },
+          "customer_email": {
+            "example": "jane@example.com",
+            "type": "string",
+          },
+          "customer_metadata": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "type": "number",
+                },
+                {
+                  "type": "boolean",
+                },
+              ],
+            },
+            "example": {},
+            "type": "object",
+          },
+          "customer_name": {
+            "example": "Jane Smith",
+            "type": "string",
+          },
+          "metadata": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "string",
+                },
+                {
+                  "type": "number",
+                },
+                {
+                  "type": "boolean",
+                },
+              ],
+            },
+            "example": {},
+            "type": "object",
+          },
+          "products": {
+            "example": [
+              "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+            ],
+            "items": {
+              "type": "string",
+            },
+            "type": "array",
+          },
+          "return_url": {
+            "example": "https://app.cropwatch.io/billing",
+            "type": "string",
+          },
+          "success_url": {
+            "example": "https://app.cropwatch.io/billing/success",
+            "type": "string",
+          },
+        },
+        "required": [
+          "products",
+        ],
+        "type": "object",
+      },
+      "CreateCustomerPortalSessionDto": {
+        "properties": {
+          "return_url": {
+            "example": "https://app.cropwatch.io/billing",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "CreateLocationDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "description": {
+            "nullable": true,
+            "type": "object",
+          },
+          "group": {
+            "nullable": true,
+            "type": "object",
+          },
+          "lat": {
+            "nullable": true,
+            "type": "object",
+          },
+          "location_id": {
+            "type": "number",
+          },
+          "long": {
+            "nullable": true,
+            "type": "object",
+          },
+          "map_zoom": {
+            "nullable": true,
+            "type": "object",
+          },
+          "name": {
+            "type": "string",
+          },
+          "owner_id": {
+            "nullable": true,
+            "type": "object",
+          },
+        },
+        "required": [
+          "name",
+        ],
+        "type": "object",
+      },
+      "CreateLocationOwnerDto": {
+        "properties": {
+          "admin_user_id": {
+            "type": "string",
+          },
+          "description": {
+            "nullable": true,
+            "type": "object",
+          },
+          "id": {
+            "type": "number",
+          },
+          "is_active": {
+            "nullable": true,
+            "type": "object",
+          },
+          "location_id": {
+            "type": "number",
+          },
+          "owner_id": {
+            "type": "number",
+          },
+          "permission_level": {
+            "nullable": true,
+            "type": "object",
+          },
+          "user_email": {
+            "type": "string",
+          },
+          "user_id": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "admin_user_id",
+          "location_id",
+          "user_id",
+        ],
+        "type": "object",
+      },
+      "CreateReportAlertPointDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "data_point_key": {
+            "type": "string",
+          },
+          "hex_color": {
+            "nullable": true,
+            "type": "object",
+          },
+          "id": {
+            "type": "number",
+          },
+          "max": {
+            "nullable": true,
+            "type": "object",
+          },
+          "min": {
+            "nullable": true,
+            "type": "object",
+          },
+          "name": {
+            "type": "string",
+          },
+          "operator": {
+            "nullable": true,
+            "type": "object",
+          },
+          "report_id": {
+            "type": "string",
+          },
+          "user_id": {
+            "type": "string",
+          },
+          "value": {
+            "nullable": true,
+            "type": "object",
+          },
+        },
+        "required": [
+          "data_point_key",
+          "name",
+          "report_id",
+        ],
+        "type": "object",
+      },
+      "CreateReportDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "dev_eui": {
+            "type": "string",
+          },
+          "id": {
+            "type": "number",
+          },
+          "name": {
+            "type": "string",
+          },
+          "report_alert_points": {
+            "items": {
+              "$ref": "#/components/schemas/CreateReportAlertPointDto",
+            },
+            "type": "array",
+          },
+          "report_id": {
+            "type": "string",
+          },
+          "report_recipients": {
+            "items": {
+              "$ref": "#/components/schemas/CreateReportRecipientDto",
+            },
+            "type": "array",
+          },
+          "report_user_schedule": {
+            "items": {
+              "$ref": "#/components/schemas/CreateReportUserScheduleDto",
+            },
+            "type": "array",
+          },
+          "user_id": {
+            "nullable": true,
+            "type": "object",
+          },
+        },
+        "required": [
+          "dev_eui",
+          "name",
+        ],
+        "type": "object",
+      },
+      "CreateReportRecipientDto": {
+        "properties": {
+          "communication_method": {
+            "type": "number",
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "email": {
+            "nullable": true,
+            "type": "object",
+          },
+          "id": {
+            "type": "number",
+          },
+          "name": {
+            "nullable": true,
+            "type": "object",
+          },
+          "report_id": {
+            "type": "string",
+          },
+          "user_id": {
+            "nullable": true,
+            "type": "object",
+          },
+        },
+        "required": [
+          "communication_method",
+          "report_id",
+        ],
+        "type": "object",
+      },
+      "CreateReportUserScheduleDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "dev_eui": {
+            "type": "string",
+          },
+          "end_of_month": {
+            "type": "boolean",
+          },
+          "end_of_week": {
+            "type": "boolean",
+          },
+          "id": {
+            "type": "number",
+          },
+          "is_active": {
+            "type": "boolean",
+          },
+          "report_id": {
+            "nullable": true,
+            "type": "object",
+          },
+          "report_user_schedule_id": {
+            "type": "number",
+          },
+          "user_id": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "dev_eui",
+        ],
+        "type": "object",
+      },
+      "CreateRuleDto": {
+        "properties": {
+          "action_recipient": {
+            "type": "string",
+          },
+          "created_at": {
+            "type": "string",
+          },
+          "cw_rule_criteria": {
+            "items": {
+              "$ref": "#/components/schemas/RuleCriteriaDto",
+            },
+            "type": "array",
+          },
+          "dev_eui": {
+            "nullable": true,
+            "type": "object",
+          },
+          "id": {
+            "type": "number",
+          },
+          "is_triggered": {
+            "type": "boolean",
+          },
+          "last_triggered": {
+            "nullable": true,
+            "type": "object",
+          },
+          "name": {
+            "type": "string",
+          },
+          "notifier_type": {
+            "type": "number",
+          },
+          "profile_id": {
+            "type": "string",
+          },
+          "ruleGroupId": {
+            "type": "string",
+          },
+          "send_using": {
+            "nullable": true,
+            "type": "object",
+          },
+          "trigger_count": {
+            "type": "number",
+          },
+        },
+        "required": [
+          "action_recipient",
+          "name",
+          "notifier_type",
+          "ruleGroupId",
+        ],
+        "type": "object",
+      },
+      "CustomerBillingAddressDto": {
+        "properties": {
+          "city": {
+            "example": "New York",
+            "type": "string",
+          },
+          "country": {
+            "example": "US",
+            "type": "string",
+          },
+          "line1": {
+            "example": "123 Main St",
+            "type": "string",
+          },
+          "line2": {
+            "example": "Apt 2A",
+            "type": "string",
+          },
+          "postal_code": {
+            "example": "10001",
+            "type": "string",
+          },
+          "state": {
+            "example": "NY",
+            "type": "string",
+          },
+        },
+        "required": [
+          "country",
+        ],
+        "type": "object",
+      },
+      "RuleCriteriaDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "criteria_id": {
+            "nullable": true,
+            "type": "object",
+          },
+          "id": {
+            "type": "number",
+          },
+          "operator": {
+            "type": "string",
+          },
+          "parent_id": {
+            "nullable": true,
+            "type": "object",
+          },
+          "reset_value": {
+            "nullable": true,
+            "type": "object",
+          },
+          "ruleGroupId": {
+            "type": "string",
+          },
+          "subject": {
+            "type": "string",
+          },
+          "trigger_value": {
+            "type": "number",
+          },
+        },
+        "required": [
+          "created_at",
+          "id",
+          "operator",
+          "ruleGroupId",
+          "subject",
+          "trigger_value",
+        ],
+        "type": "object",
+      },
+      "UpdateDeviceNameGroupLocalDto": {
+        "properties": {
+          "group": {
+            "example": "New Device Group",
+            "type": "string",
+          },
+          "location_id": {
+            "example": 54,
+            "type": "number",
+          },
+          "name": {
+            "example": "New Device Name",
+            "type": "string",
+          },
+        },
+        "required": [
+          "name",
+          "location_id",
+        ],
+        "type": "object",
+      },
+      "UpdateDevicePermissionDto": {
+        "properties": {
+          "permissionLevel": {
+            "example": 2,
+            "type": "number",
+          },
+          "targetUserEmail": {
+            "example": "user@example.com",
+            "type": "string",
+          },
+        },
+        "required": [
+          "targetUserEmail",
+          "permissionLevel",
+        ],
+        "type": "object",
+      },
+      "UpdateLocationDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "description": {
+            "nullable": true,
+            "type": "object",
+          },
+          "group": {
+            "nullable": true,
+            "type": "object",
+          },
+          "lat": {
+            "nullable": true,
+            "type": "object",
+          },
+          "location_id": {
+            "type": "number",
+          },
+          "long": {
+            "nullable": true,
+            "type": "object",
+          },
+          "map_zoom": {
+            "nullable": true,
+            "type": "object",
+          },
+          "name": {
+            "type": "string",
+          },
+          "owner_id": {
+            "nullable": true,
+            "type": "object",
+          },
+        },
+        "type": "object",
+      },
+      "UpdateLocationOwnerDto": {
+        "properties": {
+          "admin_user_id": {
+            "type": "string",
+          },
+          "description": {
+            "nullable": true,
+            "type": "object",
+          },
+          "id": {
+            "type": "number",
+          },
+          "is_active": {
+            "nullable": true,
+            "type": "object",
+          },
+          "location_id": {
+            "type": "number",
+          },
+          "owner_id": {
+            "type": "number",
+          },
+          "permission_level": {
+            "nullable": true,
+            "type": "object",
+          },
+          "user_email": {
+            "type": "string",
+          },
+          "user_id": {
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "UpdateReportDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "dev_eui": {
+            "type": "string",
+          },
+          "id": {
+            "type": "number",
+          },
+          "name": {
+            "type": "string",
+          },
+          "report_alert_points": {
+            "items": {
+              "$ref": "#/components/schemas/CreateReportAlertPointDto",
+            },
+            "type": "array",
+          },
+          "report_id": {
+            "type": "string",
+          },
+          "report_recipients": {
+            "items": {
+              "$ref": "#/components/schemas/CreateReportRecipientDto",
+            },
+            "type": "array",
+          },
+          "report_user_schedule": {
+            "items": {
+              "$ref": "#/components/schemas/CreateReportUserScheduleDto",
+            },
+            "type": "array",
+          },
+          "user_id": {
+            "nullable": true,
+            "type": "object",
+          },
+        },
+        "type": "object",
+      },
+      "UpdateRuleDto": {
+        "properties": {
+          "action_recipient": {
+            "type": "string",
+          },
+          "created_at": {
+            "type": "string",
+          },
+          "cw_rule_criteria": {
+            "items": {
+              "$ref": "#/components/schemas/RuleCriteriaDto",
+            },
+            "type": "array",
+          },
+          "dev_eui": {
+            "nullable": true,
+            "type": "object",
+          },
+          "id": {
+            "type": "number",
+          },
+          "is_triggered": {
+            "type": "boolean",
+          },
+          "last_triggered": {
+            "nullable": true,
+            "type": "object",
+          },
+          "name": {
+            "type": "string",
+          },
+          "notifier_type": {
+            "type": "number",
+          },
+          "profile_id": {
+            "type": "string",
+          },
+          "ruleGroupId": {
+            "type": "string",
+          },
+          "send_using": {
+            "nullable": true,
+            "type": "object",
+          },
+          "trigger_count": {
+            "type": "number",
+          },
+        },
+        "type": "object",
+      },
+    },
+  },
+  "paths": {
+    "/v1/air/notes": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAirAnnotationDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/air/{dev_eui}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "timezone",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/auth": {
+      "get": {},
+    },
+    "/v1/auth/login": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "email": {
+                    "example": "user@example.com",
+                    "type": "string",
+                  },
+                  "password": {
+                    "example": "StrongPassword123!",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "email",
+                  "password",
+                ],
+                "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/devices": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {},
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {},
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {},
+          },
+          {
+            "in": "query",
+            "name": "skip",
+            "required": false,
+            "schema": {},
+          },
+          {
+            "in": "query",
+            "name": "take",
+            "required": false,
+            "schema": {},
+          },
+        ],
+      },
+    },
+    "/v1/devices/groups": {
+      "get": {},
+    },
+    "/v1/devices/latest-primary-data": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "group-by-device-group",
+            "required": false,
+            "schema": {},
+          },
+          {
+            "in": "query",
+            "name": "location",
+            "required": false,
+            "schema": {},
+          },
+          {
+            "in": "query",
+            "name": "locationGroup",
+            "required": false,
+            "schema": {},
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {},
+          },
+          {
+            "in": "query",
+            "name": "skip",
+            "required": false,
+            "schema": {},
+          },
+          {
+            "in": "query",
+            "name": "take",
+            "required": false,
+            "schema": {},
+          },
+        ],
+      },
+    },
+    "/v1/devices/location/{location_id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "location_id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/devices/status": {
+      "get": {},
+    },
+    "/v1/devices/{dev_eui}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDeviceNameGroupLocalDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/devices/{dev_eui}/data": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "path",
+            "name": "skip (0)",
+            "required": false,
+            "schema": {},
+          },
+          {
+            "in": "path",
+            "name": "take (144)",
+            "required": false,
+            "schema": {},
+          },
+        ],
+      },
+    },
+    "/v1/devices/{dev_eui}/data-within-range": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "path",
+            "name": "skip (0)",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "number",
+            },
+          },
+          {
+            "in": "path",
+            "name": "take (144)",
+            "required": false,
+            "schema": {
+              "format": "int32",
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "format": "date-time",
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/devices/{dev_eui}/latest-data": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/devices/{dev_eui}/latest-primary-data": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/devices/{dev_eui}/permission-level": {
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDevicePermissionDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/locations": {
+      "get": {},
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLocationDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/locations/groups": {
+      "get": {},
+    },
+    "/v1/locations/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLocationDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/locations/{id}/permission": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "permission_id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "applyToAllDevices",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLocationOwnerDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+          {
+            "in": "path",
+            "name": "newUserEmail",
+            "required": true,
+            "schema": {
+              "example": "user@example.com",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "applyToAllDevices",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+            },
+          },
+          {
+            "in": "query",
+            "name": "permission_level",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLocationOwnerDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/locations/{id}/permission-level": {
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "applyToAllDevices",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/payments/products": {
+      "get": {},
+    },
+    "/v1/payments/subscriptions": {
+      "get": {},
+    },
+    "/v1/payments/subscriptions/checkout": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCheckoutSessionDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/payments/subscriptions/portal": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomerPortalSessionDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/payments/subscriptions/state": {
+      "get": {},
+    },
+    "/v1/payments/subscriptions/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/power/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/reports": {
+      "get": {},
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReportDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/reports/download/{dev_eui}/{report_id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/reports/history/{dev_eui}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/reports/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/reports/{report_id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "report_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReportDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/rules": {
+      "get": {},
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRuleDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/rules/triggered": {
+      "get": {},
+    },
+    "/v1/rules/triggered/count": {
+      "get": {},
+    },
+    "/v1/rules/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRuleDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/soil/{dev_eui}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "timezone",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/traffic/{dev_eui}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "timezone",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/water/{dev_eui}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "timezone",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
+  },
+}
+`;

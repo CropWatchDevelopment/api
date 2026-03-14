@@ -8,7 +8,10 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
-import { getAccessToken, getUserId } from '../../supabase/supabase-token.helper';
+import {
+  getAccessToken,
+  getUserId,
+} from '../../supabase/supabase-token.helper';
 
 export interface PagedDevicesResponse<T> {
   total?: number;
@@ -38,13 +41,16 @@ export class DevicesService {
 
     let devicesQuery = client
       .from('cw_devices')
-      .select(`
+      .select(
+        `
     *,
     owner_match:cw_device_owners(),
     cw_device_owners(*)
-  `, { count: 'exact' })
+  `,
+        { count: 'exact' },
+      )
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`);
 
     if (searchGroup) {
@@ -60,9 +66,7 @@ export class DevicesService {
     devicesQuery = devicesQuery.order('name', { ascending: true });
 
     if (typeof take === 'number' && take > 0) {
-      devicesQuery = devicesQuery
-        .range(skip, skip + take - 1)
-        .limit(take);
+      devicesQuery = devicesQuery.range(skip, skip + take - 1).limit(take);
     }
 
     const { data, count, error } = await devicesQuery;
@@ -71,7 +75,8 @@ export class DevicesService {
       throw new InternalServerErrorException('Failed to fetch devices');
     }
 
-    const responseTake = typeof take === 'number' ? take : (count ?? data?.length ?? 0);
+    const responseTake =
+      typeof take === 'number' ? take : (count ?? data?.length ?? 0);
 
     return {
       total: count ?? 0,
@@ -96,16 +101,18 @@ export class DevicesService {
 
     let { data, error } = await client
       .from('cw_devices')
-      .select(`
+      .select(
+        `
     *,
     owner_match:cw_device_owners(),
     cw_device_owners(*),
     cw_locations(name, location_id),
     cw_device_type(*)
-  `)
+  `,
+      )
       .eq('dev_eui', normalizedDevEui)
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .order('name', { ascending: true })
       .single();
@@ -121,16 +128,21 @@ export class DevicesService {
     return data;
   }
 
-  public async findAllStatus(jwtPayload: any, authHeader: string): Promise<{ online: number; offline: number }> {
+  public async findAllStatus(
+    jwtPayload: any,
+    authHeader: string,
+  ): Promise<{ online: number; offline: number }> {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
 
     const { data: devices, error: devicesError } = await client
       .from('cw_devices')
-      .select('owner_match:cw_device_owners(), last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)')
+      .select(
+        'owner_match:cw_device_owners(), last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)',
+      )
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .order('name', { ascending: true });
 
@@ -149,11 +161,17 @@ export class DevicesService {
 
     devices.forEach((device) => {
       const lastUpdated = new Date(device.last_data_updated_at);
-      const minutesSinceLastUpdate = (now.getTime() - lastUpdated.getTime()) / (1000 * 60);
+      const minutesSinceLastUpdate =
+        (now.getTime() - lastUpdated.getTime()) / (1000 * 60);
       const deviceType = Array.isArray(device.cw_device_type)
         ? device.cw_device_type[0]
         : device.cw_device_type;
-      if (minutesSinceLastUpdate <= (device.upload_interval ? device.upload_interval : (deviceType?.default_upload_interval as number))) {
+      if (
+        minutesSinceLastUpdate <=
+        (device.upload_interval
+          ? device.upload_interval
+          : (deviceType?.default_upload_interval as number))
+      ) {
         onlineCount++;
       } else {
         offlineCount++;
@@ -163,7 +181,10 @@ export class DevicesService {
     return { online: onlineCount, offline: offlineCount };
   }
 
-  public async findAllDeviceGroups(jwtPayload: any, authHeader: string): Promise<{ group: string | null; count: number }[]> {
+  public async findAllDeviceGroups(
+    jwtPayload: any,
+    authHeader: string,
+  ): Promise<{ group: string | null; count: number }[]> {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
@@ -172,7 +193,7 @@ export class DevicesService {
       .from('cw_devices')
       .select('owner_match:cw_device_owners(), cw_device_owners(*), group')
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .not('group', 'is', null);
 
@@ -189,15 +210,18 @@ export class DevicesService {
     //   count: group.value.length,
     // }));
 
-    const groupCounts = groups.reduce((acc, item) => {
-      const existing = acc.find(g => g.group === item.group);
-      if (existing) {
-        existing.count++;
-      } else {
-        acc.push({ group: item.group, count: 1 });
-      }
-      return acc;
-    }, [] as { group: string | null; count: number }[]);
+    const groupCounts = groups.reduce(
+      (acc, item) => {
+        const existing = acc.find((g) => g.group === item.group);
+        if (existing) {
+          existing.count++;
+        } else {
+          acc.push({ group: item.group, count: 1 });
+        }
+        return acc;
+      },
+      [] as { group: string | null; count: number }[],
+    );
 
     return groupCounts;
   }
@@ -209,7 +233,9 @@ export class DevicesService {
     take: number = 144,
     authHeader: string,
   ): Promise<PagedDevicesResponse<any>> {
-    this.logger.log(`findData called: devEui=${devEui}, skip=${skip}, take=${take}`);
+    this.logger.log(
+      `findData called: devEui=${devEui}, skip=${skip}, take=${take}`,
+    );
 
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
@@ -220,31 +246,42 @@ export class DevicesService {
       throw new BadRequestException('dev_eui is required');
     }
 
-    this.logger.debug(`findData: fetching device for devEui=${normalizedDevEui}, userId=${userId}`);
+    this.logger.debug(
+      `findData: fetching device for devEui=${normalizedDevEui}, userId=${userId}`,
+    );
     const { data: device, error: deviceError } = await client
       .from('cw_devices')
-      .select(`
+      .select(
+        `
     *,
     owner_match:cw_device_owners(),
     cw_device_owners(*)
-  `)
+  `,
+      )
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .eq('dev_eui', normalizedDevEui)
       .single();
 
     if (deviceError) {
-      this.logger.error(`findData: failed to fetch device devEui=${normalizedDevEui}`, deviceError.message);
+      this.logger.error(
+        `findData: failed to fetch device devEui=${normalizedDevEui}`,
+        deviceError.message,
+      );
       throw new InternalServerErrorException('Failed to fetch device');
     }
 
     if (!device) {
-      this.logger.warn(`findData: device not found for devEui=${normalizedDevEui}`);
+      this.logger.warn(
+        `findData: device not found for devEui=${normalizedDevEui}`,
+      );
       throw new NotFoundException('Device not found');
     }
 
-    this.logger.debug(`findData: fetching device type id=${device.type} for devEui=${normalizedDevEui}`);
+    this.logger.debug(
+      `findData: fetching device type id=${device.type} for devEui=${normalizedDevEui}`,
+    );
     const { data: deviceType, error: deviceTypeError } = await client
       .from('cw_device_type')
       .select('*')
@@ -252,7 +289,10 @@ export class DevicesService {
       .maybeSingle();
 
     if (deviceTypeError) {
-      this.logger.error(`findData: failed to fetch device type id=${device.type}`, deviceTypeError.message);
+      this.logger.error(
+        `findData: failed to fetch device type id=${device.type}`,
+        deviceTypeError.message,
+      );
       throw new InternalServerErrorException('Failed to fetch device type');
     }
 
@@ -271,11 +311,18 @@ export class DevicesService {
       'cw_relay_data',
     ];
     if (!allowedTables.includes(dataTable)) {
-      this.logger.warn(`findData: unexpected data table "${dataTable}" for devEui=${normalizedDevEui}`);
+      this.logger.warn(
+        `findData: unexpected data table "${dataTable}" for devEui=${normalizedDevEui}`,
+      );
     }
 
-    const getAnnotations = dataTable === 'cw_air_data' ? '*, cw_air_annotations(*), cw_air_alerts(*)' : '*';
-    this.logger.debug(`findData: querying table=${dataTable}, select=${getAnnotations}, range=${skip}-${skip + take - 1}`);
+    const getAnnotations =
+      dataTable === 'cw_air_data'
+        ? '*, cw_air_annotations(*), cw_air_alerts(*)'
+        : '*';
+    this.logger.debug(
+      `findData: querying table=${dataTable}, select=${getAnnotations}, range=${skip}-${skip + take - 1}`,
+    );
     const { data: latestData, error: dataError } = await client
       .from(dataTable)
       .select(`${getAnnotations}`)
@@ -285,17 +332,24 @@ export class DevicesService {
       .limit(take);
 
     if (dataError) {
-      this.logger.error(`findData: failed to fetch data from table=${dataTable} for devEui=${normalizedDevEui}`, dataError.message);
+      this.logger.error(
+        `findData: failed to fetch data from table=${dataTable} for devEui=${normalizedDevEui}`,
+        dataError.message,
+      );
       throw new InternalServerErrorException('Failed to fetch Data');
     }
 
     if (!latestData || latestData.length === 0) {
-      this.logger.warn(`findData: no data rows found in table=${dataTable} for devEui=${normalizedDevEui}`);
+      this.logger.warn(
+        `findData: no data rows found in table=${dataTable} for devEui=${normalizedDevEui}`,
+      );
       throw new NotFoundException('Data not found');
     }
 
     // this.logger.debug(`findData: total count=${count} in table=${dataTable}`);
-    this.logger.log(`findData: returning ${latestData.length} rows for devEui=${normalizedDevEui}`);
+    this.logger.log(
+      `findData: returning ${latestData.length} rows for devEui=${normalizedDevEui}`,
+    );
     return {
       skip,
       take,
@@ -307,7 +361,9 @@ export class DevicesService {
     jwtPayload: any,
     devEui: string,
     authHeader: string,
-    start: Date | string = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    start: Date | string = new Date(
+      Date.now() - 24 * 60 * 60 * 1000,
+    ).toISOString(),
     end: Date | string = new Date().toISOString(),
     skip: number = 0,
     take: number = 144,
@@ -322,18 +378,17 @@ export class DevicesService {
 
     const { data: device, error: deviceError } = await client
       .from('cw_devices')
-      .select(`
-    *,
-    owner_match:cw_device_owners(),
-    cw_device_owners(*)
-  `)
+      .select(
+        `*, owner_match:cw_device_owners(), cw_device_owners(*)`,
+      )
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .eq('dev_eui', normalizedDevEui)
       .single();
 
     if (deviceError) {
+      console.error(deviceError);
       throw new InternalServerErrorException('Failed to fetch device');
     }
 
@@ -358,7 +413,11 @@ export class DevicesService {
     const startDate = new Date(start);
     const endDate = new Date(end);
 
-    const { data: latestData, count, error: dataError } = await client
+    const {
+      data: latestData,
+      count,
+      error: dataError,
+    } = await client
       .from(deviceType.data_table_v2)
       .select('*', { count: 'exact' })
       .eq('dev_eui', normalizedDevEui)
@@ -395,8 +454,11 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
-    const hasLocationFilter = typeof searchLocation === 'string' && searchLocation.trim().length > 0;
-    const locationIdFilter = hasLocationFilter ? Number(searchLocation) : undefined;
+    const hasLocationFilter =
+      typeof searchLocation === 'string' && searchLocation.trim().length > 0;
+    const locationIdFilter = hasLocationFilter
+      ? Number(searchLocation)
+      : undefined;
     const countLocationSelect = hasLocationFilter
       ? 'cw_locations!inner(location_id, name, group)'
       : 'cw_locations(location_id, name, group)';
@@ -411,7 +473,7 @@ export class DevicesService {
         { count: 'exact' },
       )
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`);
 
     if (searchGroup) {
@@ -421,7 +483,10 @@ export class DevicesService {
       devicesQuery = devicesQuery.ilike('name', `%${searchName}%`);
     }
     if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
-      devicesQuery = devicesQuery.eq('cw_locations.location_id', locationIdFilter);
+      devicesQuery = devicesQuery.eq(
+        'cw_locations.location_id',
+        locationIdFilter,
+      );
     }
     if (locationGroup) {
       devicesQuery = devicesQuery.eq('cw_locations.group', locationGroup);
@@ -429,7 +494,11 @@ export class DevicesService {
       devicesQuery = devicesQuery.not('cw_locations.group', 'is', null);
     }
 
-    const { data: device, count, error: deviceError } = await devicesQuery
+    const {
+      data: device,
+      count,
+      error: deviceError,
+    } = await devicesQuery
       .order('name', { ascending: false })
       .range(skip, skip + take - 1);
 
@@ -444,61 +513,79 @@ export class DevicesService {
       throw new NotFoundException('No devices found');
     }
 
-    const devicesWithLatestData = await Promise.all(
-      device.map(async (d) => {
-        const deviceType = Array.isArray(d.cw_device_type) ? d.cw_device_type[0] : d.cw_device_type;
-        if (!deviceType) {
-          throw new NotFoundException(`Device type not found for device ${d.dev_eui}`);
-        }
+    const devicesWithLatestData = (
+      await Promise.all(
+        device.map(async (d) => {
+          const deviceType = Array.isArray(d.cw_device_type)
+            ? d.cw_device_type[0]
+            : d.cw_device_type;
+          if (!deviceType) {
+            this.logger.warn(
+              `Skipping device ${d.dev_eui} because its device type is missing`,
+            );
+            return null;
+          }
 
-        const location = Array.isArray(d.cw_locations) ? d.cw_locations[0] : d.cw_locations;
+          const location = Array.isArray(d.cw_locations)
+            ? d.cw_locations[0]
+            : d.cw_locations;
 
-        const latestFields = new Set([
-          'created_at',
-          deviceType.primary_data_v2,
-          deviceType.secondary_data_v2,
-        ]);
+          const latestFields = new Set([
+            'created_at',
+            deviceType.primary_data_v2,
+            deviceType.secondary_data_v2,
+          ]);
 
-        if (deviceType.data_table_v2 === 'cw_air_data') {
-          latestFields.add('humidity');
-        }
+          if (deviceType.data_table_v2 === 'cw_air_data') {
+            latestFields.add('humidity');
+          }
 
-        const { data: latestData, error: dataError } = await client
-          .from(deviceType.data_table_v2)
-          .select(Array.from(latestFields).join(', '))
-          .eq('dev_eui', d.dev_eui)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          const { data: latestData, error: dataError } = await client
+            .from(deviceType.data_table_v2)
+            .select(Array.from(latestFields).join(', '))
+            .eq('dev_eui', d.dev_eui)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        if (dataError) {
-          throw new InternalServerErrorException(`Failed to fetch latest data for device ${d.dev_eui}`);
-        }
-        if (!latestData) {
-          throw new NotFoundException(`Latest data not found for device ${d.dev_eui}`);
-        }
+          if (dataError) {
+            this.logger.warn(
+              `Skipping device ${d.dev_eui} because its latest data query failed: ${dataError.message}`,
+            );
+            return null;
+          }
+          if (!latestData) {
+            this.logger.debug(
+              `Skipping device ${d.dev_eui} because it has no latest primary data`,
+            );
+            return null;
+          }
 
-        const latestRow = latestData as unknown as Record<string, unknown> & {
-          created_at: string;
-          humidity?: number | null;
-        };
+          const latestRow = latestData as unknown as Record<string, unknown> & {
+            created_at: string;
+            humidity?: number | null;
+          };
 
-        const primaryField = deviceType.primary_data_v2;
-        const secondaryField = deviceType.secondary_data_v2;
-        return {
-          dev_eui: d.dev_eui,
-          name: d.name,
-          device_type: deviceType.name,
-          location_name: location?.name ?? 'n/a',
-          location_id: d.location_id,
-          group: d.group,
-          created_at: latestRow.created_at,
-          [primaryField]: latestRow[primaryField],
-          [secondaryField]: latestRow[secondaryField],
-          // if humidity, add it here
-          humidity: latestRow.humidity,
-        };
-      })
+          const primaryField = deviceType.primary_data_v2;
+          const secondaryField = deviceType.secondary_data_v2;
+          return {
+            dev_eui: d.dev_eui,
+            name: d.name,
+            device_type: deviceType.name,
+            location_name: location?.name ?? 'n/a',
+            location_id: d.location_id,
+            group: d.group,
+            created_at: latestRow.created_at,
+            [primaryField]: latestRow[primaryField],
+            [secondaryField]: latestRow[secondaryField],
+            // if humidity, add it here
+            humidity: latestRow.humidity,
+          };
+        }),
+      )
+    ).filter(
+      (deviceRow): deviceRow is NonNullable<typeof deviceRow> =>
+        deviceRow !== null,
     );
 
     return {
@@ -509,7 +596,11 @@ export class DevicesService {
     };
   }
 
-  public async findAllDevicesInLocation(jwtPayload: any, locationId: number, authHeader: string): Promise<TableRow<'cw_devices'>[]> {
+  public async findAllDevicesInLocation(
+    jwtPayload: any,
+    locationId: number,
+    authHeader: string,
+  ): Promise<TableRow<'cw_devices'>[]> {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
@@ -519,7 +610,7 @@ export class DevicesService {
       .select('*, owner_match:cw_device_owners()')
       .eq('location_id', locationId)
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .order('name', { ascending: true });
 
@@ -534,7 +625,12 @@ export class DevicesService {
     return devices;
   }
 
-  public async findLatestData(jwtPayload: any, devEui: string, authHeader: string, primaryAndSecondaryOnly = false) {
+  public async findLatestData(
+    jwtPayload: any,
+    devEui: string,
+    authHeader: string,
+    primaryAndSecondaryOnly = false,
+  ) {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
@@ -547,7 +643,7 @@ export class DevicesService {
       .from('cw_devices')
       .select('*, owner_match:cw_device_owners()')
       .eq('owner_match.user_id', userId)
-      .gt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', 4)
       .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .eq('dev_eui', normalizedDevEui)
       .single();
@@ -594,7 +690,9 @@ export class DevicesService {
       const primaryField = deviceType.primary_data_v2;
       const secondaryField = deviceType.secondary_data_v2;
       if (!primaryField || !secondaryField) {
-        throw new NotFoundException('Primary or secondary data field not defined for this device type');
+        throw new NotFoundException(
+          'Primary or secondary data field not defined for this device type',
+        );
       }
       return {
         dev_eui: normalizedDevEui,
@@ -610,7 +708,13 @@ export class DevicesService {
     return latestData;
   }
 
-  async updatePermissionLevel(jwtPayload: any, devEui: string, targetUserEmail: string, permissionLevel: number, authHeader: string) {
+  async updatePermissionLevel(
+    jwtPayload: any,
+    devEui: string,
+    targetUserEmail: string,
+    permissionLevel: number,
+    authHeader: string,
+  ) {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
@@ -626,17 +730,20 @@ export class DevicesService {
     }
 
     // Check we have permission to do the permission update
-    const { data: RequestingUserHasPermission, error: deviceError } = await client
-      .from('cw_devices')
-      .select('*, owner_match:cw_device_owners()')
-      .eq('owner_match.user_id', userId)
-      .eq('owner_match.permission_level', 1)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .eq('dev_eui', normalizedDevEui)
-      .single();
+    const { data: RequestingUserHasPermission, error: deviceError } =
+      await client
+        .from('cw_devices')
+        .select('*, owner_match:cw_device_owners()')
+        .eq('owner_match.user_id', userId)
+        .eq('owner_match.permission_level', 1)
+        .or(`user_id.eq.${userId},owner_match.not.is.null`)
+        .eq('dev_eui', normalizedDevEui)
+        .single();
 
     if (!RequestingUserHasPermission || deviceError) {
-      throw new UnauthorizedException('You do not have permission to update this device');
+      throw new UnauthorizedException(
+        'You do not have permission to update this device',
+      );
     }
 
     // Get the user we plan to update permission for
@@ -648,7 +755,9 @@ export class DevicesService {
       .single();
 
     if (!targetUser || targetUserError) {
-      throw new UnauthorizedException('You do not have permission to update this device');
+      throw new UnauthorizedException(
+        'You do not have permission to update this device',
+      );
     }
 
     // do the thing
@@ -660,14 +769,22 @@ export class DevicesService {
       .select('*');
 
     if (!data || error) {
-      throw new BadRequestException('You do not have permission to update this device');
+      throw new BadRequestException(
+        'You do not have permission to update this device',
+      );
     }
 
     return data;
   }
 
-
-  async updateDevice(jwtPayload: any, devEui: string, name: string, group: string | null, location_id: number, authHeader: string) {
+  async updateDevice(
+    jwtPayload: any,
+    devEui: string,
+    name: string,
+    group: string | null,
+    location_id: number,
+    authHeader: string,
+  ) {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
@@ -686,17 +803,20 @@ export class DevicesService {
     }
 
     // Check we have permission to do the update
-    const { data: RequestingUserHasPermission, error: deviceError } = await client
-      .from('cw_devices')
-      .select('*, owner_match:cw_device_owners()')
-      .eq('owner_match.user_id', userId)
-      .eq('owner_match.permission_level', 1)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .eq('dev_eui', normalizedDevEui)
-      .single();
+    const { data: RequestingUserHasPermission, error: deviceError } =
+      await client
+        .from('cw_devices')
+        .select('*, owner_match:cw_device_owners()')
+        .eq('owner_match.user_id', userId)
+        .eq('owner_match.permission_level', 1)
+        .or(`user_id.eq.${userId},owner_match.not.is.null`)
+        .eq('dev_eui', normalizedDevEui)
+        .single();
 
     if (!RequestingUserHasPermission || deviceError) {
-      throw new UnauthorizedException('You do not have permission to update this device');
+      throw new UnauthorizedException(
+        'You do not have permission to update this device',
+      );
     }
 
     // do the thing
