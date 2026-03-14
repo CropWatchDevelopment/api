@@ -12,6 +12,7 @@ describe('LocationsService', () => {
       select: jest.fn(() => builder),
       eq: jest.fn(() => builder),
       gt: jest.fn(() => builder),
+      lt: jest.fn(() => builder),
       or: jest.fn(() => builder),
       order: jest.fn(() => builder),
       maybeSingle: jest.fn(async () => result),
