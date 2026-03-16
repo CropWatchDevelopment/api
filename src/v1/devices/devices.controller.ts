@@ -28,6 +28,7 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { DeviceDto } from './dto/device.dto';
 import { UpdateDevicePermissionDto } from './dto/UpdateDevicePermission.dto';
 import { UpdateDeviceNameGroupLocalDto } from './dto/UpdateDeviceNameGroupLocal.dto';
+import { CreateDeviceDto } from './dto/create-device.dto';
 
 @Controller({ path: 'devices', version: '1' })
 @ApiBearerAuth('bearerAuth')
@@ -106,6 +107,17 @@ export class DevicesController {
   })
   findAllDeviceGroups(@Req() req) {
     return this.devicesService.findAllDeviceGroups(req.user, req.headers.authorization);
+  }
+
+    @Get('device-types')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Returns device types for the authenticated user',
+    description: `
+    Returns the device types for the authenticated user.`,
+  })
+  findAllDeviceTypes(@Req() req) {
+    return this.devicesService.findAllDeviceTypes(req.user, req.headers.authorization);
   }
 
   @Get('latest-primary-data')
@@ -316,8 +328,23 @@ export class DevicesController {
     Please contact support if you would like this feature to be prioritized.
     `,
   })
-  create(@Req() req, @Param('dev_eui') devEui: string) {
-    throw new NotImplementedException();
+  create(
+    @Req() req,
+    @Param('dev_eui') devEui: string,
+    @Body() body: CreateDeviceDto,
+  ) {
+    const normalizedDevEui = devEui?.trim();
+    if (body.dev_eui?.trim() && body.dev_eui.trim() !== normalizedDevEui) {
+      throw new BadRequestException('dev_eui in body must match route parameter');
+    }
+
+    const newDevice: CreateDeviceDto = body;
+
+    const insertResult = this.devicesService.createDevice(req.user, normalizedDevEui, newDevice, req.headers.authorization);
+    if (!insertResult) {
+      throw new NotImplementedException('Device creation is not yet implemented. Please contact support if you would like this feature to be prioritized.');
+    }
+    return insertResult;
   }
 
   @Patch(':dev_eui/permission-level')

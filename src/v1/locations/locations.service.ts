@@ -25,7 +25,8 @@ export class LocationsService {
     const { data: locationData, error: locationError } = await client.from('cw_locations').insert({
       ...createLocationDto,
       owner_id: userId,
-    }).single();
+    }).select('*')
+    .single();
 
     if (locationError) {
       throw new InternalServerErrorException('Failed to create location');
@@ -44,7 +45,9 @@ export class LocationsService {
 
     const { data: ownerData, error: ownerError } = await client.from('cw_location_owners').insert({
       ...locationOwnerObject
-    }).single();
+    })
+    .select('*')
+    .single();
 
     if (ownerError) {
       throw new InternalServerErrorException('Failed to create location owner');
