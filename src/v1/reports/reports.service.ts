@@ -73,7 +73,7 @@ export class ReportsService {
 
     const { data, error } = await client
       .from('reports')
-      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_locations(name, location_id))')
       .order('name', { ascending: true })
       .eq('user_id', userId);
     if (error) {
@@ -232,7 +232,7 @@ export class ReportsService {
 
     const { data, error } = await this.supabaseService
       .getClient(accessToken)
-      .from('cw_reports')
+      .from('reports')
       .delete()
       .eq('user_id', userId)
       .eq('report_id', report_id) // MUST HAVE THIS!!!!!
