@@ -489,7 +489,7 @@ export class DevicesService {
     let devicesQuery = client
       .from('cw_devices')
       .select(
-        `dev_eui, name, group, location_id, cw_device_type(name, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, owner_match:cw_device_owners()`,
+        `dev_eui, name, group, location_id, cw_rules(*), cw_device_type(name, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, owner_match:cw_device_owners()`,
         { count: 'exact' },
       )
       .eq('owner_match.user_id', userId)
