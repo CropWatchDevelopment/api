@@ -12,6 +12,8 @@ import {
   getAccessToken,
   getUserId,
 } from '../../supabase/supabase-token.helper';
+import { LocationsService } from '../locations/locations.service';
+import { CreateDeviceDto } from './dto/create-device.dto';
 
 export interface PagedDevicesResponse<T> {
   total?: number;
@@ -24,7 +26,7 @@ export interface PagedDevicesResponse<T> {
 export class DevicesService {
   private readonly logger = new Logger(DevicesService.name);
 
-  constructor(private readonly supabaseService: SupabaseService) { }
+  constructor(private readonly supabaseService: SupabaseService, private readonly locationsService: LocationsService) { }
 
   async findAll(
     jwtPayload: any,
@@ -205,11 +207,6 @@ export class DevicesService {
       throw new NotFoundException('No device groups found');
     }
 
-    // const groupCounts = groups.groupBy(g => g.group).map(group => ({
-    //   group: group.key,
-    //   count: group.value.length,
-    // }));
-
     const groupCounts = groups.reduce(
       (acc, item) => {
         const existing = acc.find((g) => g.group === item.group);
@@ -224,6 +221,29 @@ export class DevicesService {
     );
 
     return groupCounts;
+  }
+
+  public async findAllDeviceTypes(
+    jwtPayload: any,
+    authHeader: string,
+  ): Promise<{ type: string | null; count: number }[]> {
+    const accessToken = getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+    const userId = getUserId(jwtPayload);
+
+    const { data: types, error } = await client
+      .from('cw_device_type')
+      .select('*');
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch device types');
+    }
+
+    if (!types || types.length === 0) {
+      throw new NotFoundException('No device types found');
+    }
+
+    return types;
   }
 
   public async findData(
@@ -469,7 +489,7 @@ export class DevicesService {
     let devicesQuery = client
       .from('cw_devices')
       .select(
-        `dev_eui, name, group, location_id, cw_device_type(name, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, owner_match:cw_device_owners()`,
+        `dev_eui, name, group, location_id, cw_rules(*), cw_device_type(name, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, owner_match:cw_device_owners()`,
         { count: 'exact' },
       )
       .eq('owner_match.user_id', userId)
@@ -706,6 +726,93 @@ export class DevicesService {
     }
 
     return latestData;
+  }
+
+  public async createDevice(
+    jwtPayload: any,
+    devEui: string,
+    device: CreateDeviceDto,
+    authHeader: string,
+  ) {
+    const accessToken = getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+    const userId = getUserId(jwtPayload);
+    const normalizedDevEui = devEui?.trim();
+    if (!normalizedDevEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+
+    // do I own the location?
+    if (!device.location_id) {
+      throw new BadRequestException('location_id is required');
+    }
+    const location = await this.locationsService.findOne(device.location_id, jwtPayload, authHeader);
+    if (!location) {
+      throw new BadRequestException('Invalid location');
+    }
+    if (location.user_id !== userId) {
+      throw new UnauthorizedException('You do not have permission to create a device in this location');
+    }
+
+    // create the device
+    const { data: createdDeviceData, error: createDeviceError } = await client
+      .from('cw_devices')
+      .insert({
+        dev_eui: normalizedDevEui,
+        name: device.name,
+        type: device.type,
+        upload_interval: device.upload_interval,
+        location_id: device.location_id,
+        user_id: userId,
+      })
+      .select('*')
+      .single();
+
+    if (createDeviceError) {
+      throw new InternalServerErrorException('Failed to create device');
+    }
+
+    /******************************************************************************
+     * After creating a new device in a location, all users in that location must get
+     * permission to that device, as there is no way to assign permission to a device,
+     * only to a location (and the users inside of a location get permission to devices)
+     * This makes sense because you can view locations, and all devices inside of them
+     * there is no point in having permission to a device, but no permission to view the lcoation
+     * as even if you could see a device, you would have no route to get to said device.
+     * 
+     * Let's add permissions for all existing location users here!!!
+    *********************************************************************************/
+
+    const { data: locationUsers, error: locationUsersError } = await client
+      .from('cw_location_users')
+      .select('user_id')
+      .eq('location_id', device.location_id);
+      
+    if (locationUsersError) {
+      throw new InternalServerErrorException('Failed to fetch location users');
+    }
+
+    // REmove YOU from the list of location users to add, as you are already the owner of the device and have all permissions
+    if (locationUsers.find(user => user.user_id === userId)) {
+      locationUsers.splice(locationUsers.findIndex(user => user.user_id === userId), 1);
+    }
+
+    // Add permissions for all existing location users
+    for (const locationUser of locationUsers) {
+      const { error: addPermissionError } = await client
+        .from('cw_device_owners')
+        .insert({
+          dev_eui: normalizedDevEui,
+          user_id: locationUser.user_id,
+          permission_level: 4, // default permission level
+        });
+
+      if (addPermissionError) {
+        throw new InternalServerErrorException('Failed to add device permissions for location users');
+      }
+    }
+
+    return createdDeviceData;
   }
 
   async updatePermissionLevel(

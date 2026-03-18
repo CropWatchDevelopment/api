@@ -73,7 +73,7 @@ export class RulesService {
 
     const { data, error } = await client
       .from('cw_rules')
-      .select('*, cw_rule_criteria(*)') // Fetch associated criteria for each rule
+      .select('*, cw_rule_criteria(*), cw_devices(name, dev_eui, cw_locations(name, location_id))') // Fetch associated criteria for each rule
       .order('name', { ascending: true })
       .eq('profile_id', userId);
     if (error) {
@@ -90,7 +90,7 @@ export class RulesService {
 
     const { data, error } = await client
       .from('cw_rules')
-      .select('*, cw_rule_criteria(*)') // Fetch associated criteria for each rule
+      .select('*, cw_rule_criteria(*), cw_devices(name, dev_eui, cw_locations(name, location_id))') // Fetch associated criteria for each rule
       .order('name', { ascending: true })
       .eq('profile_id', userId)
       .eq('is_triggered', true);

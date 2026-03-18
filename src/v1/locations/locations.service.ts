@@ -3,7 +3,7 @@ import { CreateLocationDto } from './dto/create-location.dto';
 import { CreateLocationOwnerDto } from './dto/create-location-owner.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { error } from 'console';
+import { error, group } from 'console';
 import { LocationDto } from './dto/location.dto';
 import { getAccessToken, getUserId } from '../../supabase/supabase-token.helper';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
@@ -25,7 +25,8 @@ export class LocationsService {
     const { data: locationData, error: locationError } = await client.from('cw_locations').insert({
       ...createLocationDto,
       owner_id: userId,
-    }).single();
+    }).select('*')
+    .single();
 
     if (locationError) {
       throw new InternalServerErrorException('Failed to create location');
@@ -44,7 +45,9 @@ export class LocationsService {
 
     const { data: ownerData, error: ownerError } = await client.from('cw_location_owners').insert({
       ...locationOwnerObject
-    }).single();
+    })
+    .select('*')
+    .single();
 
     if (ownerError) {
       throw new InternalServerErrorException('Failed to create location owner');
@@ -151,6 +154,7 @@ export class LocationsService {
       .from('cw_locations')
       .update({
         name: updateLocationDto.name,
+        group: updateLocationDto.group,
       })
       .eq('location_id', id)
       .eq('owner_id', userId)
