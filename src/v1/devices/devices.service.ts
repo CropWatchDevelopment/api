@@ -11,6 +11,7 @@ import type { TableRow } from '../types/supabase';
 import {
   getAccessToken,
   getUserId,
+  isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
 import { LocationsService } from '../locations/locations.service';
 import { CreateDeviceDto } from './dto/create-device.dto';
@@ -40,6 +41,7 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
     let devicesQuery = client
       .from('cw_devices')
@@ -50,10 +52,13 @@ export class DevicesService {
     cw_device_owners(*)
   `,
         { count: 'exact' },
-      )
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`);
+      );
+
+    devicesQuery = this.applyDeviceReadScope(
+      devicesQuery,
+      userId,
+      isGlobalUser,
+    );
 
     if (searchGroup) {
       devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
@@ -96,12 +101,13 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
 
-    let { data, error } = await client
+    let query = client
       .from('cw_devices')
       .select(
         `
@@ -112,10 +118,11 @@ export class DevicesService {
     cw_device_type(*)
   `,
       )
-      .eq('dev_eui', normalizedDevEui)
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
+      .eq('dev_eui', normalizedDevEui);
+
+    query = this.applyDeviceReadScope(query, userId, isGlobalUser);
+
+    const { data, error } = await query
       .order('name', { ascending: true })
       .single();
 
@@ -137,16 +144,17 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
-    const { data: devices, error: devicesError } = await client
+    let query = client
       .from('cw_devices')
       .select(
         'owner_match:cw_device_owners(), last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)',
-      )
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .order('name', { ascending: true });
+      );
+
+    query = this.applyDeviceReadScope(query, userId, isGlobalUser);
+
+    const { data: devices, error: devicesError } = await query.order('name', { ascending: true });
 
     if (devicesError) {
       throw new InternalServerErrorException('Failed to fetch devices');
@@ -190,14 +198,16 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
-    const { data: groups, error } = await client
+    let query = client
       .from('cw_devices')
       .select('owner_match:cw_device_owners(), cw_device_owners(*), group')
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
       .not('group', 'is', null);
+
+    query = this.applyDeviceReadScope(query, userId, isGlobalUser);
+
+    const { data: groups, error } = await query;
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch device groups');
@@ -260,6 +270,7 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       this.logger.warn('findData: dev_eui is empty or missing');
@@ -269,7 +280,7 @@ export class DevicesService {
     this.logger.debug(
       `findData: fetching device for devEui=${normalizedDevEui}, userId=${userId}`,
     );
-    const { data: device, error: deviceError } = await client
+    let deviceQuery = client
       .from('cw_devices')
       .select(
         `
@@ -278,11 +289,11 @@ export class DevicesService {
     cw_device_owners(*)
   `,
       )
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .eq('dev_eui', normalizedDevEui)
-      .single();
+      .eq('dev_eui', normalizedDevEui);
+
+    deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
+
+    const { data: device, error: deviceError } = await deviceQuery.single();
 
     if (deviceError) {
       this.logger.error(
@@ -391,21 +402,22 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const { data: device, error: deviceError } = await client
+    let deviceQuery = client
       .from('cw_devices')
       .select(
         `*, owner_match:cw_device_owners(), cw_device_owners(*)`,
       )
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .eq('dev_eui', normalizedDevEui)
-      .single();
+      .eq('dev_eui', normalizedDevEui);
+
+    deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
+
+    const { data: device, error: deviceError } = await deviceQuery.single();
 
     if (deviceError) {
       console.error(deviceError);
@@ -474,6 +486,7 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const hasLocationFilter =
       typeof searchLocation === 'string' && searchLocation.trim().length > 0;
     const locationIdFilter = hasLocationFilter
@@ -491,10 +504,13 @@ export class DevicesService {
       .select(
         `dev_eui, name, group, location_id, cw_rules(*), cw_device_type(name, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, owner_match:cw_device_owners()`,
         { count: 'exact' },
-      )
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`);
+      );
+
+    devicesQuery = this.applyDeviceReadScope(
+      devicesQuery,
+      userId,
+      isGlobalUser,
+    );
 
     if (searchGroup) {
       devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
@@ -624,15 +640,16 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
-    const { data: devices, error: devicesError } = await client
+    let query = client
       .from('cw_devices')
       .select('*, owner_match:cw_device_owners()')
-      .eq('location_id', locationId)
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .order('name', { ascending: true });
+      .eq('location_id', locationId);
+
+    query = this.applyDeviceReadScope(query, userId, isGlobalUser);
+
+    const { data: devices, error: devicesError } = await query.order('name', { ascending: true });
 
     if (devicesError) {
       throw new InternalServerErrorException('Failed to fetch devices');
@@ -654,19 +671,20 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const { data: device, error: deviceError } = await client
+    let deviceQuery = client
       .from('cw_devices')
       .select('*, owner_match:cw_device_owners()')
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .eq('dev_eui', normalizedDevEui)
-      .single();
+      .eq('dev_eui', normalizedDevEui);
+
+    deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
+
+    const { data: device, error: deviceError } = await deviceQuery.single();
 
     if (deviceError) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -737,6 +755,7 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -750,7 +769,7 @@ export class DevicesService {
     if (!location) {
       throw new BadRequestException('Invalid location');
     }
-    if (location.user_id !== userId) {
+    if (!isGlobalUser && location.owner_id !== userId) {
       throw new UnauthorizedException('You do not have permission to create a device in this location');
     }
 
@@ -825,19 +844,25 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const { data: device, error: deviceError } = await client
+    let existingDeviceQuery = client
       .from('cw_devices')
       .select(`*, owner_match:cw_device_owners()`)
-      .eq('owner_match.user_id', userId)
-      .eq('owner_match.permission_level', 1)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .eq('dev_eui', normalizedDevEui)
-      .single();
+      .eq('dev_eui', normalizedDevEui);
+
+    existingDeviceQuery = this.applyDeviceManageScope(
+      existingDeviceQuery,
+      userId,
+      isGlobalUser,
+      1,
+    );
+
+    const { data: device, error: deviceError } = await existingDeviceQuery.single();
 
     if (deviceError) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -848,14 +873,19 @@ export class DevicesService {
     }
 
     // We have access to the existing device, lets ensure we have access to the new device.
-        const { data: newDeviceData, error: newDeviceError } = await client
+        let newDeviceQuery = client
       .from('cw_devices')
       .select(`*, owner_match:cw_device_owners()`)
-      .eq('owner_match.user_id', userId)
-      .eq('owner_match.permission_level', 1)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .eq('dev_eui', normalizedDevEui)
-      .single();
+      .eq('dev_eui', normalizedDevEui);
+
+    newDeviceQuery = this.applyDeviceManageScope(
+      newDeviceQuery,
+      userId,
+      isGlobalUser,
+      1,
+    );
+
+    const { data: newDeviceData, error: newDeviceError } = await newDeviceQuery.single();
 
     if (newDeviceError) {
       throw new InternalServerErrorException('Failed to fetch new device');
@@ -900,6 +930,7 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -912,15 +943,20 @@ export class DevicesService {
     }
 
     // Check we have permission to do the permission update
+    let permissionQuery = client
+      .from('cw_devices')
+      .select('*, owner_match:cw_device_owners()')
+      .eq('dev_eui', normalizedDevEui);
+
+    permissionQuery = this.applyDeviceManageScope(
+      permissionQuery,
+      userId,
+      isGlobalUser,
+      1,
+    );
+
     const { data: RequestingUserHasPermission, error: deviceError } =
-      await client
-        .from('cw_devices')
-        .select('*, owner_match:cw_device_owners()')
-        .eq('owner_match.user_id', userId)
-        .eq('owner_match.permission_level', 1)
-        .or(`user_id.eq.${userId},owner_match.not.is.null`)
-        .eq('dev_eui', normalizedDevEui)
-        .single();
+      await permissionQuery.single();
 
     if (!RequestingUserHasPermission || deviceError) {
       throw new UnauthorizedException(
@@ -970,6 +1006,7 @@ export class DevicesService {
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
     const userId = getUserId(jwtPayload);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -985,15 +1022,20 @@ export class DevicesService {
     }
 
     // Check we have permission to do the update
+    let permissionQuery = client
+      .from('cw_devices')
+      .select('*, owner_match:cw_device_owners()')
+      .eq('dev_eui', normalizedDevEui);
+
+    permissionQuery = this.applyDeviceManageScope(
+      permissionQuery,
+      userId,
+      isGlobalUser,
+      2,
+    );
+
     const { data: RequestingUserHasPermission, error: deviceError } =
-      await client
-        .from('cw_devices')
-        .select('*, owner_match:cw_device_owners()')
-        .eq('owner_match.user_id', userId)
-        .lte('owner_match.permission_level', 2)
-        .or(`user_id.eq.${userId},owner_match.not.is.null`)
-        .eq('dev_eui', normalizedDevEui)
-        .single();
+      await permissionQuery.single();
 
     if (!RequestingUserHasPermission || deviceError) {
       throw new UnauthorizedException(
@@ -1013,5 +1055,32 @@ export class DevicesService {
     }
 
     return data;
+  }
+
+  private applyDeviceReadScope(query: any, userId: string, isGlobalUser: boolean) {
+    if (isGlobalUser) {
+      return query;
+    }
+
+    return query
+      .eq('owner_match.user_id', userId)
+      .lt('owner_match.permission_level', 4)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`);
+  }
+
+  private applyDeviceManageScope(
+    query: any,
+    userId: string,
+    isGlobalUser: boolean,
+    maxPermissionLevel: number,
+  ) {
+    if (isGlobalUser) {
+      return query;
+    }
+
+    return query
+      .eq('owner_match.user_id', userId)
+      .lte('owner_match.permission_level', maxPermissionLevel)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`);
   }
 }

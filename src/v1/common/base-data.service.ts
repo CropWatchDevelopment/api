@@ -7,7 +7,7 @@ import {
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from './timezone-formatter.service';
 import { TableRow, TableName } from '../types/supabase';
-import { getUserId } from '../../supabase/supabase-token.helper';
+import { getUserId, isCropwatchStaff } from '../../supabase/supabase-token.helper';
 
 /**
  * Base service class for common data fetching operations across different data types
@@ -77,15 +77,21 @@ export abstract class BaseDataService<T extends TableName> {
     jwtPayload: any,
   ): Promise<void> {
     const userId = getUserId(jwtPayload);
-    const { data, error } = await this.supabaseService
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    let query = this.supabaseService
       .getClient()
       .from('cw_devices')
       .select('dev_eui, owner_match:cw_device_owners()')
-      .eq('dev_eui', devEui)
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`)
-      .maybeSingle();
+      .eq('dev_eui', devEui);
+
+    if (!isGlobalUser) {
+      query = query
+        .eq('owner_match.user_id', userId)
+        .lt('owner_match.permission_level', 4)
+        .or(`user_id.eq.${userId},owner_match.not.is.null`);
+    }
+
+    const { data, error } = await query.maybeSingle();
 
     if (error) {
       throw new InternalServerErrorException('Failed to validate device access');
