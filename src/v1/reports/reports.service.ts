@@ -46,25 +46,99 @@ export class ReportsService {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
+    const reportSelect = '*, report_recipients(*), report_user_schedule(*), report_alert_points(*)';
 
     delete createReportDto.id; // Ensure ID is not set by client
     delete createReportDto.created_at; // Ensure created_at is not set by client
     delete createReportDto.report_id; // Ensure report_id is not set by client
-    createReportDto.report_alert_points?.map(point => delete point.id); // Ensure alert point IDs are not set by client
-    createReportDto.report_user_schedule?.map(schedule => delete schedule.id); // Ensure user schedule IDs are not set by client
-    createReportDto.report_recipients?.map(recipient => delete recipient.id); // Ensure recipient IDs are not set by client
+
+    for (const point of createReportDto.report_alert_points ?? []) {
+      delete point.id; // Ensure alert point IDs are not set by client
+    }
+
+    for (const schedule of createReportDto.report_user_schedule ?? []) {
+      delete schedule.id; // Ensure user schedule IDs are not set by client
+    }
+
+    for (const recipient of createReportDto.report_recipients ?? []) {
+      delete recipient.id; // Ensure recipient IDs are not set by client
+    }
+
     createReportDto.user_id = userId; // Ensure the report is associated with the authenticated user
 
     // Split each dto into seperate objects by table:
     const { report_user_schedule, report_alert_points, report_recipients, ...reportData } = createReportDto;
 
-    const { data, error } = await client
+    const { data: createdReport, error } = await client
       .from('reports')
       .insert(reportData)
-      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
+      .select('*')
       .single();
 
-    if (error) {
+    if (error || !createdReport) {
+      throw new InternalServerErrorException('Failed to create report');
+    }
+
+    const reportId = createdReport.report_id;
+
+    try {
+      for (const point of report_alert_points ?? []) {
+        const { error: insertError } = await client
+          .from('report_alert_points')
+          .insert({
+            ...point,
+            report_id: reportId,
+            user_id: userId,
+          });
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+
+      for (const schedule of report_user_schedule ?? []) {
+        const { error: insertError } = await client
+          .from('report_user_schedule')
+          .insert({
+            ...schedule,
+            dev_eui: reportData.dev_eui,
+            report_id: reportId,
+            user_id: userId,
+          });
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+
+      for (const recipient of report_recipients ?? []) {
+        const { error: insertError } = await client
+          .from('report_recipients')
+          .insert({
+            ...recipient,
+            report_id: reportId,
+            user_id: userId,
+          });
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+    } catch {
+      await client.from('report_alert_points').delete().eq('report_id', reportId);
+      await client.from('report_user_schedule').delete().eq('report_id', reportId);
+      await client.from('report_recipients').delete().eq('report_id', reportId);
+      await client.from('reports').delete().eq('report_id', reportId);
+      throw new InternalServerErrorException('Failed to create report');
+    }
+
+    const { data, error: fetchError } = await client
+      .from('reports')
+      .select(reportSelect)
+      .eq('report_id', reportId)
+      .single();
+
+    if (fetchError || !data) {
       throw new InternalServerErrorException('Failed to create report');
     }
 

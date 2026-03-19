@@ -218,16 +218,18 @@ export class RulesService {
         ruleGroupId: ruleGroupId,
       }));
 
+      for (const criteria of ruleCriteriaInsertPayload) {
+        const { error: criteriaError } = await this.supabaseService
+          .getClient(accessToken)
+          .from('cw_rule_criteria')
+          .upsert(ruleCriteriaInsertPayload)
+          .eq('id', criteria.id)
+          .eq('ruleGroupId', ruleGroupId)
+          .select('*');
 
-      const { error: criteriaError } = await this.supabaseService
-        .getClient(accessToken)
-        .from('cw_rule_criteria')
-        .upsert(ruleCriteriaInsertPayload)
-        .eq('ruleGroupId', ruleGroupId)
-        .select('*');
-
-      if (criteriaError) {
-        throw new InternalServerErrorException('Failed to update rule criteria');
+        if (criteriaError) {
+          throw new InternalServerErrorException('Failed to update rule criteria');
+        }
       }
     }
 
