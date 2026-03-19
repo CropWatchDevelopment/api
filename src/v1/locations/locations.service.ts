@@ -144,7 +144,7 @@ export class LocationsService {
   `)
       .eq('location_id', id)
       .eq('owner_match.user_id', userId)
-      .eq('owner_match.permission_level', 1)
+      .lte('owner_match.permission_level', 2)
       .or(`owner_id.eq.${userId},owner_match.not.is.null`)
       .maybeSingle();
     if (locationPermissionError) throw new InternalServerErrorException('Failed to fetch location permissions');
@@ -211,7 +211,7 @@ export class LocationsService {
   `)
       .eq('location_id', id)
       .eq('owner_match.user_id', userId)
-      .eq('owner_match.permission_level', 1)
+      .lte('owner_match.permission_level', 2)
       .or(`owner_id.eq.${userId},owner_match.not.is.null`)
       .maybeSingle();
     if (locationPermissionError) throw new InternalServerErrorException('Failed to fetch location permissions');
@@ -290,7 +290,7 @@ export class LocationsService {
   `)
       .eq('location_id', id)
       .eq('owner_match.user_id', userId)
-      .eq('owner_match.permission_level', 1)
+      .lte('owner_match.permission_level', 2)
       .or(`owner_id.eq.${userId},owner_match.not.is.null`)
       .maybeSingle();
     if (locationPermissionError) throw new InternalServerErrorException('Failed to fetch location permissions');
@@ -360,7 +360,7 @@ export class LocationsService {
   `)
       .eq('location_id', id)
       .eq('owner_match.user_id', userId)
-      .eq('owner_match.permission_level', 1)
+      .lte('owner_match.permission_level', 2)
       .or(`owner_id.eq.${userId},owner_match.not.is.null`)
       .maybeSingle();
     if (locationPermissionError) throw new InternalServerErrorException('Failed to fetch location permissions');
@@ -409,7 +409,7 @@ export class LocationsService {
   `)
       .eq('location_id', location_id)
       .eq('owner_match.user_id', userId)
-      .eq('owner_match.permission_level', 1)
+      .lte('owner_match.permission_level', 2)
       .or(`owner_id.eq.${userId},owner_match.not.is.null`)
       .maybeSingle();
 
