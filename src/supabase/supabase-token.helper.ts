@@ -21,3 +21,8 @@ export function getAccessToken(authHeader: string): string {
     }
     return token;
 }
+
+export function isCropwatchStaff(jwtPayload: any): boolean {
+    const email = jwtPayload?.email;
+    return typeof email === 'string' && email.trim().toLowerCase().endsWith('@cropwatch.io');
+}

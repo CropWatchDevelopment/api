@@ -5,7 +5,11 @@ import { UpdateLocationDto } from './dto/update-location.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { error, group } from 'console';
 import { LocationDto } from './dto/location.dto';
-import { getAccessToken, getUserId } from '../../supabase/supabase-token.helper';
+import {
+  getAccessToken,
+  getUserId,
+  isCropwatchStaff,
+} from '../../supabase/supabase-token.helper';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
 
 @Injectable()
@@ -60,36 +64,19 @@ export class LocationsService {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
-
-
-    if (jwtPayload.email.endsWith('@cropwatch.io')) {
-      // If the user is a Cropwatch employee, return all locations
-      const { data, error } = await client
-        .from('cw_locations')
-        .select(`
-    *,
-    owner_match:cw_location_owners(),
-    cw_location_owners(*)
-  `)
-        .order('name', { ascending: true });
-      if (error) {
-        throw new InternalServerErrorException('Failed to fetch locations');
-      }
-      return data;
-    }
-
-    const { data, error } = await client
+    let query = client
       .from('cw_locations')
       .select(`
     *,
     owner_match:cw_location_owners(),
     cw_location_owners(*)
-  `)
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`owner_id.eq.${userId},owner_match.not.is.null`)
-      .order('name', { ascending: true });
+  `);
+
+    query = this.applyLocationReadScope(query, userId, isGlobalUser);
+
+    const { data, error } = await query.order('name', { ascending: true });
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch locations');
@@ -102,18 +89,16 @@ export class LocationsService {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
-    const { data, error } = await client
+    let query = client
       .from('cw_locations')
-      .select(`
-    *,
-    owner_match:cw_location_owners(),
-    cw_location_owners(*, profiles(id, full_name, email))
-  `)
-      .eq('location_id', id)
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
-      .or(`owner_id.eq.${userId},owner_match.not.is.null`)
+      .select(`*,owner_match:cw_location_owners(),cw_location_owners(*, profiles(id, full_name, email))`)
+      .eq('location_id', id);
+
+    query = this.applyLocationReadScope(query, userId, isGlobalUser);
+
+    const { data, error } = await query
       .order('name', { ascending: true })
       .maybeSingle();
 
@@ -133,31 +118,39 @@ export class LocationsService {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
     // check if you have permission to update location permissions
-    const { data: locationCurrentPermission, error: locationPermissionError } = await client
+    let permissionQuery = client
       .from('cw_locations')
       .select(`
     *,
     owner_match:cw_location_owners(),
     cw_location_owners(*, profiles(id, full_name, email))
   `)
-      .eq('location_id', id)
-      .eq('owner_match.user_id', userId)
-      .lte('owner_match.permission_level', 2)
-      .or(`owner_id.eq.${userId},owner_match.not.is.null`)
-      .maybeSingle();
+      .eq('location_id', id);
+    permissionQuery = this.applyLocationManageScope(
+      permissionQuery,
+      userId,
+      isGlobalUser,
+    );
+    const { data: locationCurrentPermission, error: locationPermissionError } = await permissionQuery.maybeSingle();
     if (locationPermissionError) throw new InternalServerErrorException('Failed to fetch location permissions');
     if (!locationCurrentPermission) throw new UnauthorizedException('You do not have permission to update this location');
 
-    const { data, error } = await client
+    let updateQuery = client
       .from('cw_locations')
       .update({
         name: updateLocationDto.name,
         group: updateLocationDto.group,
       })
-      .eq('location_id', id)
-      .eq('owner_id', userId)
+      .eq('location_id', id);
+
+    if (!isGlobalUser) {
+      updateQuery = updateQuery.eq('owner_id', userId);
+    }
+
+    const { data, error } = await updateQuery
       .select('*')
       .single();
 
@@ -176,16 +169,22 @@ export class LocationsService {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
-    const { data, error } = await client
+    let query = client
       .from('cw_locations')
       .select('owner_match:cw_location_owners(), cw_location_owners(*), group')
-      .eq('owner_id', userId)
-      .eq('owner_match.user_id', userId) // Ensure we only get location groups WE are owners of
-      .or(`owner_id.eq.${userId},owner_match.not.is.null`) // OR locations that we have permission to access
-      .lt('owner_match.permission_level', 4) // AND we have a permission level LESS THAN 4 (enabled)
-      .not('group', 'is', null)
-      .order('name', { ascending: true });
+      .not('group', 'is', null);
+
+    if (!isGlobalUser) {
+      query = query
+        .eq('owner_id', userId)
+        .eq('owner_match.user_id', userId) // Ensure we only get location groups WE are owners of
+        .or(`owner_id.eq.${userId},owner_match.not.is.null`) // OR locations that we have permission to access
+        .lt('owner_match.permission_level', 4); // AND we have a permission level LESS THAN 4 (enabled)
+    }
+
+    const { data, error } = await query.order('name', { ascending: true });
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch location groups');
@@ -200,20 +199,23 @@ export class LocationsService {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
     // check if you have permission to update location permissions
-    const { data: locationCurrentPermission, error: locationPermissionError } = await client
+    let permissionQuery = client
       .from('cw_locations')
       .select(`
     *,
     owner_match:cw_location_owners(),
     cw_location_owners(*, profiles(id, full_name, email))
   `)
-      .eq('location_id', id)
-      .eq('owner_match.user_id', userId)
-      .lte('owner_match.permission_level', 2)
-      .or(`owner_id.eq.${userId},owner_match.not.is.null`)
-      .maybeSingle();
+      .eq('location_id', id);
+    permissionQuery = this.applyLocationManageScope(
+      permissionQuery,
+      userId,
+      isGlobalUser,
+    );
+    const { data: locationCurrentPermission, error: locationPermissionError } = await permissionQuery.maybeSingle();
     if (locationPermissionError) throw new InternalServerErrorException('Failed to fetch location permissions');
     if (!locationCurrentPermission) throw new UnauthorizedException('You do not have permission to update this location');
 
@@ -279,20 +281,23 @@ export class LocationsService {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
     // check if you have permission to update location permissions
-    const { data: locationCurrentPermission, error: locationPermissionError } = await client
+    let permissionQuery = client
       .from('cw_locations')
       .select(`
     *,
     owner_match:cw_location_owners(),
     cw_location_owners(*)
   `)
-      .eq('location_id', id)
-      .eq('owner_match.user_id', userId)
-      .lte('owner_match.permission_level', 2)
-      .or(`owner_id.eq.${userId},owner_match.not.is.null`)
-      .maybeSingle();
+      .eq('location_id', id);
+    permissionQuery = this.applyLocationManageScope(
+      permissionQuery,
+      userId,
+      isGlobalUser,
+    );
+    const { data: locationCurrentPermission, error: locationPermissionError } = await permissionQuery.maybeSingle();
     if (locationPermissionError) throw new InternalServerErrorException('Failed to fetch location permissions');
     if (!locationCurrentPermission) throw new UnauthorizedException('You do not have permission to update this location');
 
@@ -345,24 +350,27 @@ export class LocationsService {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
     const email = updateLocationOwnerDto.email;
     const permission_level = updateLocationOwnerDto.permission_level;
     const location_id = updateLocationOwnerDto.location_id;
 
     // check if you have permission to update location permissions
-    const { data: locationCurrentPermission, error: locationPermissionError } = await client
+    let permissionQuery = client
       .from('cw_locations')
       .select(`
     *,
     owner_match:cw_location_owners(),
     cw_location_owners(*)
   `)
-      .eq('location_id', id)
-      .eq('owner_match.user_id', userId)
-      .lte('owner_match.permission_level', 2)
-      .or(`owner_id.eq.${userId},owner_match.not.is.null`)
-      .maybeSingle();
+      .eq('location_id', id);
+    permissionQuery = this.applyLocationManageScope(
+      permissionQuery,
+      userId,
+      isGlobalUser,
+    );
+    const { data: locationCurrentPermission, error: locationPermissionError } = await permissionQuery.maybeSingle();
     if (locationPermissionError) throw new InternalServerErrorException('Failed to fetch location permissions');
     if (!locationCurrentPermission) throw new UnauthorizedException('You do not have permission to update this location');
 
@@ -398,20 +406,23 @@ export class LocationsService {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
     // Check if current user has permissions to remove another user's permissions from the location
-    const { data: requestingUser, error } = await client
+    let permissionQuery = client
       .from('cw_locations')
       .select(`
     *,
     owner_match:cw_location_owners(),
     cw_location_owners(*)
   `)
-      .eq('location_id', location_id)
-      .eq('owner_match.user_id', userId)
-      .lte('owner_match.permission_level', 2)
-      .or(`owner_id.eq.${userId},owner_match.not.is.null`)
-      .maybeSingle();
+      .eq('location_id', location_id);
+    permissionQuery = this.applyLocationManageScope(
+      permissionQuery,
+      userId,
+      isGlobalUser,
+    );
+    const { data: requestingUser, error } = await permissionQuery.maybeSingle();
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch location permissions');
@@ -460,6 +471,28 @@ export class LocationsService {
 
     return { message: 'Location permission and associated device permissions successfully deleted' };
 
+  }
+
+  private applyLocationReadScope(query: any, userId: string, isGlobalUser: boolean) {
+    if (isGlobalUser) {
+      return query;
+    }
+
+    return query
+      .eq('owner_match.user_id', userId)
+      .lt('owner_match.permission_level', 4)
+      .or(`owner_id.eq.${userId},owner_match.not.is.null`);
+  }
+
+  private applyLocationManageScope(query: any, userId: string, isGlobalUser: boolean) {
+    if (isGlobalUser) {
+      return query;
+    }
+
+    return query
+      .eq('owner_match.user_id', userId)
+      .lte('owner_match.permission_level', 2)
+      .or(`owner_id.eq.${userId},owner_match.not.is.null`);
   }
 
 }

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DevicesService } from './devices.service';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { LocationsService } from '../locations/locations.service';
 
 describe('DevicesService', () => {
   let service: DevicesService;
@@ -15,6 +16,10 @@ describe('DevicesService', () => {
             getClient: () => null,
             getAdminClient: () => null,
           },
+        },
+        {
+          provide: LocationsService,
+          useValue: {},
         },
       ],
     }).compile();
@@ -121,6 +126,7 @@ describe('DevicesService', () => {
 
     const latestDataService = new DevicesService(
       supabaseService as unknown as SupabaseService,
+      {} as any,
     );
 
     const result = await latestDataService.findAllLatestData(
@@ -143,5 +149,53 @@ describe('DevicesService', () => {
       co2: 810,
       humidity: 55,
     });
+  });
+
+  it('findOne should allow cropwatch staff to bypass device ownership filters', async () => {
+    const deviceBuilder = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      lt: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: { dev_eui: 'DEV-001', name: 'Global Device' },
+        error: null,
+      }),
+    };
+
+    const client = {
+      from: jest.fn((table: string) => {
+        if (table === 'cw_devices') {
+          return deviceBuilder;
+        }
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+
+    const supabaseService = {
+      getClient: jest.fn(() => client),
+      getAdminClient: jest.fn(),
+    };
+
+    const deviceService = new DevicesService(
+      supabaseService as unknown as SupabaseService,
+      {} as any,
+    );
+
+    await expect(
+      deviceService.findOne(
+        { sub: 'staff-1', email: 'staff@cropwatch.io' },
+        'DEV-001',
+        'Bearer test-token',
+      ),
+    ).resolves.toMatchObject({ dev_eui: 'DEV-001', name: 'Global Device' });
+
+    expect(deviceBuilder.eq).toHaveBeenCalledWith('dev_eui', 'DEV-001');
+    expect(deviceBuilder.eq).not.toHaveBeenCalledWith(
+      'owner_match.user_id',
+      'staff-1',
+    );
   });
 });

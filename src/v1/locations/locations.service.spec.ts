@@ -13,6 +13,7 @@ describe('LocationsService', () => {
       eq: jest.fn(() => builder),
       gt: jest.fn(() => builder),
       lt: jest.fn(() => builder),
+      lte: jest.fn(() => builder),
       or: jest.fn(() => builder),
       order: jest.fn(() => builder),
       maybeSingle: jest.fn(async () => result),
@@ -55,6 +56,31 @@ describe('LocationsService', () => {
 
     await expect(service.findOne(123, { sub: 'user-1' }, 'Bearer token-1')).rejects.toBeInstanceOf(NotFoundException);
     expect(locationQuery.maybeSingle).toHaveBeenCalledTimes(1);
+  });
+
+  it('findOne should allow cropwatch staff to bypass ownership filters', async () => {
+    const locationQuery = createBuilder({
+      data: { location_id: 83, name: 'Staff Visible' },
+      error: null,
+    });
+    const client = createClient({
+      cw_locations: [locationQuery],
+    });
+    const service = createService(client);
+
+    await expect(
+      service.findOne(
+        83,
+        { sub: 'staff-1', email: 'staff@cropwatch.io' },
+        'Bearer token-1',
+      ),
+    ).resolves.toEqual({ location_id: 83, name: 'Staff Visible' });
+
+    expect(locationQuery.eq).toHaveBeenCalledWith('location_id', 83);
+    expect(locationQuery.eq).not.toHaveBeenCalledWith(
+      'owner_match.user_id',
+      'staff-1',
+    );
   });
 
   it('updateLocationPermission should not clean up when a device permission upsert fails', async () => {

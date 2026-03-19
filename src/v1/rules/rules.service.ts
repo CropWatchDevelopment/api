@@ -2,6 +2,11 @@ import { BadRequestException, Injectable, InternalServerErrorException, NotFound
 import { CreateRuleDto } from './dto/create-rule.dto';
 import { UpdateRuleDto } from './dto/update-rule.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
+import {
+  getAccessToken,
+  getUserId,
+  isCropwatchStaff,
+} from '../../supabase/supabase-token.helper';
 import { count } from 'rxjs/internal/operators/count';
 import { error } from 'console';
 
@@ -13,14 +18,15 @@ export class RulesService {
   ) { }
 
   async create(createRuleDto: CreateRuleDto, jwtPayload: any, authHeader: string) {
-    const userId = this.getUserId(jwtPayload);
-    const accessToken = this.getAccessToken(authHeader);
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
     if (!createRuleDto.dev_eui) {
       throw new BadRequestException('dev_eui must be provided');
     }
 
-    const hasLocationPermission: boolean = await this.hasPermissionToLocation(userId, createRuleDto.dev_eui, accessToken);
+    const hasLocationPermission: boolean = await this.hasPermissionToLocation(userId, createRuleDto.dev_eui, accessToken, isGlobalUser);
     if (!hasLocationPermission) {
       throw new UnauthorizedException('User does not have permission to create this rule');
     }
@@ -69,15 +75,21 @@ export class RulesService {
   }
 
   async findAll(jwtPayload: any, authHeader: string) {
-    const userId = this.getUserId(jwtPayload);
-    const accessToken = this.getAccessToken(authHeader);
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const client = this.supabaseService.getClient(accessToken);
 
-    const { data, error } = await client
+    let query = client
       .from('cw_rules')
       .select('*, cw_rule_criteria(*), cw_devices(name, dev_eui, cw_locations(name, location_id))') // Fetch associated criteria for each rule
-      .order('name', { ascending: true })
-      .eq('profile_id', userId);
+      .order('name', { ascending: true });
+
+    if (!isGlobalUser) {
+      query = query.eq('profile_id', userId);
+    }
+
+    const { data, error } = await query;
     if (error) {
       throw new InternalServerErrorException('Failed to fetch rules');
     }
@@ -86,16 +98,22 @@ export class RulesService {
   }
 
   async findAllTriggered(jwtPayload: any, authHeader: string) {
-    const userId = this.getUserId(jwtPayload);
-    const accessToken = this.getAccessToken(authHeader);
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const client = this.supabaseService.getClient(accessToken);
 
-    const { data, error } = await client
+    let query = client
       .from('cw_rules')
       .select('*, cw_rule_criteria(*), cw_devices(name, dev_eui, cw_locations(name, location_id))') // Fetch associated criteria for each rule
       .order('name', { ascending: true })
-      .eq('profile_id', userId)
       .eq('is_triggered', true);
+
+    if (!isGlobalUser) {
+      query = query.eq('profile_id', userId);
+    }
+
+    const { data, error } = await query;
     if (error) {
       throw new InternalServerErrorException('Failed to fetch rules');
     }
@@ -104,8 +122,8 @@ export class RulesService {
   }
 
   async findTriggeredCount(jwtPayload: any, authHeader: string) {
-    const userId = this.getUserId(jwtPayload);
-    const accessToken = this.getAccessToken(authHeader);
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
 
     const triggered = await this.findAllTriggered(jwtPayload, authHeader);
@@ -125,16 +143,21 @@ export class RulesService {
   }
 
   async findOne(id: number, jwtPayload: any, authHeader: string) {
-    const userId = this.getUserId(jwtPayload);
-    const accessToken = this.getAccessToken(authHeader);
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
-    const { data, error } = await this.supabaseService
+    let query = this.supabaseService
       .getClient(accessToken)
       .from('cw_rules')
       .select('*, cw_rule_criteria(*)')
-      .eq('profile_id', userId)
-      .eq('id', id)
-      .single();
+      .eq('id', id);
+
+    if (!isGlobalUser) {
+      query = query.eq('profile_id', userId);
+    }
+
+    const { data, error } = await query.single();
     if (error) {
       throw new InternalServerErrorException('Failed to fetch rules');
     }
@@ -143,10 +166,15 @@ export class RulesService {
   }
 
   async update(ruleGroupId: string, updateRuleDto: UpdateRuleDto, jwtPayload: any, authHeader: string) {
-    const userId = this.getUserId(jwtPayload);
-    const accessToken = this.getAccessToken(authHeader);
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
     const ruleUpdatePayload = { ...updateRuleDto };
-    ruleUpdatePayload.profile_id = userId; // HARD FORCE THE profile_id FOR SECURITY, DO NOT TRUST THE CLIENT TO PROVIDE THE CORRECT profile_id
+    if (!isGlobalUser) {
+      ruleUpdatePayload.profile_id = userId; // HARD FORCE THE profile_id FOR SECURITY, DO NOT TRUST THE CLIENT TO PROVIDE THE CORRECT profile_id
+    } else {
+      delete ruleUpdatePayload.profile_id;
+    }
     delete ruleUpdatePayload.cw_rule_criteria; // Remove criteria from the main update payload, handle it separately
 
     const criteria = Array.isArray(updateRuleDto.cw_rule_criteria)
@@ -160,17 +188,22 @@ export class RulesService {
     if (!updateRuleDto.dev_eui) {
       throw new BadRequestException('dev_eui must be provided');
     }
-    const hasRulePermission: boolean = await this.hasPermissionToRule(userId, ruleGroupId, accessToken);
+    const hasRulePermission: boolean = await this.hasPermissionToRule(userId, ruleGroupId, accessToken, isGlobalUser);
     if (!hasRulePermission) {
       throw new UnauthorizedException('User does not have permission to update this rule');
     }
 
-    const { error } = await this.supabaseService
+    let updateQuery = this.supabaseService
       .getClient(accessToken)
       .from('cw_rules')
       .update(ruleUpdatePayload)
-      .eq('profile_id', userId)
       .eq('ruleGroupId', ruleGroupId);
+
+    if (!isGlobalUser) {
+      updateQuery = updateQuery.eq('profile_id', userId);
+    }
+
+    const { error } = await updateQuery;
     if (error) {
       throw new InternalServerErrorException('Failed to update rule');
     }
@@ -202,22 +235,27 @@ export class RulesService {
   }
 
   async remove(ruleGroupId: string, jwtPayload: any, authHeader: string) {
-    const userId = this.getUserId(jwtPayload);
-    const accessToken = this.getAccessToken(authHeader);
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
-    const hasRulePermission: boolean = await this.hasPermissionToRule(userId, ruleGroupId, accessToken);
+    const hasRulePermission: boolean = await this.hasPermissionToRule(userId, ruleGroupId, accessToken, isGlobalUser);
     if (!hasRulePermission) {
       throw new UnauthorizedException('User does not have permission to remove this rule');
     }
 
-    const { data, error } = await this.supabaseService
+    let deleteQuery = this.supabaseService
       .getClient(accessToken)
       .from('cw_rules')
       .delete()
-      .eq('profile_id', userId)
       .eq('ruleGroupId', ruleGroupId) // MUST HAVE THIS!!!!!
-      .select('*')
-      .single();
+      .select('*');
+
+    if (!isGlobalUser) {
+      deleteQuery = deleteQuery.eq('profile_id', userId);
+    }
+
+    const { data, error } = await deleteQuery.single();
 
     if (error) {
       throw new InternalServerErrorException('Failed to remove rule');
@@ -226,42 +264,24 @@ export class RulesService {
     return data;
   }
 
-  /*********************************************************************
-   * 
-   * Private functions to handle common tasks such as extracting user ID from JWT payload,
-   * 
-   ********************************************************************/
-
-  private getUserId(jwtPayload: any): string {
-    const userId = jwtPayload?.sub;
-    if (typeof userId !== 'string' || !userId.trim()) {
-      throw new UnauthorizedException('Invalid bearer token');
-    }
-    return userId;
-  }
-
-  private getAccessToken(authHeader: string): string {
-    const rawHeader = authHeader?.trim() ?? '';
-    const [scheme, token] = rawHeader.split(' ');
-    if (scheme?.toLowerCase() !== 'bearer' || !token) {
-      throw new UnauthorizedException('Missing bearer token');
-    }
-    return token;
-  }
-
   private async hasPermissionToRule(
     userId: string,
     ruleGroupId: string,
     accessToken: string,
+    isGlobalUser: boolean,
   ): Promise<boolean> {
     // Ensure the active user has permission to update the device & the location that the rule is associated with
-    const { data: existingRule, error: fetchError } = await this.supabaseService
+    let query = this.supabaseService
       .getClient(accessToken)
       .from('cw_rules')
       .select('id, dev_eui, profile_id')
-      .eq('profile_id', userId)
-      .eq('ruleGroupId', ruleGroupId)
-      .single();
+      .eq('ruleGroupId', ruleGroupId);
+
+    if (!isGlobalUser) {
+      query = query.eq('profile_id', userId);
+    }
+
+    const { data: existingRule, error: fetchError } = await query.single();
 
     if (fetchError || !existingRule) {
       throw new NotFoundException('Rule not found or user does not have permission to update this rule');
@@ -274,6 +294,7 @@ export class RulesService {
     userId: string,
     devEui: string,
     accessToken: string,
+    isGlobalUser: boolean,
   ): Promise<boolean> {
 
     // Get the rule with the device eui in it.
@@ -297,6 +318,9 @@ export class RulesService {
       throw new InternalServerErrorException('Failed to verify device permissions');
     }
 
+    if (isGlobalUser) {
+      return true;
+    }
 
     const { data: locationPermission, error: fetchError } = await this.supabaseService
       .getClient(accessToken)
