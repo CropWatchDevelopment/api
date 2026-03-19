@@ -3,7 +3,7 @@ import {
   Body,
   Controller,
   Get,
-  NotImplementedException,
+  InternalServerErrorException,
   Param,
   Patch,
   Post,
@@ -29,6 +29,7 @@ import { DeviceDto } from './dto/device.dto';
 import { UpdateDevicePermissionDto } from './dto/UpdateDevicePermission.dto';
 import { UpdateDeviceNameGroupLocalDto } from './dto/UpdateDeviceNameGroupLocal.dto';
 import { CreateDeviceDto } from './dto/create-device.dto';
+import { ReplaceDeviceDto } from './dto/replace-device.dto';
 
 @Controller({ path: 'devices', version: '1' })
 @ApiBearerAuth('bearerAuth')
@@ -109,7 +110,7 @@ export class DevicesController {
     return this.devicesService.findAllDeviceGroups(req.user, req.headers.authorization);
   }
 
-    @Get('device-types')
+  @Get('device-types')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Returns device types for the authenticated user',
@@ -342,7 +343,38 @@ export class DevicesController {
 
     const insertResult = this.devicesService.createDevice(req.user, normalizedDevEui, newDevice, req.headers.authorization);
     if (!insertResult) {
-      throw new NotImplementedException('Device creation is not yet implemented. Please contact support if you would like this feature to be prioritized.');
+      throw new InternalServerErrorException('Device creation is not yet implemented. Please contact support if you would like this feature to be prioritized.');
+    }
+    return insertResult;
+  }
+
+  @Post(':dev_eui')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOperation({
+    summary: '🔄 Replace a device with another device for the authenticated user',
+    description: `
+    Replaces an existing device with a new device for the authenticated user.
+    This will require a "seat" token for the user, which can be obtained from the /payments endpoints.
+    This endpoint is not yet implemented and will return a 501 Not Implemented response until it is implemented.
+    Please contact support if you would like this feature to be prioritized.
+    `,
+  })
+  replace(
+    @Req() req,
+    @Param('dev_eui') devEui: string,
+    @Body() body: ReplaceDeviceDto,
+  ) {
+    const normalizedDevEui = devEui?.trim();
+    if (body.dev_eui?.trim() && body.dev_eui.trim() !== normalizedDevEui) {
+      throw new BadRequestException('dev_eui in body must match route parameter');
+    }
+
+    const replacementDevice: ReplaceDeviceDto = body;
+
+    const insertResult = this.devicesService.replaceDevice(req.user, normalizedDevEui, replacementDevice, req.headers.authorization);
+    if (!insertResult) {
+      throw new InternalServerErrorException('Device replacement is not yet implemented. Please contact support if you would like this feature to be prioritized.');
     }
     return insertResult;
   }
