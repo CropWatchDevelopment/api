@@ -40,8 +40,10 @@ export class RulesService {
       throw new InternalServerErrorException('Failed to create rule');
     }
 
+
     if (ruleCriteria && ruleCriteria.length > 0) {
-      const ruleCriteriaInsertPayload = ruleCriteria.map((criteria) => ({
+      // Remove 'id' from each criteria to ensure auto-increment works
+      const ruleCriteriaInsertPayload = ruleCriteria.map(({ id, ...criteria }) => ({
         ...criteria,
         ruleGroupId: ruleData.ruleGroupId, // Associate criteria with the newly created rule's group ID
       }));
@@ -140,7 +142,7 @@ export class RulesService {
     return data;
   }
 
-  async update(ruleId: number, updateRuleDto: UpdateRuleDto, jwtPayload: any, authHeader: string) {
+  async update(ruleGroupId: string, updateRuleDto: UpdateRuleDto, jwtPayload: any, authHeader: string) {
     const userId = this.getUserId(jwtPayload);
     const accessToken = this.getAccessToken(authHeader);
     const ruleUpdatePayload = { ...updateRuleDto };
@@ -158,7 +160,7 @@ export class RulesService {
     if (!updateRuleDto.dev_eui) {
       throw new BadRequestException('dev_eui must be provided');
     }
-    const hasRulePermission: boolean = await this.hasPermissionToRule(userId, ruleId, accessToken);
+    const hasRulePermission: boolean = await this.hasPermissionToRule(userId, ruleGroupId, accessToken);
     if (!hasRulePermission) {
       throw new UnauthorizedException('User does not have permission to update this rule');
     }
@@ -168,19 +170,19 @@ export class RulesService {
       .from('cw_rules')
       .update(ruleUpdatePayload)
       .eq('profile_id', userId)
-      .eq('id', ruleId);
+      .eq('ruleGroupId', ruleGroupId);
     if (error) {
       throw new InternalServerErrorException('Failed to update rule');
     }
 
     // handle criteria updates if provided
     if (criteria && criteria.length > 0) {
-      if (!ruleUpdatePayload.ruleGroupId) {
+      if (!ruleGroupId) {
         throw new BadRequestException('ruleGroupId must be provided to update criteria');
       }
       const ruleCriteriaInsertPayload = criteria.map((criteria) => ({
         ...criteria,
-        ruleGroupId: ruleUpdatePayload.ruleGroupId,
+        ruleGroupId: ruleGroupId,
       }));
 
 
@@ -188,7 +190,7 @@ export class RulesService {
         .getClient(accessToken)
         .from('cw_rule_criteria')
         .upsert(ruleCriteriaInsertPayload)
-        .eq('ruleGroupId', ruleUpdatePayload.ruleGroupId)
+        .eq('ruleGroupId', ruleGroupId)
         .select('*');
 
       if (criteriaError) {
@@ -199,11 +201,11 @@ export class RulesService {
     return updateRuleDto;
   }
 
-  async remove(id: number, jwtPayload: any, authHeader: string) {
+  async remove(ruleGroupId: string, jwtPayload: any, authHeader: string) {
     const userId = this.getUserId(jwtPayload);
     const accessToken = this.getAccessToken(authHeader);
 
-    const hasRulePermission: boolean = await this.hasPermissionToRule(userId, +id, accessToken);
+    const hasRulePermission: boolean = await this.hasPermissionToRule(userId, ruleGroupId, accessToken);
     if (!hasRulePermission) {
       throw new UnauthorizedException('User does not have permission to remove this rule');
     }
@@ -213,7 +215,7 @@ export class RulesService {
       .from('cw_rules')
       .delete()
       .eq('profile_id', userId)
-      .eq('id', id) // MUST HAVE THIS!!!!!
+      .eq('ruleGroupId', ruleGroupId) // MUST HAVE THIS!!!!!
       .select('*')
       .single();
 
@@ -249,7 +251,7 @@ export class RulesService {
 
   private async hasPermissionToRule(
     userId: string,
-    ruleId: number,
+    ruleGroupId: string,
     accessToken: string,
   ): Promise<boolean> {
     // Ensure the active user has permission to update the device & the location that the rule is associated with
@@ -258,7 +260,7 @@ export class RulesService {
       .from('cw_rules')
       .select('id, dev_eui, profile_id')
       .eq('profile_id', userId)
-      .eq('id', ruleId)
+      .eq('ruleGroupId', ruleGroupId)
       .single();
 
     if (fetchError || !existingRule) {

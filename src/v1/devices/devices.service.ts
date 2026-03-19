@@ -815,6 +815,81 @@ export class DevicesService {
     return createdDeviceData;
   }
 
+  async replaceDevice(
+    jwtPayload: any,
+    devEui: string,
+    newDevice: CreateDeviceDto,
+    authHeader: string,
+  ) {
+    // Ensure user has access to the device they want to replace
+    const accessToken = getAccessToken(authHeader);
+    const client = this.supabaseService.getClient(accessToken);
+    const userId = getUserId(jwtPayload);
+    const normalizedDevEui = devEui?.trim();
+    if (!normalizedDevEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+
+    const { data: device, error: deviceError } = await client
+      .from('cw_devices')
+      .select(`*, owner_match:cw_device_owners()`)
+      .eq('owner_match.user_id', userId)
+      .eq('owner_match.permission_level', 1)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
+      .eq('dev_eui', normalizedDevEui)
+      .single();
+
+    if (deviceError) {
+      throw new InternalServerErrorException('Failed to fetch device');
+    }
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    // We have access to the existing device, lets ensure we have access to the new device.
+        const { data: newDeviceData, error: newDeviceError } = await client
+      .from('cw_devices')
+      .select(`*, owner_match:cw_device_owners()`)
+      .eq('owner_match.user_id', userId)
+      .eq('owner_match.permission_level', 1)
+      .or(`user_id.eq.${userId},owner_match.not.is.null`)
+      .eq('dev_eui', normalizedDevEui)
+      .single();
+
+    if (newDeviceError) {
+      throw new InternalServerErrorException('Failed to fetch new device');
+    }
+
+    if (!newDeviceData) {
+      throw new NotFoundException('New device not found');
+    }
+
+    // We have access to both devices, let's now update the existing device with the new device.
+    const { data: updatedDeviceData, error: updateDeviceError } = await client
+      .from('cw_devices')
+      .update({
+        dev_eui: newDevice.dev_eui,
+        name: newDevice.name,
+        type: newDevice.type,
+        upload_interval: newDevice.upload_interval,
+        location_id: newDevice.location_id,
+      })
+      .eq('dev_eui', normalizedDevEui)
+      .select('*')
+      .single();
+
+    if (updateDeviceError) {
+      throw new InternalServerErrorException('Failed to update device');
+    }
+
+    if (!updatedDeviceData) {
+      throw new NotFoundException('Device not found');
+    }
+
+    return updatedDeviceData;
+  }
+
   async updatePermissionLevel(
     jwtPayload: any,
     devEui: string,
@@ -915,7 +990,7 @@ export class DevicesService {
         .from('cw_devices')
         .select('*, owner_match:cw_device_owners()')
         .eq('owner_match.user_id', userId)
-        .eq('owner_match.permission_level', 1)
+        .lte('owner_match.permission_level', 2)
         .or(`user_id.eq.${userId},owner_match.not.is.null`)
         .eq('dev_eui', normalizedDevEui)
         .single();
