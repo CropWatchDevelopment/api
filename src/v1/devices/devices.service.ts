@@ -442,8 +442,8 @@ export class DevicesService {
       throw new NotFoundException('Device type not found');
     }
 
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+    const startDate = new Date(start).toISOString();
+    const endDate = new Date(end).toISOString();
 
     const {
       data: latestData,
@@ -451,10 +451,10 @@ export class DevicesService {
       error: dataError,
     } = await client
       .from(deviceType.data_table_v2)
-      .select('*', { count: 'exact' })
+      .select('*')
       .eq('dev_eui', normalizedDevEui)
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
       .order('created_at', { ascending: false })
       .range(skip, skip + take - 1);
 
@@ -803,7 +803,7 @@ export class DevicesService {
     *********************************************************************************/
 
     const { data: locationUsers, error: locationUsersError } = await client
-      .from('cw_location_users')
+      .from('cw_location_owners')
       .select('user_id')
       .eq('location_id', device.location_id);
       

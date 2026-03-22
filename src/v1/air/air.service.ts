@@ -47,6 +47,36 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     return data;
   }
 
+  async deleteNote(noteId: number, jwtPayload: any) {
+    const client = this.supabaseService.getClient();
+    const { data: existingNote, error: fetchError } = await client
+      .from('cw_air_annotations')
+      .select('*')
+      .eq('id', noteId)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw new InternalServerErrorException('Failed to fetch air annotation');
+    }
+
+    if (!existingNote) {
+      throw new BadRequestException('Air annotation not found');
+    }
+
+    await this.assertDeviceAccess(existingNote.dev_eui, jwtPayload);
+
+    const { error: deleteError } = await client
+      .from('cw_air_annotations')
+      .delete()
+      .eq('id', noteId);
+
+    if (deleteError) {
+      throw new BadRequestException('Failed to delete air annotation');
+    }
+
+    return { message: 'Air annotation deleted successfully' };
+  }
+
   private async resolveAnnotationCreatedAt(
     client: ReturnType<SupabaseService['getClient']>,
     devEui: string,

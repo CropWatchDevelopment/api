@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { getAccessToken, getUserId } from 'src/supabase/supabase-token.helper';
 
 @Injectable()
 export class AuthService {
@@ -46,5 +47,23 @@ export class AuthService {
       message: 'Login successful.',
       result,
     };
+  }
+
+
+  async getUserProfile(user: any, authHeader: string, jwtPayload: any) {
+    const accessToken = getAccessToken(authHeader);
+        const client = this.supabaseService.getClient(accessToken);
+        const userId = getUserId(jwtPayload);
+        const { data, error } = await client
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          throw new BadRequestException('Failed to fetch user profile');
+        }
+
+        return data;
   }
 }
