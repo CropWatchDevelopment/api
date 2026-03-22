@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   Req,
+  Delete,
 } from '@nestjs/common';
 import { AirService } from './air.service';
 import { AirDataDto } from './dto/air-data.dto';
@@ -43,6 +44,15 @@ export class AirController {
     @Req() req,
   ) {
     return this.airService.createNote(createAirNoteDto, req.user);
+  }
+
+  @Delete('notes/:note_id')
+  @UseGuards(JwtAuthGuard)
+  async deleteNote(
+    @Param('note_id') noteId: number,
+    @Req() req,
+  ) {
+    return this.airService.deleteNote(noteId, req.user);
   }
 
   // @Get()AIR_NOTES_ENDPOINT

@@ -40,6 +40,25 @@ export class AuthController {
     return req.user;
   }
 
+  @Get('user-profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description: 'Authenticated user profile returned successfully.',
+    schema: { type: 'object', additionalProperties: true },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+    example: {
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Unauthorized',
+    },
+  })
+  async getUserProfile(@Req() req) {
+    return this.authService.getUserProfile(req.user, req.headers?.authorization, req.user);
+  }
+
   @Throttle({ default: { limit: 2, ttl: 60000 } })
   @Post('login')
   @ApiOperation({ summary: 'Login with email and password' })

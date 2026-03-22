@@ -309,21 +309,85 @@ export class ReportsService {
     // Separate child relations from core report data
     const { report_user_schedule, report_alert_points, report_recipients, ...reportData } = updateReportDto;
 
-    let query = client
-      .from('reports')
-      .update(reportData)
-      .eq('report_id', report_id);
-
     if (!isGlobalUser) {
-      query = query.eq('user_id', userId);
+      const { data: existingReport, error: fetchError } = await client
+        .from('reports')
+        .select('user_id')
+        .eq('report_id', report_id)
+        .single();
+
+      if (fetchError || !existingReport) {
+        throw new InternalServerErrorException('Failed to fetch existing report for update');
+      }
+
+      if (existingReport.user_id !== userId) {
+        throw new UnauthorizedException('User does not have permission to update this report');
+      }
     }
 
-    const { data, error } = await query
+    let { data: cw_report_data, error: cw_report_error } = await client
+      .from('reports')
+      .update(reportData)
+      .eq('report_id', report_id)
+      .select('*')
+      .single();
+    if (cw_report_error || !cw_report_data) {
+      throw new InternalServerErrorException('Failed to update report');
+    }
+
+    for (const point of report_alert_points ?? []) {
+      if (point.id) {
+        const { error } = await client
+          .from('report_alert_points')
+          .update(point)
+          .eq('report_id', report_id)
+          .eq('id', point.id);
+
+        if (error) {
+          throw new InternalServerErrorException('Failed to update report alert points');
+        }
+      } else {
+        const { error } = await client
+          .from('report_alert_points')
+          .insert({
+            ...point,
+            report_id: report_id,
+            user_id: userId,
+          });
+
+        if (error) {
+          throw new InternalServerErrorException('Failed to update report alert points');
+        }
+      }
+    }
+
+    let { data: scheduleData, error: scheduleError } = await client
+      .from('report_user_schedule')
+      .delete()
+      .eq('report_id', report_id)
+      .select('*');
+    if (scheduleError) {
+      throw new InternalServerErrorException('Failed to update report user schedule');
+    }
+
+    let { data: recipientsData, error: recipientsError } = await client
+      .from('report_recipients')
+      .delete()
+      .eq('report_id', report_id)
+      .select('*');
+    if (recipientsError) {
+      throw new InternalServerErrorException('Failed to update report recipients');
+    }
+
+    
+    let { data, error } = await client
+      .from('reports')
       .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
+      .eq('report_id', report_id)
       .single();
 
-    if (error) {
-      throw new InternalServerErrorException('Failed to update report');
+    if (error || !data) {
+      throw new InternalServerErrorException('Failed to fetch updated report');
     }
 
     return data;
