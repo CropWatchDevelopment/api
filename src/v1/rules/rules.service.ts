@@ -82,12 +82,14 @@ export class RulesService {
 
     let query = client
       .from('cw_rules')
-      .select('*, cw_rule_criteria(*), cw_devices(name, dev_eui, cw_locations(name, location_id), cw_device_owners(*))') // Fetch associated criteria for each rule
+      .select('*, cw_rule_criteria(*), cw_devices(name, dev_eui, cw_locations(name, location_id), cw_device_owners(*))')
+      .eq('cw_devices.cw_device_owners.user_id', userId)
+      .lte('cw_devices.cw_device_owners.permission_level', 2)
       .order('name', { ascending: true });
 
-    if (!isGlobalUser) {
-      query = query.eq('profile_id', userId);
-    }
+    // if (!isGlobalUser) {
+    //   query = query.eq('profile_id', userId);
+    // }
 
     const { data, error } = await query;
     if (error) {
