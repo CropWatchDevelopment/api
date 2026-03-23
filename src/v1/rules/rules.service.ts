@@ -83,8 +83,6 @@ export class RulesService {
     let query = client
       .from('cw_rules')
       .select('*, cw_rule_criteria(*), cw_devices(name, dev_eui, cw_locations(name, location_id), cw_device_owners(*))')
-      .eq('cw_devices.cw_device_owners.user_id', userId)
-      .lte('cw_devices.cw_device_owners.permission_level', 2)
       .order('name', { ascending: true });
 
     // if (!isGlobalUser) {
@@ -104,7 +102,7 @@ export class RulesService {
         };
       } else {
         const colabEntry = rule.cw_devices?.cw_device_owners?.find(
-          (owner) => owner.user_id === userId && owner.permission_level <= 2,
+          (owner) => owner.user_id === userId && owner.permission_level <= 3,
         );
         if (colabEntry) {
           return {
