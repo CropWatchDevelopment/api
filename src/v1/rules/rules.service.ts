@@ -82,7 +82,7 @@ export class RulesService {
 
     let query = client
       .from('cw_rules')
-      .select('*, cw_rule_criteria(*), cw_devices(name, dev_eui, cw_locations(name, location_id))') // Fetch associated criteria for each rule
+      .select('*, cw_rule_criteria(*), cw_devices(name, dev_eui, cw_locations(name, location_id), cw_device_owners(*))') // Fetch associated criteria for each rule
       .order('name', { ascending: true });
 
     if (!isGlobalUser) {
@@ -94,7 +94,29 @@ export class RulesService {
       throw new InternalServerErrorException('Failed to fetch rules');
     }
 
-    return data;
+    const rulesWhereIAmOwnerOrCollaborator = data.map((rule) => {
+      if (rule.profile_id === userId) {
+        return {
+          permission_level: 1, // Owner has highest permission level
+          ...rule,
+        };
+      } else {
+        const colabEntry = rule.cw_devices?.cw_device_owners?.find(
+          (owner) => owner.user_id === userId && owner.permission_level <= 2,
+        );
+        if (colabEntry) {
+          return {
+            permission_level: colabEntry.permission_level,
+            ...rule,
+          }
+        }
+      }
+
+      return null;
+    }).filter((rule) => rule !== null);
+
+
+    return rulesWhereIAmOwnerOrCollaborator;
   }
 
   async findAllTriggered(jwtPayload: any, authHeader: string) {
