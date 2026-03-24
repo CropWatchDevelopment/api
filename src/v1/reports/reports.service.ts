@@ -248,7 +248,8 @@ export class ReportsService {
     let permissionQuery = client
       .from('reports')
       .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
-      .eq('dev_eui', normalizedDevEui)
+      // .eq('dev_eui', normalizedDevEui)
+      .eq('report_id', report_id)
       .limit(1)
       .single();
 
@@ -325,15 +326,17 @@ export class ReportsService {
     const isGlobalUser = isCropwatchStaff(jwtPayload);
     const client = this.supabaseService.getClient(accessToken);
 
+    const hasReportPermission: boolean = await this.hasPermissionToReport(userId, report_id, accessToken, isGlobalUser);
+    if (!hasReportPermission) {
+      throw new UnauthorizedException('User does not have permission to remove this report');
+    }
+    
+
     let query = client
       .from('reports')
-      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
-      .order('name', { ascending: true })
-      .eq('report_id', report_id);
-
-    if (!isGlobalUser) {
-      query = query.eq('user_id', userId);
-    }
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
+      .eq('report_id', report_id)
+      .limit(1);
 
     const { data, error } = await query.single();
     if (error) {
@@ -371,10 +374,6 @@ export class ReportsService {
 
       if (fetchError || !existingReport) {
         throw new InternalServerErrorException('Failed to fetch existing report for update');
-      }
-
-      if (existingReport.user_id !== userId) {
-        throw new UnauthorizedException('User does not have permission to update this report');
       }
     }
 
@@ -481,23 +480,54 @@ export class ReportsService {
     accessToken: string,
     isGlobalUser: boolean,
   ): Promise<boolean> {
-    let query = this.supabaseService
-      .getClient(accessToken)
+
+    let query = this.supabaseService.getClient(accessToken)
       .from('reports')
-      .select('id')
-      .eq('report_id', reportId);
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
+      // .eq('dev_eui', normalizedDevEui)
+      .eq('report_id', reportId)
+      .limit(1)
+      .single();
 
-    if (!isGlobalUser) {
-      query = query.eq('user_id', userId);
+    const { data: permissionData, error: permissionError } = await query;
+
+    if (permissionError) {
+
+      throw new InternalServerErrorException('Failed inside of hasPermissionToReport');
     }
 
-    const { data, error } = await query.single();
+    const rulesWhereIAmOwnerOrCollaborator = permissionData ? (() => {
+      if (permissionData.user_id === userId) {
+        return {
+          permission_level: 1, // Owner has highest permission level
+          ...permissionData,
+        };
+      } else {
+        const colabEntry = permissionData.cw_devices?.cw_device_owners?.find(
+          (owner) => owner.user_id === userId && owner.permission_level <= 3,
+        );
+        if (colabEntry) {
+          return {
+            permission_level: colabEntry.permission_level,
+            ...permissionData,
+          }
+        }
+      }
+    })() : null;
 
-    if (error) {
-      console.error('Error checking report permissions:', error);
-      throw new InternalServerErrorException('Failed to check report permissions');
+
+
+    // const { data, error } = await query;
+
+    // if (error) {
+    //   console.error('Error checking report permissions:', error);
+    //   throw new InternalServerErrorException('Failed to check report permissions');
+    // }
+
+    if (!rulesWhereIAmOwnerOrCollaborator || rulesWhereIAmOwnerOrCollaborator.permission_level >= 2) {
+      return false;
     }
 
-    return !!data; // If data exists, the user has permission
+    return !!rulesWhereIAmOwnerOrCollaborator; // If data exists, the user has permission
   }
 }
