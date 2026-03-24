@@ -254,6 +254,9 @@ export class ReportsService {
 
     const { data: permissionData, error: permissionError } = await permissionQuery;
 
+    if (permissionError) {
+      throw new InternalServerErrorException('Failed to fetch report for download');
+    }
 
     const rulesWhereIAmOwnerOrCollaborator = permissionData ? (() => {
       if (permissionData.user_id === userId) {
@@ -274,12 +277,12 @@ export class ReportsService {
       }
     })() : null;
 
-
-
-    if (permissionError) {
-      throw new InternalServerErrorException('Failed to fetch report for download');
-    }
     if (!rulesWhereIAmOwnerOrCollaborator) {
+      console.error('User does not have permission to download report', {
+        userId,
+        dev_eui: normalizedDevEui,
+        report_id: dbReportId,
+      });
       throw new UnauthorizedException('User does not have permission to download this report');
     }
 
