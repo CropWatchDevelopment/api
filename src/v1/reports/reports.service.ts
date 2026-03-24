@@ -189,286 +189,312 @@ export class ReportsService {
 
 
 
-      return rulesWhereIAmOwnerOrCollaborator;
-    }
-
-  async findAllHistory(dev_eui: string, jwtPayload: any, authHeader: string): Promise < ReportHistoryList > {
-      const userId = getUserId(jwtPayload);
-      const accessToken = getAccessToken(authHeader);
-      const isGlobalUser = isCropwatchStaff(jwtPayload);
-      const client = this.supabaseService.getClient(accessToken);
-
-      let permissionQuery = client
-        .from('reports')
-        .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
-        .order('created_at', { ascending: false })
-        .eq('dev_eui', dev_eui);
-
-      if(!isGlobalUser) {
-        permissionQuery = permissionQuery.eq('user_id', userId);
-      }
-
-    const { data: permissionData, error: permissionError } = await permissionQuery;
-      if(permissionError) {
-        throw new InternalServerErrorException('Failed to fetch report history');
-      }
-
-    const { data, error } = await client
-        .storage
-        .from('Reports')
-        .list(dev_eui, {
-          limit: 110,
-          offset: 0,
-          sortBy: { column: 'name', order: 'asc' },
-        })
-
-    return data;
-    }
-
-  async downloadReport(dev_eui: string, report_id: string, jwtPayload: any, authHeader: string): Promise < { url: string } | null > {
-      const userId = getUserId(jwtPayload);
-      const accessToken = getAccessToken(authHeader);
-      const isGlobalUser = isCropwatchStaff(jwtPayload);
-      const client = this.supabaseService.getClient(accessToken);
-      const adminClient = this.supabaseService.getAdminClient();
-      const normalizedDevEui = dev_eui?.trim();
-      const normalizedReportId = report_id?.trim();
-      const dbReportId = normalizedReportId?.replace(/\.pdf$/i, '');
-
-      if(!normalizedDevEui || !normalizedReportId || !dbReportId) {
-        throw new BadRequestException('dev_eui and report_id are required');
+    return rulesWhereIAmOwnerOrCollaborator;
   }
+
+  async findAllHistory(dev_eui: string, jwtPayload: any, authHeader: string): Promise<ReportHistoryList> {
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient(accessToken);
 
     let permissionQuery = client
-  .from('reports')
-  .select('id')
-  .eq('dev_eui', normalizedDevEui)
-  .limit(1);
+      .from('reports')
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
+      .order('created_at', { ascending: false })
+      .eq('dev_eui', dev_eui);
 
-if (!isGlobalUser) {
-  permissionQuery = permissionQuery.eq('user_id', userId);
-}
-
-const { data: permissionData, error: permissionError } = await permissionQuery;
-if (permissionError) {
-  throw new InternalServerErrorException('Failed to fetch report for download');
-}
-if (!permissionData?.length) {
-  throw new UnauthorizedException('User does not have permission to download this report');
-}
-
-const storageClient = adminClient ?? client;
-const bucketCandidates = ['Reports', 'reports'];
-const candidatePaths = Array.from(new Set(
-  normalizedReportId.toLowerCase().endsWith('.pdf')
-    ? [`${normalizedDevEui}/${normalizedReportId}`, `${normalizedDevEui}/${dbReportId}.pdf`]
-    : [`${normalizedDevEui}/${normalizedReportId}`, `${normalizedDevEui}/${normalizedReportId}.pdf`],
-));
-
-let lastStorageError: unknown = null;
-for (const bucket of bucketCandidates) {
-  for (const path of candidatePaths) {
-    const { data, error } = await storageClient
-      .storage
-      .from(bucket)
-      .createSignedUrl(path, 60, { download: true });
-
-    if (!error && data?.signedUrl) {
-      return { url: data.signedUrl };
+    if (!isGlobalUser) {
+      permissionQuery = permissionQuery.eq('user_id', userId);
     }
 
-    lastStorageError = error;
-  }
-}
+    const { data: permissionData, error: permissionError } = await permissionQuery;
+    if (permissionError) {
+      throw new InternalServerErrorException('Failed to fetch report history');
+    }
 
-console.error('Failed to generate report signed URL', {
-  dev_eui: normalizedDevEui,
-  report_id: dbReportId,
-  error: lastStorageError,
-});
-throw new InternalServerErrorException('Failed to generate report download URL');
-  }
-
-
-  async findOne(report_id: string, jwtPayload: any, authHeader: string): Promise < ReportDto > {
-  const userId = getUserId(jwtPayload);
-  const accessToken = getAccessToken(authHeader);
-  const isGlobalUser = isCropwatchStaff(jwtPayload);
-  const client = this.supabaseService.getClient(accessToken);
-
-  let query = client
-    .from('reports')
-    .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
-    .order('name', { ascending: true })
-    .eq('report_id', report_id);
-
-  if(!isGlobalUser) {
-    query = query.eq('user_id', userId);
-  }
-
-    const { data, error } = await query.single();
-  if(error) {
-    throw new InternalServerErrorException('Failed to fetch report');
-  }
+    const { data, error } = await client
+      .storage
+      .from('Reports')
+      .list(dev_eui, {
+        limit: 110,
+        offset: 0,
+        sortBy: { column: 'name', order: 'asc' },
+      })
 
     return data;
-}
-
-  async update(report_id: string, updateReportDto: UpdateReportDto, jwtPayload: any, authHeader: string): Promise < ReportDto > {
-  const userId = getUserId(jwtPayload);
-  const accessToken = getAccessToken(authHeader);
-  const isGlobalUser = isCropwatchStaff(jwtPayload);
-  const client = this.supabaseService.getClient(accessToken);
-
-  const hasPermission = await this.hasPermissionToReport(userId, report_id, accessToken, isGlobalUser);
-  if(!hasPermission) {
-    throw new UnauthorizedException('User does not have permission to update this report');
   }
+
+  async downloadReport(dev_eui: string, report_id: string, jwtPayload: any, authHeader: string): Promise<{ url: string } | null> {
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient(accessToken);
+    const adminClient = this.supabaseService.getAdminClient();
+    const normalizedDevEui = dev_eui?.trim();
+    const normalizedReportId = report_id?.trim();
+    const dbReportId = normalizedReportId?.replace(/\.pdf$/i, '');
+
+    if (!normalizedDevEui || !normalizedReportId || !dbReportId) {
+      throw new BadRequestException('dev_eui and report_id are required');
+    }
+
+    //   let permissionQuery = client
+    // .from('reports')
+    // .select('id')
+    // .eq('dev_eui', normalizedDevEui)
+    // .limit(1);
+
+    let permissionQuery = client
+      .from('reports')
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
+      .eq('dev_eui', normalizedDevEui)
+      .limit(1)
+      .single();
+
+    const { data: permissionData, error: permissionError } = await permissionQuery;
+
+
+    const rulesWhereIAmOwnerOrCollaborator = permissionData ? (() => {
+      if (permissionData.user_id === userId) {
+        return {
+          permission_level: 1, // Owner has highest permission level
+          ...permissionData,
+        };
+      } else {
+        const colabEntry = permissionData.cw_devices?.cw_device_owners?.find(
+          (owner) => owner.user_id === userId && owner.permission_level <= 3,
+        );
+        if (colabEntry) {
+          return {
+            permission_level: colabEntry.permission_level,
+            ...permissionData,
+          }
+        }
+      }
+    })() : null;
+
+
+
+    if (permissionError) {
+      throw new InternalServerErrorException('Failed to fetch report for download');
+    }
+    if (!rulesWhereIAmOwnerOrCollaborator) {
+      throw new UnauthorizedException('User does not have permission to download this report');
+    }
+
+    const storageClient = adminClient ?? client;
+    const bucketCandidates = ['Reports', 'reports'];
+    const candidatePaths = Array.from(new Set(
+      normalizedReportId.toLowerCase().endsWith('.pdf')
+        ? [`${normalizedDevEui}/${normalizedReportId}`, `${normalizedDevEui}/${dbReportId}.pdf`]
+        : [`${normalizedDevEui}/${normalizedReportId}`, `${normalizedDevEui}/${normalizedReportId}.pdf`],
+    ));
+
+    let lastStorageError: unknown = null;
+    for (const bucket of bucketCandidates) {
+      for (const path of candidatePaths) {
+        const { data, error } = await storageClient
+          .storage
+          .from(bucket)
+          .createSignedUrl(path, 60, { download: true });
+
+        if (!error && data?.signedUrl) {
+          return { url: data.signedUrl };
+        }
+
+        lastStorageError = error;
+      }
+    }
+
+    console.error('Failed to generate report signed URL', {
+      dev_eui: normalizedDevEui,
+      report_id: dbReportId,
+      error: lastStorageError,
+    });
+    throw new InternalServerErrorException('Failed to generate report download URL');
+  }
+
+
+  async findOne(report_id: string, jwtPayload: any, authHeader: string): Promise<ReportDto> {
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient(accessToken);
+
+    let query = client
+      .from('reports')
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
+      .order('name', { ascending: true })
+      .eq('report_id', report_id);
+
+    if (!isGlobalUser) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query.single();
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch report');
+    }
+
+    return data;
+  }
+
+  async update(report_id: string, updateReportDto: UpdateReportDto, jwtPayload: any, authHeader: string): Promise<ReportDto> {
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient(accessToken);
+
+    const hasPermission = await this.hasPermissionToReport(userId, report_id, accessToken, isGlobalUser);
+    if (!hasPermission) {
+      throw new UnauthorizedException('User does not have permission to update this report');
+    }
 
     // Strip fields the client should not control
     delete updateReportDto.id;
-  delete updateReportDto.created_at;
-  delete updateReportDto.report_id;
+    delete updateReportDto.created_at;
+    delete updateReportDto.report_id;
 
-  // Separate child relations from core report data
-  const { report_user_schedule, report_alert_points, report_recipients, ...reportData } = updateReportDto;
+    // Separate child relations from core report data
+    const { report_user_schedule, report_alert_points, report_recipients, ...reportData } = updateReportDto;
 
-  if(!isGlobalUser) {
-    const { data: existingReport, error: fetchError } = await client
+    if (!isGlobalUser) {
+      const { data: existingReport, error: fetchError } = await client
+        .from('reports')
+        .select('user_id')
+        .eq('report_id', report_id)
+        .single();
+
+      if (fetchError || !existingReport) {
+        throw new InternalServerErrorException('Failed to fetch existing report for update');
+      }
+
+      if (existingReport.user_id !== userId) {
+        throw new UnauthorizedException('User does not have permission to update this report');
+      }
+    }
+
+    let { data: cw_report_data, error: cw_report_error } = await client
       .from('reports')
-      .select('user_id')
+      .update(reportData)
+      .eq('report_id', report_id)
+      .select('*')
+      .single();
+    if (cw_report_error || !cw_report_data) {
+      throw new InternalServerErrorException('Failed to update report');
+    }
+
+    for (const point of report_alert_points ?? []) {
+      if (point.id) {
+        const { error } = await client
+          .from('report_alert_points')
+          .update(point)
+          .eq('report_id', report_id)
+          .eq('id', point.id);
+
+        if (error) {
+          throw new InternalServerErrorException('Failed to update report alert points');
+        }
+      } else {
+        const { error } = await client
+          .from('report_alert_points')
+          .insert({
+            ...point,
+            report_id: report_id,
+            user_id: userId,
+          });
+
+        if (error) {
+          throw new InternalServerErrorException('Failed to update report alert points');
+        }
+      }
+    }
+
+    let { data: scheduleData, error: scheduleError } = await client
+      .from('report_user_schedule')
+      .delete()
+      .eq('report_id', report_id)
+      .select('*');
+    if (scheduleError) {
+      throw new InternalServerErrorException('Failed to update report user schedule');
+    }
+
+    let { data: recipientsData, error: recipientsError } = await client
+      .from('report_recipients')
+      .delete()
+      .eq('report_id', report_id)
+      .select('*');
+    if (recipientsError) {
+      throw new InternalServerErrorException('Failed to update report recipients');
+    }
+
+
+    let { data, error } = await client
+      .from('reports')
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
       .eq('report_id', report_id)
       .single();
 
-    if (fetchError || !existingReport) {
-      throw new InternalServerErrorException('Failed to fetch existing report for update');
+    if (error || !data) {
+      throw new InternalServerErrorException('Failed to fetch updated report');
     }
 
-    if (existingReport.user_id !== userId) {
-      throw new UnauthorizedException('User does not have permission to update this report');
-    }
-  }
-
-    let { data: cw_report_data, error: cw_report_error } = await client
-  .from('reports')
-  .update(reportData)
-  .eq('report_id', report_id)
-  .select('*')
-  .single();
-if (cw_report_error || !cw_report_data) {
-  throw new InternalServerErrorException('Failed to update report');
-}
-
-for (const point of report_alert_points ?? []) {
-  if (point.id) {
-    const { error } = await client
-      .from('report_alert_points')
-      .update(point)
-      .eq('report_id', report_id)
-      .eq('id', point.id);
-
-    if (error) {
-      throw new InternalServerErrorException('Failed to update report alert points');
-    }
-  } else {
-    const { error } = await client
-      .from('report_alert_points')
-      .insert({
-        ...point,
-        report_id: report_id,
-        user_id: userId,
-      });
-
-    if (error) {
-      throw new InternalServerErrorException('Failed to update report alert points');
-    }
-  }
-}
-
-let { data: scheduleData, error: scheduleError } = await client
-  .from('report_user_schedule')
-  .delete()
-  .eq('report_id', report_id)
-  .select('*');
-if (scheduleError) {
-  throw new InternalServerErrorException('Failed to update report user schedule');
-}
-
-let { data: recipientsData, error: recipientsError } = await client
-  .from('report_recipients')
-  .delete()
-  .eq('report_id', report_id)
-  .select('*');
-if (recipientsError) {
-  throw new InternalServerErrorException('Failed to update report recipients');
-}
-
-
-let { data, error } = await client
-  .from('reports')
-  .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
-  .eq('report_id', report_id)
-  .single();
-
-if (error || !data) {
-  throw new InternalServerErrorException('Failed to fetch updated report');
-}
-
-return data;
+    return data;
   }
 
   async remove(report_id: string, jwtPayload: any, authHeader: string) {
-  const userId = getUserId(jwtPayload);
-  const accessToken = getAccessToken(authHeader);
-  const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isGlobalUser = isCropwatchStaff(jwtPayload);
 
-  const hasReportPermission: boolean = await this.hasPermissionToReport(userId, report_id, accessToken, isGlobalUser);
-  if (!hasReportPermission) {
-    throw new UnauthorizedException('User does not have permission to remove this report');
-  }
+    const hasReportPermission: boolean = await this.hasPermissionToReport(userId, report_id, accessToken, isGlobalUser);
+    if (!hasReportPermission) {
+      throw new UnauthorizedException('User does not have permission to remove this report');
+    }
 
-  let query = this.supabaseService
-    .getClient(accessToken)
-    .from('reports')
-    .delete()
-    .eq('report_id', report_id) // MUST HAVE THIS!!!!!
-    .select('*');
+    let query = this.supabaseService
+      .getClient(accessToken)
+      .from('reports')
+      .delete()
+      .eq('report_id', report_id) // MUST HAVE THIS!!!!!
+      .select('*');
 
-  if (!isGlobalUser) {
-    query = query.eq('user_id', userId);
-  }
-
-  const { data, error } = await query.single();
-
-  if (error) {
-    throw new InternalServerErrorException('Failed to remove report');
-  }
-
-  return data;
-}
-  private async hasPermissionToReport(
-  userId: string,
-  reportId: string,
-  accessToken: string,
-  isGlobalUser: boolean,
-): Promise < boolean > {
-  let query = this.supabaseService
-    .getClient(accessToken)
-    .from('reports')
-    .select('id')
-    .eq('report_id', reportId);
-
-  if(!isGlobalUser) {
-    query = query.eq('user_id', userId);
-  }
+    if (!isGlobalUser) {
+      query = query.eq('user_id', userId);
+    }
 
     const { data, error } = await query.single();
 
-  if(error) {
-    console.error('Error checking report permissions:', error);
-    throw new InternalServerErrorException('Failed to check report permissions');
+    if (error) {
+      throw new InternalServerErrorException('Failed to remove report');
+    }
+
+    return data;
   }
+  private async hasPermissionToReport(
+    userId: string,
+    reportId: string,
+    accessToken: string,
+    isGlobalUser: boolean,
+  ): Promise<boolean> {
+    let query = this.supabaseService
+      .getClient(accessToken)
+      .from('reports')
+      .select('id')
+      .eq('report_id', reportId);
+
+    if (!isGlobalUser) {
+      query = query.eq('user_id', userId);
+    }
+
+    const { data, error } = await query.single();
+
+    if (error) {
+      console.error('Error checking report permissions:', error);
+      throw new InternalServerErrorException('Failed to check report permissions');
+    }
 
     return !!data; // If data exists, the user has permission
-}
+  }
 }
