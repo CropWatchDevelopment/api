@@ -326,11 +326,11 @@ export class ReportsService {
     const isGlobalUser = isCropwatchStaff(jwtPayload);
     const client = this.supabaseService.getClient(accessToken);
 
-    // let query = client
-    //   .from('reports')
-    //   .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
-    //   .order('name', { ascending: true })
-    //   .eq('report_id', report_id);
+    const hasReportPermission: boolean = await this.hasPermissionToReport(userId, report_id, accessToken, isGlobalUser);
+    if (!hasReportPermission) {
+      throw new UnauthorizedException('User does not have permission to remove this report');
+    }
+    
 
     let query = client
       .from('reports')
@@ -342,25 +342,6 @@ export class ReportsService {
     if (error) {
       throw new InternalServerErrorException('Failed to fetch report');
     }
-
-    const rulesWhereIAmOwnerOrCollaborator = data ? (() => {
-      if (data.user_id === userId) {
-        return {
-          permission_level: 1, // Owner has highest permission level
-          ...data,
-        };
-      } else {
-        const colabEntry = data.cw_devices?.cw_device_owners?.find(
-          (owner) => owner.user_id === userId && owner.permission_level <= 3,
-        );
-        if (colabEntry) {
-          return {
-            permission_level: colabEntry.permission_level,
-            ...data,
-          }
-        }
-      }
-    })() : null;
 
     return data;
   }
@@ -511,7 +492,8 @@ export class ReportsService {
     const { data: permissionData, error: permissionError } = await query;
 
     if (permissionError) {
-      throw new InternalServerErrorException('Failed to fetch report for download');
+
+      throw new InternalServerErrorException('Failed inside of hasPermissionToReport');
     }
 
     const rulesWhereIAmOwnerOrCollaborator = permissionData ? (() => {
