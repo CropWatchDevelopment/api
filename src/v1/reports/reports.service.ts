@@ -330,7 +330,7 @@ export class ReportsService {
     if (!hasReportPermission) {
       throw new UnauthorizedException('User does not have permission to remove this report');
     }
-    
+
 
     let query = client
       .from('reports')
@@ -429,6 +429,22 @@ export class ReportsService {
       .select('*');
     if (recipientsError) {
       throw new InternalServerErrorException('Failed to update report recipients');
+    }
+
+    for (const recipients of report_recipients ?? []) {
+      const { data: insertedRecipients, error: insertRecipientError } = await client
+        .from('report_recipients')
+        .upsert({
+          ...recipients,
+          report_id: report_id,
+          user_id: userId,
+        })
+        .eq('id', recipients.id)
+        .select('*');
+
+      if (insertRecipientError || !insertedRecipients) {
+        throw new InternalServerErrorException('Failed to update report recipients');
+      }
     }
 
 
