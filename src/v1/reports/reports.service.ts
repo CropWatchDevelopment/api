@@ -225,7 +225,7 @@ export class ReportsService {
     return data;
   }
 
-  async downloadReport(dev_eui: string, report_id: string, jwtPayload: any, authHeader: string): Promise<{ url: string } | null> {
+  async downloadReport(dev_eui: string, report_id: string, reportName: string, jwtPayload: any, authHeader: string): Promise<{ url: string } | null> {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const isGlobalUser = isCropwatchStaff(jwtPayload);
@@ -239,16 +239,10 @@ export class ReportsService {
       throw new BadRequestException('dev_eui and report_id are required');
     }
 
-    //   let permissionQuery = client
-    // .from('reports')
-    // .select('id')
-    // .eq('dev_eui', normalizedDevEui)
-    // .limit(1);
-
     let permissionQuery = client
       .from('reports')
       .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
-      // .eq('dev_eui', normalizedDevEui)
+      .eq('cw_devices.dev_eui', normalizedDevEui)
       .eq('report_id', report_id)
       .limit(1)
       .single();
@@ -288,28 +282,17 @@ export class ReportsService {
     }
 
     const storageClient = adminClient ?? client;
-    const bucketCandidates = ['Reports', 'reports'];
-    const candidatePaths = Array.from(new Set(
-      normalizedReportId.toLowerCase().endsWith('.pdf')
-        ? [`${normalizedDevEui}/${normalizedReportId}`, `${normalizedDevEui}/${dbReportId}.pdf`]
-        : [`${normalizedDevEui}/${normalizedReportId}`, `${normalizedDevEui}/${normalizedReportId}.pdf`],
-    ));
-
     let lastStorageError: unknown = null;
-    for (const bucket of bucketCandidates) {
-      for (const path of candidatePaths) {
-        const { data, error } = await storageClient
-          .storage
-          .from(bucket)
-          .createSignedUrl(path, 60, { download: true });
+    const { data, error } = await storageClient
+      .storage
+      .from('Reports')
+      .createSignedUrl(`${dev_eui}/${reportName}`, 60, { download: true });
 
-        if (!error && data?.signedUrl) {
-          return { url: data.signedUrl };
-        }
-
-        lastStorageError = error;
-      }
+    if (!error && data?.signedUrl) {
+      return { url: data.signedUrl };
     }
+
+    lastStorageError = error;
 
     console.error('Failed to generate report signed URL', {
       dev_eui: normalizedDevEui,
@@ -490,6 +473,7 @@ export class ReportsService {
 
     return data;
   }
+
   private async hasPermissionToReport(
     userId: string,
     reportId: string,
@@ -531,14 +515,53 @@ export class ReportsService {
       }
     })() : null;
 
+    if (!rulesWhereIAmOwnerOrCollaborator || rulesWhereIAmOwnerOrCollaborator.permission_level >= 2) {
+      return false;
+    }
+
+    return !!rulesWhereIAmOwnerOrCollaborator; // If data exists, the user has permission
+  }
 
 
-    // const { data, error } = await query;
+  private async hasPermissionToReportByDevEui(
+    userId: string,
+    dev_eui: string,
+    accessToken: string,
+  ): Promise<boolean> {
 
-    // if (error) {
-    //   console.error('Error checking report permissions:', error);
-    //   throw new InternalServerErrorException('Failed to check report permissions');
-    // }
+    let query = this.supabaseService.getClient(accessToken)
+      .from('reports')
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
+      // .eq('dev_eui', normalizedDevEui)
+      .eq('cw_devices.dev_eui', dev_eui)
+      .limit(1)
+      .single();
+
+    const { data: permissionData, error: permissionError } = await query;
+
+    if (permissionError) {
+
+      throw new InternalServerErrorException('Failed inside of hasPermissionToReport');
+    }
+
+    const rulesWhereIAmOwnerOrCollaborator = permissionData ? (() => {
+      if (permissionData.user_id === userId) {
+        return {
+          permission_level: 1, // Owner has highest permission level
+          ...permissionData,
+        };
+      } else {
+        const colabEntry = permissionData.cw_devices?.cw_device_owners?.find(
+          (owner) => owner.user_id === userId && owner.permission_level <= 3,
+        );
+        if (colabEntry) {
+          return {
+            permission_level: colabEntry.permission_level,
+            ...permissionData,
+          }
+        }
+      }
+    })() : null;
 
     if (!rulesWhereIAmOwnerOrCollaborator || rulesWhereIAmOwnerOrCollaborator.permission_level >= 2) {
       return false;

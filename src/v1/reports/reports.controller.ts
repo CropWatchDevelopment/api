@@ -68,13 +68,13 @@ export class ReportsController {
     // type: any,
     isArray: true,
   })
-  @Get('download/:dev_eui/:report_id')
-  downloadReport(@Param('dev_eui') dev_eui: string, @Param('report_id') report_id: string, @Req() req) {
+  @Get('download/:dev_eui/:report_id/:report_name')
+  downloadReport(@Param('dev_eui') dev_eui: string, @Param('report_id') report_id: string, @Param('report_name') report_name: string, @Req() req) {
     const authHeader = req.headers?.authorization;
     if (!authHeader) {
       throw new Error('Authorization header is required');
     }
-    return this.reportsService.downloadReport(dev_eui, report_id, req.user, authHeader);
+    return this.reportsService.downloadReport(dev_eui, report_id, report_name, req.user, authHeader);
   }
 
   @UseGuards(JwtAuthGuard)
