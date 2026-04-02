@@ -335,6 +335,48 @@ export type Database = {
         }
         Relationships: []
       }
+      cw_air_alerts: {
+        Row: {
+          air_created_at: string | null
+          created_at: string
+          dev_eui: string
+          id: number
+          rule_group_id: string | null
+          triggering_rule_group: string
+        }
+        Insert: {
+          air_created_at?: string | null
+          created_at?: string
+          dev_eui: string
+          id?: number
+          rule_group_id?: string | null
+          triggering_rule_group: string
+        }
+        Update: {
+          air_created_at?: string | null
+          created_at?: string
+          dev_eui?: string
+          id?: number
+          rule_group_id?: string | null
+          triggering_rule_group?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_air_alerts_air_row_fkey"
+            columns: ["dev_eui", "air_created_at"]
+            isOneToOne: false
+            referencedRelation: "cw_air_data"
+            referencedColumns: ["dev_eui", "created_at"]
+          },
+          {
+            foreignKeyName: "cw_air_alerts_rule_group_id_fkey"
+            columns: ["rule_group_id"]
+            isOneToOne: false
+            referencedRelation: "cw_rules"
+            referencedColumns: ["ruleGroupId"]
+          },
+        ]
+      }
       cw_air_annotations: {
         Row: {
           created_at: string
@@ -419,7 +461,15 @@ export type Database = {
           wind_direction?: number | null
           wind_speed?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cw_air_data_dev_eui_fkey"
+            columns: ["dev_eui"]
+            isOneToOne: false
+            referencedRelation: "cw_devices"
+            referencedColumns: ["dev_eui"]
+          },
+        ]
       }
       cw_air_data_duplicate: {
         Row: {
@@ -1563,6 +1613,7 @@ export type Database = {
           id: string
           last_login: string | null
           line_id: string | null
+          phone_number: string | null
           updated_at: string | null
           username: string | null
           website: string | null
@@ -1578,6 +1629,7 @@ export type Database = {
           id: string
           last_login?: string | null
           line_id?: string | null
+          phone_number?: string | null
           updated_at?: string | null
           username?: string | null
           website?: string | null
@@ -1593,6 +1645,7 @@ export type Database = {
           id?: string
           last_login?: string | null
           line_id?: string | null
+          phone_number?: string | null
           updated_at?: string | null
           username?: string | null
           website?: string | null
@@ -1642,6 +1695,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "report_alert_points_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["report_id"]
+          },
+        ]
+      }
+      report_data_processing_schedules: {
+        Row: {
+          created_at: string
+          crosses_midnight: boolean
+          day_of_week: number
+          end_time: string
+          id: string
+          is_enabled: boolean
+          report_id: string
+          rule_type: string
+          start_time: string
+          timezone: string
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          crosses_midnight?: boolean
+          day_of_week: number
+          end_time: string
+          id?: string
+          is_enabled?: boolean
+          report_id: string
+          rule_type?: string
+          start_time: string
+          timezone?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          crosses_midnight?: boolean
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_enabled?: boolean
+          report_id?: string
+          rule_type?: string
+          start_time?: string
+          timezone?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_data_processing_schedules_report_id_fkey"
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "reports"
