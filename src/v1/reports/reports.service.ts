@@ -23,14 +23,14 @@ export interface ReportHistoryBucket {
 
 export interface ReportHistoryItem {
   name: string;
-  bucket_id: string;
-  owner: string;
-  id: string;
-  updated_at: string;
-  created_at: string;
-  last_accessed_at: string;
-  metadata: Record<string, unknown>;
-  buckets: ReportHistoryBucket;
+  bucket_id?: string;
+  owner?: string;
+  id?: string | null;
+  updated_at?: string | null;
+  created_at?: string | null;
+  last_accessed_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+  buckets?: ReportHistoryBucket;
 }
 
 export type ReportHistoryList = ReportHistoryItem[] | null;
@@ -46,7 +46,7 @@ export class ReportsService {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
-    const reportSelect = '*, report_recipients(*), report_user_schedule(*), report_alert_points(*)';
+    const reportSelect = '*, report_recipients(*), report_user_schedule(*), report_alert_points(*), report_data_processing_schedules(*)';
 
     delete createReportDto.id; // Ensure ID is not set by client
     delete createReportDto.created_at; // Ensure created_at is not set by client
@@ -64,10 +64,14 @@ export class ReportsService {
       delete recipient.id; // Ensure recipient IDs are not set by client
     }
 
+    for (const schedule of createReportDto.report_data_processing_schedules ?? []) {
+      delete schedule.id; // Ensure data processing schedule IDs are not set by client
+    }
+
     createReportDto.user_id = userId; // Ensure the report is associated with the authenticated user
 
     // Split each dto into seperate objects by table:
-    const { report_user_schedule, report_alert_points, report_recipients, ...reportData } = createReportDto;
+    const { report_user_schedule, report_alert_points, report_recipients, report_data_processing_schedules, ...reportData } = createReportDto;
 
     const { data: createdReport, error } = await client
       .from('reports')
@@ -124,10 +128,24 @@ export class ReportsService {
           throw insertError;
         }
       }
+
+      for (const schedule of report_data_processing_schedules ?? []) {
+        const { error: insertError } = await client
+          .from('report_data_processing_schedules')
+          .insert({
+            ...schedule,
+            report_id: reportId,
+          });
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
     } catch {
       await client.from('report_alert_points').delete().eq('report_id', reportId);
       await client.from('report_user_schedule').delete().eq('report_id', reportId);
       await client.from('report_recipients').delete().eq('report_id', reportId);
+      await client.from('report_data_processing_schedules').delete().eq('report_id', reportId);
       await client.from('reports').delete().eq('report_id', reportId);
       throw new InternalServerErrorException('Failed to create report');
     }
@@ -153,7 +171,7 @@ export class ReportsService {
 
     let query = client
       .from('reports')
-      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), report_data_processing_schedules(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
       .order('name', { ascending: true });
 
     // if (!isGlobalUser) {
@@ -317,7 +335,7 @@ export class ReportsService {
 
     let query = client
       .from('reports')
-      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), report_data_processing_schedules(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
       .eq('report_id', report_id)
       .limit(1);
 
@@ -346,7 +364,7 @@ export class ReportsService {
     delete updateReportDto.report_id;
 
     // Separate child relations from core report data
-    const { report_user_schedule, report_alert_points, report_recipients, ...reportData } = updateReportDto;
+    const { report_user_schedule, report_alert_points, report_recipients, report_data_processing_schedules, ...reportData } = updateReportDto;
 
     if (!isGlobalUser) {
       const { data: existingReport, error: fetchError } = await client
@@ -430,10 +448,32 @@ export class ReportsService {
       }
     }
 
+    // Delete existing data processing schedules and re-insert
+    let { error: dpScheduleDeleteError } = await client
+      .from('report_data_processing_schedules')
+      .delete()
+      .eq('report_id', report_id);
+    if (dpScheduleDeleteError) {
+      throw new InternalServerErrorException('Failed to update report data processing schedules');
+    }
+
+    for (const schedule of report_data_processing_schedules ?? []) {
+      const { error: insertDpError } = await client
+        .from('report_data_processing_schedules')
+        .insert({
+          ...schedule,
+          report_id: report_id,
+        });
+
+      if (insertDpError) {
+        throw new InternalServerErrorException('Failed to update report data processing schedules');
+      }
+    }
+
 
     let { data, error } = await client
       .from('reports')
-      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
+      .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), report_data_processing_schedules(*)')
       .eq('report_id', report_id)
       .single();
 

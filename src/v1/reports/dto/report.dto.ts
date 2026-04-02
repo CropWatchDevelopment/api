@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Database } from '../../../../database.types';
 import { ReportAlertPointDto } from './report-alert-point.dto';
+import { ReportDataProcessingScheduleDto } from './report-data-processing-schedule.dto';
 import { ReportRecipientDto } from './report-recipient.dto';
 import { ReportUserScheduleDto } from './report-user-schedule.dto';
 
@@ -48,4 +49,12 @@ export class ReportDto implements ReportRow {
     description: 'Rows from report_recipients linked to this report.',
   })
   report_recipients?: ReportRecipientDto[];
+
+  @ApiProperty({
+    type: () => ReportDataProcessingScheduleDto,
+    isArray: true,
+    required: false,
+    description: 'Rows from report_data_processing_schedules linked to this report.',
+  })
+  report_data_processing_schedules?: ReportDataProcessingScheduleDto[];
 }
