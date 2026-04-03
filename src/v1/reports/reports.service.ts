@@ -183,9 +183,13 @@ export class ReportsService {
       throw new InternalServerErrorException('Failed to fetch reports');
     }
 
+    const reports = data ?? [];
 
+    if (isGlobalUser) {
+      return reports;
+    }
 
-    const rulesWhereIAmOwnerOrCollaborator = data.map((report) => {
+    const rulesWhereIAmOwnerOrCollaborator = reports.map((report) => {
       if (report.user_id === userId) {
         return {
           permission_level: 1, // Owner has highest permission level
@@ -243,7 +247,13 @@ export class ReportsService {
     return data;
   }
 
-  async downloadReport(dev_eui: string, report_id: string, reportName: string, jwtPayload: any, authHeader: string): Promise<{ url: string } | null> {
+  async downloadReport(
+    dev_eui: string,
+    report_id: string,
+    jwtPayload: any,
+    authHeader: string,
+    reportName?: string,
+  ): Promise<{ url: string } | null> {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const isGlobalUser = isCropwatchStaff(jwtPayload);
@@ -252,8 +262,13 @@ export class ReportsService {
     const normalizedDevEui = dev_eui?.trim();
     const normalizedReportId = report_id?.trim();
     const dbReportId = normalizedReportId?.replace(/\.pdf$/i, '');
+    const resolvedReportName =
+      reportName?.trim() ||
+      (normalizedReportId?.toLowerCase().endsWith('.pdf')
+        ? normalizedReportId
+        : `${dbReportId}.pdf`);
 
-    if (!normalizedDevEui || !normalizedReportId || !dbReportId) {
+    if (!normalizedDevEui || !normalizedReportId || !dbReportId || !resolvedReportName) {
       throw new BadRequestException('dev_eui and report_id are required');
     }
 
@@ -261,8 +276,7 @@ export class ReportsService {
       .from('reports')
       .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
       .eq('cw_devices.dev_eui', normalizedDevEui)
-      .eq('report_id', report_id)
-      .limit(1)
+      .eq('report_id', dbReportId)
       .single();
 
     const { data: permissionData, error: permissionError } = await permissionQuery;
@@ -272,6 +286,9 @@ export class ReportsService {
     }
 
     const rulesWhereIAmOwnerOrCollaborator = permissionData ? (() => {
+      if (isGlobalUser) {
+        return permissionData;
+      }
       if (permissionData.user_id === userId) {
         return {
           permission_level: 1, // Owner has highest permission level
@@ -304,7 +321,9 @@ export class ReportsService {
     const { data, error } = await storageClient
       .storage
       .from('Reports')
-      .createSignedUrl(`${dev_eui}/${reportName}`, 60, { download: true });
+      .createSignedUrl(`${normalizedDevEui}/${resolvedReportName}`, 60, {
+        download: true,
+      });
 
     if (!error && data?.signedUrl) {
       return { url: data.signedUrl };
@@ -336,8 +355,7 @@ export class ReportsService {
     let query = client
       .from('reports')
       .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), report_data_processing_schedules(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
-      .eq('report_id', report_id)
-      .limit(1);
+      .eq('report_id', report_id);
 
     const { data, error } = await query.single();
     if (error) {
@@ -520,13 +538,15 @@ export class ReportsService {
     accessToken: string,
     isGlobalUser: boolean,
   ): Promise<boolean> {
+    if (isGlobalUser) {
+      return true;
+    }
 
     let query = this.supabaseService.getClient(accessToken)
       .from('reports')
       .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
       // .eq('dev_eui', normalizedDevEui)
       .eq('report_id', reportId)
-      .limit(1)
       .single();
 
     const { data: permissionData, error: permissionError } = await query;
@@ -574,7 +594,6 @@ export class ReportsService {
       .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
       // .eq('dev_eui', normalizedDevEui)
       .eq('cw_devices.dev_eui', dev_eui)
-      .limit(1)
       .single();
 
     const { data: permissionData, error: permissionError } = await query;
