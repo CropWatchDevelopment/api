@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   InternalServerErrorException,
+  NotImplementedException,
   Param,
   Patch,
   Post,
@@ -28,7 +29,6 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { DeviceDto } from './dto/device.dto';
 import { UpdateDevicePermissionDto } from './dto/UpdateDevicePermission.dto';
 import { UpdateDeviceNameGroupLocalDto } from './dto/UpdateDeviceNameGroupLocal.dto';
-import { CreateDeviceDto } from './dto/create-device.dto';
 import { ReplaceDeviceDto } from './dto/replace-device.dto';
 
 @Controller({ path: 'devices', version: '1' })
@@ -332,23 +332,14 @@ export class DevicesController {
   create(
     @Req() req,
     @Param('dev_eui') devEui: string,
-    @Body() body: CreateDeviceDto,
+    @Body() _body?: unknown,
   ) {
-    const normalizedDevEui = devEui?.trim();
-    if (body.dev_eui?.trim() && body.dev_eui.trim() !== normalizedDevEui) {
-      throw new BadRequestException('dev_eui in body must match route parameter');
-    }
-
-    const newDevice: CreateDeviceDto = body;
-
-    const insertResult = this.devicesService.createDevice(req.user, normalizedDevEui, newDevice, req.headers.authorization);
-    if (!insertResult) {
-      throw new InternalServerErrorException('Device creation is not yet implemented. Please contact support if you would like this feature to be prioritized.');
-    }
-    return insertResult;
+    throw new NotImplementedException(
+      'Device creation is not yet implemented. Please contact support if you would like this feature to be prioritized.',
+    );
   }
 
-  @Post(':dev_eui')
+  @Post(':dev_eui/replace')
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiOperation({

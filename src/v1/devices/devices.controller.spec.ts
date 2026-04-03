@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DevicesController } from './devices.controller';
 import { DevicesService } from './devices.service';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { LocationsService } from '../locations/locations.service';
 
 describe('DevicesController', () => {
   let controller: DevicesController;
@@ -17,6 +18,10 @@ describe('DevicesController', () => {
             getClient: () => null,
             getAdminClient: () => null,
           },
+        },
+        {
+          provide: LocationsService,
+          useValue: {},
         },
       ],
     }).compile();

@@ -90,10 +90,10 @@ export class RulesController {
     isArray: false,
   })
   @ApiBody({ type: UpdateRuleDto })
-  @Patch(':ruleGroupId')
-  update(@Param('ruleGroupId') ruleGroupId: string, @Body() updateRuleDto: UpdateRuleDto, @Req() req) {
+  @Patch(':id')
+  update(@Param('id') id: number, @Body() updateRuleDto: UpdateRuleDto, @Req() req) {
     const authHeader = req.headers?.authorization ?? '';
-    return this.rulesService.update(ruleGroupId, updateRuleDto, req.user, authHeader);
+    return this.rulesService.update(id, updateRuleDto, req.user, authHeader);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -103,9 +103,9 @@ export class RulesController {
     type: String,
     isArray: false,
   })
-  @Delete(':ruleGroupId')
-  remove(@Param('ruleGroupId') ruleGroupId: string, @Req() req) {
+  @Delete(':id')
+  remove(@Param('id') id: number, @Req() req) {
     const authHeader = req.headers?.authorization ?? '';
-    return this.rulesService.remove(ruleGroupId, req.user, authHeader);
+    return this.rulesService.remove(id, req.user, authHeader);
   }
 }

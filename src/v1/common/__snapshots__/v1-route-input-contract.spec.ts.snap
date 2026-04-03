@@ -240,6 +240,60 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         ],
         "type": "object",
       },
+      "CreateReportDataProcessingScheduleDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "crosses_midnight": {
+            "type": "boolean",
+          },
+          "day_of_week": {
+            "type": "number",
+          },
+          "end_time": {
+            "type": "string",
+          },
+          "id": {
+            "type": "string",
+          },
+          "is_enabled": {
+            "type": "boolean",
+          },
+          "report_id": {
+            "type": "string",
+          },
+          "rule_type": {
+            "type": "string",
+          },
+          "start_time": {
+            "type": "string",
+          },
+          "timezone": {
+            "type": "string",
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "valid_from": {
+            "nullable": true,
+            "type": "object",
+          },
+          "valid_to": {
+            "nullable": true,
+            "type": "object",
+          },
+        },
+        "required": [
+          "day_of_week",
+          "end_time",
+          "report_id",
+          "start_time",
+        ],
+        "type": "object",
+      },
       "CreateReportDto": {
         "properties": {
           "created_at": {
@@ -258,6 +312,12 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           "report_alert_points": {
             "items": {
               "$ref": "#/components/schemas/CreateReportAlertPointDto",
+            },
+            "type": "array",
+          },
+          "report_data_processing_schedules": {
+            "items": {
+              "$ref": "#/components/schemas/CreateReportDataProcessingScheduleDto",
             },
             "type": "array",
           },
@@ -446,6 +506,18 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         ],
         "type": "object",
       },
+      "ReplaceDeviceDto": {
+        "properties": {
+          "dev_eui": {
+            "example": "A1B2C3D4E5F60708",
+            "type": "string",
+          },
+        },
+        "required": [
+          "dev_eui",
+        ],
+        "type": "object",
+      },
       "RuleCriteriaDto": {
         "properties": {
           "created_at": {
@@ -623,6 +695,12 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             },
             "type": "array",
           },
+          "report_data_processing_schedules": {
+            "items": {
+              "$ref": "#/components/schemas/CreateReportDataProcessingScheduleDto",
+            },
+            "type": "array",
+          },
           "report_id": {
             "type": "string",
           },
@@ -712,6 +790,20 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         },
       },
     },
+    "/v1/air/notes/{note_id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "note_id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+      },
+    },
     "/v1/air/{dev_eui}": {
       "get": {
         "parameters": [
@@ -781,6 +873,9 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         },
       },
     },
+    "/v1/auth/user-profile": {
+      "get": {},
+    },
     "/v1/devices": {
       "get": {
         "parameters": [
@@ -816,6 +911,9 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           },
         ],
       },
+    },
+    "/v1/devices/device-types": {
+      "get": {},
     },
     "/v1/devices/groups": {
       "get": {},
@@ -1048,6 +1146,30 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateDevicePermissionDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/devices/{dev_eui}/replace": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceDeviceDto",
               },
             },
           },
@@ -1536,6 +1658,46 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             "required": false,
             "schema": {
               "type": "string",
+            },
+          },
+        ],
+      },
+    },
+    "/v1/traffic/{dev_eui}/monthly": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "example": 3,
+              "type": "number",
+            },
+          },
+          {
+            "in": "query",
+            "name": "timezone",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "example": 2026,
+              "type": "number",
             },
           },
         ],

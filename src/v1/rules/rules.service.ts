@@ -7,8 +7,6 @@ import {
   getUserId,
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
-import { count } from 'rxjs/internal/operators/count';
-import { error } from 'console';
 
 @Injectable()
 export class RulesService {
@@ -94,7 +92,13 @@ export class RulesService {
       throw new InternalServerErrorException('Failed to fetch rules');
     }
 
-    const rulesWhereIAmOwnerOrCollaborator = data.map((rule) => {
+    const rules = data ?? [];
+
+    if (isGlobalUser) {
+      return rules;
+    }
+
+    const rulesWhereIAmOwnerOrCollaborator = rules.map((rule) => {
       if (rule.profile_id === userId) {
         return {
           permission_level: 1, // Owner has highest permission level
@@ -187,10 +191,17 @@ export class RulesService {
     return data;
   }
 
-  async update(ruleGroupId: string, updateRuleDto: UpdateRuleDto, jwtPayload: any, authHeader: string) {
+  async update(ruleIdentifier: number | string, updateRuleDto: UpdateRuleDto, jwtPayload: any, authHeader: string) {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const existingRule = await this.getRuleForMutation(
+      userId,
+      ruleIdentifier,
+      accessToken,
+      isGlobalUser,
+    );
+    const ruleGroupId = existingRule.ruleGroupId;
     const ruleUpdatePayload = { ...updateRuleDto };
     if (!isGlobalUser) {
       ruleUpdatePayload.profile_id = userId; // HARD FORCE THE profile_id FOR SECURITY, DO NOT TRUST THE CLIENT TO PROVIDE THE CORRECT profile_id
@@ -210,16 +221,11 @@ export class RulesService {
     if (!updateRuleDto.dev_eui) {
       throw new BadRequestException('dev_eui must be provided');
     }
-    const hasRulePermission: boolean = await this.hasPermissionToRule(userId, ruleGroupId, accessToken, isGlobalUser);
-    if (!hasRulePermission) {
-      throw new UnauthorizedException('User does not have permission to update this rule');
-    }
-
     let updateQuery = this.supabaseService
       .getClient(accessToken)
       .from('cw_rules')
       .update(ruleUpdatePayload)
-      .eq('ruleGroupId', ruleGroupId);
+      .eq('id', existingRule.id);
 
     if (!isGlobalUser) {
       updateQuery = updateQuery.eq('profile_id', userId);
@@ -258,21 +264,22 @@ export class RulesService {
     return updateRuleDto;
   }
 
-  async remove(ruleGroupId: string, jwtPayload: any, authHeader: string) {
+  async remove(ruleIdentifier: number | string, jwtPayload: any, authHeader: string) {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const isGlobalUser = isCropwatchStaff(jwtPayload);
-
-    const hasRulePermission: boolean = await this.hasPermissionToRule(userId, ruleGroupId, accessToken, isGlobalUser);
-    if (!hasRulePermission) {
-      throw new UnauthorizedException('User does not have permission to remove this rule');
-    }
+    const existingRule = await this.getRuleForMutation(
+      userId,
+      ruleIdentifier,
+      accessToken,
+      isGlobalUser,
+    );
 
     let deleteQuery = this.supabaseService
       .getClient(accessToken)
       .from('cw_rules')
       .delete()
-      .eq('ruleGroupId', ruleGroupId) // MUST HAVE THIS!!!!!
+      .eq('id', existingRule.id)
       .select('*');
 
     if (!isGlobalUser) {
@@ -288,18 +295,23 @@ export class RulesService {
     return data;
   }
 
-  private async hasPermissionToRule(
+  private async getRuleForMutation(
     userId: string,
-    ruleGroupId: string,
+    ruleIdentifier: number | string,
     accessToken: string,
     isGlobalUser: boolean,
-  ): Promise<boolean> {
+  ): Promise<{ id: number; ruleGroupId: string; dev_eui: string; profile_id: string }> {
     // Ensure the active user has permission to update the device & the location that the rule is associated with
     let query = this.supabaseService
       .getClient(accessToken)
       .from('cw_rules')
-      .select('id, dev_eui, profile_id')
-      .eq('ruleGroupId', ruleGroupId);
+      .select('id, ruleGroupId, dev_eui, profile_id');
+
+    if (typeof ruleIdentifier === 'number') {
+      query = query.eq('id', ruleIdentifier);
+    } else {
+      query = query.eq('ruleGroupId', ruleIdentifier);
+    }
 
     if (!isGlobalUser) {
       query = query.eq('profile_id', userId);
@@ -311,7 +323,7 @@ export class RulesService {
       throw new NotFoundException('Rule not found or user does not have permission to update this rule');
     }
 
-    return true;
+    return existingRule;
   }
 
   private async hasPermissionToLocation(
