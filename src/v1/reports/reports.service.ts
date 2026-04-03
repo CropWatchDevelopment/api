@@ -223,7 +223,7 @@ export class ReportsService {
     let permissionQuery = client
       .from('reports')
       .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*)')
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .eq('dev_eui', dev_eui);
 
     if (!isGlobalUser) {
@@ -241,7 +241,7 @@ export class ReportsService {
       .list(dev_eui, {
         limit: 110,
         offset: 0,
-        sortBy: { column: 'name', order: 'asc' },
+        sortBy: { column: 'name', order: 'desc' },
       })
 
     return data;
