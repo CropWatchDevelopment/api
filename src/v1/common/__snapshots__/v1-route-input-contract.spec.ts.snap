@@ -1432,7 +1432,7 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         },
       },
     },
-    "/v1/reports/download/{dev_eui}/{report_id}": {
+    "/v1/reports/download/{dev_eui}/{report_id}/{reportName}": {
       "get": {
         "parameters": [
           {
@@ -1446,6 +1446,14 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           {
             "in": "path",
             "name": "report_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "path",
+            "name": "reportName",
             "required": true,
             "schema": {
               "type": "string",

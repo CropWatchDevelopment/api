@@ -1012,14 +1012,14 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: ['DEV-001', 'rpt-001', MOCK_USER, AUTH_HEADER],
+        args: ['DEV-001', 'rpt-001', MOCK_USER, AUTH_HEADER, 'my-report.pdf'],
         method: 'downloadReport',
         service: 'reports',
       },
       expectedStatus: 200,
       method: 'get',
-      name: 'GET /v1/reports/download/:dev_eui/:report_id preserves both path params',
-      url: '/v1/reports/download/DEV-001/rpt-001',
+      name: 'GET /v1/reports/download/:dev_eui/:report_id/:reportName preserves all path params',
+      url: '/v1/reports/download/DEV-001/rpt-001/my-report.pdf',
     },
     {
       auth: true,
