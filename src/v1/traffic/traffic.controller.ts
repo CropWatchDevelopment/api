@@ -13,6 +13,8 @@ import {
 } from '@nestjs/common';
 import { TrafficService } from './traffic.service';
 import { TrafficDataDto } from './dto/traffic-data.dto';
+import { TrafficReportDto } from './dto/traffic-report.dto';
+import { TrafficMonthlyReportDto } from './dto/traffic-monthly-report.dto';
 import type { CreateTrafficDto } from './dto/create-traffic.dto';
 import type { UpdateTrafficDto } from './dto/update-traffic.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
@@ -33,11 +35,6 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 @ApiSecurity('apiKey')
 export class TrafficController {
   constructor(private readonly trafficService: TrafficService) {}
-
-  // @Post()
-  // create(@Body() createTrafficDto: CreateTrafficDto) {
-  //   return this.trafficService.create(createTrafficDto);
-  // }
 
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)
@@ -130,6 +127,52 @@ export class TrafficController {
       endDate,
       req.user,
       timezone,
+    );
+  }
+
+  @Get(':dev_eui/monthly')
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description: 'Monthly traffic report returned successfully.',
+    type: TrafficMonthlyReportDto,
+    isArray: true,
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid dev_eui, year, month, or timezone.',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to fetch monthly traffic report.',
+    type: ErrorResponseDto,
+  })
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiQuery({ name: 'year', description: 'Report year (e.g. 2026)', type: Number, example: 2026 })
+  @ApiQuery({ name: 'month', description: 'Report month (1-12)', type: Number, example: 3 })
+  @ApiQuery({
+    name: 'timezone',
+    required: false,
+    description: 'IANA timezone. Defaults to Asia/Tokyo.',
+    schema: { type: 'string', default: 'Asia/Tokyo' },
+    example: 'Asia/Tokyo',
+  })
+  getMonthlyReport(
+    @Param('dev_eui') devEui: string,
+    @Query() query: TrafficReportDto,
+    @Req() req,
+  ) {
+    if (!devEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    return this.trafficService.getMonthlyReport(
+      devEui,
+      query.year,
+      query.month,
+      req.user,
+      query.timezone,
     );
   }
 }
