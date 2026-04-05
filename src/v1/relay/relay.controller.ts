@@ -6,7 +6,6 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
-  Logger,
   Param,
   Patch,
   Post,
@@ -32,93 +31,10 @@ import { PulseRelayDto } from './dto/pulse-relay.dto';
 import { UpdateRelayDto } from './dto/update-relay.dto';
 import { RelayService } from './relay.service';
 
-function readString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function maskHeaderValue(value: unknown): string {
-  const normalized = readString(value);
-  if (!normalized) {
-    return 'missing';
-  }
-
-  if (normalized.length <= 12) {
-    return `present(len=${normalized.length})`;
-  }
-
-  return `${normalized.slice(0, 6)}...${normalized.slice(-4)} (len=${normalized.length})`;
-}
-
-function summarizeTtiUpPayload(payload: unknown): Record<string, unknown> {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return {
-      payloadType: typeof payload,
-    };
-  }
-
-  const record = payload as Record<string, unknown>;
-  const data =
-    record.data && typeof record.data === 'object' && !Array.isArray(record.data)
-      ? (record.data as Record<string, unknown>)
-      : record;
-  const endDeviceIds =
-    data?.end_device_ids &&
-    typeof data.end_device_ids === 'object' &&
-    !Array.isArray(data.end_device_ids)
-      ? (data.end_device_ids as Record<string, unknown>)
-      : null;
-  const uplinkMessage =
-    data?.uplink_message &&
-    typeof data.uplink_message === 'object' &&
-    !Array.isArray(data.uplink_message)
-      ? (data.uplink_message as Record<string, unknown>)
-      : null;
-  const decodedPayload =
-    uplinkMessage?.decoded_payload &&
-    typeof uplinkMessage.decoded_payload === 'object' &&
-    !Array.isArray(uplinkMessage.decoded_payload)
-      ? (uplinkMessage.decoded_payload as Record<string, unknown>)
-      : null;
-
-  return {
-    applicationId:
-      endDeviceIds?.application_ids &&
-      typeof endDeviceIds.application_ids === 'object' &&
-      !Array.isArray(endDeviceIds.application_ids)
-        ? readString(
-            (endDeviceIds.application_ids as Record<string, unknown>)
-              .application_id,
-          ) || undefined
-        : undefined,
-    correlationIdsCount: Array.isArray(data?.correlation_ids)
-      ? data.correlation_ids.length
-      : Array.isArray(record.correlation_ids)
-        ? record.correlation_ids.length
-        : 0,
-    decodedPayloadKeys: decodedPayload
-      ? Object.keys(decodedPayload).slice(0, 20)
-      : [],
-    devAddr: readString(endDeviceIds?.dev_addr) || undefined,
-    devEui: readString(endDeviceIds?.dev_eui) || undefined,
-    deviceId: readString(endDeviceIds?.device_id) || undefined,
-    hasData: Boolean(data),
-    hasDecodedPayload: Boolean(decodedPayload),
-    hasUplinkMessage: Boolean(uplinkMessage),
-    payloadKeys: Object.keys(record),
-    receivedAt:
-      readString(data?.received_at) ||
-      readString(uplinkMessage?.received_at) ||
-      readString(record.time) ||
-      undefined,
-  };
-}
-
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 @Controller({ path: 'relay', version: '1' })
 export class RelayController {
-  private readonly logger = new Logger(RelayController.name);
-
   constructor(private readonly relayService: RelayService) {}
 
   @Get(':dev_eui')
@@ -260,23 +176,7 @@ export class RelayController {
     @Body() payload: unknown,
     @Headers('authorization') authorizationHeader?: string,
     @Headers('x-downlink-apikey') downlinkApiKeyHeader?: string,
-    @Req() req?: any,
   ) {
-    this.logger.log(
-      `[tti/up] webhook received ${JSON.stringify({
-        contentType: readString(req?.headers?.['content-type']) || undefined,
-        forwardedFor: readString(req?.headers?.['x-forwarded-for']) || undefined,
-        method: req?.method,
-        path: req?.originalUrl || req?.url,
-        payload: summarizeTtiUpPayload(payload),
-        tokenHeaders: {
-          authorization: maskHeaderValue(authorizationHeader),
-          xDownlinkApikey: maskHeaderValue(downlinkApiKeyHeader),
-        },
-        userAgent: readString(req?.headers?.['user-agent']) || undefined,
-      })}`,
-    );
-
     return this.relayService.handleTtiUp(
       payload,
       authorizationHeader,
