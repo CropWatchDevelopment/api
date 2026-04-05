@@ -42,16 +42,21 @@ describe('RelayService', () => {
     relay_2: false,
   };
 
-  function createService(configValues: Record<string, string> = {}) {
+  function createService(
+    configValues: Record<string, string> = {},
+    clientOverride?: { from: jest.Mock },
+  ) {
     return new RelayService(
       {
         get: jest.fn((key: string) => configValues[key]),
       } as unknown as ConfigService,
       new RelayCommandLockService(),
       {
-        getClient: jest.fn(() => ({
-          from: jest.fn(),
-        })),
+        getClient: jest.fn(() =>
+          clientOverride ?? {
+            from: jest.fn(),
+          },
+        ),
       } as unknown as SupabaseService,
     );
   }
@@ -170,5 +175,61 @@ describe('RelayService', () => {
     });
 
     expect(persistRelayConfirmation).toHaveBeenCalledTimes(1);
+  });
+
+  it('upserts an existing relay row by dev_eui instead of inserting a duplicate', async () => {
+    const single = jest.fn().mockResolvedValue({
+      data: {
+        ...relayRow,
+        last_update: '2026-04-05T04:23:55.360223162Z',
+        relay_1: true,
+      },
+      error: null,
+    });
+    const select = jest.fn(() => ({
+      single,
+    }));
+    const upsert = jest.fn(() => ({
+      select,
+    }));
+    const client = {
+      from: jest.fn(() => ({
+        upsert,
+      })),
+    };
+    const service = createService({}, client);
+
+    jest
+      .spyOn(service as any, 'findLatestRelayRow')
+      .mockResolvedValue(relayRow);
+
+    await expect(
+      (service as any).persistRelayConfirmation({
+        devEui: 'A8404194635A05FB',
+        receivedAt: '2026-04-05T04:23:55.360223162Z',
+        relay1: true,
+        relay2: undefined,
+      }),
+    ).resolves.toMatchObject({
+      created_at: relayRow.created_at,
+      dev_eui: 'A8404194635A05FB',
+      last_update: '2026-04-05T04:23:55.360223162Z',
+      relay_1: true,
+      relay_2: false,
+    });
+
+    expect(client.from).toHaveBeenCalledWith('cw_relay_data');
+    expect(upsert).toHaveBeenCalledWith(
+      {
+        created_at: relayRow.created_at,
+        dev_eui: 'A8404194635A05FB',
+        last_update: '2026-04-05T04:23:55.360223162Z',
+        relay_1: true,
+        relay_2: false,
+      },
+      {
+        onConflict: 'dev_eui',
+      },
+    );
   });
 });

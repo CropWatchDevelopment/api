@@ -532,13 +532,11 @@ export class RelayService {
     );
 
     const mergedRow: RelayInsert = {
-      created_at: confirmation.receivedAt,
+      created_at: latestRow?.created_at ?? confirmation.receivedAt,
       dev_eui: confirmation.devEui,
       last_update: confirmation.receivedAt,
-      relay_1:
-        confirmation.relay1 ?? latestRow?.relay_1 ?? null,
-      relay_2:
-        confirmation.relay2 ?? latestRow?.relay_2 ?? null,
+      relay_1: confirmation.relay1 ?? latestRow?.relay_1 ?? null,
+      relay_2: confirmation.relay2 ?? latestRow?.relay_2 ?? null,
     };
 
     this.logger.log(
@@ -551,19 +549,24 @@ export class RelayService {
       })}`,
     );
 
-    const { data: existingRow, error: existingError } = await client
-      .from('cw_relay_data')
-      .select('*')
-      .eq('dev_eui', confirmation.devEui)
-      .eq('last_update', confirmation.receivedAt)
-      .order('id', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    this.logger.log(
+      `[tti/up] upserting relay confirmation row ${JSON.stringify({
+        existingRow: summarizeRelayRowForLogs(latestRow),
+      })}`,
+    );
 
-    if (existingError) {
+    const { data, error } = await client
+      .from('cw_relay_data')
+      .upsert(mergedRow, {
+        onConflict: 'dev_eui',
+      })
+      .select('*')
+      .single();
+
+    if (error || !data) {
       this.logger.error(
-        `Failed to check existing relay confirmation row for ${confirmation.devEui}`,
-        existingError.message,
+        `Failed to upsert relay confirmation row for ${confirmation.devEui}`,
+        error?.message,
       );
       throw new InternalServerErrorException(
         'Failed to store relay confirmation',
@@ -571,64 +574,7 @@ export class RelayService {
     }
 
     this.logger.log(
-      `[tti/up] existing relay row lookup result ${JSON.stringify({
-        existingRow: summarizeRelayRowForLogs(existingRow as RelayRow | null),
-      })}`,
-    );
-
-    if (existingRow) {
-      this.logger.log(
-        `[tti/up] updating existing relay row ${JSON.stringify({
-          id: existingRow.id,
-        })}`,
-      );
-
-      const { data, error } = await client
-        .from('cw_relay_data')
-        .update(mergedRow)
-        .eq('id', existingRow.id)
-        .select('*')
-        .single();
-
-      if (error || !data) {
-        this.logger.error(
-          `Failed to update relay confirmation row ${existingRow.id}`,
-          error?.message,
-        );
-        throw new InternalServerErrorException(
-          'Failed to update relay confirmation',
-        );
-      }
-
-      this.logger.log(
-        `[tti/up] updated existing relay row successfully ${JSON.stringify(
-          summarizeRelayRowForLogs(data as RelayRow),
-        )}`,
-      );
-
-      return data as RelayRow;
-    }
-
-    this.logger.log('[tti/up] inserting new relay confirmation row');
-
-    const { data, error } = await client
-      .from('cw_relay_data')
-      .insert(mergedRow)
-      .select('*')
-      .single();
-
-    if (error || !data) {
-      this.logger.error(
-        `Failed to insert relay confirmation row for ${confirmation.devEui}`,
-        error?.message,
-      );
-      throw new InternalServerErrorException(
-        'Failed to insert relay confirmation',
-      );
-    }
-
-    this.logger.log(
-      `[tti/up] inserted relay confirmation row successfully ${JSON.stringify(
+      `[tti/up] upserted relay confirmation row successfully ${JSON.stringify(
         summarizeRelayRowForLogs(data as RelayRow),
       )}`,
     );
