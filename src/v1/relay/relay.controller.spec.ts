@@ -6,12 +6,14 @@ describe('RelayController', () => {
   let controller: RelayController;
   let relayService: {
     handleTtiUp: jest.Mock;
+    pulseRelay: jest.Mock;
     updateRelay: jest.Mock;
   };
 
   beforeEach(async () => {
     relayService = {
       handleTtiUp: jest.fn(),
+      pulseRelay: jest.fn(),
       updateRelay: jest.fn(),
     };
 
@@ -39,6 +41,37 @@ describe('RelayController', () => {
       { uplink_message: {} },
       undefined,
       'tti-token',
+    );
+  });
+
+  it('forwards timed relay pulse requests to the relay service', () => {
+    const req = {
+      headers: {
+        authorization: 'Bearer test-token',
+      },
+      user: {
+        email: 'user@example.com',
+        sub: 'user-1',
+      },
+    };
+
+    controller.pulseRelay(
+      'A8404194635A05FB',
+      {
+        durationSeconds: 60,
+        relay: 1,
+      },
+      req,
+    );
+
+    expect(relayService.pulseRelay).toHaveBeenCalledWith(
+      req.user,
+      'Bearer test-token',
+      'A8404194635A05FB',
+      {
+        durationSeconds: 60,
+        relay: 1,
+      },
     );
   });
 });

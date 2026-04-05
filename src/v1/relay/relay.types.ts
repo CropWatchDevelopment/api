@@ -19,6 +19,10 @@ export function isRelayTargetState(value: unknown): value is RelayTargetState {
   return value === 'off' || value === 'on';
 }
 
+export function getOtherRelayNumber(relay: RelayNumber): RelayNumber {
+  return relay === 1 ? 2 : 1;
+}
+
 export function getRelayState(
   row: Pick<RelayDataRow, 'relay_1' | 'relay_2'> | null | undefined,
   relay: RelayNumber,

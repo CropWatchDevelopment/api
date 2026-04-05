@@ -22,6 +22,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../v1/auth/guards/jwt.auth.guard';
+import { PulseRelayDto } from './dto/pulse-relay.dto';
 import { UpdateRelayDto } from './dto/update-relay.dto';
 import { RelayService } from './relay.service';
 
@@ -143,6 +144,38 @@ export class RelayController {
       authHeader,
       devEui,
       updateRelayDto,
+    );
+  }
+
+  @Post(':dev_eui/pulse')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiBody({ type: PulseRelayDto })
+  @ApiOkResponse({
+    description:
+      'Queues a timed relay pulse command in TTI for a relay that is currently off.',
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+  })
+  @ApiOperation({
+    summary: 'Turn a relay on for a fixed number of seconds, then let it revert',
+  })
+  pulseRelay(
+    @Param('dev_eui') devEui: string,
+    @Body() pulseRelayDto: PulseRelayDto,
+    @Req() req,
+  ) {
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) {
+      throw new UnauthorizedException('Missing bearer token');
+    }
+
+    return this.relayService.pulseRelay(
+      req.user,
+      authHeader,
+      devEui,
+      pulseRelayDto,
     );
   }
 

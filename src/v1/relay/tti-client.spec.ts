@@ -73,7 +73,7 @@ describe('createTtiClient', () => {
           confirmed: false,
           correlation_ids: ['cropwatch:request:test'],
           f_port: 2,
-          frm_payload: 'AwEB',
+          frm_payload: 'AwER',
           priority: 'NORMAL',
         },
       ],
