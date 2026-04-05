@@ -185,6 +185,29 @@ export class RelayService {
     private readonly supabaseService: SupabaseService,
   ) {}
 
+  async getLatestRelay(jwtPayload: any, authHeader: string, devEui: string) {
+    const normalizedDevEui = normalizeDevEui(devEui);
+    if (!normalizedDevEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+
+    const context = await this.loadRelayDeviceContext(
+      jwtPayload,
+      authHeader,
+      normalizedDevEui,
+    );
+    if (context.permissionLevel >= 4) {
+      throw new NotFoundException('Device not found');
+    }
+
+    const latestRow = await this.findLatestRelayRow(normalizedDevEui);
+    if (!latestRow) {
+      throw new NotFoundException('Latest relay data not found');
+    }
+
+    return latestRow;
+  }
+
   async updateRelay(
     jwtPayload: any,
     authHeader: string,

@@ -5,6 +5,7 @@ import { RelayService } from './relay.service';
 describe('RelayController', () => {
   let controller: RelayController;
   let relayService: {
+    getLatestRelay: jest.Mock;
     handleTtiUp: jest.Mock;
     pulseRelay: jest.Mock;
     updateRelay: jest.Mock;
@@ -12,6 +13,7 @@ describe('RelayController', () => {
 
   beforeEach(async () => {
     relayService = {
+      getLatestRelay: jest.fn(),
       handleTtiUp: jest.fn(),
       pulseRelay: jest.fn(),
       updateRelay: jest.fn(),
@@ -41,6 +43,26 @@ describe('RelayController', () => {
       { uplink_message: {} },
       undefined,
       'tti-token',
+    );
+  });
+
+  it('forwards latest relay lookups to the relay service', () => {
+    const req = {
+      headers: {
+        authorization: 'Bearer test-token',
+      },
+      user: {
+        email: 'user@example.com',
+        sub: 'user-1',
+      },
+    };
+
+    controller.getLatestRelay('A8404194635A05FB', req);
+
+    expect(relayService.getLatestRelay).toHaveBeenCalledWith(
+      req.user,
+      'Bearer test-token',
+      'A8404194635A05FB',
     );
   });
 

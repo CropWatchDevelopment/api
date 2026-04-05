@@ -90,6 +90,54 @@ describe('RelayService', () => {
     });
   });
 
+  it('returns the latest relay row for users who can read the device', async () => {
+    const service = createService();
+
+    jest
+      .spyOn(service as any, 'loadRelayDeviceContext')
+      .mockResolvedValue({
+        ...deviceContext,
+        permissionLevel: 3,
+      });
+    jest
+      .spyOn(service as any, 'findLatestRelayRow')
+      .mockResolvedValue(relayRow);
+
+    await expect(
+      service.getLatestRelay(
+        { sub: 'user-1', email: 'user@example.com' },
+        'Bearer token-1',
+        'a8404194635a05fb',
+      ),
+    ).resolves.toEqual(relayRow);
+  });
+
+  it('rejects latest relay reads when the user has no access to the device', async () => {
+    const service = createService();
+
+    jest
+      .spyOn(service as any, 'loadRelayDeviceContext')
+      .mockResolvedValue({
+        ...deviceContext,
+        permissionLevel: 4,
+      });
+
+    await expect(
+      service.getLatestRelay(
+        { sub: 'user-1', email: 'user@example.com' },
+        'Bearer token-1',
+        'A8404194635A05FB',
+      ),
+    ).rejects.toMatchObject({
+      message: 'Device not found',
+      response: {
+        message: 'Device not found',
+        statusCode: 404,
+      },
+      status: 404,
+    });
+  });
+
   it('returns success after queueing the downlink when confirmation waiting is disabled', async () => {
     const service = createService({
       PRIVATE_TTI_API_KEY: 'tti-secret',
