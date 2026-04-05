@@ -13,6 +13,12 @@ function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function readApplicationUp(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  return isRecord(payload.data) ? payload.data : payload;
+}
+
 function readRelayStatus(value: unknown): boolean | null {
   if (typeof value === 'boolean') {
     return value;
@@ -45,7 +51,7 @@ function readRelayStatus(value: unknown): boolean | null {
 }
 
 function readDecodedPayload(payload: Record<string, unknown>): Record<string, unknown> {
-  const data = isRecord(payload.data) ? payload.data : payload;
+  const data = readApplicationUp(payload);
   const uplinkMessage = isRecord(data.uplink_message) ? data.uplink_message : null;
   const decodedPayload = uplinkMessage && isRecord(uplinkMessage.decoded_payload)
     ? uplinkMessage.decoded_payload
@@ -55,8 +61,8 @@ function readDecodedPayload(payload: Record<string, unknown>): Record<string, un
 }
 
 function readConfirmationTime(payload: Record<string, unknown>): string {
-  const data = isRecord(payload.data) ? payload.data : null;
-  const uplinkMessage = data && isRecord(data.uplink_message) ? data.uplink_message : null;
+  const data = readApplicationUp(payload);
+  const uplinkMessage = isRecord(data.uplink_message) ? data.uplink_message : null;
 
   return (
     readString(data?.received_at) ||
@@ -66,8 +72,8 @@ function readConfirmationTime(payload: Record<string, unknown>): string {
 }
 
 function readConfirmationDevEui(payload: Record<string, unknown>): string {
-  const data = isRecord(payload.data) ? payload.data : null;
-  const endDeviceIds = data && isRecord(data.end_device_ids) ? data.end_device_ids : null;
+  const data = readApplicationUp(payload);
+  const endDeviceIds = isRecord(data.end_device_ids) ? data.end_device_ids : null;
   const identifiers = Array.isArray(payload.identifiers) ? payload.identifiers : [];
 
   for (const entry of identifiers) {
