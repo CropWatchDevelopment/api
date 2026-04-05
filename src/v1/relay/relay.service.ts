@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   GatewayTimeoutException,
   Injectable,
@@ -16,15 +17,23 @@ import {
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
 import type { TableInsert, TableRow } from '../../v1/types/supabase';
+import { PulseRelayDto } from './dto/pulse-relay.dto';
 import { UpdateRelayDto } from './dto/update-relay.dto';
-import { buildRelayDownlink } from './relay-command-profile';
+import {
+  buildRelayDownlink,
+  buildTimedRelayDownlink,
+} from './relay-command-profile';
 import { RelayCommandLockService } from './relay-command-lock.service';
 import {
   doesRelayRowConfirmTarget,
   parseRelayConfirmation,
   readRelayRowTimestamp,
 } from './relay-confirmation';
-import { getRelayState, type RelayConfirmation } from './relay.types';
+import {
+  getOtherRelayNumber,
+  getRelayState,
+  type RelayConfirmation,
+} from './relay.types';
 import {
   createTtiClient,
   mapTtiClientError,
@@ -140,6 +149,32 @@ function summarizeRelayRowForLogs(
   };
 }
 
+function buildRelayCorrelationIds(input: {
+  devEui: string;
+  relay: 1 | 2;
+  requestId: string;
+  targetState?: 'off' | 'on';
+  durationMs?: number;
+  kind: 'fixed' | 'pulse';
+}): string[] {
+  const correlationIds = [
+    `cropwatch:request:${input.requestId}`,
+    `cropwatch:device:${input.devEui}`,
+    `cropwatch:relay:${input.relay}`,
+    `cropwatch:kind:${input.kind}`,
+  ];
+
+  if (input.targetState) {
+    correlationIds.push(`cropwatch:target:${input.targetState}`);
+  }
+
+  if (typeof input.durationMs === 'number') {
+    correlationIds.push(`cropwatch:duration_ms:${input.durationMs}`);
+  }
+
+  return correlationIds;
+}
+
 @Injectable()
 export class RelayService {
   private readonly logger = new Logger(RelayService.name);
@@ -198,12 +233,13 @@ export class RelayService {
     try {
       const ttiClient = createTtiClient(this.configService);
       const requestId = globalThis.crypto.randomUUID();
-      const correlationIds = [
-        `cropwatch:request:${requestId}`,
-        `cropwatch:device:${normalizedDevEui}`,
-        `cropwatch:relay:${relay}`,
-        `cropwatch:target:${targetState}`,
-      ];
+      const correlationIds = buildRelayCorrelationIds({
+        devEui: normalizedDevEui,
+        kind: 'fixed',
+        relay,
+        requestId,
+        targetState,
+      });
 
       await ttiClient.replaceDownlinkQueue({
         applicationId: context.applicationId,
@@ -233,6 +269,107 @@ export class RelayService {
 
       if (
         error instanceof BadRequestException ||
+        error instanceof ForbiddenException ||
+        error instanceof InternalServerErrorException ||
+        error instanceof NotFoundException ||
+        error instanceof UnauthorizedException
+      ) {
+        throw error;
+      }
+
+      throw mapTtiClientError(error);
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async pulseRelay(
+    jwtPayload: any,
+    authHeader: string,
+    devEui: string,
+    pulseRelayDto: PulseRelayDto,
+  ) {
+    const normalizedDevEui = normalizeDevEui(devEui);
+    if (!normalizedDevEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+
+    const { durationSeconds, relay } = pulseRelayDto;
+    const context = await this.loadRelayDeviceContext(
+      jwtPayload,
+      authHeader,
+      normalizedDevEui,
+    );
+    if (context.permissionLevel > 2) {
+      throw new ForbiddenException(
+        'You do not have permission to control this relay',
+      );
+    }
+
+    const latestRow = await this.findLatestRelayRow(normalizedDevEui);
+    const currentRelayState = getRelayState(latestRow, relay);
+    const otherRelay = getOtherRelayNumber(relay);
+    const currentOtherRelayState = getRelayState(latestRow, otherRelay);
+
+    if (currentRelayState === null || currentOtherRelayState === null) {
+      throw new BadRequestException(
+        'Timed relay pulse requires a confirmed current state for both relays',
+      );
+    }
+
+    if (currentRelayState) {
+      throw new ConflictException(
+        'Timed relay pulse requires the target relay to currently be off',
+      );
+    }
+
+    const durationMs = durationSeconds * 1000;
+    const releaseLock = this.relayCommandLockService.acquire(normalizedDevEui);
+    const requestedAt = new Date().toISOString();
+
+    try {
+      const ttiClient = createTtiClient(this.configService);
+      const requestId = globalThis.crypto.randomUUID();
+      const correlationIds = buildRelayCorrelationIds({
+        devEui: normalizedDevEui,
+        durationMs,
+        kind: 'pulse',
+        relay,
+        requestId,
+        targetState: 'on',
+      });
+
+      await ttiClient.replaceDownlinkQueue({
+        applicationId: context.applicationId,
+        deviceId: context.deviceId,
+        downlinks: [
+          buildTimedRelayDownlink({
+            correlationIds,
+            durationMs,
+            relay1On: relay === 1 ? true : currentOtherRelayState,
+            relay2On: relay === 2 ? true : currentOtherRelayState,
+          }),
+        ],
+      });
+
+      return {
+        confirmed: true,
+        dev_eui: normalizedDevEui,
+        durationMs,
+        durationSeconds,
+        message: `Relay ${relay} pulse queued for ${durationSeconds} seconds`,
+        relay,
+        requestedAt,
+        targetState: 'on',
+      };
+    } catch (error) {
+      if (error instanceof GatewayTimeoutException) {
+        throw error;
+      }
+
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ConflictException ||
         error instanceof ForbiddenException ||
         error instanceof InternalServerErrorException ||
         error instanceof NotFoundException ||

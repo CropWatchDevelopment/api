@@ -133,6 +133,99 @@ describe('RelayService', () => {
     global.fetch = originalFetch;
   });
 
+  it('queues a timed relay pulse using the current state of the other relay', async () => {
+    const service = createService({
+      PRIVATE_TTI_API_KEY: 'tti-secret',
+      PRIVATE_TTI_BASE_URL: 'https://tti.example.com',
+    });
+
+    jest
+      .spyOn(service as any, 'loadRelayDeviceContext')
+      .mockResolvedValue(deviceContext);
+    jest.spyOn(service as any, 'findLatestRelayRow').mockResolvedValue({
+      ...relayRow,
+      relay_1: false,
+      relay_2: true,
+    });
+
+    const originalFetch = global.fetch;
+    global.fetch = jest.fn(async (_input, init) => {
+      expect(init?.method).toBe('POST');
+      expect(JSON.parse(String(init?.body))).toEqual({
+        downlinks: [
+          {
+            confirmed: false,
+            correlation_ids: expect.arrayContaining([
+              'cropwatch:relay:1',
+              'cropwatch:kind:pulse',
+              'cropwatch:target:on',
+              'cropwatch:duration_ms:1000',
+            ]),
+            f_port: 2,
+            frm_payload: 'BQERA+g=',
+            priority: 'NORMAL',
+          },
+        ],
+      });
+
+      return new Response(JSON.stringify({}), {
+        headers: {
+          'content-type': 'application/json',
+        },
+        status: 200,
+      });
+    }) as typeof fetch;
+
+    await expect(
+      service.pulseRelay(
+        { sub: 'user-1', email: 'user@example.com' },
+        'Bearer token-1',
+        'A8404194635A05FB',
+        { durationSeconds: 1, relay: 1 },
+      ),
+    ).resolves.toMatchObject({
+      confirmed: true,
+      dev_eui: 'A8404194635A05FB',
+      durationMs: 1000,
+      durationSeconds: 1,
+      message: 'Relay 1 pulse queued for 1 seconds',
+      relay: 1,
+      targetState: 'on',
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    global.fetch = originalFetch;
+  });
+
+  it('rejects timed relay pulses when the target relay is already on', async () => {
+    const service = createService();
+
+    jest
+      .spyOn(service as any, 'loadRelayDeviceContext')
+      .mockResolvedValue(deviceContext);
+    jest.spyOn(service as any, 'findLatestRelayRow').mockResolvedValue({
+      ...relayRow,
+      relay_1: true,
+      relay_2: false,
+    });
+
+    await expect(
+      service.pulseRelay(
+        { sub: 'user-1', email: 'user@example.com' },
+        'Bearer token-1',
+        'A8404194635A05FB',
+        { durationSeconds: 60, relay: 1 },
+      ),
+    ).rejects.toMatchObject({
+      message: 'Timed relay pulse requires the target relay to currently be off',
+      response: {
+        message: 'Timed relay pulse requires the target relay to currently be off',
+        statusCode: 409,
+      },
+      status: 409,
+    });
+  });
+
   it('accepts the TTI X-Downlink-Apikey header for webhook authentication', async () => {
     const service = createService({
       PRIVATE_TTI_WEBHOOK_TOKEN: 'tti-token',
