@@ -53,7 +53,7 @@ function summarizeTtiUpPayload(payload: unknown): Record<string, unknown> {
   const data =
     record.data && typeof record.data === 'object' && !Array.isArray(record.data)
       ? (record.data as Record<string, unknown>)
-      : null;
+      : record;
   const endDeviceIds =
     data?.end_device_ids &&
     typeof data.end_device_ids === 'object' &&
