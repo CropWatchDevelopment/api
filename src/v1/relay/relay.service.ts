@@ -99,6 +99,47 @@ function readBearerToken(value: string | undefined): string {
   return token.trim();
 }
 
+function maskSecretForLogs(value: unknown): string {
+  const normalized = readString(value);
+  if (!normalized) {
+    return 'missing';
+  }
+
+  if (normalized.length <= 12) {
+    return `present(len=${normalized.length})`;
+  }
+
+  return `${normalized.slice(0, 6)}...${normalized.slice(-4)} (len=${normalized.length})`;
+}
+
+function summarizeRelayConfirmationForLogs(
+  confirmation: RelayConfirmation,
+): Record<string, unknown> {
+  return {
+    devEui: confirmation.devEui,
+    receivedAt: confirmation.receivedAt,
+    relay1: confirmation.relay1,
+    relay2: confirmation.relay2,
+  };
+}
+
+function summarizeRelayRowForLogs(
+  row: RelayRow | null | undefined,
+): Record<string, unknown> | null {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    created_at: row.created_at,
+    dev_eui: row.dev_eui,
+    id: row.id,
+    last_update: row.last_update,
+    relay_1: row.relay_1,
+    relay_2: row.relay_2,
+  };
+}
+
 @Injectable()
 export class RelayService {
   private readonly logger = new Logger(RelayService.name);
@@ -211,6 +252,13 @@ export class RelayService {
     authorizationHeader?: string,
     downlinkApiKeyHeader?: string,
   ) {
+    this.logger.log(
+      `[tti/up] starting relay webhook handling ${JSON.stringify({
+        authorizationHeader: maskSecretForLogs(authorizationHeader),
+        xDownlinkApikey: maskSecretForLogs(downlinkApiKeyHeader),
+      })}`,
+    );
+
     this.assertWebhookAuthorization(
       authorizationHeader,
       downlinkApiKeyHeader,
@@ -218,12 +266,29 @@ export class RelayService {
 
     const confirmation = parseRelayConfirmation(payload);
     if (!confirmation) {
+      this.logger.warn(
+        `[tti/up] payload did not parse into relay confirmation ${JSON.stringify({
+          bodyType: Array.isArray(payload) ? 'array' : typeof payload,
+        })}`,
+      );
       return {
         processed: false,
       };
     }
 
+    this.logger.log(
+      `[tti/up] parsed relay confirmation ${JSON.stringify(
+        summarizeRelayConfirmationForLogs(confirmation),
+      )}`,
+    );
+
     const row = await this.persistRelayConfirmation(confirmation);
+    this.logger.log(
+      `[tti/up] relay confirmation persisted ${JSON.stringify(
+        summarizeRelayRowForLogs(row),
+      )}`,
+    );
+
     return {
       confirmedAt: readRelayRowTimestamp(row),
       dev_eui: row.dev_eui,
@@ -241,15 +306,32 @@ export class RelayService {
       this.configService.get<string>('PRIVATE_TTI_WEBHOOK_TOKEN'),
     );
 
+    this.logger.log(
+      `[tti/up] evaluating webhook auth ${JSON.stringify({
+        authorizationHeader: maskSecretForLogs(authorizationHeader),
+        expectedTokenConfigured: Boolean(expectedToken),
+        expectedTokenPreview: maskSecretForLogs(expectedToken),
+        xDownlinkApikey: maskSecretForLogs(downlinkApiKeyHeader),
+      })}`,
+    );
+
     if (!expectedToken) {
+      this.logger.warn('[tti/up] webhook auth bypassed because no expected token is configured');
       return;
     }
 
     const actualToken =
       readBearerToken(authorizationHeader) || readString(downlinkApiKeyHeader);
     if (!actualToken || actualToken !== expectedToken) {
+      this.logger.warn(
+        `[tti/up] webhook auth failed ${JSON.stringify({
+          actualToken: maskSecretForLogs(actualToken),
+        })}`,
+      );
       throw new UnauthorizedException('Invalid relay webhook token');
     }
+
+    this.logger.log('[tti/up] webhook auth passed');
   }
 
   private async loadRelayDeviceContext(
@@ -435,8 +517,20 @@ export class RelayService {
   private async persistRelayConfirmation(
     confirmation: RelayConfirmation,
   ): Promise<RelayRow> {
+    this.logger.log(
+      `[tti/up] persisting relay confirmation ${JSON.stringify(
+        summarizeRelayConfirmationForLogs(confirmation),
+      )}`,
+    );
+
     const client = this.supabaseService.getClient();
     const latestRow = await this.findLatestRelayRow(confirmation.devEui);
+    this.logger.log(
+      `[tti/up] latest relay row before persistence ${JSON.stringify(
+        summarizeRelayRowForLogs(latestRow),
+      )}`,
+    );
+
     const mergedRow: RelayInsert = {
       created_at: confirmation.receivedAt,
       dev_eui: confirmation.devEui,
@@ -446,6 +540,16 @@ export class RelayService {
       relay_2:
         confirmation.relay2 ?? latestRow?.relay_2 ?? null,
     };
+
+    this.logger.log(
+      `[tti/up] merged relay row payload ${JSON.stringify({
+        created_at: mergedRow.created_at,
+        dev_eui: mergedRow.dev_eui,
+        last_update: mergedRow.last_update,
+        relay_1: mergedRow.relay_1,
+        relay_2: mergedRow.relay_2,
+      })}`,
+    );
 
     const { data: existingRow, error: existingError } = await client
       .from('cw_relay_data')
@@ -466,7 +570,19 @@ export class RelayService {
       );
     }
 
+    this.logger.log(
+      `[tti/up] existing relay row lookup result ${JSON.stringify({
+        existingRow: summarizeRelayRowForLogs(existingRow as RelayRow | null),
+      })}`,
+    );
+
     if (existingRow) {
+      this.logger.log(
+        `[tti/up] updating existing relay row ${JSON.stringify({
+          id: existingRow.id,
+        })}`,
+      );
+
       const { data, error } = await client
         .from('cw_relay_data')
         .update(mergedRow)
@@ -484,8 +600,16 @@ export class RelayService {
         );
       }
 
+      this.logger.log(
+        `[tti/up] updated existing relay row successfully ${JSON.stringify(
+          summarizeRelayRowForLogs(data as RelayRow),
+        )}`,
+      );
+
       return data as RelayRow;
     }
+
+    this.logger.log('[tti/up] inserting new relay confirmation row');
 
     const { data, error } = await client
       .from('cw_relay_data')
@@ -502,6 +626,12 @@ export class RelayService {
         'Failed to insert relay confirmation',
       );
     }
+
+    this.logger.log(
+      `[tti/up] inserted relay confirmation row successfully ${JSON.stringify(
+        summarizeRelayRowForLogs(data as RelayRow),
+      )}`,
+    );
 
     return data as RelayRow;
   }
