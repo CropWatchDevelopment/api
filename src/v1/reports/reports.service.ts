@@ -163,7 +163,7 @@ export class ReportsService {
     return data;
   }
 
-  async findAll(jwtPayload: any, authHeader: string): Promise<ReportDto[]> {
+  async findAll(jwtPayload: any, authHeader: string, searchName?: string): Promise<ReportDto[]> {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const isGlobalUser = isCropwatchStaff(jwtPayload);
@@ -173,6 +173,10 @@ export class ReportsService {
       .from('reports')
       .select('*, report_recipients(*), report_user_schedule(*), report_alert_points(*), report_data_processing_schedules(*), cw_devices(name, dev_eui, cw_device_owners(*), cw_locations(name, location_id))')
       .order('name', { ascending: true });
+
+    if (searchName) {
+      query = query.ilike('name', `%${searchName}%`);
+    }
 
     // if (!isGlobalUser) {
     //   query = query.eq('user_id', userId)

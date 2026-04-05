@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } fro
 import { ReportsService } from './reports.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { UpdateReportDto } from './dto/update-report.dto';
-import { ApiBearerAuth, ApiOkResponse, ApiSecurity } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiQuery, ApiSecurity } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { ReportDto } from './dto/report.dto';
 import type { ReportHistoryList } from './reports.service';
@@ -36,13 +36,15 @@ export class ReportsController {
     type: ReportDto,
     isArray: true,
   })
+  @ApiQuery({ name: 'name', description: 'Filter by report name', required: false })
   @Get()
   findAll(@Req() req) {
     const authHeader = req.headers?.authorization;
     if (!authHeader) {
       throw new Error('Authorization header is required');
     }
-    return this.reportsService.findAll(req.user, authHeader);
+    const searchName = req.query.name ? String(req.query.name) : undefined;
+    return this.reportsService.findAll(req.user, authHeader, searchName);
   }
 
   @UseGuards(JwtAuthGuard)

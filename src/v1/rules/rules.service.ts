@@ -72,7 +72,7 @@ export class RulesService {
     return ruleData;
   }
 
-  async findAll(jwtPayload: any, authHeader: string) {
+  async findAll(jwtPayload: any, authHeader: string, searchName?: string) {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const isGlobalUser = isCropwatchStaff(jwtPayload);
@@ -82,6 +82,10 @@ export class RulesService {
       .from('cw_rules')
       .select('*, cw_rule_criteria(*), cw_devices(name, dev_eui, cw_locations(name, location_id), cw_device_owners(*))')
       .order('name', { ascending: true });
+
+    if (searchName) {
+      query = query.ilike('name', `%${searchName}%`);
+    }
 
     // if (!isGlobalUser) {
     //   query = query.eq('profile_id', userId);

@@ -740,7 +740,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER],
+        args: [MOCK_USER, AUTH_HEADER, undefined],
         method: 'findAll',
         service: 'locations',
       },
@@ -988,7 +988,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER],
+        args: [MOCK_USER, AUTH_HEADER, undefined],
         method: 'findAll',
         service: 'reports',
       },
@@ -1092,7 +1092,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER],
+        args: [MOCK_USER, AUTH_HEADER, undefined],
         method: 'findAll',
         service: 'rules',
       },
