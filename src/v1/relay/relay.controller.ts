@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Get,
   Headers,
   HttpCode,
   HttpStatus,
@@ -13,14 +15,18 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiInternalServerErrorResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiSecurity,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { JwtAuthGuard } from '../../v1/auth/guards/jwt.auth.guard';
 import { PulseRelayDto } from './dto/pulse-relay.dto';
 import { UpdateRelayDto } from './dto/update-relay.dto';
@@ -114,6 +120,68 @@ export class RelayController {
   private readonly logger = new Logger(RelayController.name);
 
   constructor(private readonly relayService: RelayService) {}
+
+  @Get(':dev_eui')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOkResponse({
+    description: 'Latest relay state returned successfully.',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid dev_eui.',
+    type: ErrorResponseDto,
+    example: {
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'dev_eui is required',
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+    example: {
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Missing bearer token',
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Device or relay data not found.',
+    type: ErrorResponseDto,
+    example: {
+      statusCode: 404,
+      error: 'Not Found',
+      message: 'Latest relay data not found',
+    },
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to fetch relay data.',
+    type: ErrorResponseDto,
+    example: {
+      statusCode: 500,
+      error: 'Internal Server Error',
+      message: 'Failed to fetch relay data',
+    },
+  })
+  @ApiOperation({
+    summary: 'Get the latest relay values for a device',
+  })
+  getLatestRelay(@Param('dev_eui') devEui: string, @Req() req) {
+    if (!devEui?.trim()) {
+      throw new BadRequestException('dev_eui is required');
+    }
+
+    const authHeader = req.headers?.authorization;
+    if (!authHeader) {
+      throw new UnauthorizedException('Missing bearer token');
+    }
+
+    return this.relayService.getLatestRelay(
+      req.user,
+      authHeader,
+      devEui,
+    );
+  }
 
   @Patch(':dev_eui')
   @UseGuards(JwtAuthGuard)
