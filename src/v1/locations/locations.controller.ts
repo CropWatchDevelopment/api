@@ -40,10 +40,12 @@ export class LocationsController {
     type: LocationDto,
     isArray: true,
   })
+  @ApiQuery({ name: 'name', description: 'Filter by location name', required: false })
   @Get()
   findAll(@Req() req) {
     const authHeader = req.headers?.authorization ?? '';
-    return this.locationsService.findAll(req.user, authHeader);
+    const searchName = req.query.name ? String(req.query.name) : undefined;
+    return this.locationsService.findAll(req.user, authHeader, searchName);
   }
 
   @UseGuards(JwtAuthGuard)

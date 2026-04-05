@@ -1178,7 +1178,16 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
       },
     },
     "/v1/locations": {
-      "get": {},
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {},
+          },
+        ],
+      },
       "post": {
         "requestBody": {
           "content": {
@@ -1418,7 +1427,16 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
       },
     },
     "/v1/reports": {
-      "get": {},
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {},
+          },
+        ],
+      },
       "post": {
         "requestBody": {
           "content": {
@@ -1527,7 +1545,16 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
       },
     },
     "/v1/rules": {
-      "get": {},
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {},
+          },
+        ],
+      },
       "post": {
         "requestBody": {
           "content": {

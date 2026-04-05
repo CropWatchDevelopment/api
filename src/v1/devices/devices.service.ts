@@ -64,7 +64,7 @@ export class DevicesService {
       devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
     }
     if (searchName) {
-      devicesQuery = devicesQuery.ilike('name', `%${searchName}%`);
+      devicesQuery = devicesQuery.or(`name.ilike.%${searchName}%,dev_eui.ilike.%${searchName}%`);
     }
     if (searchLocation) {
       devicesQuery = devicesQuery.ilike('location', `%${searchLocation}%`);
@@ -516,7 +516,7 @@ export class DevicesService {
       devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
     }
     if (searchName) {
-      devicesQuery = devicesQuery.ilike('name', `%${searchName}%`);
+      devicesQuery = devicesQuery.or(`name.ilike.%${searchName}%,dev_eui.ilike.%${searchName}%`);
     }
     if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
       devicesQuery = devicesQuery.eq(

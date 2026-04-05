@@ -18,6 +18,7 @@ import { RulesModule } from './v1/rules/rules.module';
 import { ReportsModule } from './v1/reports/reports.module';
 import { PaymentsModule } from './v1/payments/payments.module';
 import { LocationsModule } from './v1/locations/locations.module';
+import { RelayModule } from './v1/relay/relay.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { LocationsModule } from './v1/locations/locations.module';
     ReportsModule,
     PaymentsModule,
     LocationsModule,
+    RelayModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

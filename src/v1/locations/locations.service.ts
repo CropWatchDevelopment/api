@@ -60,7 +60,7 @@ export class LocationsService {
     return locationData;
   }
 
-  async findAll(jwtPayload: any, authHeader: string) {
+  async findAll(jwtPayload: any, authHeader: string, searchName?: string) {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
@@ -75,6 +75,10 @@ export class LocationsService {
   `);
 
     query = this.applyLocationReadScope(query, userId, isGlobalUser);
+
+    if (searchName) {
+      query = query.ilike('name', `%${searchName}%`);
+    }
 
     const { data, error } = await query.order('name', { ascending: true });
 

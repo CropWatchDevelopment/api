@@ -71,7 +71,7 @@ export class DevicesController {
   @ApiQuery({ name: 'skip', description: 'Number of records to skip for pagination', required: false })
   @ApiQuery({ name: 'take', description: 'Number of records to take for pagination', required: false })
   @ApiQuery({ name: 'group', description: 'Filter by device group', required: false })
-  @ApiQuery({ name: 'name', description: 'Filter by device name', required: false })
+  @ApiQuery({ name: 'name', description: 'Filter by device name or dev_eui', required: false })
   @ApiQuery({ name: 'location', description: 'Filter by device location', required: false })
   findAll(@Req() req) {
     const parsedSkip = parseInt(req.query.skip, 10);
@@ -126,7 +126,7 @@ export class DevicesController {
   @ApiQuery({ name: 'skip', description: 'Number of records to skip for pagination', required: false })
   @ApiQuery({ name: 'take', description: 'Number of records to take for pagination', required: false })
   @ApiQuery({ name: 'group-by-device-group', description: 'Filter by device group', required: false })
-  @ApiQuery({ name: 'name', description: 'Filter by device name', required: false })
+  @ApiQuery({ name: 'name', description: 'Filter by device name or dev_eui', required: false })
   @ApiQuery({ name: 'location', description: 'Filter by device location', required: false })
   @ApiQuery({ name: 'locationGroup', description: 'Group devices by location', required: false })
   @ApiOperation({
