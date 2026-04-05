@@ -206,8 +206,15 @@ export class RelayService {
     }
   }
 
-  async handleTtiUp(payload: unknown, authorizationHeader?: string) {
-    this.assertWebhookAuthorization(authorizationHeader);
+  async handleTtiUp(
+    payload: unknown,
+    authorizationHeader?: string,
+    downlinkApiKeyHeader?: string,
+  ) {
+    this.assertWebhookAuthorization(
+      authorizationHeader,
+      downlinkApiKeyHeader,
+    );
 
     const confirmation = parseRelayConfirmation(payload);
     if (!confirmation) {
@@ -226,7 +233,10 @@ export class RelayService {
     };
   }
 
-  private assertWebhookAuthorization(authorizationHeader?: string): void {
+  private assertWebhookAuthorization(
+    authorizationHeader?: string,
+    downlinkApiKeyHeader?: string,
+  ): void {
     const expectedToken = readString(
       this.configService.get<string>('PRIVATE_TTI_WEBHOOK_TOKEN'),
     );
@@ -235,7 +245,8 @@ export class RelayService {
       return;
     }
 
-    const actualToken = readBearerToken(authorizationHeader);
+    const actualToken =
+      readBearerToken(authorizationHeader) || readString(downlinkApiKeyHeader);
     if (!actualToken || actualToken !== expectedToken) {
       throw new UnauthorizedException('Invalid relay webhook token');
     }
