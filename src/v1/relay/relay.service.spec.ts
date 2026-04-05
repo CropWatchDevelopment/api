@@ -127,4 +127,48 @@ describe('RelayService', () => {
 
     global.fetch = originalFetch;
   });
+
+  it('accepts the TTI X-Downlink-Apikey header for webhook authentication', async () => {
+    const service = createService({
+      PRIVATE_TTI_WEBHOOK_TOKEN: 'tti-token',
+    });
+
+    const persistRelayConfirmation = jest
+      .spyOn(service as any, 'persistRelayConfirmation')
+      .mockResolvedValue({
+        created_at: '2026-04-05T03:46:46.331128009Z',
+        dev_eui: 'A8404194635A05FB',
+        id: 42,
+        last_update: '2026-04-05T03:46:46.331128009Z',
+        relay_1: true,
+        relay_2: true,
+      });
+
+    await expect(
+      service.handleTtiUp(
+        {
+          data: {
+            end_device_ids: {
+              dev_eui: 'A8404194635A05FB',
+            },
+            received_at: '2026-04-05T03:46:46.331128009Z',
+            uplink_message: {
+              decoded_payload: {
+                RO1_status: 'ON',
+                RO2_status: 'ON',
+              },
+            },
+          },
+        },
+        undefined,
+        'tti-token',
+      ),
+    ).resolves.toMatchObject({
+      processed: true,
+      relay_1: true,
+      relay_2: true,
+    });
+
+    expect(persistRelayConfirmation).toHaveBeenCalledTimes(1);
+  });
 });

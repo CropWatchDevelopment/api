@@ -74,8 +74,12 @@ export class RelayController {
   handleTtiUp(
     @Body() payload: unknown,
     @Headers('authorization') authorizationHeader?: string,
+    @Headers('x-downlink-apikey') downlinkApiKeyHeader?: string,
   ) {
-    console.log('Received TTI uplink:', JSON.stringify(payload), authorizationHeader);
-    return this.relayService.handleTtiUp(payload, authorizationHeader);
+    return this.relayService.handleTtiUp(
+      payload,
+      authorizationHeader,
+      downlinkApiKeyHeader,
+    );
   }
 }
