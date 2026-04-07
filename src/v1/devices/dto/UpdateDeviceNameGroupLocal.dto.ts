@@ -20,4 +20,10 @@ export class UpdateDeviceNameGroupLocalDto {
     @IsInt()
     @Min(1)
     location_id: number;
+
+    @ApiPropertyOptional({ example: 'eui-device-name', type: String, required: false })
+    @IsOptional()
+    @IsString()
+    @MaxLength(255)
+    tti_name?: string | null;
 }
