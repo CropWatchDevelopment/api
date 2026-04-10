@@ -380,21 +380,30 @@ export type Database = {
       cw_air_annotations: {
         Row: {
           created_at: string
+          created_by: string
           dev_eui: string
           id: number
+          include_in_report: boolean
           note: string | null
+          title: string
         }
         Insert: {
           created_at: string
+          created_by: string
           dev_eui: string
           id?: number
+          include_in_report: boolean
           note?: string | null
+          title: string
         }
         Update: {
           created_at?: string
+          created_by?: string
           dev_eui?: string
           id?: number
+          include_in_report?: boolean
           note?: string | null
+          title?: string
         }
         Relationships: [
           {

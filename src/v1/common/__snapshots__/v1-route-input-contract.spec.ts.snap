@@ -13,14 +13,22 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           "dev_eui": {
             "type": "string",
           },
+          "include_in_report": {
+            "type": "boolean",
+          },
           "note": {
             "nullable": true,
-            "type": "object",
+            "type": "string",
+          },
+          "title": {
+            "type": "string",
           },
         },
         "required": [
           "created_at",
           "dev_eui",
+          "title",
+          "include_in_report",
         ],
         "type": "object",
       },
@@ -792,6 +800,36 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           },
           "required": true,
         },
+      },
+    },
+    "/v1/air/notes/{dev_eui}/month/{month}/year/{year}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "path",
+            "name": "month",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "path",
+            "name": "year",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
       },
     },
     "/v1/air/notes/{note_id}": {

@@ -59,7 +59,11 @@ type RejectionCase = {
 };
 
 const AUTH_HEADER = 'Bearer test-token';
-const MOCK_USER = { email: 'user@example.com', id: 'user-123' };
+const MOCK_USER = {
+  email: 'user@example.com',
+  id: 'user-123',
+  sub: 'user-123',
+};
 const ISO_DATETIME_PLACEHOLDER = '<ISO_8601_DATETIME>';
 const ISO_DATETIME_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const HTTP_METHODS = [
@@ -501,7 +505,9 @@ describe('V1 Route Input Contracts', () => {
           {
             created_at: '2026-01-01T00:00:00.000Z',
             dev_eui: 'DEV-001',
+            include_in_report: true,
             note: 'Sensor cleaned',
+            title: 'Inspection note',
           },
           MOCK_USER,
         ],
@@ -515,7 +521,9 @@ describe('V1 Route Input Contracts', () => {
       body: {
         created_at: '2026-01-01T00:00:00.000Z',
         dev_eui: 'DEV-001',
+        include_in_report: true,
         note: 'Sensor cleaned',
+        title: 'Inspection note',
       },
     },
     {
@@ -1226,7 +1234,9 @@ describe('V1 Route Input Contracts', () => {
       body: {
         created_at: '2026-01-01T00:00:00.000Z',
         dev_eui: 'DEV-001',
+        include_in_report: true,
         note: 'Sensor cleaned',
+        title: 'Inspection note',
         unexpected: 'boom',
       },
       expectedMessage: ['property unexpected should not exist'],

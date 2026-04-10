@@ -37,7 +37,9 @@ describe('AirController', () => {
       const dto: CreateAirAnnotationDto = {
         created_at: '2026-03-07T00:00:00.000Z',
         dev_eui: 'ABC123',
+        include_in_report: true,
         note: 'stable reading',
+        title: 'Daily review',
       };
       const req = {
         user: {
@@ -61,7 +63,9 @@ describe('AirController', () => {
       const payload = {
         created_at: '2026-03-07T00:00:00.000Z',
         dev_eui: 'ABC123',
+        include_in_report: true,
         note: 'stable reading',
+        title: 'Daily review',
       };
 
       const result = await pipe.transform(payload, {

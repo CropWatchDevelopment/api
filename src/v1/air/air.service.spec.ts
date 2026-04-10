@@ -30,9 +30,12 @@ function createResolutionBuilder(response: {
 function createInsertBuilder(response: {
   data: {
     created_at: string;
+    created_by: string;
     dev_eui: string;
     id: number;
+    include_in_report: boolean;
     note: string | null;
+    title: string;
   } | null;
   error: { message: string } | null;
 }) {
@@ -77,7 +80,9 @@ describe('AirService', () => {
       const dto: CreateAirAnnotationDto = {
         created_at: '2026-03-13T14:30:01.232Z',
         dev_eui: ' 2CF7F1C073800102 ',
+        include_in_report: true,
         note: 'stable reading',
+        title: 'Shift review',
       };
       const resolvedCreatedAt = '2026-03-13T14:30:01.232544+00:00';
       const exactMatchBuilder = createExactMatchBuilder({
@@ -91,9 +96,12 @@ describe('AirService', () => {
       const insertBuilder = createInsertBuilder({
         data: {
           created_at: resolvedCreatedAt,
+          created_by: 'user-123',
           dev_eui: '2CF7F1C073800102',
           id: 1,
+          include_in_report: true,
           note: dto.note ?? null,
+          title: 'Shift review',
         },
         error: null,
       });
@@ -117,9 +125,12 @@ describe('AirService', () => {
         service.createNote(dto, { sub: 'user-123' }),
       ).resolves.toEqual({
         created_at: resolvedCreatedAt,
+        created_by: 'user-123',
         dev_eui: '2CF7F1C073800102',
         id: 1,
+        include_in_report: true,
         note: 'stable reading',
+        title: 'Shift review',
       });
 
       expect((service as any).assertDeviceAccess).toHaveBeenCalledWith(
@@ -146,8 +157,11 @@ describe('AirService', () => {
       );
       expect(insertBuilder.insert).toHaveBeenCalledWith({
         created_at: resolvedCreatedAt,
+        created_by: 'user-123',
         dev_eui: '2CF7F1C073800102',
+        include_in_report: true,
         note: 'stable reading',
+        title: 'Shift review',
       });
     });
 
@@ -155,7 +169,9 @@ describe('AirService', () => {
       const dto: CreateAirAnnotationDto = {
         created_at: '2026-03-13T14:30:01Z',
         dev_eui: '2CF7F1C073800102',
+        include_in_report: false,
         note: 'stable reading',
+        title: 'Shift review',
       };
       const exactMatchBuilder = createExactMatchBuilder({
         data: null,

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
@@ -17,11 +18,55 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     super(supabaseService, timezoneFormatter, 'cw_air_data');
   }
 
+  async findAllNotes(
+    devEui: string,
+    month: string,
+    year: string,
+    jwtPayload: any,
+  ): Promise<any[]> {
+    const normalizedDevEui = devEui?.trim();
+    if (!normalizedDevEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    await this.assertDeviceAccess(normalizedDevEui, jwtPayload);
+    const client = this.supabaseService.getClient();
+
+    const startOfMonth = new Date(
+      Number(year),
+      Number(month) - 1,
+      1,
+    ).toISOString();
+    const endOfMonth = new Date(
+      Number(year),
+      Number(month),
+      0,
+      23,
+      59,
+      59,
+      999,
+    ).toISOString();
+
+    const { data, error } = await client
+      .from('cw_air_annotations')
+      .select('*')
+      .eq('dev_eui', normalizedDevEui)
+      .gte('created_at', startOfMonth)
+      .lte('created_at', endOfMonth)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch air annotations');
+    }
+    return data;
+  }
+
   async createNote(createAirNoteDto: CreateAirAnnotationDto, jwtPayload: any) {
     const normalizedDevEui = createAirNoteDto.dev_eui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
+    const createdBy = jwtPayload?.email?.trim();
+
     await this.assertDeviceAccess(normalizedDevEui, jwtPayload);
     const client = this.supabaseService.getClient();
     const resolvedCreatedAt = await this.resolveAnnotationCreatedAt(
@@ -35,6 +80,7 @@ export class AirService extends BaseDataService<'cw_air_data'> {
       .insert({
         ...createAirNoteDto,
         created_at: resolvedCreatedAt,
+        created_by: createdBy,
         dev_eui: normalizedDevEui,
       })
       .select('*')
@@ -45,6 +91,21 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     }
 
     return data;
+  }
+
+  private resolveAnnotationAuthorId(jwtPayload: any): string {
+    const subject =
+      typeof jwtPayload?.sub === 'string'
+        ? jwtPayload.sub.trim()
+        : typeof jwtPayload?.id === 'string'
+          ? jwtPayload.id.trim()
+          : '';
+
+    if (!subject) {
+      throw new UnauthorizedException('Authenticated user is required');
+    }
+
+    return subject;
   }
 
   async deleteNote(noteId: number, jwtPayload: any) {
