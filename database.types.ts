@@ -380,21 +380,30 @@ export type Database = {
       cw_air_annotations: {
         Row: {
           created_at: string
+          created_by: string
           dev_eui: string
           id: number
+          include_in_report: boolean
           note: string | null
+          title: string
         }
         Insert: {
           created_at: string
+          created_by: string
           dev_eui: string
           id?: number
+          include_in_report: boolean
           note?: string | null
+          title: string
         }
         Update: {
           created_at?: string
+          created_by?: string
           dev_eui?: string
           id?: number
+          include_in_report?: boolean
           note?: string | null
+          title?: string
         }
         Relationships: [
           {
@@ -1864,6 +1873,7 @@ export type Database = {
       reports: {
         Row: {
           created_at: string
+          data_pull_interval: number
           dev_eui: string
           id: number
           name: string
@@ -1872,6 +1882,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          data_pull_interval?: number
           dev_eui: string
           id?: number
           name: string
@@ -1880,6 +1891,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          data_pull_interval?: number
           dev_eui?: string
           id?: number
           name?: string

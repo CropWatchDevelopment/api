@@ -8,11 +8,20 @@ export class AirAnnotationDto implements AirAnnotation {
   created_at: string;
 
   @ApiProperty()
+  created_by: string;
+
+  @ApiProperty()
   dev_eui: string;
 
   @ApiProperty()
   id: number;
 
-  @ApiProperty({ nullable: true, required: false })
+  @ApiProperty()
+  include_in_report: boolean;
+
+  @ApiProperty({ nullable: true, required: false, type: String })
   note: string | null;
+
+  @ApiProperty()
+  title: string;
 }

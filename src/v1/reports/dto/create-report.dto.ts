@@ -15,6 +15,13 @@ export class CreateReportDto implements ReportInsert {
 	@IsISO8601()
 	created_at?: string;
 
+	@ApiProperty({ required: false, minimum: 1 })
+	@IsOptional()
+	@Type(() => Number)
+	@IsInt()
+	@Min(1)
+	data_pull_interval?: number;
+
 	@ApiProperty()
 	@IsString()
 	@IsNotEmpty()

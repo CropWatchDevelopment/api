@@ -30,7 +30,7 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class AirController {
-  constructor(private readonly airService: AirService) { }
+  constructor(private readonly airService: AirService) {}
 
   // @Post()
   // create(@Body() createAirDto: CreateAirDto) {
@@ -46,19 +46,22 @@ export class AirController {
     return this.airService.createNote(createAirNoteDto, req.user);
   }
 
-  @Delete('notes/:note_id')
+  @Get('notes/:dev_eui/month/:month/year/:year')
   @UseGuards(JwtAuthGuard)
-  async deleteNote(
-    @Param('note_id') noteId: number,
+  async findAll(
+    @Param('dev_eui') devEui: string,
+    @Param('month') month: string,
+    @Param('year') year: string,
     @Req() req,
   ) {
-    return this.airService.deleteNote(noteId, req.user);
+    return this.airService.findAllNotes(devEui, month, year, req.user);
   }
 
-  // @Get()AIR_NOTES_ENDPOINT
-  // findAll() {
-  //   return this.airService.findAll();
-  // }
+  @Delete('notes/:note_id')
+  @UseGuards(JwtAuthGuard)
+  async deleteNote(@Param('note_id') noteId: number, @Req() req) {
+    return this.airService.deleteNote(noteId, req.user);
+  }
 
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)
