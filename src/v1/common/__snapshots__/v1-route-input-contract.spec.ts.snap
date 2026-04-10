@@ -576,6 +576,10 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             "example": "New Device Name",
             "type": "string",
           },
+          "tti_name": {
+            "example": "eui-device-name",
+            "type": "string",
+          },
         },
         "required": [
           "name",
