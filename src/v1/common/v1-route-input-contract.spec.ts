@@ -977,7 +977,7 @@ describe('V1 Route Input Contracts', () => {
       auth: true,
       expectedCall: {
         args: [
-          { dev_eui: 'DEV-001', name: 'Weekly Summary' },
+          { data_pull_interval: 30, dev_eui: 'DEV-001', name: 'Weekly Summary' },
           MOCK_USER,
           AUTH_HEADER,
         ],
@@ -989,6 +989,7 @@ describe('V1 Route Input Contracts', () => {
       name: 'POST /v1/reports preserves the validated create body',
       url: '/v1/reports',
       body: {
+        data_pull_interval: 30,
         dev_eui: 'DEV-001',
         name: 'Weekly Summary',
       },
@@ -1044,7 +1045,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: ['rpt-001', { name: 'Weekly Summary' }, MOCK_USER, AUTH_HEADER],
+        args: ['rpt-001', { data_pull_interval: 45, name: 'Weekly Summary' }, MOCK_USER, AUTH_HEADER],
         method: 'update',
         service: 'reports',
       },
@@ -1053,6 +1054,7 @@ describe('V1 Route Input Contracts', () => {
       name: 'PATCH /v1/reports/:report_id preserves the current partial update body',
       url: '/v1/reports/rpt-001',
       body: {
+        data_pull_interval: 45,
         name: 'Weekly Summary',
       },
     },

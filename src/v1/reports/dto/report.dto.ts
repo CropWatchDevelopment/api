@@ -11,6 +11,9 @@ export class ReportDto implements ReportRow {
   @ApiProperty({ format: 'date-time' })
   created_at: string;
 
+  @ApiProperty({ minimum: 1 })
+  data_pull_interval: number;
+
   @ApiProperty()
   dev_eui: string;
 

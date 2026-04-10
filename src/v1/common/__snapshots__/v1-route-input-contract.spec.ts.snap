@@ -308,6 +308,11 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             "format": "date-time",
             "type": "string",
           },
+          "data_pull_interval": {
+            "minimum": 15,
+            "maximum": 120,
+            "type": "number",
+          },
           "dev_eui": {
             "type": "string",
           },
@@ -691,6 +696,10 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           "created_at": {
             "format": "date-time",
             "type": "string",
+          },
+          "data_pull_interval": {
+            "minimum": 1,
+            "type": "number",
           },
           "dev_eui": {
             "type": "string",

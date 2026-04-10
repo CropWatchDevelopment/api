@@ -1873,6 +1873,7 @@ export type Database = {
       reports: {
         Row: {
           created_at: string
+          data_pull_interval: number
           dev_eui: string
           id: number
           name: string
@@ -1881,6 +1882,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          data_pull_interval?: number
           dev_eui: string
           id?: number
           name: string
@@ -1889,6 +1891,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          data_pull_interval?: number
           dev_eui?: string
           id?: number
           name?: string
