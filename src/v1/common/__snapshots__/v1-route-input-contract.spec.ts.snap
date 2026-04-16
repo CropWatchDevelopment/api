@@ -309,8 +309,7 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             "type": "string",
           },
           "data_pull_interval": {
-            "minimum": 15,
-            "maximum": 120,
+            "minimum": 1,
             "type": "number",
           },
           "dev_eui": {

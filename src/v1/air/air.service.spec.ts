@@ -77,6 +77,10 @@ describe('AirService', () => {
 
   describe('createNote', () => {
     it('resolves millisecond timestamps to the canonical air reading before insert', async () => {
+      const jwtPayload = {
+        email: 'user-123@example.com',
+        sub: 'user-123',
+      };
       const dto: CreateAirAnnotationDto = {
         created_at: '2026-03-13T14:30:01.232Z',
         dev_eui: ' 2CF7F1C073800102 ',
@@ -96,7 +100,7 @@ describe('AirService', () => {
       const insertBuilder = createInsertBuilder({
         data: {
           created_at: resolvedCreatedAt,
-          created_by: 'user-123',
+          created_by: 'user-123@example.com',
           dev_eui: '2CF7F1C073800102',
           id: 1,
           include_in_report: true,
@@ -122,10 +126,10 @@ describe('AirService', () => {
       });
 
       await expect(
-        service.createNote(dto, { sub: 'user-123' }),
+        service.createNote(dto, jwtPayload),
       ).resolves.toEqual({
         created_at: resolvedCreatedAt,
-        created_by: 'user-123',
+        created_by: 'user-123@example.com',
         dev_eui: '2CF7F1C073800102',
         id: 1,
         include_in_report: true,
@@ -135,7 +139,7 @@ describe('AirService', () => {
 
       expect((service as any).assertDeviceAccess).toHaveBeenCalledWith(
         '2CF7F1C073800102',
-        { sub: 'user-123' },
+        jwtPayload,
       );
       expect(exactMatchBuilder.eq).toHaveBeenNthCalledWith(
         1,
@@ -157,7 +161,7 @@ describe('AirService', () => {
       );
       expect(insertBuilder.insert).toHaveBeenCalledWith({
         created_at: resolvedCreatedAt,
-        created_by: 'user-123',
+        created_by: 'user-123@example.com',
         dev_eui: '2CF7F1C073800102',
         include_in_report: true,
         note: 'stable reading',

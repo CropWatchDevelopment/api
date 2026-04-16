@@ -562,6 +562,10 @@ export class DevicesService {
             return null;
           }
 
+          if (deviceType.name === '[SEEED] DataLogger WaterLevel') {
+            console.log('hit');
+          }
+
           const location = Array.isArray(d.cw_locations)
             ? d.cw_locations[0]
             : d.cw_locations;
