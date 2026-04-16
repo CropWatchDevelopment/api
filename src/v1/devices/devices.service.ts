@@ -502,7 +502,7 @@ export class DevicesService {
     let devicesQuery = client
       .from('cw_devices')
       .select(
-        `dev_eui, name, group, location_id, cw_rules(*), cw_device_type(name, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, owner_match:cw_device_owners()`,
+        `dev_eui, name, group, location_id, cw_rules(*), cw_device_type(name, default_upload_interval, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, owner_match:cw_device_owners()`,
         { count: 'exact' },
       );
 
@@ -576,9 +576,14 @@ export class DevicesService {
             latestFields.add('humidity');
           }
 
+          // sometimes the SET has empty values, we need to clean them
+          const latestFieldsCleaned = new Set(
+            [...latestFields].filter(v => v !== '')
+          );
+
           const { data: latestData, error: dataError } = await client
             .from(deviceType.data_table_v2)
-            .select(Array.from(latestFields).join(', '))
+            .select(Array.from(latestFieldsCleaned).join(', '))
             .eq('dev_eui', d.dev_eui)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -612,6 +617,7 @@ export class DevicesService {
             location_id: d.location_id,
             group: d.group,
             created_at: latestRow.created_at,
+            default_upload_interval: deviceType.default_upload_interval,
             [primaryField]: latestRow[primaryField],
             [secondaryField]: latestRow[secondaryField],
             // if humidity, add it here
@@ -806,7 +812,7 @@ export class DevicesService {
       .from('cw_location_owners')
       .select('user_id')
       .eq('location_id', device.location_id);
-      
+
     if (locationUsersError) {
       throw new InternalServerErrorException('Failed to fetch location users');
     }
@@ -873,7 +879,7 @@ export class DevicesService {
     }
 
     // We have access to the existing device, lets ensure we have access to the new device.
-        let newDeviceQuery = client
+    let newDeviceQuery = client
       .from('cw_devices')
       .select(`*, owner_match:cw_device_owners()`)
       .eq('dev_eui', normalizedDevEui);
