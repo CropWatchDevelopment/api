@@ -737,7 +737,7 @@ export class DevicesService {
     if (primaryAndSecondaryOnly) {
       const primaryField = deviceType.primary_data_v2;
       const secondaryField = deviceType.secondary_data_v2;
-      if (!primaryField || !secondaryField) {
+      if (!primaryField && !secondaryField) {
         throw new NotFoundException(
           'Primary or secondary data field not defined for this device type',
         );
