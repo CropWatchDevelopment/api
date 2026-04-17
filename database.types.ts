@@ -392,7 +392,7 @@ export type Database = {
           created_by: string
           dev_eui: string
           id?: number
-          include_in_report: boolean
+          include_in_report?: boolean
           note?: string | null
           title: string
         }
@@ -470,15 +470,7 @@ export type Database = {
           wind_direction?: number | null
           wind_speed?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "cw_air_data_dev_eui_fkey"
-            columns: ["dev_eui"]
-            isOneToOne: false
-            referencedRelation: "cw_devices"
-            referencedColumns: ["dev_eui"]
-          },
-        ]
+        Relationships: []
       }
       cw_air_data_duplicate: {
         Row: {
@@ -773,6 +765,7 @@ export type Database = {
           battery_changed_at: string | null
           battery_level: number | null
           dev_eui: string
+          error_status: string | null
           group: string | null
           installed_at: string | null
           last_data_updated_at: string | null
@@ -796,6 +789,7 @@ export type Database = {
           battery_changed_at?: string | null
           battery_level?: number | null
           dev_eui: string
+          error_status?: string | null
           group?: string | null
           installed_at?: string | null
           last_data_updated_at?: string | null
@@ -819,6 +813,7 @@ export type Database = {
           battery_changed_at?: string | null
           battery_level?: number | null
           dev_eui?: string
+          error_status?: string | null
           group?: string | null
           installed_at?: string | null
           last_data_updated_at?: string | null
@@ -1816,6 +1811,7 @@ export type Database = {
         Row: {
           created_at: string
           dev_eui: string
+          end_of_day: boolean
           end_of_month: boolean
           end_of_week: boolean
           id: number
@@ -1823,10 +1819,12 @@ export type Database = {
           report_id: string | null
           report_user_schedule_id: number
           user_id: string
+          utc_offset: number
         }
         Insert: {
           created_at?: string
           dev_eui: string
+          end_of_day?: boolean
           end_of_month?: boolean
           end_of_week?: boolean
           id?: number
@@ -1834,10 +1832,12 @@ export type Database = {
           report_id?: string | null
           report_user_schedule_id?: number
           user_id?: string
+          utc_offset?: number
         }
         Update: {
           created_at?: string
           dev_eui?: string
+          end_of_day?: boolean
           end_of_month?: boolean
           end_of_week?: boolean
           id?: number
@@ -1845,6 +1845,7 @@ export type Database = {
           report_id?: string | null
           report_user_schedule_id?: number
           user_id?: string
+          utc_offset?: number
         }
         Relationships: [
           {
