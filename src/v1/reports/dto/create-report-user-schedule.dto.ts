@@ -15,6 +15,9 @@ export class CreateReportUserScheduleDto implements ReportUserScheduleInsert {
 	end_of_month?: boolean;
 
 	@ApiProperty({ required: false })
+	end_of_day?: boolean;
+
+	@ApiProperty({ required: false })
 	end_of_week?: boolean;
 
 	@ApiProperty({ required: false })

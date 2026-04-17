@@ -445,6 +445,21 @@ export class ReportsService {
       throw new InternalServerErrorException('Failed to update report user schedule');
     }
 
+    for (const schedule of report_user_schedule ?? []) {
+      const { error: insertScheduleError } = await client
+        .from('report_user_schedule')
+        .insert({
+          ...schedule,
+          dev_eui: cw_report_data.dev_eui,
+          report_id: report_id,
+          user_id: userId,
+        });
+
+      if (insertScheduleError) {
+        throw new InternalServerErrorException('Failed to update report user schedule');
+      }
+    }
+
     let { data: recipientsData, error: recipientsError } = await client
       .from('report_recipients')
       .delete()

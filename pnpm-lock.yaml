@@ -121,7 +121,7 @@ importers:
         specifier: ^0.5.21
         version: 0.5.21
       supabase:
-        specifier: ^2.76.15
+        specifier: '>=1.8.1'
         version: 2.76.15
       supertest:
         specifier: ^7.2.2
