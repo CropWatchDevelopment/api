@@ -32,10 +32,10 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 export class GatewayController {
   constructor(private readonly gatewayService: GatewayService) {}
 
-  @Post()
-  create(@Body() createGatewayDto: CreateGatewayDto) {
-    return this.gatewayService.create(createGatewayDto);
-  }
+  // @Post()
+  // create(@Body() createGatewayDto: CreateGatewayDto) {
+  //   return this.gatewayService.create(createGatewayDto);
+  // }
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -89,13 +89,13 @@ export class GatewayController {
     return this.gatewayService.findOne(gatewayId, req.user);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateGatewayDto: UpdateGatewayDto) {
-    return this.gatewayService.update(+id, updateGatewayDto);
-  }
+  // @Patch(':id')
+  // update(@Param('id') id: string, @Body() updateGatewayDto: UpdateGatewayDto) {
+  //   return this.gatewayService.update(+id, updateGatewayDto);
+  // }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.gatewayService.remove(+id);
-  }
+  // @Delete(':id')
+  // remove(@Param('id') id: string) {
+  //   return this.gatewayService.remove(+id);
+  // }
 }
