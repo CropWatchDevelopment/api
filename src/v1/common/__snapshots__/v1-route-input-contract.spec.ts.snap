@@ -402,6 +402,9 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           "dev_eui": {
             "type": "string",
           },
+          "end_of_day": {
+            "type": "boolean",
+          },
           "end_of_month": {
             "type": "boolean",
           },

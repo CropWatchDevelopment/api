@@ -15,6 +15,9 @@ export class ReportUserScheduleDto implements ReportUserScheduleRow {
   end_of_month: boolean;
 
   @ApiProperty()
+  end_of_day!: boolean;
+
+  @ApiProperty()
   end_of_week: boolean;
 
   @ApiProperty()
@@ -31,4 +34,7 @@ export class ReportUserScheduleDto implements ReportUserScheduleRow {
 
   @ApiProperty()
   user_id: string;
+
+  @ApiProperty()
+  utc_offset!: number;
 }

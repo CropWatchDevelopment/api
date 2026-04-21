@@ -19,6 +19,7 @@ import { ReportsModule } from './v1/reports/reports.module';
 import { PaymentsModule } from './v1/payments/payments.module';
 import { LocationsModule } from './v1/locations/locations.module';
 import { RelayModule } from './v1/relay/relay.module';
+import { GatewayModule } from './v1/gateway/gateway.module';
 
 @Module({
   imports: [
@@ -47,7 +48,7 @@ import { RelayModule } from './v1/relay/relay.module';
         ttl: 60000,
         limit: 2000,
         blockDuration: 86400000, // 24 hours
-      }
+      },
     ]),
     DevicesModule,
     RulesModule,
@@ -55,6 +56,7 @@ import { RelayModule } from './v1/relay/relay.module';
     PaymentsModule,
     LocationsModule,
     RelayModule,
+    GatewayModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
