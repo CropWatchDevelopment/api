@@ -24,26 +24,25 @@ describe('GatewayService', () => {
 
   function createFindAllGatewayQueries(
     ownedGatewayResult: unknown,
-    gatewayResult: unknown,
+    publicGatewayResult: unknown,
   ) {
     const ownedGatewayQuery = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockResolvedValue(ownedGatewayResult),
     };
-    const gatewayQuery = {
+    const publicGatewayQuery = {
       select: jest.fn().mockReturnThis(),
-      or: jest.fn().mockReturnThis(),
-      order: jest.fn().mockResolvedValue(gatewayResult),
+      eq: jest.fn().mockResolvedValue(publicGatewayResult),
     };
 
     const client = {
       from: jest
         .fn()
         .mockReturnValueOnce(ownedGatewayQuery)
-        .mockReturnValueOnce(gatewayQuery),
+        .mockReturnValueOnce(publicGatewayQuery),
     };
 
-    return { client, ownedGatewayQuery, gatewayQuery };
+    return { client, ownedGatewayQuery, publicGatewayQuery };
   }
 
   beforeEach(async () => {
@@ -93,7 +92,7 @@ describe('GatewayService', () => {
   });
 
   it('fetches all gateways scoped to the authenticated owner relation', async () => {
-    const gateways = [
+    const ownedGateways = [
       {
         id: 11,
         gateway_id: 'gw-001',
@@ -102,6 +101,7 @@ describe('GatewayService', () => {
         is_public: false,
         created_at: '2026-04-21T00:00:00.000Z',
         updated_at: null,
+        cw_gateways_owners: [{ user_id: 'user-123' }],
       },
       {
         id: 12,
@@ -111,34 +111,45 @@ describe('GatewayService', () => {
         is_public: false,
         created_at: '2026-04-21T00:00:00.000Z',
         updated_at: null,
+        cw_gateways_owners: [{ user_id: 'user-123' }],
       },
     ];
-    const { client, ownedGatewayQuery, gatewayQuery } =
+    const expectedGateways = ownedGateways.map((gateway) => ({
+      id: gateway.id,
+      gateway_id: gateway.gateway_id,
+      is_online: gateway.is_online,
+      is_public: gateway.is_public,
+      gateway_name: gateway.gateway_name,
+      updated_at: gateway.updated_at,
+    }));
+    const { client, ownedGatewayQuery, publicGatewayQuery } =
       createFindAllGatewayQueries(
         {
-          data: [{ gateway_id: 11 }, { gateway_id: 12 }],
+          data: ownedGateways,
           error: null,
         },
         {
-          data: gateways,
+          data: [],
           error: null,
         },
       );
     supabaseService.getClient.mockReturnValue(client);
 
     await expect(service.findAll({ sub: 'user-123' })).resolves.toEqual(
-      gateways,
+      expectedGateways,
     );
 
     expect(supabaseService.getClient).toHaveBeenCalledWith();
-    expect(client.from).toHaveBeenNthCalledWith(1, 'cw_gateways_owners');
-    expect(ownedGatewayQuery.eq).toHaveBeenCalledWith('user_id', 'user-123');
-    expect(client.from).toHaveBeenNthCalledWith(2, 'cw_gateways');
-    expect(gatewayQuery.or).toHaveBeenCalledWith(
-      'is_public.eq.true,id.in.(11,12)',
+    expect(client.from).toHaveBeenNthCalledWith(1, 'cw_gateways');
+    expect(ownedGatewayQuery.select).toHaveBeenCalledWith(
+      '*, cw_gateways_owners(*)',
     );
-    expect(gatewayQuery.order).toHaveBeenCalledWith('gateway_name', {
-      ascending: true,
-    });
+    expect(ownedGatewayQuery.eq).toHaveBeenCalledWith(
+      'cw_gateways_owners.user_id',
+      'user-123',
+    );
+    expect(client.from).toHaveBeenNthCalledWith(2, 'cw_gateways');
+    expect(publicGatewayQuery.select).toHaveBeenCalledWith('*');
+    expect(publicGatewayQuery.eq).toHaveBeenCalledWith('is_public', true);
   });
 });
