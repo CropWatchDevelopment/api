@@ -10,6 +10,7 @@ describe('GatewayService', () => {
     const query = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
       order: jest.fn().mockResolvedValue(result),
       maybeSingle: jest.fn().mockResolvedValue(result),
     };
@@ -49,6 +50,7 @@ describe('GatewayService', () => {
       is_public: false,
       created_at: '2026-04-21T00:00:00.000Z',
       updated_at: null,
+      cw_gateways_owners: [{ user_id: 'user-123' }],
     };
     const { client, query } = createGatewayQuery({
       data: gateway,
@@ -62,7 +64,6 @@ describe('GatewayService', () => {
 
     expect(supabaseService.getClient).toHaveBeenCalledWith();
     expect(client.from).toHaveBeenCalledWith('cw_gateways');
-    expect(query.eq).toHaveBeenCalledWith('owner_match.user_id', 'user-123');
     expect(query.eq).toHaveBeenCalledWith('gateway_id', 'gw-001');
     expect(query.maybeSingle).toHaveBeenCalledTimes(1);
   });
@@ -101,6 +102,9 @@ describe('GatewayService', () => {
     expect(supabaseService.getClient).toHaveBeenCalledWith();
     expect(client.from).toHaveBeenCalledWith('cw_gateways');
     expect(query.eq).toHaveBeenCalledWith('owner_match.user_id', 'user-123');
+    expect(query.or).toHaveBeenCalledWith(
+      'is_public.eq.true,owner_match.not.is.null',
+    );
     expect(query.order).toHaveBeenCalledWith('gateway_name', {
       ascending: true,
     });

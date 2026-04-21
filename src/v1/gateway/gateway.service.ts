@@ -28,11 +28,12 @@ export class GatewayService {
       .select(
         `
         *,
-        owner_match:cw_gateways_owners!inner(),
+        owner_match:cw_gateways_owners(),
         cw_gateways_owners(*)
       `,
       )
       .eq('owner_match.user_id', userId)
+      .or('is_public.eq.true,owner_match.not.is.null')
       .order('gateway_name', { ascending: true });
 
     if (error) {
