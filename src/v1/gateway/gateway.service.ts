@@ -25,7 +25,7 @@ export class GatewayService {
 
     const { data: ownedGateways, error: ownedGatewaysError } = await client
       .from('cw_gateways')
-      .select('*, cw_gateways_owners(*)')
+      .select('*, cw_gateways_owners!inner(*)')
       .eq('cw_gateways_owners.user_id', userId);
 
     const { data: publicGateways, error: publicGatewaysError } = await client
