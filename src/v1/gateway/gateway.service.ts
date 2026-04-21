@@ -23,24 +23,31 @@ export class GatewayService {
     const client = this.supabaseService.getClient();
     const userId = getUserId(jwtPayload);
 
-    const { data, error } = await client
+    const { data: ownedGateways, error: ownedGatewaysError } = await client
       .from('cw_gateways')
-      .select(
-        `
-        *,
-        owner_match:cw_gateways_owners(),
-        cw_gateways_owners(*)
-      `,
-      )
-      .eq('owner_match.user_id', userId)
-      .or('is_public.eq.true,owner_match.not.is.null')
-      .order('gateway_name', { ascending: true });
+      .select('*, cw_gateways_owners(*)')
+      .eq('cw_gateways_owners.user_id', userId);
 
-    if (error) {
+    const { data: publicGateways, error: publicGatewaysError } = await client
+      .from('cw_gateways')
+      .select('*')
+      .eq('is_public', true);
+
+    if (ownedGatewaysError || publicGatewaysError) {
       throw new InternalServerErrorException('Failed to fetch gateways');
     }
 
-    return data ?? [];
+    const ownedGatewayIds = new Set(
+      ownedGateways?.map((og) => og.gateway_id) ?? [],
+    );
+
+    const allGateways = [
+      ...(ownedGateways ?? []).map((og) => ({ gateway_id: og.gateway_id, is_online: og.is_online, is_public: og.is_public, gateway_name: og.gateway_name, updated_at: og.updated_at })),
+      ...(publicGateways ?? []).filter((pg) => !ownedGatewayIds.has(pg.gateway_id)),
+    ];
+
+
+    return allGateways ?? [];
   }
 
   async findOne(

@@ -22,6 +22,30 @@ describe('GatewayService', () => {
     return { client, query };
   }
 
+  function createFindAllGatewayQueries(
+    ownedGatewayResult: unknown,
+    gatewayResult: unknown,
+  ) {
+    const ownedGatewayQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockResolvedValue(ownedGatewayResult),
+    };
+    const gatewayQuery = {
+      select: jest.fn().mockReturnThis(),
+      or: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue(gatewayResult),
+    };
+
+    const client = {
+      from: jest
+        .fn()
+        .mockReturnValueOnce(ownedGatewayQuery)
+        .mockReturnValueOnce(gatewayQuery),
+    };
+
+    return { client, ownedGatewayQuery, gatewayQuery };
+  }
+
   beforeEach(async () => {
     supabaseService = {
       getClient: jest.fn(),
@@ -89,10 +113,17 @@ describe('GatewayService', () => {
         updated_at: null,
       },
     ];
-    const { client, query } = createGatewayQuery({
-      data: gateways,
-      error: null,
-    });
+    const { client, ownedGatewayQuery, gatewayQuery } =
+      createFindAllGatewayQueries(
+        {
+          data: [{ gateway_id: 11 }, { gateway_id: 12 }],
+          error: null,
+        },
+        {
+          data: gateways,
+          error: null,
+        },
+      );
     supabaseService.getClient.mockReturnValue(client);
 
     await expect(service.findAll({ sub: 'user-123' })).resolves.toEqual(
@@ -100,12 +131,13 @@ describe('GatewayService', () => {
     );
 
     expect(supabaseService.getClient).toHaveBeenCalledWith();
-    expect(client.from).toHaveBeenCalledWith('cw_gateways');
-    expect(query.eq).toHaveBeenCalledWith('owner_match.user_id', 'user-123');
-    expect(query.or).toHaveBeenCalledWith(
-      'is_public.eq.true,owner_match.not.is.null',
+    expect(client.from).toHaveBeenNthCalledWith(1, 'cw_gateways_owners');
+    expect(ownedGatewayQuery.eq).toHaveBeenCalledWith('user_id', 'user-123');
+    expect(client.from).toHaveBeenNthCalledWith(2, 'cw_gateways');
+    expect(gatewayQuery.or).toHaveBeenCalledWith(
+      'is_public.eq.true,id.in.(11,12)',
     );
-    expect(query.order).toHaveBeenCalledWith('gateway_name', {
+    expect(gatewayQuery.order).toHaveBeenCalledWith('gateway_name', {
       ascending: true,
     });
   });
