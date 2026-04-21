@@ -649,6 +649,45 @@ export type Database = {
           },
         ]
       }
+      cw_device_rule_assignments: {
+        Row: {
+          created_at: string | null
+          dev_eui: string
+          id: number
+          is_active: boolean | null
+          template_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          dev_eui: string
+          id?: number
+          is_active?: boolean | null
+          template_id: number
+        }
+        Update: {
+          created_at?: string | null
+          dev_eui?: string
+          id?: number
+          is_active?: boolean | null
+          template_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_device_rule_assignments_dev_eui_fkey"
+            columns: ["dev_eui"]
+            isOneToOne: false
+            referencedRelation: "cw_devices"
+            referencedColumns: ["dev_eui"]
+          },
+          {
+            foreignKeyName: "cw_device_rule_assignments_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_rule_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cw_device_type: {
         Row: {
           created_at: string
@@ -1166,6 +1205,190 @@ export type Database = {
             referencedColumns: ["ruleGroupId"]
           },
         ]
+      }
+      cw_rule_monthly_usage: {
+        Row: {
+          dev_eui: string
+          id: number
+          month: number
+          template_id: number
+          trigger_count: number | null
+          year: number
+        }
+        Insert: {
+          dev_eui: string
+          id?: number
+          month: number
+          template_id: number
+          trigger_count?: number | null
+          year: number
+        }
+        Update: {
+          dev_eui?: string
+          id?: number
+          month?: number
+          template_id?: number
+          trigger_count?: number | null
+          year?: number
+        }
+        Relationships: []
+      }
+      cw_rule_state: {
+        Row: {
+          dev_eui: string
+          id: number
+          is_triggered: boolean
+          last_reset_at: string | null
+          last_triggered_at: string | null
+          template_id: number
+        }
+        Insert: {
+          dev_eui: string
+          id?: number
+          is_triggered?: boolean
+          last_reset_at?: string | null
+          last_triggered_at?: string | null
+          template_id: number
+        }
+        Update: {
+          dev_eui?: string
+          id?: number
+          is_triggered?: boolean
+          last_reset_at?: string | null
+          last_triggered_at?: string | null
+          template_id?: number
+        }
+        Relationships: []
+      }
+      cw_rule_template_actions: {
+        Row: {
+          action_type: string
+          config: Json
+          created_at: string | null
+          id: number
+          template_id: number
+        }
+        Insert: {
+          action_type: string
+          config: Json
+          created_at?: string | null
+          id?: number
+          template_id: number
+        }
+        Update: {
+          action_type?: string
+          config?: Json
+          created_at?: string | null
+          id?: number
+          template_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_rule_template_actions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_rule_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cw_rule_template_criteria: {
+        Row: {
+          created_at: string | null
+          id: number
+          operator: string
+          reset_value: number
+          subject: string
+          template_id: number
+          trigger_value: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          operator: string
+          reset_value: number
+          subject: string
+          template_id: number
+          trigger_value: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          operator?: string
+          reset_value?: number
+          subject?: string
+          template_id?: number
+          trigger_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_rule_template_criteria_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_rule_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cw_rule_templates: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          device_type_id: number | null
+          id: number
+          is_active: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          device_type_id?: number | null
+          id?: number
+          is_active?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          device_type_id?: number | null
+          id?: number
+          is_active?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      cw_rule_trigger_log: {
+        Row: {
+          created_at: string | null
+          dev_eui: string
+          id: number
+          reset_at: string | null
+          reset_value: number | null
+          template_id: number
+          triggered_at: string | null
+          triggered_value: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          dev_eui: string
+          id?: number
+          reset_at?: string | null
+          reset_value?: number | null
+          template_id: number
+          triggered_at?: string | null
+          triggered_value?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          dev_eui?: string
+          id?: number
+          reset_at?: string | null
+          reset_value?: number | null
+          template_id?: number
+          triggered_at?: string | null
+          triggered_value?: number | null
+        }
+        Relationships: []
       }
       cw_rule_triggered: {
         Row: {
