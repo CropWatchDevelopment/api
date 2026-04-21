@@ -142,7 +142,7 @@ describe('GatewayService', () => {
     expect(supabaseService.getClient).toHaveBeenCalledWith();
     expect(client.from).toHaveBeenNthCalledWith(1, 'cw_gateways');
     expect(ownedGatewayQuery.select).toHaveBeenCalledWith(
-      '*, cw_gateways_owners(*)',
+      '*, cw_gateways_owners!inner(*)',
     );
     expect(ownedGatewayQuery.eq).toHaveBeenCalledWith(
       'cw_gateways_owners.user_id',
