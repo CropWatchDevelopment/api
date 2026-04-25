@@ -436,73 +436,86 @@ export class ReportsService {
       }
     }
 
-    let { data: scheduleData, error: scheduleError } = await client
+    const { error: scheduleDeleteError } = await client
       .from('report_user_schedule')
       .delete()
-      .eq('report_id', report_id)
-      .select('*');
-    if (scheduleError) {
+      .eq('report_id', report_id);
+    if (scheduleDeleteError) {
+      console.error('Failed to delete report user schedule', scheduleDeleteError);
       throw new InternalServerErrorException('Failed to update report user schedule');
     }
 
-    for (const schedule of report_user_schedule ?? []) {
-      const { error: insertScheduleError } = await client
-        .from('report_user_schedule')
-        .insert({
-          ...schedule,
+    if (report_user_schedule?.length) {
+      const scheduleRows = report_user_schedule.map(
+        ({ id, report_user_schedule_id, created_at, ...rest }) => ({
+          ...rest,
           dev_eui: cw_report_data.dev_eui,
           report_id: report_id,
           user_id: userId,
-        });
+        }),
+      );
+
+      const { error: insertScheduleError } = await client
+        .from('report_user_schedule')
+        .insert(scheduleRows);
 
       if (insertScheduleError) {
+        console.error('Failed to insert report user schedule', insertScheduleError);
         throw new InternalServerErrorException('Failed to update report user schedule');
       }
     }
 
-    let { data: recipientsData, error: recipientsError } = await client
+    const { error: recipientsDeleteError } = await client
       .from('report_recipients')
       .delete()
-      .eq('report_id', report_id)
-      .select('*');
-    if (recipientsError) {
+      .eq('report_id', report_id);
+    if (recipientsDeleteError) {
+      console.error('Failed to delete report recipients', recipientsDeleteError);
       throw new InternalServerErrorException('Failed to update report recipients');
     }
 
-    for (const recipients of report_recipients ?? []) {
-      const { data: insertedRecipients, error: insertRecipientError } = await client
-        .from('report_recipients')
-        .upsert({
-          ...recipients,
+    if (report_recipients?.length) {
+      const recipientRows = report_recipients.map(
+        ({ id, created_at, ...rest }) => ({
+          ...rest,
           report_id: report_id,
           user_id: userId,
-        })
-        .eq('id', recipients.id)
-        .select('*');
+        }),
+      );
 
-      if (insertRecipientError || !insertedRecipients) {
+      const { error: insertRecipientError } = await client
+        .from('report_recipients')
+        .insert(recipientRows);
+
+      if (insertRecipientError) {
+        console.error('Failed to insert report recipients', insertRecipientError);
         throw new InternalServerErrorException('Failed to update report recipients');
       }
     }
 
-    // Delete existing data processing schedules and re-insert
-    let { error: dpScheduleDeleteError } = await client
+    const { error: dpScheduleDeleteError } = await client
       .from('report_data_processing_schedules')
       .delete()
       .eq('report_id', report_id);
     if (dpScheduleDeleteError) {
+      console.error('Failed to delete report data processing schedules', dpScheduleDeleteError);
       throw new InternalServerErrorException('Failed to update report data processing schedules');
     }
 
-    for (const schedule of report_data_processing_schedules ?? []) {
+    if (report_data_processing_schedules?.length) {
+      const dpRows = report_data_processing_schedules.map(
+        ({ id, created_at, updated_at, ...rest }) => ({
+          ...rest,
+          report_id: report_id,
+        }),
+      );
+
       const { error: insertDpError } = await client
         .from('report_data_processing_schedules')
-        .insert({
-          ...schedule,
-          report_id: report_id,
-        });
+        .insert(dpRows);
 
       if (insertDpError) {
+        console.error('Failed to insert report data processing schedules', insertDpError);
         throw new InternalServerErrorException('Failed to update report data processing schedules');
       }
     }

@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './guards/jwt.auth.guard';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiConflictResponse,
   ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
@@ -14,6 +15,7 @@ import {
 import { AuthService } from './auth.service';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
+import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 
 @Controller({ path: 'auth', version: '1' })
 @ApiBearerAuth('bearerAuth')
@@ -57,6 +59,38 @@ export class AuthController {
   })
   async getUserProfile(@Req() req) {
     return this.authService.getUserProfile(req.user, req.headers?.authorization, req.user);
+  }
+
+  @Patch('user-profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update the authenticated user profile' })
+  @ApiOkResponse({
+    description: 'User profile updated successfully.',
+    schema: { type: 'object', additionalProperties: true },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid profile payload.',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+  })
+  @ApiConflictResponse({
+    description: 'Username is already taken by another user.',
+    type: ErrorResponseDto,
+    example: {
+      statusCode: 409,
+      error: 'Conflict',
+      message: 'Username is already taken',
+    },
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to update user profile.',
+    type: ErrorResponseDto,
+  })
+  async updateUserProfile(@Body() body: UpdateUserProfileDto, @Req() req) {
+    return this.authService.updateUserProfile(body, req.headers?.authorization, req.user);
   }
 
   @Throttle({ default: { limit: 2, ttl: 60000 } })
