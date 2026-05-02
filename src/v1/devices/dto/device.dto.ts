@@ -78,8 +78,6 @@ export class DeviceDto {
   @ApiProperty({ required: false, nullable: true })
   report_endpoint: string | null;
 
-  @ApiProperty({ required: false, nullable: true })
-  battery_level: number | null;
 
   @ApiProperty({
     required: false,

@@ -1,0 +1,253 @@
+# CropWatch API
+
+> CropWatch's REST + WebSocket API for authenticated agricultural device monitoring, automation, and subscription billing. Built with NestJS, backed by Supabase (Postgres + Auth), and integrated with Polar for payments and TTI (The Things Industries) for LoRaWAN device messaging.
+
+This file is the LLM-oriented contract for the API. It is intended to be loaded by tools and agents in other projects (e.g. the CWUI frontend at `../CWUI`) so they can call the API correctly without fetching the Swagger JSON first. When this file and the live OpenAPI spec disagree, the OpenAPI spec is authoritative — see "Authoritative sources" below.
+
+## Quick facts
+
+- **Stack:** NestJS 11, TypeScript, Supabase JS, Socket.IO, class-validator, Swagger.
+- **Versioning:** URI versioning is enabled with default version `1`. All HTTP routes are served under `/v1/<resource>` (e.g. `GET /v1/devices`).
+- **Auth:** Supabase JWT bearer tokens. Obtain via `POST /v1/auth/login`. Send as `Authorization: Bearer <access_token>` on every protected request.
+- **API key header:** Swagger advertises an `x-api-key` security scheme. The repo does not enforce it inside Nest — if a deployment requires it, enforcement happens at the edge/proxy.
+- **Throttling:** Global `ThrottlerGuard` is installed. `POST /v1/auth/login` is additionally throttled to 2 requests/minute.
+- **Validation:** Global `ValidationPipe` with `whitelist: true`, `forbidNonWhitelisted: true`, `transform: true`. Sending unknown fields returns `400`.
+- **CORS:** Enabled for all origins.
+- **Default port:** `3000` (override with `PORT` env var).
+- **Production base URL:** `https://api.cropwatch.io` (use this when calling from other projects unless overridden).
+- **Local base URL:** `http://localhost:3000`.
+
+## Authoritative sources
+
+When in doubt, use the live spec — DTOs and routes change.
+
+- Swagger UI: `GET /docs`
+- OpenAPI JSON (v1): `GET /docs-json-v1`
+- OpenAPI JSON (v2, future): `GET /docs-json-v2`
+- Source of truth for routes: `src/v1/<resource>/<resource>.controller.ts`
+- Source of truth for request shapes: `src/v1/<resource>/dto/*.ts`
+- Database schema types: `database.types.ts` (generated from Supabase)
+
+## Authentication flow
+
+1. POST credentials to `/v1/auth/login`:
+   ```
+   POST /v1/auth/login
+   Content-Type: application/json
+
+   { "email": "user@example.com", "password": "StrongPassword123!" }
+   ```
+   Returns `{ message: string, data: { ... Supabase session including access_token ... } }`.
+
+2. Use the returned `access_token` on every other request:
+   ```
+   Authorization: Bearer <access_token>
+   ```
+
+3. Verify the current user with `GET /v1/auth` (returns the decoded JWT payload).
+
+4. Most reads/writes are user-scoped: the JWT identifies the caller, and the service layer filters Supabase queries by that user's id and ownership tables (`cw_device_owners`, `cw_location_owners`).
+
+5. Login throttling is strict (2/min). Cache tokens — don't re-login on every request.
+
+## Common conventions
+
+- **Time-series query params** (`/v1/air`, `/v1/soil`, `/v1/water`, `/v1/traffic`):
+  - `start` — ISO 8601 datetime (inclusive lower bound)
+  - `end` — ISO 8601 datetime (inclusive upper bound), must be `>= start`
+  - `timezone` — IANA name (default `UTC`), used to format `created_at` strings in the response
+- **Pagination** (`devices`, `latest-primary-data`, etc.):
+  - `skip` — number of rows to skip (default `0`)
+  - `take` — page size (default depends on endpoint)
+- **Path identifiers:**
+  - `dev_eui` — LoRaWAN device EUI, 16 hex chars (e.g. `A1B2C3D4E5F60708`)
+  - `location_id` — integer (`cw_locations.location_id`)
+  - `id` / `report_id` / `note_id` — integer surrogate keys
+- **Errors:** Standard Nest error shape: `{ statusCode, error, message }`. See `src/v1/common/dto/error-response.dto.ts`.
+
+## Endpoint catalog (v1)
+
+All paths are prefixed with `/v1`. "Auth" column: `JWT` = requires `Authorization: Bearer`; `—` = public.
+
+### Auth — `/v1/auth`
+| Method | Path | Auth | Body / Query | Notes |
+|---|---|---|---|---|
+| POST | `/auth/login` | — | `{ email, password }` | Throttled 2/min. Returns `LoginResponseDto`. |
+| GET | `/auth` | JWT | — | Returns the decoded JWT user payload. |
+| GET | `/auth/user-profile` | JWT | — | Profile row from `profiles` table. |
+| PATCH | `/auth/user-profile` | JWT | `UpdateUserProfileDto` | Fields: `full_name`, `username`, `website`, `employer`, `phone_number` (all optional, nullable). 409 if username taken. |
+
+### Devices — `/v1/devices`
+| Method | Path | Auth | Body / Query | Notes |
+|---|---|---|---|---|
+| GET | `/devices` | JWT | `?skip&take&group&name&location` | Returns devices visible to the caller. Filters on `group`, `name`, `location` (all optional substring/equality). |
+| GET | `/devices/status` | JWT | `?skip&take` | Online/offline status summary. |
+| GET | `/devices/groups` | JWT | — | Distinct group names for the user. |
+| GET | `/devices/device-types` | JWT | — | Catalog of device types (`cw_device_type`). |
+| GET | `/devices/latest-primary-data` | JWT | `?skip&take&group-by-device-group&name&location&locationGroup` | Latest primary/secondary value per device. Useful for dashboards. |
+| GET | `/devices/location/:location_id` | JWT | — | All devices for a location. |
+| GET | `/devices/:dev_eui` | JWT | — | Single device, see `DeviceDto`. |
+| GET | `/devices/:dev_eui/data` | JWT | `?skip&take` | Latest full data records for a device (paginated). |
+| GET | `/devices/:dev_eui/data-within-range` | JWT | `?start&end&skip&take` | Full data within ISO 8601 range. |
+| GET | `/devices/:dev_eui/latest-data` | JWT | — | Single most-recent full record. |
+| GET | `/devices/:dev_eui/latest-primary-data` | JWT | — | Two-value primary/secondary snapshot. |
+| POST | `/devices/:dev_eui` | JWT | — | Create device — currently a stub (501-ish). |
+| POST | `/devices/:dev_eui/replace` | JWT | `ReplaceDeviceDto` | Replace device — currently a stub. |
+| PATCH | `/devices/:dev_eui` | JWT | `UpdateDeviceNameGroupLocalDto` `{ name, group?, location_id, tti_name? }` | Rename / move / set TTI mapping. |
+| PATCH | `/devices/:dev_eui/permission-level` | JWT | `UpdateDevicePermissionDto` `{ targetUserEmail, permissionLevel (1-4), dev_eui? }` | Share device with another user. |
+
+`DeviceDto` (response shape, all non-listed fields nullable):
+`dev_eui, name, type, upload_interval, lat, long, installed_at, battery_changed_at, user_id, warranty_start_date, sensor1_serial, sensor2_serial, sensor_serial, location_id, report_endpoint, last_data_updated_at, tti_name, primary_data, secondary_data, group, cw_device_owners[]`.
+
+### Telemetry — air / soil / water / traffic
+All four follow the same pattern: `GET /v1/<kind>/:dev_eui?start&end&timezone`.
+
+| Method | Path | Auth | Returns |
+|---|---|---|---|
+| GET | `/air/:dev_eui` | JWT | `AirDataDto[]` — `created_at, dev_eui, co, co2, humidity, is_simulated, lux, pressure, rainfall, smoke_detected, temperature_c, uv_index, vape_detected, wind_direction, wind_speed`. |
+| GET | `/soil/:dev_eui` | JWT | `SoilDataDto[]` — `created_at, dev_eui, ec, moisture, ph, temperature_c`. |
+| GET | `/water/:dev_eui` | JWT | `WaterDataDto[]` — `created_at, dev_eui, id, deapth_cm, pressure, spo2, temperature_c`. (Note: `deapth_cm` is the column name as-is in the DB.) |
+| GET | `/traffic/:dev_eui` | JWT | `TrafficDataDto[]` — `created_at, dev_eui, id, bicycle_count, bus_count, car_count, line_number, motorcycle_count, people_count, traffic_hour, train_count, truck_count`. |
+| GET | `/traffic/:dev_eui/monthly` | JWT | Monthly aggregated report. Query: `year`, `month`, `timezone`. |
+
+### Air notes — `/v1/air/notes`
+Free-form annotations attached to a device by month/year.
+
+| Method | Path | Auth | Body / Params | Notes |
+|---|---|---|---|---|
+| POST | `/air/notes` | JWT | `CreateAirAnnotationDto` | Create a note. |
+| GET | `/air/notes/:dev_eui/month/:month/year/:year` | JWT | path params | List notes for the month. |
+| DELETE | `/air/notes/:note_id` | JWT | — | Delete a note. |
+
+### Devices — relay control — `/v1/relay`
+For devices that support relay actuation over LoRaWAN downlink (via TTI).
+
+| Method | Path | Auth | Body / Notes |
+|---|---|---|---|
+| GET | `/relay/:dev_eui` | JWT | Returns latest known relay state. |
+| PATCH | `/relay/:dev_eui` | JWT | `UpdateRelayDto` `{ relay: 1\|2, targetState: 'on'\|'off' }` — sends downlink, waits for TTI confirmation. |
+| POST | `/relay/:dev_eui/pulse` | JWT | `PulseRelayDto` `{ relay: 1\|2, durationSeconds: 1..4294967 }` — drive on for N seconds then revert. |
+| POST | `/relay/tti/up` | — | TTI webhook for confirmation uplinks. Not for client use. |
+
+### Locations — `/v1/locations`
+| Method | Path | Auth | Body / Query | Notes |
+|---|---|---|---|---|
+| POST | `/locations` | JWT | `CreateLocationDto` `{ name, description?, group?, lat?, long?, map_zoom?, owner_id?, location_id? }` | Create. |
+| GET | `/locations` | JWT | `?name` | List. |
+| GET | `/locations/groups` | JWT | — | Distinct group names. |
+| GET | `/locations/:id` | JWT | — | Returns `LocationDto` with `cw_location_owners[]`. |
+| PATCH | `/locations/:id` | JWT | `UpdateLocationDto` | Partial update. |
+| POST | `/locations/:id/permission` | JWT | `CreateLocationOwnerDto` + `?newUserEmail&permission_level&applyToAllDevices` | Grant access. |
+| PATCH | `/locations/:id/permission` | JWT | `UpdateLocationOwnerDto` + `?applyToAllDevices` | Modify access. |
+| PATCH | `/locations/:id/permission-level` | JWT | object body + `?applyToAllDevices` | Change permission level. |
+| DELETE | `/locations/:id/permission` | JWT | `?permission_id` | Revoke access. |
+
+### Gateways — `/v1/gateway`
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/gateway` | JWT | List the caller's gateways. |
+| GET | `/gateway/:gatewayId` | JWT | Single gateway. |
+
+### Rules (alerting) — `/v1/rules`
+Threshold-based rules that fire notifications when criteria are met.
+
+| Method | Path | Auth | Body / Query |
+|---|---|---|---|
+| POST | `/rules` | JWT | `CreateRuleDto` |
+| GET | `/rules` | JWT | `?name` |
+| GET | `/rules/triggered` | JWT | — |
+| GET | `/rules/triggered/count` | JWT | — |
+| GET | `/rules/:id` | JWT | — |
+| PATCH | `/rules/:id` | JWT | `UpdateRuleDto` |
+| DELETE | `/rules/:id` | JWT | — |
+
+`CreateRuleDto` required fields: `action_recipient` (string), `name` (string), `notifier_type` (int — channel: email/sms/etc., see DB enum), `ruleGroupId` (string). Optional: `dev_eui`, `is_triggered`, `last_triggered`, `profile_id`, `send_using`, `trigger_count`, plus `cw_rule_criteria: RuleCriteriaDto[]` (the actual threshold conditions).
+
+### Reports — `/v1/reports`
+Scheduled reports with recipients, alert points, and data-processing schedules.
+
+| Method | Path | Auth | Body / Notes |
+|---|---|---|---|
+| POST | `/reports` | JWT | `CreateReportDto` (see below) |
+| GET | `/reports` | JWT | `?name` |
+| GET | `/reports/:id` | JWT | — |
+| GET | `/reports/history/:dev_eui` | JWT | List generated report runs for a device. |
+| GET | `/reports/download/:dev_eui/:report_id/:reportName` | JWT | Stream a generated report file. |
+| PATCH | `/reports/:report_id` | JWT | `UpdateReportDto` |
+| DELETE | `/reports/:report_id` | JWT | — |
+
+`CreateReportDto` required: `dev_eui`, `name`. Optional: `data_pull_interval` (minutes), `report_id` (uuid str), and the four nested arrays `report_user_schedule[]`, `report_alert_points[]`, `report_recipients[]`, `report_data_processing_schedules[]`. Each nested type lives in `src/v1/reports/dto/`.
+
+### Payments — `/v1/payments` (Polar)
+| Method | Path | Auth | Body / Notes |
+|---|---|---|---|
+| POST | `/payments/subscriptions/checkout` | JWT | `CreateCheckoutSessionDto` `{ products: string[], success_url?, return_url?, customer_name?, customer_email?, customer_billing_address?, metadata?, customer_metadata?, allow_discount_codes?, allow_trial? }` — returns Polar checkout URL. |
+| GET | `/payments/subscriptions` | JWT | List subscriptions for the user. |
+| GET | `/payments/products` | JWT | List Polar products. |
+| GET | `/payments/subscriptions/state` | JWT | Customer subscription state (active/past_due/etc.). |
+| POST | `/payments/subscriptions/portal` | JWT | `CreateCustomerPortalSessionDto` `{ return_url? }` — returns Polar customer portal URL. |
+| DELETE | `/payments/subscriptions/:id` | JWT | Cancel/revoke subscription. |
+
+### Power — `/v1/power`
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/power/:id` | — | Currently unprotected example endpoint. Treat as placeholder. |
+
+## WebSocket / Realtime
+
+`RealtimeGateway` (`src/v1/realtime/realtime.gateway.ts`) uses the default Socket.IO transport at the root namespace.
+
+- Server URL: same host as HTTP, default `ws://localhost:3000` (Socket.IO).
+- Messages currently implemented:
+  - `findOneRealtime` — payload: `number` (id). Server replies via the standard Socket.IO ack callback.
+
+The WebSocket surface is intentionally small today. Don't assume parity with REST for live device data — for "latest values" use `GET /v1/devices/:dev_eui/latest-data` or `/v1/devices/latest-primary-data`.
+
+## Calling from another project
+
+- **CWUI (sibling repo at `../CWUI`):** uses these endpoints from its server-side load functions. Centralize the base URL as an env var (`PUBLIC_CROPWATCH_API_BASE_URL` or similar) and pass the user's Supabase access token in `Authorization`. Do not hardcode `http://localhost:3000`.
+- **Token storage:** the `LoginResponseDto.data` envelope is a Supabase session (`access_token`, `refresh_token`, `expires_at`, `user`). Persist what you need; refresh via Supabase client, not via this API.
+- **Type sharing:** if you need TS types, prefer generating from `/docs-json-v1` (e.g. with `openapi-typescript`) rather than copying DTOs — the DTOs include validation decorators that don't translate.
+- **Pagination defaults differ per endpoint** — pass `skip`/`take` explicitly when the count matters.
+- **Validation is strict.** Sending an extra field will 400, not silently ignore. Match the DTO exactly.
+- **`dev_eui` is case-insensitive in practice but uppercase hex is the canonical form.**
+
+## Project layout (for orientation)
+
+```
+src/
+  main.ts                # bootstrap, Swagger, helmet, CORS, throttler, versioning
+  app.module.ts          # module wiring
+  v1/
+    auth/                # login + profile + JwtAuthGuard
+    devices/             # device CRUD + permissions + status
+    air/ soil/ water/    # time-series telemetry
+    traffic/             # traffic + monthly report
+    air/notes            # device annotations
+    relay/               # relay actuation via TTI
+    locations/           # location + permissions
+    gateway/             # LoRaWAN gateways
+    rules/               # threshold rules + criteria
+    reports/             # scheduled reports + recipients + schedules
+    payments/            # Polar checkout/portal/subscriptions
+    power/               # placeholder
+    realtime/            # Socket.IO gateway
+    common/              # shared DTOs (ErrorResponseDto), TimezoneFormatterService
+  utils/                 # gitCommit helper for Swagger version stamp
+database.types.ts        # Supabase-generated row/insert/update types
+static/                  # Swagger UI assets, landing page
+supabase/                # local Supabase project config + SQL migrations
+```
+
+## Operational notes
+
+- Routes are logged per-request to the Nest logger as `<ip> - <url> - <method> - <status>`.
+- `trust proxy` is enabled, so `req.ip` and rate limiting respect `X-Forwarded-For`.
+- CSRF is wired (`csrf-csrf`) but not currently applied to a route group; treat it as not-yet-enforced.
+- Helmet CSP is configured for the Swagger UI assets only — frontends consuming the API should have their own CSP.
+- The `version` field shown in Swagger is the current git commit hash (`getCommit()` in `src/utils/gitCommit.ts`), useful for confirming what's deployed.
+
+## Versioning policy
+
+- v1 is the live, stable surface. Anything documented above is v1.
+- v2 routes can be introduced under `/v2` (controllers using `@Controller({ path: ..., version: '2' })`); their OpenAPI doc is at `/docs-json-v2`. Do not consume v2 from clients until it's announced.

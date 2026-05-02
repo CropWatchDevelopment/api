@@ -502,7 +502,7 @@ export class DevicesService {
     let devicesQuery = client
       .from('cw_devices')
       .select(
-        `dev_eui, name, group, location_id, cw_rules(*), cw_device_type(name, default_upload_interval, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, owner_match:cw_device_owners()`,
+        `dev_eui, name, group, location_id, last_data_updated_at, cw_rules(*), cw_device_type(name, default_upload_interval, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, owner_match:cw_device_owners()`,
         { count: 'exact' },
       );
 
@@ -573,7 +573,7 @@ export class DevicesService {
           const latestFields = new Set([
             'created_at',
             deviceType.primary_data_v2,
-            deviceType.secondary_data_v2,
+            deviceType.secondary_data_v2
           ]);
 
           if (deviceType.data_table_v2 === 'cw_air_data') {
@@ -620,7 +620,7 @@ export class DevicesService {
             location_name: location?.name ?? 'n/a',
             location_id: d.location_id,
             group: d.group,
-            created_at: latestRow.created_at,
+            created_at: d.last_data_updated_at,
             default_upload_interval: deviceType.default_upload_interval,
             [primaryField]: latestRow[primaryField],
             [secondaryField]: latestRow[secondaryField],
@@ -745,11 +745,13 @@ export class DevicesService {
       return {
         dev_eui: normalizedDevEui,
         device_type: deviceType.name,
-        created_at: latestData.created_at,
+        created_at: device.last_data_updated_at ?? device.created_at,
+        lastUpdated: device.last_data_updated_at,
+        upload_interval: device.upload_interval ?? deviceType.default_upload_interval,
         location_id: device.location_id,
         [primaryField]: latestData[primaryField],
         [secondaryField]: latestData[secondaryField],
-        humidity: latestData.humidity,
+        // humidity: latestData.humidity,
       };
     }
 

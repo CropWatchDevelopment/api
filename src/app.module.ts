@@ -15,6 +15,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { DevicesModule } from './v1/devices/devices.module';
 import { RulesModule } from './v1/rules/rules.module';
+import { RulesNewModule } from './v1/rules-new/rules-new.module';
 import { ReportsModule } from './v1/reports/reports.module';
 import { PaymentsModule } from './v1/payments/payments.module';
 import { LocationsModule } from './v1/locations/locations.module';
@@ -52,6 +53,7 @@ import { GatewayModule } from './v1/gateway/gateway.module';
     ]),
     DevicesModule,
     RulesModule,
+    RulesNewModule,
     ReportsModule,
     PaymentsModule,
     LocationsModule,
