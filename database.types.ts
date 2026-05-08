@@ -922,18 +922,21 @@ export type Database = {
       cw_gateways_owners: {
         Row: {
           created_at: string
+          gateway_eui: string | null
           gateway_id: number
           id: number
           user_id: string
         }
         Insert: {
           created_at?: string
+          gateway_eui?: string | null
           gateway_id: number
           id?: number
           user_id: string
         }
         Update: {
           created_at?: string
+          gateway_eui?: string | null
           gateway_id?: number
           id?: number
           user_id?: string
@@ -1162,6 +1165,24 @@ export type Database = {
           },
         ]
       }
+      cw_rule_action_types: {
+        Row: {
+          created_at: string
+          id: number
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          name: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          name?: string
+        }
+        Relationships: []
+      }
       cw_rule_criteria: {
         Row: {
           created_at: string
@@ -1262,27 +1283,34 @@ export type Database = {
       }
       cw_rule_template_actions: {
         Row: {
-          action_type: string
+          action_type: number
           config: Json
           created_at: string | null
           id: number
           template_id: number
         }
         Insert: {
-          action_type: string
+          action_type: number
           config: Json
           created_at?: string | null
           id?: number
           template_id: number
         }
         Update: {
-          action_type?: string
+          action_type?: number
           config?: Json
           created_at?: string | null
           id?: number
           template_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "cw_rule_template_actions_action_type_fkey"
+            columns: ["action_type"]
+            isOneToOne: false
+            referencedRelation: "cw_rule_action_types"
+            referencedColumns: ["action_type_id"]
+          },
           {
             foreignKeyName: "cw_rule_template_actions_template_id_fkey"
             columns: ["template_id"]

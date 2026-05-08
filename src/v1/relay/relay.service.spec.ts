@@ -8,7 +8,6 @@ describe('RelayService', () => {
     applicationId: 'dragino-ja-lt-22222',
     device: {
       battery_changed_at: null,
-      battery_level: null,
       dev_eui: 'A8404194635A05FB',
       group: null,
       installed_at: null,

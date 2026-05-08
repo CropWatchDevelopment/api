@@ -138,12 +138,6 @@ export class CreateDeviceDto implements DeviceInsert {
   @IsString()
   report_endpoint?: string | null;
 
-  @ApiProperty({ required: false, nullable: true })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber({ allowInfinity: false, allowNaN: false })
-  battery_level?: number | null;
-
   @ApiProperty({
     required: false,
     nullable: true,

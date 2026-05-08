@@ -796,6 +796,31 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         },
         "type": "object",
       },
+      "UpdateUserProfileDto": {
+        "properties": {
+          "employer": {
+            "nullable": true,
+            "type": "object",
+          },
+          "full_name": {
+            "nullable": true,
+            "type": "object",
+          },
+          "phone_number": {
+            "nullable": true,
+            "type": "object",
+          },
+          "username": {
+            "nullable": true,
+            "type": "object",
+          },
+          "website": {
+            "nullable": true,
+            "type": "object",
+          },
+        },
+        "type": "object",
+      },
     },
   },
   "paths": {
@@ -928,6 +953,18 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
     },
     "/v1/auth/user-profile": {
       "get": {},
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserProfileDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
     },
     "/v1/devices": {
       "get": {

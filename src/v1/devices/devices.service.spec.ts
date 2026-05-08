@@ -57,6 +57,7 @@ describe('DevicesService', () => {
           name: 'North sensor',
           group: 'air',
           location_id: 42,
+          last_data_updated_at: '2026-03-13T00:00:00.000Z',
           cw_device_type: {
             name: 'Air',
             primary_data_v2: 'temperature_c',

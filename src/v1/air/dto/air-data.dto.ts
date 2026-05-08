@@ -8,9 +8,6 @@ export class AirDataDto {
   dev_eui: string;
 
   @ApiProperty({ nullable: true, required: false })
-  battery_level: number | null;
-
-  @ApiProperty({ nullable: true, required: false })
   co: number | null;
 
   @ApiProperty({ nullable: true, required: false })

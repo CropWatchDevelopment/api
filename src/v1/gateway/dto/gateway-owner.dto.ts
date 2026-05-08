@@ -8,6 +8,9 @@ export class GatewayOwnerDto implements TableRow<'cw_gateways_owners'> {
   @ApiProperty({ description: 'Internal cw_gateways.id value.' })
   gateway_id: number;
 
+  @ApiProperty({ nullable: true, required: false })
+  gateway_eui: string | null;
+
   @ApiProperty()
   id: number;
 
