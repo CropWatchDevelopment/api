@@ -39,6 +39,12 @@ export class DashboardService {
     const skip = Math.max(0, query.skip ?? 0);
     const take = Math.min(Math.max(1, query.take ?? 50), 200);
 
+    // The `name` search matches device name, dev_eui, and location name.
+    // Location-name matches are resolved to ids first, then OR'd into the query.
+    const nameLocationIds = query.name
+      ? await this.findLocationIdsByName(client, query.name)
+      : [];
+
     const hasLocationFilter =
       typeof query.location === 'string' && query.location.trim().length > 0;
     const locationIdFilter = hasLocationFilter
@@ -66,7 +72,7 @@ export class DashboardService {
     }
     if (query.name) {
       devicesQuery = devicesQuery.or(
-        `name.ilike.%${query.name}%,dev_eui.ilike.%${query.name}%`,
+        this.buildNameOrFilter(query.name, nameLocationIds),
       );
     }
     if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
@@ -115,6 +121,12 @@ export class DashboardService {
     const skip = Math.max(0, query.skip ?? 0);
     const take = Math.min(Math.max(1, query.take ?? 20), 100);
 
+    // The `name` search matches device name, dev_eui, and location name.
+    // Location-name matches are resolved to ids first, then OR'd into the query.
+    const nameLocationIds = query.name
+      ? await this.findLocationIdsByName(client, query.name)
+      : [];
+
     // Step 1: gather every accessible device's location_id (cheap select).
     // Use an inner join when filtering by location group so non-matching device
     // rows are excluded outright — a non-inner embed only nulls the location,
@@ -131,7 +143,7 @@ export class DashboardService {
     if (query.group) locsQuery = locsQuery.ilike('group', `%${query.group}%`);
     if (query.name) {
       locsQuery = locsQuery.or(
-        `name.ilike.%${query.name}%,dev_eui.ilike.%${query.name}%`,
+        this.buildNameOrFilter(query.name, nameLocationIds),
       );
     }
     if (query.locationGroup) {
@@ -219,7 +231,7 @@ export class DashboardService {
     if (query.group) devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
     if (query.name) {
       devicesQuery = devicesQuery.or(
-        `name.ilike.%${query.name}%,dev_eui.ilike.%${query.name}%`,
+        this.buildNameOrFilter(query.name, nameLocationIds),
       );
     }
 
@@ -406,6 +418,42 @@ export class DashboardService {
       primary: primaryCol && primaryCol !== '-' ? (row[primaryCol] ?? null) : null,
       secondary: hasSecondary ? (row[secondaryCol] ?? null) : null,
     } as DashboardRow['latest'];
+  }
+
+  /**
+   * Resolve location ids whose name matches the search term, so a device-table
+   * query can OR in `location_id.in.(...)` and surface devices by location name.
+   * Scoped by the caller's RLS client; failures degrade to an empty list.
+   */
+  private async findLocationIdsByName(
+    client: ReturnType<SupabaseService['getClient']>,
+    name: string,
+  ): Promise<number[]> {
+    const { data, error } = await client
+      .from('cw_locations')
+      .select('location_id')
+      .ilike('name', `%${name}%`);
+
+    if (error) {
+      this.logger.warn(`Failed to search locations by name: ${error.message}`);
+      return [];
+    }
+
+    return (data ?? [])
+      .map((l: any) => l.location_id)
+      .filter((id: unknown): id is number => typeof id === 'number');
+  }
+
+  /**
+   * Build the PostgREST `.or(...)` term for the `name` search: matches device
+   * name, dev_eui, and — via pre-resolved ids — location name.
+   */
+  private buildNameOrFilter(name: string, locationIds: number[]): string {
+    const parts = [`name.ilike.%${name}%`, `dev_eui.ilike.%${name}%`];
+    if (locationIds.length > 0) {
+      parts.push(`location_id.in.(${locationIds.join(',')})`);
+    }
+    return parts.join(',');
   }
 
   private applyDeviceReadScope(
