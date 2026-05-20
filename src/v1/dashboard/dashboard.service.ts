@@ -116,10 +116,16 @@ export class DashboardService {
     const take = Math.min(Math.max(1, query.take ?? 20), 100);
 
     // Step 1: gather every accessible device's location_id (cheap select).
+    // Use an inner join when filtering by location group so non-matching device
+    // rows are excluded outright — a non-inner embed only nulls the location,
+    // which would leak every location and drop their names (-> "Location <id>").
+    const locationSelect = query.locationGroup
+      ? 'cw_locations!inner(location_id, name, "group")'
+      : 'cw_locations(location_id, name, "group")';
     let locsQuery = client
       .from('cw_devices')
       .select(
-        `location_id, cw_locations(location_id, name, "group"), owner_match:cw_device_owners()`,
+        `location_id, ${locationSelect}, owner_match:cw_device_owners()`,
       );
     locsQuery = this.applyDeviceReadScope(locsQuery, userId, isGlobalUser);
     if (query.group) locsQuery = locsQuery.ilike('group', `%${query.group}%`);
