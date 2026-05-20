@@ -21,6 +21,7 @@ import { PaymentsModule } from './v1/payments/payments.module';
 import { LocationsModule } from './v1/locations/locations.module';
 import { RelayModule } from './v1/relay/relay.module';
 import { GatewayModule } from './v1/gateway/gateway.module';
+import { DashboardModule } from './v1/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { GatewayModule } from './v1/gateway/gateway.module';
     LocationsModule,
     RelayModule,
     GatewayModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
