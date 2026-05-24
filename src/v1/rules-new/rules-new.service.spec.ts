@@ -1,6 +1,8 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { DevicesService } from '../devices/devices.service';
+import { LocationsService } from '../locations/locations.service';
 import { RulesNewService } from './rules-new.service';
 
 type StubResult = { data: unknown; error: unknown };
@@ -61,6 +63,14 @@ describe('RulesNewService', () => {
             getClient: () => null,
             getAdminClient: () => null,
           },
+        },
+        {
+          provide: DevicesService,
+          useValue: {},
+        },
+        {
+          provide: LocationsService,
+          useValue: {},
         },
       ],
     }).compile();
