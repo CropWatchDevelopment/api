@@ -20,7 +20,9 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { RuleActionTypeDto } from './dto/rule-action-type.dto';
+import { RuleFormContextDto } from './dto/rule-form-context.dto';
 import { RuleTemplateDto } from './dto/rule-template.dto';
+import { RuleTriggerLogDto } from './dto/rule-trigger-log.dto';
 import { SaveRuleTemplateDto } from './dto/save-rule-template.dto';
 import { RulesNewService } from './rules-new.service';
 
@@ -57,6 +59,42 @@ export class RulesNewController {
   findAllActionTypes(@Req() req) {
     const authHeader = req.headers?.authorization ?? '';
     return this.rulesNewService.findAllActionTypes(authHeader);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description:
+      'Bundled data needed to render the rules-new create/edit form: devices (with cw_locations join), locations, action types, and optionally a template.',
+    type: RuleFormContextDto,
+  })
+  @ApiQuery({
+    name: 'templateId',
+    description: 'When provided, the matching rule template is included in the response.',
+    required: false,
+    type: Number,
+  })
+  @Get('form-context')
+  getFormContext(
+    @Req() req,
+    @Query('templateId') templateId?: string,
+  ) {
+    const authHeader = req.headers?.authorization ?? '';
+    const parsed = templateId !== undefined ? Number(templateId) : NaN;
+    const id = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+    return this.rulesNewService.getFormContext(req.user, authHeader, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description:
+      'Lists the trigger/reset history for a rule template, newest first.',
+    type: RuleTriggerLogDto,
+    isArray: true,
+  })
+  @Get(':id/history')
+  findHistory(@Param('id', ParseIntPipe) id: number, @Req() req) {
+    const authHeader = req.headers?.authorization ?? '';
+    return this.rulesNewService.getHistory(id, req.user, authHeader);
   }
 
   @UseGuards(JwtAuthGuard)

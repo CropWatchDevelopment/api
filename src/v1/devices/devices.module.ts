@@ -8,5 +8,6 @@ import { LocationsService } from '../locations/locations.service';
   imports: [SupabaseModule],
   controllers: [DevicesController],
   providers: [DevicesService, LocationsService],
+  exports: [DevicesService],
 })
 export class DevicesModule {}

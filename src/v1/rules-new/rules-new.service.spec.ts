@@ -80,10 +80,14 @@ describe('RulesNewService', () => {
       from: jest.fn(() => devicesQuery),
     };
 
-    const serviceWithClient = new RulesNewService({
-      getClient: jest.fn(() => client),
-      getAdminClient: jest.fn(),
-    } as unknown as SupabaseService);
+    const serviceWithClient = new RulesNewService(
+      {
+        getClient: jest.fn(() => client),
+        getAdminClient: jest.fn(),
+      } as unknown as SupabaseService,
+      {} as any,
+      {} as any,
+    );
 
     await expect(
       serviceWithClient.findAll(
@@ -116,10 +120,14 @@ describe('RulesNewService', () => {
       from: jest.fn(() => devicesQuery),
     };
 
-    const serviceWithClient = new RulesNewService({
-      getClient: jest.fn(() => client),
-      getAdminClient: jest.fn(),
-    } as unknown as SupabaseService);
+    const serviceWithClient = new RulesNewService(
+      {
+        getClient: jest.fn(() => client),
+        getAdminClient: jest.fn(),
+      } as unknown as SupabaseService,
+      {} as any,
+      {} as any,
+    );
 
     await expect(
       serviceWithClient.create(
@@ -184,10 +192,14 @@ describe('RulesNewService', () => {
       .mockImplementationOnce(() => templateQuery)
       .mockImplementationOnce(() => assignmentsQuery);
 
-    const serviceWithClient = new RulesNewService({
-      getClient: jest.fn(() => ({ from: fromMock })),
-      getAdminClient: jest.fn(),
-    } as unknown as SupabaseService);
+    const serviceWithClient = new RulesNewService(
+      {
+        getClient: jest.fn(() => ({ from: fromMock })),
+        getAdminClient: jest.fn(),
+      } as unknown as SupabaseService,
+      {} as any,
+      {} as any,
+    );
 
     await expect(
       serviceWithClient.findOne(
