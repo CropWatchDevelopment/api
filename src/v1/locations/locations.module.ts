@@ -7,5 +7,6 @@ import { SupabaseModule } from '../../supabase/supabase.module';
   imports: [SupabaseModule],
   controllers: [LocationsController],
   providers: [LocationsService],
+  exports: [LocationsService],
 })
 export class LocationsModule {}

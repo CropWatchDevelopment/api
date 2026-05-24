@@ -12,15 +12,20 @@ import {
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
 import type { TableRow } from '../types/supabase';
+import { DevicesService } from '../devices/devices.service';
+import { LocationsService } from '../locations/locations.service';
 import { RuleActionTypeDto } from './dto/rule-action-type.dto';
+import { RuleFormContextDto } from './dto/rule-form-context.dto';
 import { RuleTemplateActionDto } from './dto/rule-template-action.dto';
 import { RuleTemplateAssignmentDto } from './dto/rule-template-assignment.dto';
 import { RuleTemplateCriterionDto } from './dto/rule-template-criterion.dto';
 import { RuleTemplateStateDto } from './dto/rule-template-state.dto';
 import { RuleTemplateDto } from './dto/rule-template.dto';
+import { RuleTriggerLogDto } from './dto/rule-trigger-log.dto';
 import { SaveRuleTemplateDto } from './dto/save-rule-template.dto';
 
 type TemplateRow = TableRow<'cw_rule_templates'>;
+type TriggerLogRow = TableRow<'cw_rule_trigger_log'>;
 type AssignmentRow = TableRow<'cw_device_rule_assignments'>;
 type CriterionRow = TableRow<'cw_rule_template_criteria'>;
 type ActionTypeRow = TableRow<'cw_rule_action_types'>;
@@ -52,7 +57,11 @@ interface NormalizedSaveRequest {
 
 @Injectable()
 export class RulesNewService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly devicesService: DevicesService,
+    private readonly locationsService: LocationsService,
+  ) {}
 
   async findAll(
     jwtPayload: any,
@@ -180,6 +189,58 @@ export class RulesNewService {
     }
 
     return rule;
+  }
+
+  async getHistory(
+    id: number,
+    jwtPayload: any,
+    authHeader: string,
+  ): Promise<RuleTriggerLogDto[]> {
+    const userId = getUserId(jwtPayload);
+    const accessToken = getAccessToken(authHeader);
+    const isStaff = isCropwatchStaff(jwtPayload);
+
+    // Reuse findOne so a hidden or non-existent template returns 404 instead of
+    // an empty list.
+    await this.findOne(id, jwtPayload, authHeader);
+
+    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const viewableDevices = devices.filter((device) => device.canView);
+    const deviceNames = new Map(
+      devices.map((device) => [device.devEui, device.name]),
+    );
+
+    const { data, error } = await this.supabaseService
+      .getClient(accessToken)
+      .from('cw_rule_trigger_log')
+      .select(
+        'created_at, dev_eui, id, reset_at, reset_value, template_id, triggered_at, triggered_value',
+      )
+      .eq('template_id', id)
+      .in(
+        'dev_eui',
+        viewableDevices.map((device) => device.devEui),
+      )
+      .order('triggered_at', { ascending: false, nullsFirst: false })
+      .limit(200);
+
+    if (error) {
+      throw new InternalServerErrorException(
+        'Failed to load rule trigger history',
+      );
+    }
+
+    return ((data ?? []) as TriggerLogRow[]).map((row) => ({
+      id: row.id,
+      devEui: row.dev_eui,
+      deviceName: deviceNames.get(row.dev_eui) ?? null,
+      templateId: row.template_id,
+      triggeredAt: row.triggered_at,
+      triggeredValue: row.triggered_value,
+      resetAt: row.reset_at,
+      resetValue: row.reset_value,
+      createdAt: row.created_at,
+    }));
   }
 
   async create(
@@ -422,6 +483,28 @@ export class RulesNewService {
       name: row.name,
       createdAt: row.created_at,
     }));
+  }
+
+  async getFormContext(
+    jwtPayload: any,
+    authHeader: string,
+    templateId?: number,
+  ): Promise<RuleFormContextDto> {
+    const [devicesPage, locations, actionTypes, template] = await Promise.all([
+      this.devicesService.findAll(jwtPayload, authHeader),
+      this.locationsService.findAll(jwtPayload, authHeader),
+      this.findAllActionTypes(authHeader),
+      typeof templateId === 'number'
+        ? this.findOne(templateId, jwtPayload, authHeader)
+        : Promise.resolve(null),
+    ]);
+
+    return {
+      devices: (devicesPage.data ?? []) as RuleFormContextDto['devices'],
+      locations: (locations ?? []) as RuleFormContextDto['locations'],
+      actionTypes,
+      template,
+    };
   }
 
   private async loadStates(
