@@ -649,6 +649,275 @@ export type Database = {
           },
         ]
       }
+      cw_device_report_assignments: {
+        Row: {
+          created_at: string
+          dev_eui: string
+          id: number
+          is_active: boolean
+          template_id: number
+        }
+        Insert: {
+          created_at?: string
+          dev_eui: string
+          id?: number
+          is_active?: boolean
+          template_id: number
+        }
+        Update: {
+          created_at?: string
+          dev_eui?: string
+          id?: number
+          is_active?: boolean
+          template_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_device_report_assignments_dev_eui_fkey"
+            columns: ["dev_eui"]
+            isOneToOne: false
+            referencedRelation: "cw_devices"
+            referencedColumns: ["dev_eui"]
+          },
+          {
+            foreignKeyName: "cw_device_report_assignments_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_report_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cw_report_template_alert_points: {
+        Row: {
+          created_at: string
+          data_point_key: string
+          hex_color: string | null
+          id: number
+          max: number | null
+          min: number | null
+          name: string
+          operator: string | null
+          template_id: number
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          data_point_key: string
+          hex_color?: string | null
+          id?: number
+          max?: number | null
+          min?: number | null
+          name: string
+          operator?: string | null
+          template_id: number
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          data_point_key?: string
+          hex_color?: string | null
+          id?: number
+          max?: number | null
+          min?: number | null
+          name?: string
+          operator?: string | null
+          template_id?: number
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_report_template_alert_points_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_report_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cw_report_template_data_processing_schedules: {
+        Row: {
+          created_at: string
+          crosses_midnight: boolean
+          day_of_week: number
+          end_time: string
+          id: string
+          is_enabled: boolean
+          rule_type: string
+          start_time: string
+          template_id: number
+          timezone: string
+          updated_at: string
+          valid_from: string | null
+          valid_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          crosses_midnight?: boolean
+          day_of_week: number
+          end_time: string
+          id?: string
+          is_enabled?: boolean
+          rule_type?: string
+          start_time: string
+          template_id: number
+          timezone?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          crosses_midnight?: boolean
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_enabled?: boolean
+          rule_type?: string
+          start_time?: string
+          template_id?: number
+          timezone?: string
+          updated_at?: string
+          valid_from?: string | null
+          valid_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_report_template_data_processing_sche_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_report_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cw_report_template_recipients: {
+        Row: {
+          communication_method: number
+          created_at: string
+          email: string | null
+          id: number
+          name: string | null
+          template_id: number
+        }
+        Insert: {
+          communication_method: number
+          created_at?: string
+          email?: string | null
+          id?: number
+          name?: string | null
+          template_id: number
+        }
+        Update: {
+          communication_method?: number
+          created_at?: string
+          email?: string | null
+          id?: number
+          name?: string | null
+          template_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_report_template_recipients_communicat_communication_meth_fkey"
+            columns: ["communication_method"]
+            isOneToOne: false
+            referencedRelation: "communication_methods"
+            referencedColumns: ["communication_method_id"]
+          },
+          {
+            foreignKeyName: "cw_report_template_recipients_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_report_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cw_report_template_schedule: {
+        Row: {
+          created_at: string
+          end_of_day: boolean
+          end_of_month: boolean
+          end_of_week: boolean
+          id: number
+          is_active: boolean
+          template_id: number
+          utc_offset: number
+        }
+        Insert: {
+          created_at?: string
+          end_of_day?: boolean
+          end_of_month?: boolean
+          end_of_week?: boolean
+          id?: number
+          is_active?: boolean
+          template_id: number
+          utc_offset?: number
+        }
+        Update: {
+          created_at?: string
+          end_of_day?: boolean
+          end_of_month?: boolean
+          end_of_week?: boolean
+          id?: number
+          is_active?: boolean
+          template_id?: number
+          utc_offset?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_report_template_schedule_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_report_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cw_report_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_pull_interval: number
+          description: string | null
+          device_type_id: number | null
+          id: number
+          is_active: boolean
+          legacy_report_id: string | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_pull_interval?: number
+          description?: string | null
+          device_type_id?: number | null
+          id?: number
+          is_active?: boolean
+          legacy_report_id?: string | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_pull_interval?: number
+          description?: string | null
+          device_type_id?: number | null
+          id?: number
+          is_active?: boolean
+          legacy_report_id?: string | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_report_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cw_device_rule_assignments: {
         Row: {
           created_at: string | null
