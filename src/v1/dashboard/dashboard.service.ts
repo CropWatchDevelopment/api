@@ -58,7 +58,7 @@ export class DashboardService {
     let devicesQuery = client
       .from('cw_devices')
       .select(
-        `dev_eui, name, "group", upload_interval, last_data_updated_at,
+        `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
          cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
          ${locationSelect},
          owner_match:cw_device_owners()`,
@@ -211,7 +211,7 @@ export class DashboardService {
     let devicesQuery = client
       .from('cw_devices')
       .select(
-        `dev_eui, name, "group", upload_interval, last_data_updated_at,
+        `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
          cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
          cw_locations(location_id, name, "group"),
          owner_match:cw_device_owners()`,
@@ -366,6 +366,7 @@ export class DashboardService {
       group: d.group ?? null,
       upload_interval: d.upload_interval ?? null,
       last_data_updated_at: d.last_data_updated_at ?? null,
+      error_status: d.error_status ?? null,
       device_type: {
         id: deviceType.id,
         name: deviceType.name,
