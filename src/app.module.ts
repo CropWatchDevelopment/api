@@ -17,6 +17,7 @@ import { DevicesModule } from './v1/devices/devices.module';
 import { RulesModule } from './v1/rules/rules.module';
 import { RulesNewModule } from './v1/rules-new/rules-new.module';
 import { ReportsModule } from './v1/reports/reports.module';
+import { ReportsNewModule } from './v1/reports-new/reports-new.module';
 import { PaymentsModule } from './v1/payments/payments.module';
 import { LocationsModule } from './v1/locations/locations.module';
 import { RelayModule } from './v1/relay/relay.module';
@@ -56,6 +57,7 @@ import { DashboardModule } from './v1/dashboard/dashboard.module';
     RulesModule,
     RulesNewModule,
     ReportsModule,
+    ReportsNewModule,
     PaymentsModule,
     LocationsModule,
     RelayModule,

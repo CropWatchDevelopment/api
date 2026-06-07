@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { RuleTemplateStateDto } from './rule-template-state.dto';
 
-export class RuleTemplateAssignmentDto {
+export class ReportTemplateAssignmentDto {
   @ApiProperty()
   id: number;
 
@@ -25,7 +24,4 @@ export class RuleTemplateAssignmentDto {
 
   @ApiProperty({ nullable: true, required: false })
   permissionLevel: number | null;
-
-  @ApiProperty({ nullable: true, required: false, type: () => RuleTemplateStateDto })
-  state: RuleTemplateStateDto | null;
 }

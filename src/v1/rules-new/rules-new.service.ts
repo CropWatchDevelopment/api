@@ -79,7 +79,7 @@ export class RulesNewService {
     const client = this.supabaseService.getClient(accessToken);
     const { data: assignmentsData, error: assignmentsError } = await client
       .from('cw_device_rule_assignments')
-      .select('created_at, dev_eui, id, is_active, template_id')
+      .select('created_at, dev_eui, id, is_active, template_id, cw_devices(cw_locations(name))')
       .in(
         'dev_eui',
         viewableDevices.map((device) => device.devEui),
@@ -694,6 +694,7 @@ function buildRuleTemplates(args: {
               isActive: assignment.is_active ?? true,
               createdAt: assignment.created_at,
               deviceName: device?.name ?? null,
+              locationName: readAssignmentLocationName(assignment),
               permissionLevel: device?.permissionLevel ?? null,
               state: state ? mapState(state) : null,
             };
@@ -732,6 +733,19 @@ function mapAction(row: ActionRow): RuleTemplateActionDto {
     config: row.config as RuleTemplateActionDto['config'],
     createdAt: row.created_at,
   };
+}
+
+function unwrapJoin(raw: unknown): Record<string, unknown> | null {
+  if (Array.isArray(raw)) return (raw[0] as Record<string, unknown>) ?? null;
+  return (raw as Record<string, unknown> | null) ?? null;
+}
+
+// findAll embeds cw_devices(cw_locations(name)) on each assignment row.
+function readAssignmentLocationName(assignment: AssignmentRow): string | null {
+  const device = unwrapJoin((assignment as { cw_devices?: unknown }).cw_devices);
+  const location = unwrapJoin(device?.cw_locations);
+  const name = location?.name;
+  return typeof name === 'string' && name.trim().length > 0 ? name : null;
 }
 
 function mapState(row: StateRow): RuleTemplateStateDto {
