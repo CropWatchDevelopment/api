@@ -55,3 +55,33 @@
 -- DROP TABLE IF EXISTS public.report_user_schedule;
 -- DROP TABLE IF EXISTS public.reports_templates;
 -- DROP TABLE IF EXISTS public.reports;
+
+-- ---------------------------------------------------------------------------
+-- 4) Retired "Babylon" data-routing subsystem
+--    (in_connections -> decoders -> out_connections / notifiers, wired via
+--    input_output). Verified 2026-06-14: ZERO references in the api / CropWatch
+--    / CWUI application code (only the generated database.types.ts lists them),
+--    no views or functions reference them, and the only foreign keys are
+--    internal to the cluster plus two outbound to profiles — nothing OUTSIDE
+--    babylon depends on them. Last row written 2024-07-26 (~2 years stale);
+--    ~44 rows total. babylon_notifiers (0 rows) carried username/password/
+--    api_key columns. All rows are in the pre-rollout backup dump.
+--
+-- SELECT 'babylon_connection_types' AS tbl, count(*) FROM public.babylon_connection_types
+-- UNION ALL SELECT 'babylon_decoders', count(*) FROM public.babylon_decoders
+-- UNION ALL SELECT 'babylon_in_connections', count(*) FROM public.babylon_in_connections
+-- UNION ALL SELECT 'babylon_input_output', count(*) FROM public.babylon_input_output
+-- UNION ALL SELECT 'babylon_notifiers', count(*) FROM public.babylon_notifiers
+-- UNION ALL SELECT 'babylon_notifiers_out_connections', count(*) FROM public.babylon_notifiers_out_connections
+-- UNION ALL SELECT 'babylon_out_connections', count(*) FROM public.babylon_out_connections;
+--
+-- One statement — Postgres resolves the internal FK order; no CASCADE, so it
+-- fails loudly if any external dependency appears before you run it:
+-- DROP TABLE IF EXISTS
+--   public.babylon_input_output,
+--   public.babylon_notifiers_out_connections,
+--   public.babylon_notifiers,
+--   public.babylon_in_connections,
+--   public.babylon_out_connections,
+--   public.babylon_connection_types,
+--   public.babylon_decoders;
