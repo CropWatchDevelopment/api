@@ -48,25 +48,24 @@ DROP INDEX IF EXISTS public.cw_device_owners_permission_level_idx;
 -- ---------------------------------------------------------------------------
 -- B) FK indexes that back real API query patterns
 -- ---------------------------------------------------------------------------
--- Permission scoping: every device read/manage query joins
--- cw_device_owners on (dev_eui, user_id, permission_level) — already covered
--- by idx_cw_device_owners_dev_user_perm — plus per-user listings:
-CREATE INDEX IF NOT EXISTS idx_cw_device_owners_user_id
-    ON public.cw_device_owners (user_id);
+-- NOTE: `CREATE INDEX IF NOT EXISTS` matches on the index *name*, not its
+-- column coverage. The 000 preflight (section 9) confirmed these single-column
+-- indexes ALREADY EXIST under different names, so creating same-coverage
+-- indexes here would re-introduce duplicates — the exact thing section A
+-- removes. They are intentionally omitted (existing index in parentheses):
+--   user_id on cw_device_owners              (idx_cdo_user)
+--   location_id on cw_location_owners        (cw_location_owners_location_id_idx)
+--   user_id on cw_location_owners            (idx_clo_user)
+--   dev_eui on cw_device_report_assignments  (cw_device_report_assignments_dev_eui_idx)
 
--- Location permission scoping and "users in this location" listings:
-CREATE INDEX IF NOT EXISTS idx_cw_location_owners_location_id
-    ON public.cw_location_owners (location_id);
-CREATE INDEX IF NOT EXISTS idx_cw_location_owners_user_id
-    ON public.cw_location_owners (user_id);
-
--- Rule/report template fan-out (rules-new / reports-new modules):
+-- Rule/report template fan-out (rules-new / reports-new modules).
+-- cw_device_rule_assignments has only UNIQUE (dev_eui, template_id) + pkey, so
+-- template_id has no standalone index. (The dev_eui index is prefix-covered by
+-- that unique; kept as a small explicit single-column index.)
 CREATE INDEX IF NOT EXISTS idx_cw_device_rule_assignments_dev_eui
     ON public.cw_device_rule_assignments (dev_eui);
 CREATE INDEX IF NOT EXISTS idx_cw_device_rule_assignments_template_id
     ON public.cw_device_rule_assignments (template_id);
-CREATE INDEX IF NOT EXISTS idx_cw_device_report_assignments_dev_eui
-    ON public.cw_device_report_assignments (dev_eui);
 
 -- Triggered-rule history lookups (rules-new /triggered endpoints):
 CREATE INDEX IF NOT EXISTS idx_cw_rule_trigger_log_template_id
@@ -84,10 +83,6 @@ COMMIT;
 -- ---------------------------------------------------------------------------
 -- Zero-lock alternative for section B (run each alone, outside a transaction):
 -- ---------------------------------------------------------------------------
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cw_device_owners_user_id ON public.cw_device_owners (user_id);
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cw_location_owners_location_id ON public.cw_location_owners (location_id);
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cw_location_owners_user_id ON public.cw_location_owners (user_id);
 -- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cw_device_rule_assignments_dev_eui ON public.cw_device_rule_assignments (dev_eui);
 -- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cw_device_rule_assignments_template_id ON public.cw_device_rule_assignments (template_id);
--- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cw_device_report_assignments_dev_eui ON public.cw_device_report_assignments (dev_eui);
 -- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_cw_rule_trigger_log_template_id ON public.cw_rule_trigger_log (template_id);

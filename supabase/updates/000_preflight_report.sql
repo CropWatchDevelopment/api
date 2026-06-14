@@ -5,14 +5,18 @@
 -- =============================================================================
 
 -- 1. RLS state of every table in the public schema.
+-- NOTE: pg_tables exposes rowsecurity but NOT forcerowsecurity; both flags live
+-- on pg_class (relrowsecurity / relforcerowsecurity), so query that instead.
 SELECT
-    schemaname,
-    tablename,
-    rowsecurity AS rls_enabled,
-    forcerowsecurity AS rls_forced
-FROM pg_tables
-WHERE schemaname = 'public'
-ORDER BY rowsecurity, tablename;
+    n.nspname AS schemaname,
+    c.relname AS tablename,
+    c.relrowsecurity AS rls_enabled,
+    c.relforcerowsecurity AS rls_forced
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public'
+  AND c.relkind IN ('r', 'p')
+ORDER BY c.relrowsecurity, c.relname;
 
 -- 2. Every policy in the public schema (name, command, roles, expressions).
 SELECT
