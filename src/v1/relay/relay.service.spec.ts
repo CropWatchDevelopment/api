@@ -111,7 +111,7 @@ describe('RelayService', () => {
     ).resolves.toEqual(relayRow);
   });
 
-  it('rejects latest relay reads when the user has no access to the device', async () => {
+  it('returns the latest relay row for viewer-level users', async () => {
     const service = createService();
 
     jest
@@ -119,6 +119,28 @@ describe('RelayService', () => {
       .mockResolvedValue({
         ...deviceContext,
         permissionLevel: 4,
+      });
+    jest
+      .spyOn(service as any, 'findLatestRelayRow')
+      .mockResolvedValue(relayRow);
+
+    await expect(
+      service.getLatestRelay(
+        { sub: 'user-1', email: 'user@example.com' },
+        'Bearer token-1',
+        'a8404194635a05fb',
+      ),
+    ).resolves.toEqual(relayRow);
+  });
+
+  it('rejects latest relay reads when the user has no access to the device', async () => {
+    const service = createService();
+
+    jest
+      .spyOn(service as any, 'loadRelayDeviceContext')
+      .mockResolvedValue({
+        ...deviceContext,
+        permissionLevel: 5,
       });
 
     await expect(
@@ -315,6 +337,37 @@ describe('RelayService', () => {
     });
 
     expect(persistRelayConfirmation).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects webhook uplinks when PRIVATE_TTI_WEBHOOK_TOKEN is not configured', async () => {
+    const service = createService();
+
+    await expect(
+      service.handleTtiUp(
+        {
+          data: {
+            end_device_ids: {
+              dev_eui: 'A8404194635A05FB',
+            },
+            received_at: '2026-04-05T03:46:46.331128009Z',
+            uplink_message: {
+              decoded_payload: {
+                RO1_status: 'ON',
+                RO2_status: 'ON',
+              },
+            },
+          },
+        },
+        undefined,
+        'any-token',
+      ),
+    ).rejects.toMatchObject({
+      response: {
+        message: 'Relay webhook is not configured',
+        statusCode: 401,
+      },
+      status: 401,
+    });
   });
 
   it('upserts an existing relay row by dev_eui instead of inserting a duplicate', async () => {

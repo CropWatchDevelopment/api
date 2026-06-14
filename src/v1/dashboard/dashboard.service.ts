@@ -11,6 +11,7 @@ import {
   getUserId,
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
+import { READ_EXCLUSIVE_CEILING } from '../common/permission-levels';
 import {
   DashboardLocationGroup,
   DashboardLocationPage,
@@ -467,7 +468,7 @@ export class DashboardService {
     }
     return query
       .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', READ_EXCLUSIVE_CEILING)
       .or(`user_id.eq.${userId},owner_match.not.is.null`);
   }
 }

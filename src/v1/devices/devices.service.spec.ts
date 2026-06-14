@@ -199,4 +199,198 @@ describe('DevicesService', () => {
       'staff-1',
     );
   });
+
+  describe('updateDevice location moves', () => {
+    const jwt = { sub: 'mover-1', email: 'mover@example.com' };
+
+    function createPermissionCheckBuilder(deviceRow: unknown) {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: deviceRow, error: null }),
+      };
+    }
+
+    function createDestinationBuilder(locationRow: unknown) {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({ data: locationRow, error: null }),
+      };
+    }
+
+    function createUpdateBuilder() {
+      return {
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockResolvedValue({ data: [{ dev_eui: 'DEV-001' }], error: null }),
+      };
+    }
+
+    function createDeleteBuilder() {
+      return {
+        delete: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({ error: null }),
+      };
+    }
+
+    function createInsertBuilder() {
+      return {
+        insert: jest.fn().mockResolvedValue({ error: null }),
+      };
+    }
+
+    function createService(builders: unknown[]) {
+      const fromMock = jest.fn();
+      for (const builder of builders) {
+        fromMock.mockImplementationOnce(() => builder);
+      }
+      const supabaseService = {
+        getClient: jest.fn(() => ({ from: fromMock })),
+        getAdminClient: jest.fn(),
+      };
+      return {
+        service: new DevicesService(supabaseService as unknown as SupabaseService, {} as any),
+        fromMock,
+      };
+    }
+
+    it('hands the device to the destination owner and resets permissions on a move', async () => {
+      const permissionBuilder = createPermissionCheckBuilder({
+        dev_eui: 'DEV-001',
+        location_id: 1,
+        user_id: 'old-owner',
+      });
+      const destinationBuilder = createDestinationBuilder({
+        location_id: 2,
+        owner_id: 'new-owner',
+        cw_location_owners: [
+          { user_id: 'new-owner' },
+          { user_id: 'mover-1' },
+          { user_id: 'member-a' },
+          { user_id: 'member-b' },
+        ],
+      });
+      const updateBuilder = createUpdateBuilder();
+      const deleteBuilder = createDeleteBuilder();
+      const insertBuilder = createInsertBuilder();
+      const { service, fromMock } = createService([
+        permissionBuilder,
+        destinationBuilder,
+        updateBuilder,
+        deleteBuilder,
+        insertBuilder,
+      ]);
+
+      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 'Bearer token-1');
+
+      // Mover needed manage scope on the destination location.
+      expect(destinationBuilder.eq).toHaveBeenCalledWith('location_id', 2);
+      expect(destinationBuilder.lte).toHaveBeenCalledWith('owner_match.permission_level', 2);
+
+      // Device ownership follows the destination location owner.
+      expect(updateBuilder.update).toHaveBeenCalledWith({
+        name: 'Sensor',
+        group: null,
+        location_id: 2,
+        user_id: 'new-owner',
+      });
+
+      // Old permissions wiped...
+      expect(deleteBuilder.eq).toHaveBeenCalledWith('dev_eui', 'DEV-001');
+
+      // ...mover becomes Admin, other members Disabled, owner gets no row.
+      const insertedRows = insertBuilder.insert.mock.calls[0][0];
+      expect(insertedRows).toEqual(
+        expect.arrayContaining([
+          { dev_eui: 'DEV-001', user_id: 'mover-1', permission_level: 1 },
+          { dev_eui: 'DEV-001', user_id: 'member-a', permission_level: 5 },
+          { dev_eui: 'DEV-001', user_id: 'member-b', permission_level: 5 },
+        ]),
+      );
+      expect(insertedRows).toHaveLength(3);
+      expect(fromMock).toHaveBeenCalledTimes(5);
+    });
+
+    it('rejects a move when the mover cannot manage the destination location', async () => {
+      const permissionBuilder = createPermissionCheckBuilder({
+        dev_eui: 'DEV-001',
+        location_id: 1,
+        user_id: 'old-owner',
+      });
+      const destinationBuilder = createDestinationBuilder(null);
+      const { service, fromMock } = createService([permissionBuilder, destinationBuilder]);
+
+      await expect(
+        service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 'Bearer token-1'),
+      ).rejects.toMatchObject({
+        message: 'You do not have permission to move this device to that location',
+      });
+
+      // The device update must never run.
+      expect(fromMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('leaves ownership and permissions untouched when the location does not change', async () => {
+      const permissionBuilder = createPermissionCheckBuilder({
+        dev_eui: 'DEV-001',
+        location_id: 2,
+        user_id: 'old-owner',
+      });
+      const updateBuilder = createUpdateBuilder();
+      const { service, fromMock } = createService([permissionBuilder, updateBuilder]);
+
+      await service.updateDevice(jwt, 'DEV-001', 'Renamed', 'greenhouse', 2, 'Bearer token-1');
+
+      expect(updateBuilder.update).toHaveBeenCalledWith({
+        name: 'Renamed',
+        group: 'greenhouse',
+        location_id: 2,
+      });
+      // No destination lookup, no permission reset.
+      expect(fromMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the current device owner when the destination location has no owner', async () => {
+      const permissionBuilder = createPermissionCheckBuilder({
+        dev_eui: 'DEV-001',
+        location_id: 1,
+        user_id: 'old-owner',
+      });
+      const destinationBuilder = createDestinationBuilder({
+        location_id: 2,
+        owner_id: null,
+        cw_location_owners: [{ user_id: 'member-a' }],
+      });
+      const updateBuilder = createUpdateBuilder();
+      const deleteBuilder = createDeleteBuilder();
+      const insertBuilder = createInsertBuilder();
+      const { service } = createService([
+        permissionBuilder,
+        destinationBuilder,
+        updateBuilder,
+        deleteBuilder,
+        insertBuilder,
+      ]);
+
+      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 'Bearer token-1');
+
+      expect(updateBuilder.update).toHaveBeenCalledWith({
+        name: 'Sensor',
+        group: null,
+        location_id: 2,
+      });
+      const insertedRows = insertBuilder.insert.mock.calls[0][0];
+      expect(insertedRows).toEqual(
+        expect.arrayContaining([
+          { dev_eui: 'DEV-001', user_id: 'mover-1', permission_level: 1 },
+          { dev_eui: 'DEV-001', user_id: 'member-a', permission_level: 5 },
+        ]),
+      );
+    });
+  });
 });

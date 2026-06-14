@@ -19,6 +19,11 @@ import { ApiBearerAuth, ApiOkResponse, ApiParam, ApiQuery, ApiSecurity } from '@
 import { LocationDto } from './dto/location.dto';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
 import { CreateLocationOwnerDto } from './dto/create-location-owner.dto';
+import {
+  isValidPermissionLevel,
+  MAX_PERMISSION_LEVEL,
+  MIN_PERMISSION_LEVEL,
+} from '../common/permission-levels';
 
 @Controller({ path: 'locations', version: '1' })
 @ApiBearerAuth('bearerAuth')
@@ -109,8 +114,10 @@ export class LocationsController {
     if (!normalizedNewUserEmail) {
       throw new BadRequestException('New user email is required');
     }
-    if (!Number.isInteger(permissionLevel) || permissionLevel < 1 || permissionLevel > 4) {
-      throw new BadRequestException('Permission level must be between 1 and 4');
+    if (!isValidPermissionLevel(permissionLevel)) {
+      throw new BadRequestException(
+        `Permission level must be between ${MIN_PERMISSION_LEVEL} and ${MAX_PERMISSION_LEVEL}`,
+      );
     }
     if (
       typeof createLocationOwnerDto.location_id === 'number' &&

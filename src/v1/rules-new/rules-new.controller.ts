@@ -87,6 +87,38 @@ export class RulesNewController {
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
+      'Lists rule templates that are currently triggered on at least one device the user can view; assignments are narrowed to the triggered ones.',
+    type: RuleTemplateDto,
+    isArray: true,
+  })
+  @Get('triggered')
+  findAllTriggered(@Req() req) {
+    const authHeader = req.headers?.authorization ?? '';
+    return this.rulesNewService.findAllTriggered(req.user, authHeader);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description:
+      'Counts of currently-triggered rule templates and of all visible rule templates.',
+    schema: {
+      type: 'object',
+      properties: {
+        count: { type: 'number' },
+        triggered_count: { type: 'number' },
+        total_count: { type: 'number' },
+      },
+    },
+  })
+  @Get('triggered/count')
+  findTriggeredCount(@Req() req) {
+    const authHeader = req.headers?.authorization ?? '';
+    return this.rulesNewService.findTriggeredCount(req.user, authHeader);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({
+    description:
       'Lists the trigger/reset history for a rule template, newest first.',
     type: RuleTriggerLogDto,
     isArray: true,

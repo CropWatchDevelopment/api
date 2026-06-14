@@ -9,7 +9,7 @@ export class ReportTemplateRecipientDto {
 
   @ApiProperty({
     description:
-      'Foreign key to communication_methods.communication_method_id (1=email, 2=SMS, 3=Discord).',
+      'Foreign key to communication_methods.communication_method_id (1=email, 2=SMS).',
   })
   communicationMethod: number;
 

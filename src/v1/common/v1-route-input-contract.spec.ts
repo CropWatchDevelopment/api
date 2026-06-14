@@ -15,14 +15,8 @@ import { DevicesController } from '../devices/devices.controller';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsController } from '../locations/locations.controller';
 import { LocationsService } from '../locations/locations.service';
-import { PaymentsController } from '../payments/payments.controller';
-import { PaymentsService } from '../payments/payments.service';
 import { PowerController } from '../power/power.controller';
 import { PowerService } from '../power/power.service';
-import { ReportsController } from '../reports/reports.controller';
-import { ReportsService } from '../reports/reports.service';
-import { RulesController } from '../rules/rules.controller';
-import { RulesService } from '../rules/rules.service';
 import { SoilController } from '../soil/soil.controller';
 import { SoilService } from '../soil/soil.service';
 import { TrafficController } from '../traffic/traffic.controller';
@@ -368,33 +362,7 @@ describe('V1 Route Input Contracts', () => {
         'updateUserPermissionLevel',
         'removeLocationPermission',
       ]),
-      payments: createMockedMethods([
-        'createCheckoutSession',
-        'listSubscriptions',
-        'listProducts',
-        'getCustomerState',
-        'createCustomerPortalSession',
-        'revokeSubscription',
-      ]),
       power: createMockedMethods(['findOne']),
-      reports: createMockedMethods([
-        'create',
-        'findAll',
-        'findAllHistory',
-        'downloadReport',
-        'findOne',
-        'update',
-        'remove',
-      ]),
-      rules: createMockedMethods([
-        'create',
-        'findAll',
-        'findAllTriggered',
-        'findTriggeredCount',
-        'findOne',
-        'update',
-        'remove',
-      ]),
       soil: createMockedMethods(['findOne']),
       traffic: createMockedMethods(['findOne']),
       water: createMockedMethods(['findOne']),
@@ -406,10 +374,7 @@ describe('V1 Route Input Contracts', () => {
         AuthController,
         DevicesController,
         LocationsController,
-        PaymentsController,
         PowerController,
-        ReportsController,
-        RulesController,
         SoilController,
         TrafficController,
         WaterController,
@@ -419,10 +384,7 @@ describe('V1 Route Input Contracts', () => {
         { provide: AuthService, useValue: serviceRegistry.auth },
         { provide: DevicesService, useValue: serviceRegistry.devices },
         { provide: LocationsService, useValue: serviceRegistry.locations },
-        { provide: PaymentsService, useValue: serviceRegistry.payments },
         { provide: PowerService, useValue: serviceRegistry.power },
-        { provide: ReportsService, useValue: serviceRegistry.reports },
-        { provide: RulesService, useValue: serviceRegistry.rules },
         { provide: SoilService, useValue: serviceRegistry.soil },
         { provide: TrafficService, useValue: serviceRegistry.traffic },
         { provide: WaterService, useValue: serviceRegistry.water },
@@ -875,94 +837,6 @@ describe('V1 Route Input Contracts', () => {
       url: '/v1/locations/15/permission?permission_id=3',
     },
     {
-      auth: true,
-      expectedCall: {
-        args: [
-          {
-            products: ['550e8400-e29b-41d4-a716-446655440000'],
-          },
-          MOCK_USER,
-        ],
-        method: 'createCheckoutSession',
-        service: 'payments',
-      },
-      expectedStatus: 201,
-      method: 'post',
-      name: 'POST /v1/payments/subscriptions/checkout preserves the validated create body',
-      url: '/v1/payments/subscriptions/checkout',
-      body: {
-        products: ['550e8400-e29b-41d4-a716-446655440000'],
-      },
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [MOCK_USER],
-        method: 'listSubscriptions',
-        service: 'payments',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/payments/subscriptions preserves the current route',
-      url: '/v1/payments/subscriptions',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [],
-        method: 'listProducts',
-        service: 'payments',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/payments/products preserves the current route',
-      url: '/v1/payments/products',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [MOCK_USER],
-        method: 'getCustomerState',
-        service: 'payments',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/payments/subscriptions/state preserves the current route',
-      url: '/v1/payments/subscriptions/state',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [
-          {
-            return_url: 'https://app.cropwatch.io/billing',
-          },
-          MOCK_USER,
-        ],
-        method: 'createCustomerPortalSession',
-        service: 'payments',
-      },
-      expectedStatus: 201,
-      method: 'post',
-      name: 'POST /v1/payments/subscriptions/portal preserves the validated portal body',
-      url: '/v1/payments/subscriptions/portal',
-      body: {
-        return_url: 'https://app.cropwatch.io/billing',
-      },
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: ['sub_123', MOCK_USER],
-        method: 'revokeSubscription',
-        service: 'payments',
-      },
-      expectedStatus: 200,
-      method: 'delete',
-      name: 'DELETE /v1/payments/subscriptions/:id preserves subscription id input',
-      url: '/v1/payments/subscriptions/sub_123',
-    },
-    {
       expectedCall: {
         args: [9],
         method: 'findOne',
@@ -972,207 +846,6 @@ describe('V1 Route Input Contracts', () => {
       method: 'get',
       name: 'GET /v1/power/:id preserves numeric ids',
       url: '/v1/power/9',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [
-          { data_pull_interval: 30, dev_eui: 'DEV-001', name: 'Weekly Summary' },
-          MOCK_USER,
-          AUTH_HEADER,
-        ],
-        method: 'create',
-        service: 'reports',
-      },
-      expectedStatus: 201,
-      method: 'post',
-      name: 'POST /v1/reports preserves the validated create body',
-      url: '/v1/reports',
-      body: {
-        data_pull_interval: 30,
-        dev_eui: 'DEV-001',
-        name: 'Weekly Summary',
-      },
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER, undefined],
-        method: 'findAll',
-        service: 'reports',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/reports preserves the current route',
-      url: '/v1/reports',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: ['DEV-001', MOCK_USER, AUTH_HEADER],
-        method: 'findAllHistory',
-        service: 'reports',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/reports/history/:dev_eui preserves the device input',
-      url: '/v1/reports/history/DEV-001',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: ['DEV-001', 'rpt-001', MOCK_USER, AUTH_HEADER, 'my-report.pdf'],
-        method: 'downloadReport',
-        service: 'reports',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/reports/download/:dev_eui/:report_id/:reportName preserves all path params',
-      url: '/v1/reports/download/DEV-001/rpt-001/my-report.pdf',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: ['rpt-001', MOCK_USER, AUTH_HEADER],
-        method: 'findOne',
-        service: 'reports',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/reports/:id preserves report id input',
-      url: '/v1/reports/rpt-001',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: ['rpt-001', { data_pull_interval: 45, name: 'Weekly Summary' }, MOCK_USER, AUTH_HEADER],
-        method: 'update',
-        service: 'reports',
-      },
-      expectedStatus: 200,
-      method: 'patch',
-      name: 'PATCH /v1/reports/:report_id preserves the current partial update body',
-      url: '/v1/reports/rpt-001',
-      body: {
-        data_pull_interval: 45,
-        name: 'Weekly Summary',
-      },
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: ['rpt-001', MOCK_USER, AUTH_HEADER],
-        method: 'remove',
-        service: 'reports',
-      },
-      expectedStatus: 200,
-      method: 'delete',
-      name: 'DELETE /v1/reports/:report_id preserves report id input',
-      url: '/v1/reports/rpt-001',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [
-          {
-            action_recipient: 'user@example.com',
-            dev_eui: 'DEV-001',
-            name: 'Low Moisture',
-            notifier_type: 1,
-            ruleGroupId: 'rule-group-1',
-          },
-          MOCK_USER,
-          AUTH_HEADER,
-        ],
-        method: 'create',
-        service: 'rules',
-      },
-      expectedStatus: 201,
-      method: 'post',
-      name: 'POST /v1/rules preserves the validated create body',
-      url: '/v1/rules',
-      body: {
-        action_recipient: 'user@example.com',
-        dev_eui: 'DEV-001',
-        name: 'Low Moisture',
-        notifier_type: 1,
-        ruleGroupId: 'rule-group-1',
-      },
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER, undefined],
-        method: 'findAll',
-        service: 'rules',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/rules preserves the current route',
-      url: '/v1/rules',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER],
-        method: 'findAllTriggered',
-        service: 'rules',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/rules/triggered preserves the current route',
-      url: '/v1/rules/triggered',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER],
-        method: 'findTriggeredCount',
-        service: 'rules',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/rules/triggered/count preserves the current route',
-      url: '/v1/rules/triggered/count',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [12, MOCK_USER, AUTH_HEADER],
-        method: 'findOne',
-        service: 'rules',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/rules/:id preserves numeric ids',
-      url: '/v1/rules/12',
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [12, { name: 'Low Moisture' }, MOCK_USER, AUTH_HEADER],
-        method: 'update',
-        service: 'rules',
-      },
-      expectedStatus: 200,
-      method: 'patch',
-      name: 'PATCH /v1/rules/:id preserves the current partial update body',
-      url: '/v1/rules/12',
-      body: {
-        name: 'Low Moisture',
-      },
-    },
-    {
-      auth: true,
-      expectedCall: {
-        args: [12, MOCK_USER, AUTH_HEADER],
-        method: 'remove',
-        service: 'rules',
-      },
-      expectedStatus: 200,
-      method: 'delete',
-      name: 'DELETE /v1/rules/:id preserves numeric ids',
-      url: '/v1/rules/12',
     },
     {
       auth: true,
@@ -1329,59 +1002,6 @@ describe('V1 Route Input Contracts', () => {
       method: 'delete',
       name: 'DELETE /v1/locations/:id/permission requires permission_id',
       url: '/v1/locations/15/permission',
-    },
-    {
-      auth: true,
-      body: {
-        products: ['550e8400-e29b-41d4-a716-446655440000'],
-        rogue: true,
-      },
-      expectedMessage: ['property rogue should not exist'],
-      expectedStatus: 400,
-      method: 'post',
-      name: 'POST /v1/payments/subscriptions/checkout rejects unknown body properties',
-      url: '/v1/payments/subscriptions/checkout',
-    },
-    {
-      auth: true,
-      body: {
-        return_url: 'https://app.cropwatch.io/billing',
-        rogue: true,
-      },
-      expectedMessage: ['property rogue should not exist'],
-      expectedStatus: 400,
-      method: 'post',
-      name: 'POST /v1/payments/subscriptions/portal rejects unknown body properties',
-      url: '/v1/payments/subscriptions/portal',
-    },
-    {
-      auth: true,
-      body: {
-        dev_eui: 'DEV-001',
-        name: 'Weekly Summary',
-        rogue: true,
-      },
-      expectedMessage: ['property rogue should not exist'],
-      expectedStatus: 400,
-      method: 'post',
-      name: 'POST /v1/reports rejects unknown body properties',
-      url: '/v1/reports',
-    },
-    {
-      auth: true,
-      body: {
-        action_recipient: 'user@example.com',
-        dev_eui: 'DEV-001',
-        name: 'Low Moisture',
-        notifier_type: 1,
-        rogue: true,
-        ruleGroupId: 'rule-group-1',
-      },
-      expectedMessage: ['property rogue should not exist'],
-      expectedStatus: 400,
-      method: 'post',
-      name: 'POST /v1/rules rejects unknown body properties',
-      url: '/v1/rules',
     },
     {
       auth: true,

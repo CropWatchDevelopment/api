@@ -59,8 +59,16 @@ describe('LocationsService', () => {
   });
 
   it('findOne should allow cropwatch staff to bypass ownership filters', async () => {
+    const staffOwnerRow = {
+      user_id: 'staff-2',
+      profiles: { email: 'support@cropwatch.io' },
+    };
     const locationQuery = createBuilder({
-      data: { location_id: 83, name: 'Staff Visible' },
+      data: {
+        location_id: 83,
+        name: 'Staff Visible',
+        cw_location_owners: [staffOwnerRow],
+      },
       error: null,
     });
     const client = createClient({
@@ -74,13 +82,47 @@ describe('LocationsService', () => {
         { sub: 'staff-1', email: 'staff@cropwatch.io' },
         'Bearer token-1',
       ),
-    ).resolves.toEqual({ location_id: 83, name: 'Staff Visible' });
+    ).resolves.toEqual({
+      location_id: 83,
+      name: 'Staff Visible',
+      cw_location_owners: [staffOwnerRow],
+    });
 
     expect(locationQuery.eq).toHaveBeenCalledWith('location_id', 83);
     expect(locationQuery.eq).not.toHaveBeenCalledWith(
       'owner_match.user_id',
       'staff-1',
     );
+  });
+
+  it('findOne should hide staff permission rows from non-staff users', async () => {
+    const customerOwnerRow = {
+      user_id: 'member-1',
+      profiles: { email: 'farmer@example.com' },
+    };
+    const locationQuery = createBuilder({
+      data: {
+        location_id: 84,
+        name: 'Customer Location',
+        cw_location_owners: [
+          customerOwnerRow,
+          { user_id: 'staff-2', profiles: { email: 'support@cropwatch.io' } },
+        ],
+      },
+      error: null,
+    });
+    const client = createClient({
+      cw_locations: [locationQuery],
+    });
+    const service = createService(client);
+
+    await expect(
+      service.findOne(84, { sub: 'user-1', email: 'farmer@example.com' }, 'Bearer token-1'),
+    ).resolves.toEqual({
+      location_id: 84,
+      name: 'Customer Location',
+      cw_location_owners: [customerOwnerRow],
+    });
   });
 
   it('updateLocationPermission should not clean up when a device permission upsert fails', async () => {
