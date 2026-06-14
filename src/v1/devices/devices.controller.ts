@@ -324,7 +324,6 @@ export class DevicesController {
     summary: 'Create a new device for the authenticated user',
     description: `
     Creates a new device for the authenticated user.
-    This will require a "seat" token for the user, which can be obtained from the /payments endpoints.
     This endpoint is not yet implemented and will return a 501 Not Implemented response until it is implemented.
     Please contact support if you would like this feature to be prioritized.
     `,
@@ -346,7 +345,6 @@ export class DevicesController {
     summary: '🔄 Replace a device with another device for the authenticated user',
     description: `
     Replaces an existing device with a new device for the authenticated user.
-    This will require a "seat" token for the user, which can be obtained from the /payments endpoints.
     This endpoint is not yet implemented and will return a 501 Not Implemented response until it is implemented.
     Please contact support if you would like this feature to be prioritized.
     `,
@@ -377,7 +375,6 @@ export class DevicesController {
     summary: 'Update the permission level for a device',
     description: `
     Updates the permission level for a device.
-    This will require a "seat" token for the user, which can be obtained from the /payments endpoints.
     This endpoint is not yet implemented and will return a 501 Not Implemented response until it is implemented.
     Please contact support if you would like this feature to be prioritized.
     `,

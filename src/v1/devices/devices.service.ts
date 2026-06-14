@@ -15,6 +15,11 @@ import {
 } from '../../supabase/supabase-token.helper';
 import { LocationsService } from '../locations/locations.service';
 import { CreateDeviceDto } from './dto/create-device.dto';
+import {
+  MANAGE_CEILING,
+  PermissionLevel,
+  READ_EXCLUSIVE_CEILING,
+} from '../common/permission-levels';
 
 export interface PagedDevicesResponse<T> {
   total?: number;
@@ -836,7 +841,7 @@ export class DevicesService {
         .insert({
           dev_eui: normalizedDevEui,
           user_id: locationUser.user_id,
-          permission_level: 4, // default permission level
+          permission_level: PermissionLevel.DISABLED, // location users opt in per device
         });
 
       if (addPermissionError) {
@@ -872,7 +877,7 @@ export class DevicesService {
       existingDeviceQuery,
       userId,
       isGlobalUser,
-      1,
+      PermissionLevel.ADMIN,
     );
 
     const { data: device, error: deviceError } = await existingDeviceQuery.single();
@@ -895,7 +900,7 @@ export class DevicesService {
       newDeviceQuery,
       userId,
       isGlobalUser,
-      1,
+      PermissionLevel.ADMIN,
     );
 
     const { data: newDeviceData, error: newDeviceError } = await newDeviceQuery.single();
@@ -965,7 +970,7 @@ export class DevicesService {
       permissionQuery,
       userId,
       isGlobalUser,
-      1,
+      PermissionLevel.ADMIN,
     );
 
     const { data: RequestingUserHasPermission, error: deviceError } =
@@ -1044,7 +1049,7 @@ export class DevicesService {
       permissionQuery,
       userId,
       isGlobalUser,
-      2,
+      MANAGE_CEILING,
     );
 
     const { data: RequestingUserHasPermission, error: deviceError } =
@@ -1056,10 +1061,67 @@ export class DevicesService {
       );
     }
 
-    // do the thing
+    const currentDevice = RequestingUserHasPermission as {
+      location_id: number | null;
+      user_id: string | null;
+    };
+    const isMovingLocation =
+      Number(currentDevice.location_id) !== Number(location_id);
+
+    // Moving a device hands it over to the destination location:
+    //  * the destination location's owner becomes the device owner,
+    //  * the mover becomes a device Admin,
+    //  * every other member of the destination location starts Disabled,
+    //  * all permissions from the previous location are removed.
+    let destinationOwnerId: string | null = null;
+    let destinationMemberIds: string[] = [];
+
+    if (isMovingLocation) {
+      // Adding a device to a location is a location-manage action, so the
+      // mover needs owner/Admin/Manager rights on the destination too.
+      let destinationQuery = client
+        .from('cw_locations')
+        .select(
+          'location_id, owner_id, owner_match:cw_location_owners(), cw_location_owners(user_id)',
+        )
+        .eq('location_id', location_id);
+
+      if (!isGlobalUser) {
+        destinationQuery = destinationQuery
+          .eq('owner_match.user_id', userId)
+          .lte('owner_match.permission_level', MANAGE_CEILING)
+          .or(`owner_id.eq.${userId},owner_match.not.is.null`);
+      }
+
+      const { data: destination, error: destinationError } =
+        await destinationQuery.maybeSingle();
+
+      if (destinationError) {
+        throw new InternalServerErrorException(
+          'Failed to verify the destination location',
+        );
+      }
+      if (!destination) {
+        throw new UnauthorizedException(
+          'You do not have permission to move this device to that location',
+        );
+      }
+
+      destinationOwnerId = destination.owner_id ?? null;
+      destinationMemberIds = (destination.cw_location_owners ?? [])
+        .map((member: { user_id: string | null }) => member.user_id)
+        .filter((memberId: string | null): memberId is string => Boolean(memberId));
+    }
+
+    const updatePayload: Record<string, unknown> = { name, group, location_id };
+    if (isMovingLocation && destinationOwnerId) {
+      // Device ownership follows the location owner.
+      updatePayload.user_id = destinationOwnerId;
+    }
+
     const { data, error } = await client
       .from('cw_devices')
-      .update({ name, group, location_id })
+      .update(updatePayload)
       .eq('dev_eui', devEui)
       .select('*');
 
@@ -1067,7 +1129,70 @@ export class DevicesService {
       throw new BadRequestException('Failed to update device');
     }
 
+    if (isMovingLocation) {
+      await this.resetDevicePermissionsForMove(
+        client,
+        normalizedDevEui,
+        userId,
+        destinationOwnerId,
+        destinationMemberIds,
+      );
+    }
+
     return data;
+  }
+
+  /**
+   * After a device moves to a new location: wipe every permission row from
+   * the previous location, grant the mover Admin, and give every other
+   * member of the destination location a Disabled row (so the device shows
+   * up as opt-in, mirroring createDevice). The destination owner gets no row
+   * — ownership via cw_devices.user_id is implicit and outranks all levels.
+   */
+  private async resetDevicePermissionsForMove(
+    client: any,
+    devEui: string,
+    moverId: string,
+    destinationOwnerId: string | null,
+    destinationMemberIds: string[],
+  ): Promise<void> {
+    const { error: deleteError } = await client
+      .from('cw_device_owners')
+      .delete()
+      .eq('dev_eui', devEui);
+
+    if (deleteError) {
+      throw new InternalServerErrorException(
+        'Failed to remove device permissions from the previous location',
+      );
+    }
+
+    const levelByUserId = new Map<string, number>();
+    for (const memberId of destinationMemberIds) {
+      if (memberId === destinationOwnerId) continue;
+      levelByUserId.set(memberId, PermissionLevel.DISABLED);
+    }
+    if (moverId && moverId !== destinationOwnerId) {
+      levelByUserId.set(moverId, PermissionLevel.ADMIN);
+    }
+
+    if (levelByUserId.size === 0) {
+      return;
+    }
+
+    const { error: insertError } = await client.from('cw_device_owners').insert(
+      Array.from(levelByUserId, ([user_id, permission_level]) => ({
+        dev_eui: devEui,
+        user_id,
+        permission_level,
+      })),
+    );
+
+    if (insertError) {
+      throw new InternalServerErrorException(
+        'Failed to grant device permissions for the new location',
+      );
+    }
   }
 
   private applyDeviceReadScope(query: any, userId: string, isGlobalUser: boolean) {
@@ -1077,7 +1202,7 @@ export class DevicesService {
 
     return query
       .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', READ_EXCLUSIVE_CEILING)
       .or(`user_id.eq.${userId},owner_match.not.is.null`);
   }
 

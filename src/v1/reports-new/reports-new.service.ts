@@ -13,6 +13,7 @@ import {
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
 import type { TableRow } from '../types/supabase';
+import { MANAGE_CEILING, PermissionLevel } from '../common/permission-levels';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
 import { CommunicationMethodDto } from './dto/communication-method.dto';
@@ -529,12 +530,16 @@ export class ReportsNewService {
         const ownEntry = owners.find((entry) => entry.user_id === userId);
         const directOwner = row.user_id === userId;
         const permissionLevel = directOwner
-          ? 1
+          ? PermissionLevel.ADMIN
           : (ownEntry?.permission_level ?? null);
         const canView =
-          isStaff || directOwner || (permissionLevel != null && permissionLevel <= 3);
+          isStaff ||
+          directOwner ||
+          (permissionLevel != null && permissionLevel < PermissionLevel.DISABLED);
         const canManage =
-          isStaff || directOwner || (permissionLevel != null && permissionLevel <= 2);
+          isStaff ||
+          directOwner ||
+          (permissionLevel != null && permissionLevel <= MANAGE_CEILING);
 
         return {
           devEui: row.dev_eui,
