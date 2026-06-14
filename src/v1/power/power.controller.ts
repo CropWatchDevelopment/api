@@ -6,9 +6,11 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiCreatedResponse,
   ApiInternalServerErrorResponse,
   ApiNotFoundResponse,
@@ -18,8 +20,11 @@ import { PowerService } from './power.service';
 import type { CreatePowerDto } from './dto/create-power.dto';
 import type { UpdatePowerDto } from './dto/update-power.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 
 @Controller({ path: 'power', version: '1' })
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class PowerController {
   constructor(private readonly powerService: PowerService) {}
 

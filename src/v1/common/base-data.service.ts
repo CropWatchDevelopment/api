@@ -8,6 +8,7 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from './timezone-formatter.service';
 import { TableRow, TableName } from '../types/supabase';
 import { getUserId, isCropwatchStaff } from '../../supabase/supabase-token.helper';
+import { READ_EXCLUSIVE_CEILING } from './permission-levels';
 
 /**
  * Base service class for common data fetching operations across different data types
@@ -87,7 +88,7 @@ export abstract class BaseDataService<T extends TableName> {
     if (!isGlobalUser) {
       query = query
         .eq('owner_match.user_id', userId)
-        .lt('owner_match.permission_level', 4)
+        .lt('owner_match.permission_level', READ_EXCLUSIVE_CEILING)
         .or(`user_id.eq.${userId},owner_match.not.is.null`);
     }
 

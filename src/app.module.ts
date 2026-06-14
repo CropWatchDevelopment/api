@@ -8,17 +8,13 @@ import { SoilModule } from './v1/soil/soil.module';
 import { WaterModule } from './v1/water/water.module';
 import { PowerModule } from './v1/power/power.module';
 import { TrafficModule } from './v1/traffic/traffic.module';
-import { RealtimeModule } from './v1/realtime/realtime.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { DevicesModule } from './v1/devices/devices.module';
-import { RulesModule } from './v1/rules/rules.module';
 import { RulesNewModule } from './v1/rules-new/rules-new.module';
-import { ReportsModule } from './v1/reports/reports.module';
 import { ReportsNewModule } from './v1/reports-new/reports-new.module';
-import { PaymentsModule } from './v1/payments/payments.module';
 import { LocationsModule } from './v1/locations/locations.module';
 import { RelayModule } from './v1/relay/relay.module';
 import { GatewayModule } from './v1/gateway/gateway.module';
@@ -33,7 +29,6 @@ import { DashboardModule } from './v1/dashboard/dashboard.module';
     WaterModule,
     PowerModule,
     TrafficModule,
-    RealtimeModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'static'),
     }),
@@ -54,11 +49,8 @@ import { DashboardModule } from './v1/dashboard/dashboard.module';
       },
     ]),
     DevicesModule,
-    RulesModule,
     RulesNewModule,
-    ReportsModule,
     ReportsNewModule,
-    PaymentsModule,
     LocationsModule,
     RelayModule,
     GatewayModule,

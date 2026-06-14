@@ -12,6 +12,7 @@ import {
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
 import type { TableRow } from '../types/supabase';
+import { MANAGE_CEILING, PermissionLevel } from '../common/permission-levels';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
 import { RuleActionTypeDto } from './dto/rule-action-type.dto';
@@ -116,6 +117,43 @@ export class RulesNewService {
     const search = searchTerm?.trim().toLowerCase();
     if (!search) return rules;
     return rules.filter((rule) => matchesSearch(rule, search));
+  }
+
+  /**
+   * Rule templates with at least one assignment whose live state is currently
+   * triggered, narrowed to those triggered assignments. Visibility scoping is
+   * inherited from findAll (device read scope).
+   */
+  async findAllTriggered(
+    jwtPayload: any,
+    authHeader: string,
+  ): Promise<RuleTemplateDto[]> {
+    const rules = await this.findAll(jwtPayload, authHeader);
+    return rules
+      .map((rule) => ({
+        ...rule,
+        assignments: rule.assignments.filter(
+          (assignment) => assignment.state?.isTriggered === true,
+        ),
+      }))
+      .filter((rule) => rule.assignments.length > 0);
+  }
+
+  async findTriggeredCount(
+    jwtPayload: any,
+    authHeader: string,
+  ): Promise<{ count: number; triggered_count: number; total_count: number }> {
+    const rules = await this.findAll(jwtPayload, authHeader);
+    const triggeredCount = rules.filter((rule) =>
+      rule.assignments.some((assignment) => assignment.state?.isTriggered === true),
+    ).length;
+
+    return {
+      count: triggeredCount,
+      // Kept for compatibility with consumers of the legacy /v1/rules/triggered/count shape.
+      triggered_count: triggeredCount,
+      total_count: rules.length,
+    };
   }
 
   async findOne(
@@ -387,12 +425,16 @@ export class RulesNewService {
         const ownEntry = owners.find((entry) => entry.user_id === userId);
         const directOwner = row.user_id === userId;
         const permissionLevel = directOwner
-          ? 1
+          ? PermissionLevel.ADMIN
           : (ownEntry?.permission_level ?? null);
         const canView =
-          isStaff || directOwner || (permissionLevel != null && permissionLevel <= 3);
+          isStaff ||
+          directOwner ||
+          (permissionLevel != null && permissionLevel < PermissionLevel.DISABLED);
         const canManage =
-          isStaff || directOwner || (permissionLevel != null && permissionLevel <= 2);
+          isStaff ||
+          directOwner ||
+          (permissionLevel != null && permissionLevel <= MANAGE_CEILING);
 
         return {
           devEui: row.dev_eui,

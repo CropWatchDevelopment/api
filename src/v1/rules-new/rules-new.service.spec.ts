@@ -219,4 +219,71 @@ describe('RulesNewService', () => {
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  describe('triggered rules', () => {
+    const jwt = { sub: 'user-1', email: 'user@example.com' };
+
+    const buildRule = (id: number, assignments: Array<{ devEui: string; isTriggered: boolean | null }>) => ({
+      id,
+      name: `Rule ${id}`,
+      description: null,
+      deviceTypeId: null,
+      isActive: true,
+      createdAt: null,
+      criteria: [],
+      actions: [],
+      assignments: assignments.map((entry, index) => ({
+        id: id * 10 + index,
+        devEui: entry.devEui,
+        templateId: id,
+        isActive: true,
+        createdAt: null,
+        deviceName: null,
+        locationName: null,
+        permissionLevel: 2,
+        state:
+          entry.isTriggered === null
+            ? null
+            : {
+                id: id * 100 + index,
+                devEui: entry.devEui,
+                templateId: id,
+                isTriggered: entry.isTriggered,
+                lastTriggeredAt: null,
+                lastResetAt: null,
+              },
+      })),
+    });
+
+    it('findAllTriggered returns only templates with triggered assignments, narrowed to those assignments', async () => {
+      const service = new RulesNewService({} as any, {} as any, {} as any);
+      jest.spyOn(service, 'findAll').mockResolvedValue([
+        buildRule(1, [
+          { devEui: 'AA', isTriggered: true },
+          { devEui: 'BB', isTriggered: false },
+        ]),
+        buildRule(2, [{ devEui: 'CC', isTriggered: false }]),
+        buildRule(3, [{ devEui: 'DD', isTriggered: null }]),
+      ]);
+
+      const triggered = await service.findAllTriggered(jwt, 'Bearer token-1');
+
+      expect(triggered).toHaveLength(1);
+      expect(triggered[0].id).toBe(1);
+      expect(triggered[0].assignments).toHaveLength(1);
+      expect(triggered[0].assignments[0].devEui).toBe('AA');
+    });
+
+    it('findTriggeredCount reports triggered and total counts', async () => {
+      const service = new RulesNewService({} as any, {} as any, {} as any);
+      jest.spyOn(service, 'findAll').mockResolvedValue([
+        buildRule(1, [{ devEui: 'AA', isTriggered: true }]),
+        buildRule(2, [{ devEui: 'BB', isTriggered: false }]),
+      ]);
+
+      await expect(
+        service.findTriggeredCount(jwt, 'Bearer token-1'),
+      ).resolves.toEqual({ count: 1, triggered_count: 1, total_count: 2 });
+    });
+  });
 });

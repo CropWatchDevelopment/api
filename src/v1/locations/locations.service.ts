@@ -11,6 +11,12 @@ import {
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
+import {
+  MANAGE_CEILING,
+  PermissionLevel,
+  READ_EXCLUSIVE_CEILING,
+} from '../common/permission-levels';
+import { filterStaffOwnerRows } from '../common/owner-filter.helper';
 
 @Injectable()
 export class LocationsService {
@@ -42,7 +48,7 @@ export class LocationsService {
       user_id: userId,
       location_id: location.location_id,
       admin_user_id: userId,
-      permission_level: 1,
+      permission_level: PermissionLevel.ADMIN,
       is_active: true,
       description: null,
     };
@@ -115,7 +121,13 @@ export class LocationsService {
       throw new NotFoundException('Location not found');
     }
 
-    return data;
+    return {
+      ...data,
+      cw_location_owners: filterStaffOwnerRows(
+        data.cw_location_owners,
+        isGlobalUser,
+      ),
+    };
   }
 
   async update(id: number, updateLocationDto: UpdateLocationDto, jwtPayload: any, authHeader: string) {
@@ -185,7 +197,7 @@ export class LocationsService {
         .eq('owner_id', userId)
         .eq('owner_match.user_id', userId) // Ensure we only get location groups WE are owners of
         .or(`owner_id.eq.${userId},owner_match.not.is.null`) // OR locations that we have permission to access
-        .lt('owner_match.permission_level', 4); // AND we have a permission level LESS THAN 4 (enabled)
+        .lt('owner_match.permission_level', READ_EXCLUSIVE_CEILING); // AND our permission level is not Disabled
     }
 
     const { data, error } = await query.order('name', { ascending: true });
@@ -259,10 +271,10 @@ export class LocationsService {
       .eq('location_id', id);
     if (locationDevicesError) throw new InternalServerErrorException('Failed to fetch location devices');
 
-    const locationPermissionLevel = permissionLevel ?? 4;
+    const locationPermissionLevel = permissionLevel ?? PermissionLevel.DISABLED;
 
     // add check if user selected to add current permission to all location's devices
-    // if true, add user's new permission level to all devices, if false, add user to devices with lowest permission level (4) to ensure they can access the devices through the location
+    // if true, add user's new permission level to all devices, if false, add user to devices as Disabled so they can access the location without seeing its devices
     for (const device of locationDevices ?? []) {
       const { error: deviceOwnerError } = await client
         .from('cw_device_owners')
@@ -270,7 +282,9 @@ export class LocationsService {
           {
             user_id: userData.id,
             dev_eui: device.dev_eui,
-            permission_level: applyPermissionToAllDevices ? locationPermissionLevel : 4,
+            permission_level: applyPermissionToAllDevices
+              ? locationPermissionLevel
+              : PermissionLevel.DISABLED,
           },
           { onConflict: 'dev_eui,user_id' },
         )
@@ -330,10 +344,11 @@ export class LocationsService {
       .eq('location_id', locationCurrentPermission.location_id);
     if (locationDevicesError) throw new InternalServerErrorException('Failed to fetch location devices');
 
-    const locationPermissionLevel = updateLocationOwnerDto.permission_level ?? 4;
+    const locationPermissionLevel =
+      updateLocationOwnerDto.permission_level ?? PermissionLevel.DISABLED;
 
     // add check if user selected to add current permission to all location's devices
-    // if true, add user's new permission level to all devices, if false, add user to devices with lowest permission level (4) to ensure they can access the devices through the location
+    // if true, add user's new permission level to all devices, if false, add user to devices as Disabled so they can access the location without seeing its devices
     for (const device of locationDevices ?? []) {
       const { error: deviceOwnerError } = await client
         .from('cw_device_owners')
@@ -341,7 +356,9 @@ export class LocationsService {
           {
             user_id: updateLocationOwnerDto.user_id,
             dev_eui: device.dev_eui,
-            permission_level: applyPermissionToAllDevices ? locationPermissionLevel : 4,
+            permission_level: applyPermissionToAllDevices
+              ? locationPermissionLevel
+              : PermissionLevel.DISABLED,
           },
           { onConflict: 'dev_eui,user_id' },
         )
@@ -484,7 +501,7 @@ export class LocationsService {
 
     return query
       .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', 4)
+      .lt('owner_match.permission_level', READ_EXCLUSIVE_CEILING)
       .or(`owner_id.eq.${userId},owner_match.not.is.null`);
   }
 
@@ -495,7 +512,7 @@ export class LocationsService {
 
     return query
       .eq('owner_match.user_id', userId)
-      .lte('owner_match.permission_level', 2)
+      .lte('owner_match.permission_level', MANAGE_CEILING)
       .or(`owner_id.eq.${userId},owner_match.not.is.null`);
   }
 

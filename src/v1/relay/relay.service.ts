@@ -17,6 +17,7 @@ import {
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
 import type { TableInsert, TableRow } from '../../v1/types/supabase';
+import { canManage, canRead, PermissionLevel } from '../common/permission-levels';
 import { PulseRelayDto } from './dto/pulse-relay.dto';
 import { UpdateRelayDto } from './dto/update-relay.dto';
 import {
@@ -78,7 +79,7 @@ function normalizeDevEui(value: string): string {
 }
 
 function getDefaultPermissionLevel(): number {
-  return 4;
+  return PermissionLevel.DISABLED;
 }
 
 function readPermissionLevel(value: unknown): number {
@@ -142,7 +143,13 @@ export class RelayService {
     private readonly configService: ConfigService,
     private readonly relayCommandLockService: RelayCommandLockService,
     private readonly supabaseService: SupabaseService,
-  ) {}
+  ) {
+    if (!readString(this.configService.get<string>('PRIVATE_TTI_WEBHOOK_TOKEN'))) {
+      this.logger.warn(
+        'PRIVATE_TTI_WEBHOOK_TOKEN is not set — the TTI relay webhook will reject all uplinks until it is configured',
+      );
+    }
+  }
 
   async getLatestRelay(jwtPayload: any, authHeader: string, devEui: string) {
     const normalizedDevEui = normalizeDevEui(devEui);
@@ -155,7 +162,7 @@ export class RelayService {
       authHeader,
       normalizedDevEui,
     );
-    if (context.permissionLevel >= 4) {
+    if (!canRead(context.permissionLevel)) {
       throw new NotFoundException('Device not found');
     }
 
@@ -184,7 +191,7 @@ export class RelayService {
       authHeader,
       normalizedDevEui,
     );
-    if (context.permissionLevel > 2) {
+    if (!canManage(context.permissionLevel)) {
       throw new ForbiddenException(
         'You do not have permission to control this relay',
       );
@@ -282,7 +289,7 @@ export class RelayService {
       authHeader,
       normalizedDevEui,
     );
-    if (context.permissionLevel > 2) {
+    if (!canManage(context.permissionLevel)) {
       throw new ForbiddenException(
         'You do not have permission to control this relay',
       );
@@ -402,8 +409,12 @@ export class RelayService {
       this.configService.get<string>('PRIVATE_TTI_WEBHOOK_TOKEN'),
     );
 
+    // Fail closed: a missing token must never mean "accept everything".
     if (!expectedToken) {
-      return;
+      this.logger.error(
+        'PRIVATE_TTI_WEBHOOK_TOKEN is not configured — rejecting relay webhook',
+      );
+      throw new UnauthorizedException('Relay webhook is not configured');
     }
 
     const actualToken =

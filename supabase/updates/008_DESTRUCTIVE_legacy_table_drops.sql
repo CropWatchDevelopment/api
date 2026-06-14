@@ -1,0 +1,57 @@
+-- =============================================================================
+-- !!! 008_DESTRUCTIVE_legacy_table_drops.sql !!!
+-- =============================================================================
+-- !!  EVERYTHING IN THIS FILE IS COMMENTED OUT ON PURPOSE.                  !!
+-- !!  These statements PERMANENTLY DELETE tables and their data.           !!
+-- !!  Take a backup / snapshot first. Uncomment one block at a time, only  !!
+-- !!  after the verification query above it returns what the comment says. !!
+-- =============================================================================
+-- Run this LAST, after all code releases are live and stable.
+
+-- ---------------------------------------------------------------------------
+-- 1) Legacy v0 tables: devices, locations, permissions
+--    Superseded by cw_devices / cw_locations / cw_location_owners years ago.
+--    Verify nothing references them (zero code references found in the API,
+--    CropWatch, and CWUI repos on 2026-06-10):
+--
+-- SELECT 'devices' AS tbl, count(*) FROM public.devices
+-- UNION ALL SELECT 'locations', count(*) FROM public.locations
+-- UNION ALL SELECT 'permissions', count(*) FROM public.permissions;
+--
+-- DROP TABLE IF EXISTS public.permissions;   -- references locations via FKs
+-- DROP TABLE IF EXISTS public.devices;
+-- DROP TABLE IF EXISTS public.locations;
+
+-- ---------------------------------------------------------------------------
+-- 2) Empty duplicate telemetry tables (0 rows at review time):
+--
+-- SELECT 'cw_soil_data_duplicate' AS tbl, count(*) FROM public.cw_soil_data_duplicate
+-- UNION ALL SELECT 'cw_air_data_duplicate', count(*) FROM public.cw_air_data_duplicate;
+-- -- (expected: 0 and 0)
+--
+-- DROP TABLE IF EXISTS public.cw_soil_data_duplicate;
+-- DROP TABLE IF EXISTS public.cw_air_data_duplicate;
+
+-- ---------------------------------------------------------------------------
+-- 3) Old rules/reports-era tables — ONLY after the old /v1/rules and
+--    /v1/reports API modules have been removed AND the new template-based
+--    rules/reports have been confirmed working in production for a while.
+--    cw_rules / cw_rule_criteria / cw_rule_triggered hold the pre-template
+--    rule definitions and trigger history; reports / report_recipients /
+--    report_alert_points / report_data_processing_schedules /
+--    report_user_schedule / reports_templates hold the pre-template reports.
+--    KEEP THEM until you are certain no historical data is needed, or export
+--    them first. NOTE: devices.service.ts also embeds cw_rules in a device
+--    detail select — remove that join before dropping cw_rules.
+--
+--    \copy (SELECT * FROM public.cw_rules) TO 'cw_rules_backup.csv' CSV HEADER
+--
+-- DROP TABLE IF EXISTS public.cw_rule_criteria;
+-- DROP TABLE IF EXISTS public.cw_rule_triggered;
+-- DROP TABLE IF EXISTS public.cw_rules;
+-- DROP TABLE IF EXISTS public.report_recipients;
+-- DROP TABLE IF EXISTS public.report_alert_points;
+-- DROP TABLE IF EXISTS public.report_data_processing_schedules;
+-- DROP TABLE IF EXISTS public.report_user_schedule;
+-- DROP TABLE IF EXISTS public.reports_templates;
+-- DROP TABLE IF EXISTS public.reports;
