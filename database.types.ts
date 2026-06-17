@@ -610,6 +610,98 @@ export type Database = {
           },
         ]
       }
+      billing_customers: {
+        Row: {
+          base_discount_id: string | null
+          base_status: string | null
+          base_subscription_id: string | null
+          created_at: string
+          device_seats: number
+          device_subscription_id: string | null
+          polar_customer_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_discount_id?: string | null
+          base_status?: string | null
+          base_subscription_id?: string | null
+          created_at?: string
+          device_seats?: number
+          device_subscription_id?: string | null
+          polar_customer_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_discount_id?: string | null
+          base_status?: string | null
+          base_subscription_id?: string | null
+          created_at?: string
+          device_seats?: number
+          device_subscription_id?: string | null
+          polar_customer_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_customers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_licenses: {
+        Row: {
+          created_at: string
+          dev_eui: string | null
+          id: number
+          polar_subscription_id: string
+          seat_index: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dev_eui?: string | null
+          id?: number
+          polar_subscription_id: string
+          seat_index: number
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dev_eui?: string | null
+          id?: number
+          polar_subscription_id?: string
+          seat_index?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_licenses_dev_eui_fkey"
+            columns: ["dev_eui"]
+            isOneToOne: false
+            referencedRelation: "cw_devices"
+            referencedColumns: ["dev_eui"]
+          },
+          {
+            foreignKeyName: "device_licenses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cw_device_owners: {
         Row: {
           dev_eui: string

@@ -22,6 +22,7 @@ Full background: [`docs/security-review.md`](../../docs/security-review.md),
 | `007_indexes_and_keys.sql` | Drops duplicate indexes, adds FK indexes for hot paths | Any time |
 | `008_DESTRUCTIVE_legacy_table_drops.sql` | **Fully commented out.** Legacy table drops | Last, after everything is stable; take a backup first |
 | `009_remove_discord.sql` | Drops `user_discord_connections`, removes Discord notifier/communication-method rows (Discord is no longer used) | Any time |
+| `010_polar_device_licenses.sql` | Creates `billing_customers` + `device_licenses` for the Polar subscription/licensing feature | Before deploying the Polar API release; regenerate `database.types.ts` after |
 
 ## Deploy/run interleaving (critical)
 
