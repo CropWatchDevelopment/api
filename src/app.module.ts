@@ -19,6 +19,8 @@ import { LocationsModule } from './v1/locations/locations.module';
 import { RelayModule } from './v1/relay/relay.module';
 import { GatewayModule } from './v1/gateway/gateway.module';
 import { DashboardModule } from './v1/dashboard/dashboard.module';
+import { PaymentsModule } from './v1/payments/payments.module';
+import { CropwatchMcpModule } from './v1/mcp/mcp.module';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { DashboardModule } from './v1/dashboard/dashboard.module';
     RelayModule,
     GatewayModule,
     DashboardModule,
+    PaymentsModule,
+    CropwatchMcpModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

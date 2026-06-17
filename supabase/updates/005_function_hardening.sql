@@ -38,13 +38,19 @@ ALTER FUNCTION public.get_filtered_device_report_data_multi_v2(text, timestamp w
 ALTER FUNCTION public.get_road_events(text) SET search_path = public;
 ALTER FUNCTION public.get_road_events_summary1(text[], timestamp with time zone, text, timestamp with time zone, text) SET search_path = public;
 
--- get_hloc_data overloads (5). They build dynamic SQL over public tables and
--- use TimescaleDB helpers (time_bucket / first / last), hence extensions too.
+-- get_hloc_data: 3 SECURITY INVOKER function overloads. They build dynamic SQL
+-- over public tables and use TimescaleDB helpers (time_bucket / first / last),
+-- hence extensions too.
+-- NOTE: two further get_hloc_data *procedures* existed in prod as dead
+-- experiments — (timestamp, timestamp, text, text, text) and
+-- (timestamp, timestamp, text, text, text, text) (the latter returns an OUT
+-- refcursor). They are PROCEDUREs, not functions, so ALTER FUNCTION errors on
+-- them (42809). They are dropped as dead code rather than hardened:
+--   DROP PROCEDURE IF EXISTS public.get_hloc_data(timestamp without time zone, timestamp without time zone, text, text, text);
+--   DROP PROCEDURE IF EXISTS public.get_hloc_data(timestamp without time zone, timestamp without time zone, text, text, text, text);
 ALTER FUNCTION public.get_hloc_data(text, text, text, text) SET search_path = public, extensions;
 ALTER FUNCTION public.get_hloc_data(text, text, text, text, text) SET search_path = public, extensions;
 ALTER FUNCTION public.get_hloc_data(timestamp without time zone, timestamp without time zone, text, text, character varying) SET search_path = public, extensions;
-ALTER FUNCTION public.get_hloc_data(timestamp without time zone, timestamp without time zone, text, text, text) SET search_path = public, extensions;
-ALTER FUNCTION public.get_hloc_data(timestamp without time zone, timestamp without time zone, text, text, text, text) SET search_path = public, extensions;
 
 -- ---------------------------------------------------------------------------
 -- B) Lock down SECURITY DEFINER functions

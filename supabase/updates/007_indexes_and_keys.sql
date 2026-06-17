@@ -25,8 +25,11 @@ BEGIN;
 -- ---------------------------------------------------------------------------
 -- A) Duplicate indexes — keep the first of each pair, drop the second.
 -- ---------------------------------------------------------------------------
--- cw_air_alerts: keep cw_air_alerts_triggering_rule_group_key
-DROP INDEX IF EXISTS public.cw_air_alerts_triggering_rule_group_key1;
+-- cw_air_alerts: keep cw_air_alerts_triggering_rule_group_key.
+-- This duplicate is a UNIQUE *constraint*, so its index can't be dropped with
+-- DROP INDEX (2BP01) — drop the constraint instead (uniqueness is preserved by
+-- the kept constraint). No CASCADE: fail loudly if an FK depends on it.
+ALTER TABLE public.cw_air_alerts DROP CONSTRAINT IF EXISTS cw_air_alerts_triggering_rule_group_key1;
 
 -- cw_device_owners: keep cw_device_owners_dev_eui_idx
 DROP INDEX IF EXISTS public.idx_cdo_dev_eui;
@@ -37,8 +40,10 @@ DROP INDEX IF EXISTS public.idx_cdo_dev_eui_user_pl;
 -- cw_devices: keep idx_cw_devices_location_id
 DROP INDEX IF EXISTS public.idx_cw_devices_location;
 
--- report_user_schedule: keep the primary key, drop the redundant unique index
-DROP INDEX IF EXISTS public.report_user_schedule_id_key;
+-- report_user_schedule: keep the primary key, drop the redundant unique index.
+-- It is a UNIQUE *constraint* (duplicate of the pkey on id), so drop the
+-- constraint, not the index. No CASCADE: fail loudly if an FK depends on it.
+ALTER TABLE public.report_user_schedule DROP CONSTRAINT IF EXISTS report_user_schedule_id_key;
 
 -- Unused index flagged by the advisor on a permission column that is always
 -- queried together with (dev_eui, user_id) — covered by

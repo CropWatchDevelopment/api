@@ -14,6 +14,7 @@ import {
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
 import { LocationsService } from '../locations/locations.service';
+import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import {
   MANAGE_CEILING,
@@ -70,7 +71,8 @@ export class DevicesService {
       devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
     }
     if (searchName) {
-      devicesQuery = devicesQuery.or(`name.ilike.%${searchName}%,dev_eui.ilike.%${searchName}%`);
+      const safeName = sanitizeOrFilterTerm(searchName);
+      devicesQuery = devicesQuery.or(`name.ilike.%${safeName}%,dev_eui.ilike.%${safeName}%`);
     }
     if (searchLocation) {
       devicesQuery = devicesQuery.ilike('location', `%${searchLocation}%`);
@@ -522,7 +524,8 @@ export class DevicesService {
       devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
     }
     if (searchName) {
-      devicesQuery = devicesQuery.or(`name.ilike.%${searchName}%,dev_eui.ilike.%${searchName}%`);
+      const safeName = sanitizeOrFilterTerm(searchName);
+      devicesQuery = devicesQuery.or(`name.ilike.%${safeName}%,dev_eui.ilike.%${safeName}%`);
     }
     if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
       devicesQuery = devicesQuery.eq(

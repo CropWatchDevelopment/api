@@ -36,8 +36,14 @@ DROP SCHEMA IF EXISTS stripe;
 -- Foreign server + any leftover objects that depend on it.
 DROP SERVER IF EXISTS stripe_server CASCADE;
 
+-- The foreign-data wrapper 'stripe' depends on the wrappers extension's
+-- validator/handler functions (stripe_fdw_validator) and is NOT removed by
+-- dropping the server, so it must be dropped before the extension or
+-- DROP EXTENSION fails with 2BP01 (dependent objects still exist).
+DROP FOREIGN DATA WRAPPER IF EXISTS stripe CASCADE;
+
 -- The wrappers extension only existed for the Stripe FDW; remove it now that
--- no foreign server remains. (Re-installable any time from the dashboard.)
+-- no foreign server or wrapper remains. (Re-installable any time from the dashboard.)
 DROP EXTENSION IF EXISTS wrappers;
 
 COMMIT;

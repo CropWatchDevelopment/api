@@ -1,6 +1,7 @@
 import { InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { LocationsService } from './locations.service';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { PaymentsService } from '../payments/payments.service';
 
 describe('LocationsService', () => {
   type QueryResult = { data: any; error: any };
@@ -36,10 +37,15 @@ describe('LocationsService', () => {
   });
 
   const createService = (client: any) =>
-    new LocationsService({
-      getClient: jest.fn(() => client),
-      getAdminClient: jest.fn(),
-    } as unknown as SupabaseService);
+    new LocationsService(
+      {
+        getClient: jest.fn(() => client),
+        getAdminClient: jest.fn(),
+      } as unknown as SupabaseService,
+      {
+        hasActiveBaseSubscription: jest.fn(async () => true),
+      } as unknown as PaymentsService,
+    );
 
   it('should be defined', () => {
     const client = createClient({});

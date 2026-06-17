@@ -1,6 +1,140 @@
-/* Hide Swagger logo and replace with branded header */
-.swagger-ui .topbar .topbar-wrapper img {
-  display: none;
+/* =============================================================================
+   CropWatch Swagger UI theme — colors mapped to the CWUI design tokens.
+   Values are copied from @cropwatchdevelopment/cwui dist/styles
+   (tokens.css + theme-light.css + theme-dark.css) so /docs matches the CWUI
+   look in both light and dark.
+
+   This swagger-ui build ships its OWN dark theme keyed on `html.dark-mode`
+   (toggled by swagger's native dark-mode button + prefers-color-scheme). We
+   recolor THAT system rather than running a parallel one, so the two can't
+   conflict. Dark overrides below are keyed on `html.dark-mode`.
+   ============================================================================= */
+
+:root {
+  /* CWUI light theme */
+  --cw-bg-base: #d6e0ea;
+  --cw-bg-surface: #f7fafc;
+  --cw-bg-elevated: #e8eff5;
+  --cw-bg-muted: #dee7f0;
+  --cw-bg-subtle: #ccd8e4;
+  --cw-text-primary: #07111d;
+  --cw-text-secondary: #1f3144;
+  --cw-text-muted: #465b72;
+  --cw-text-inverse: #fbfdff;
+  --cw-border-default: #99aec1;
+  --cw-border-muted: #b0c0ce;
+  --cw-border-strong: #70869d;
+
+  /* Theme-independent palette */
+  --cw-primary-500: #00d4aa;
+  --cw-primary-600: #00b894;
+  --cw-primary-700: #00997a;
+
+  /* HTTP method accents (match the landing page MethodTag mapping) */
+  --cw-m-get: #059669;
+  --cw-m-post: #00b894;
+  --cw-m-put: #d97706;
+  --cw-m-patch: #d97706;
+  --cw-m-delete: #dd0f0f;
+  --cw-m-other: #647c97;
+
+  /* Branded topbar stays dark in both themes */
+  --cw-topbar-bg: #172335;
+  --cw-topbar-border: #00b894;
+
+  --cw-font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  --cw-radius: 0.5rem;
+
+  /* Code/example blocks stay dark in BOTH themes — Swagger's JSON syntax-highlight
+     tokens are light tones, so a light background makes them unreadable. */
+  --cw-code-bg: #0f1929;
+  --cw-code-text: #e6edf3;
+
+  /* Link text: black in light mode, white in dark mode */
+  --cw-link: #000;
+
+  color-scheme: light;
+}
+
+html.dark-mode {
+  /* CWUI dark theme (overrides this swagger build's native dark theme) */
+  --cw-bg-base: #172335;
+  --cw-bg-surface: #2d3243;
+  --cw-bg-elevated: #324661;
+  --cw-bg-muted: #31455e;
+  --cw-bg-subtle: #3d5570;
+  --cw-text-primary: #f4f8fc;
+  --cw-text-secondary: #eaf1f8;
+  --cw-text-muted: #c7d3e0;
+  --cw-text-inverse: #07111d;
+  --cw-border-default: #647c97;
+  --cw-border-muted: #516883;
+  --cw-border-strong: #839ab4;
+
+  --cw-link: #fff;
+
+  color-scheme: dark;
+}
+
+/* ── Base page ─────────────────────────────────────────────── */
+html,
+body {
+  background: var(--cw-bg-base) !important;
+}
+
+.swagger-ui {
+  color: var(--cw-text-primary) !important;
+}
+
+.swagger-ui,
+.swagger-ui .info .title,
+.swagger-ui .info li,
+.swagger-ui .info p,
+.swagger-ui .info table,
+.swagger-ui .opblock-tag,
+.swagger-ui .opblock-tag small,
+.swagger-ui .opblock .opblock-section-header h4,
+.swagger-ui .opblock .opblock-summary-description,
+.swagger-ui .response-col_status,
+.swagger-ui .response-col_description,
+.swagger-ui .responses-inner h4,
+.swagger-ui .responses-inner h5,
+.swagger-ui .parameter__name,
+.swagger-ui .parameter__type,
+.swagger-ui .parameter__in,
+.swagger-ui table thead tr th,
+.swagger-ui table thead tr td,
+.swagger-ui .model-title,
+.swagger-ui .model,
+.swagger-ui .markdown p,
+.swagger-ui .renderedMarkdown p,
+.swagger-ui label,
+.swagger-ui .tab li {
+  color: var(--cw-text-primary) !important;
+}
+
+.swagger-ui .opblock-tag small,
+.swagger-ui .parameter__in,
+.swagger-ui .opblock-description-wrapper p,
+.swagger-ui .info .base-url,
+.swagger-ui small {
+  color: var(--cw-text-muted) !important;
+}
+
+/* Link text: white in dark mode, black in light mode (per request) */
+.swagger-ui a,
+.swagger-ui a:visited,
+.swagger-ui .info a,
+.swagger-ui .opblock-tag,
+.swagger-ui .opblock-summary-path a {
+  color: var(--cw-link) !important;
+}
+
+/* ── Branded topbar (always dark) ──────────────────────────── */
+.swagger-ui .topbar {
+  position: relative;
+  background: var(--cw-topbar-bg) !important;
+  border-bottom: 2px solid var(--cw-topbar-border);
 }
 
 .swagger-ui .topbar .topbar-wrapper {
@@ -10,19 +144,19 @@
   flex-wrap: wrap;
 }
 
-.swagger-ui .topbar {
-  position: relative;
+.swagger-ui .topbar .topbar-wrapper img {
+  display: none;
 }
 
 .swagger-ui .topbar .topbar-wrapper::before {
-  content: "CROPWATCH - DEVELOPMENT";
+  content: "CROPWATCH — DEVELOPMENT";
   display: inline-flex;
   align-items: center;
   min-height: 22px;
   padding-left: 32px;
   margin-right: 8px;
   background: url("/favicon.svg") no-repeat left center / 22px 22px;
-  color: white;
+  color: #fff;
   font-weight: 700;
   letter-spacing: 0.08em;
   font-size: 14px;
@@ -38,11 +172,25 @@
   margin-left: auto;
 }
 
-/* Force the dropdown/select used by Swagger's URL selector to be visible */
+.swagger-ui .topbar .download-url-wrapper .select-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .swagger-ui .topbar .download-url-wrapper .select-label select {
   display: block !important;
   visibility: visible !important;
   z-index: 9999;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--cw-radius);
+}
+
+.swagger-ui .topbar .download-url-wrapper .download-url-button {
+  background: var(--cw-primary-600);
+  color: var(--cw-text-inverse);
+  border: none;
+  border-radius: var(--cw-radius);
 }
 
 @media (max-width: 768px) {
@@ -52,6 +200,7 @@
   }
 }
 
+/* Dark-mode toggle button */
 .dark-mode-toggle {
   position: absolute !important;
   right: 14px;
@@ -77,53 +226,8 @@
 }
 
 .dark-mode-toggle.is-dark {
-  border-color: rgba(245, 166, 35, 0.7);
-  background: rgba(245, 166, 35, 0.2);
-}
-
-html.cw-swagger-dark,
-html.cw-swagger-dark body {
-  background: #0b1220;
-}
-
-html.cw-swagger-dark .swagger-ui,
-html.cw-swagger-dark .swagger-ui .info .title,
-html.cw-swagger-dark .swagger-ui .info p,
-html.cw-swagger-dark .swagger-ui .opblock-tag,
-html.cw-swagger-dark .swagger-ui .response-col_status,
-html.cw-swagger-dark .swagger-ui .response-col_description,
-html.cw-swagger-dark .swagger-ui .parameter__name,
-html.cw-swagger-dark .swagger-ui .parameter__type,
-html.cw-swagger-dark .swagger-ui .model-title,
-html.cw-swagger-dark .swagger-ui .model,
-html.cw-swagger-dark .swagger-ui label {
-  color: #e2e8f0;
-}
-
-html.cw-swagger-dark .swagger-ui .scheme-container,
-html.cw-swagger-dark .swagger-ui .opblock,
-html.cw-swagger-dark .swagger-ui section.models,
-html.cw-swagger-dark .swagger-ui .model-box,
-html.cw-swagger-dark .swagger-ui .responses-inner {
-  background: #0f172a;
-}
-
-html.cw-swagger-dark .swagger-ui .opblock .opblock-summary,
-html.cw-swagger-dark .swagger-ui .opblock .opblock-section-header,
-html.cw-swagger-dark .swagger-ui section.models,
-html.cw-swagger-dark .swagger-ui .model-box,
-html.cw-swagger-dark .swagger-ui table tbody tr td {
-  border-color: #334155;
-}
-
-html.cw-swagger-dark .swagger-ui input[type="text"],
-html.cw-swagger-dark .swagger-ui input[type="password"],
-html.cw-swagger-dark .swagger-ui input[type="search"],
-html.cw-swagger-dark .swagger-ui textarea,
-html.cw-swagger-dark .swagger-ui select {
-  background: #111827;
-  color: #e2e8f0;
-  border-color: #334155;
+  border-color: var(--cw-primary-500);
+  background: color-mix(in srgb, var(--cw-primary-500) 28%, transparent);
 }
 
 @media (max-width: 768px) {
@@ -133,11 +237,157 @@ html.cw-swagger-dark .swagger-ui select {
   }
 }
 
+/* ── Surfaces: scheme bar, operation blocks, models ────────── */
+.swagger-ui .scheme-container,
+.swagger-ui .opblock,
+.swagger-ui section.models,
+.swagger-ui .model-box,
+.swagger-ui .responses-inner,
+.swagger-ui .opblock .opblock-section-header {
+  background: var(--cw-bg-surface) !important;
+  box-shadow: none;
+}
+
+.swagger-ui .scheme-container {
+  border-bottom: 1px solid var(--cw-border-muted);
+}
+
+.swagger-ui .opblock,
+.swagger-ui section.models,
+.swagger-ui .model-box {
+  border: 1px solid var(--cw-border-muted) !important;
+  border-radius: var(--cw-radius);
+  box-shadow: 0 1px 2px rgba(7, 17, 29, 0.06);
+}
+
+.swagger-ui .opblock .opblock-summary {
+  border-color: var(--cw-border-muted);
+}
+
+.swagger-ui .opblock-tag {
+  border-bottom: 1px solid var(--cw-border-muted);
+}
+
+/* ── Operation method badges + block accents ───────────────── */
+/* !important so these beat the swagger build's native .dark-mode badge colors. */
+.swagger-ui .opblock .opblock-summary-method {
+  border-radius: var(--cw-radius);
+  text-shadow: none;
+  background: var(--cw-m-other) !important;
+}
+
+.swagger-ui .opblock.opblock-get .opblock-summary-method { background: var(--cw-m-get) !important; }
+.swagger-ui .opblock.opblock-post .opblock-summary-method { background: var(--cw-m-post) !important; }
+.swagger-ui .opblock.opblock-put .opblock-summary-method { background: var(--cw-m-put) !important; }
+.swagger-ui .opblock.opblock-patch .opblock-summary-method { background: var(--cw-m-patch) !important; }
+.swagger-ui .opblock.opblock-delete .opblock-summary-method { background: var(--cw-m-delete) !important; }
+
+/* Method shown by the badge + a colored LEFT edge only — clean surface cards,
+   no washed-out full-row tints (which is what made the list look muddy). */
+.swagger-ui .opblock {
+  border-left-width: 4px !important;
+}
+.swagger-ui .opblock.opblock-get { border-left-color: var(--cw-m-get) !important; }
+.swagger-ui .opblock.opblock-post { border-left-color: var(--cw-m-post) !important; }
+.swagger-ui .opblock.opblock-put { border-left-color: var(--cw-m-put) !important; }
+.swagger-ui .opblock.opblock-patch { border-left-color: var(--cw-m-patch) !important; }
+.swagger-ui .opblock.opblock-delete { border-left-color: var(--cw-m-delete) !important; }
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.swagger-ui .btn {
+  color: var(--cw-text-primary);
+  border-color: var(--cw-border-strong);
+  border-radius: var(--cw-radius);
+  box-shadow: none;
+}
+
+.swagger-ui .btn.authorize {
+  color: var(--cw-primary-600);
+  border-color: var(--cw-primary-600);
+}
+
+.swagger-ui .btn.authorize svg {
+  fill: var(--cw-primary-600);
+}
+
+.swagger-ui .btn.execute {
+  background: var(--cw-primary-600);
+  border-color: var(--cw-primary-600);
+  color: var(--cw-text-inverse);
+}
+
+.swagger-ui .btn.execute:hover {
+  background: var(--cw-primary-700);
+  border-color: var(--cw-primary-700);
+}
+
+/* ── Tables (parameters / responses) ───────────────────────── */
+.swagger-ui table thead tr th,
+.swagger-ui table thead tr td {
+  border-bottom: 1px solid var(--cw-border-default);
+}
+
+.swagger-ui table tbody tr td {
+  border-color: var(--cw-border-muted);
+}
+
+/* ── Form controls ─────────────────────────────────────────── */
+.swagger-ui input[type="text"],
+.swagger-ui input[type="email"],
+.swagger-ui input[type="password"],
+.swagger-ui input[type="search"],
+.swagger-ui input[type="number"],
+.swagger-ui textarea,
+.swagger-ui select {
+  background: var(--cw-bg-elevated) !important;
+  color: var(--cw-text-primary) !important;
+  border: 1px solid var(--cw-border-default) !important;
+  border-radius: var(--cw-radius);
+}
+
+.swagger-ui input:focus,
+.swagger-ui textarea:focus,
+.swagger-ui select:focus {
+  outline: 2px solid color-mix(in srgb, var(--cw-primary-500) 55%, transparent);
+  outline-offset: 1px;
+}
+
+/* ── Code / model values ───────────────────────────────────── */
+.swagger-ui .microlight,
+.swagger-ui .highlight-code,
+.swagger-ui .model-example pre,
+.swagger-ui .renderedMarkdown pre,
+.swagger-ui pre {
+  background: var(--cw-code-bg) !important;
+  color: var(--cw-code-text) !important;
+  border: 1px solid var(--cw-border-muted);
+  border-radius: var(--cw-radius);
+}
+
+/* Keep non-highlighted code text legible on the dark code background. */
+.swagger-ui .microlight,
+.swagger-ui .microlight code,
+.swagger-ui pre code {
+  color: var(--cw-code-text);
+}
+
+.swagger-ui .microlight,
+.swagger-ui code,
+.swagger-ui .prop-type,
+.swagger-ui .model code {
+  font-family: var(--cw-font-mono) !important;
+}
+
+.swagger-ui .prop-type {
+  color: var(--cw-primary-600);
+}
+
+/* ── Misc tweaks (existing) ────────────────────────────────── */
 .opblock-summary-path-description-wrapper {
-    display: flex !important;
-    align-items: center !important;
+  display: flex !important;
+  align-items: center !important;
 }
 
 .opblock-summary-description {
-    margin-left: auto !important;
+  margin-left: auto !important;
 }

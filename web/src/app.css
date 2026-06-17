@@ -1,0 +1,464 @@
+/*
+ * Page-level styles for the CropWatch API intro page.
+ * Loaded AFTER '@cropwatchdevelopment/cwui/styles' so these layer on top of the
+ * CWUI design tokens. Everything below is built on CWUI custom properties so it
+ * tracks the active light/dark theme automatically.
+ */
+
+:root {
+  --brand-gold: #f5a623;
+  --brand-gold-soft: color-mix(in srgb, var(--brand-gold) 16%, transparent);
+  --page-max: 1120px;
+  --site-header-h: 64px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: calc(var(--site-header-h) + var(--cw-space-4));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--cw-bg-base);
+  color: var(--cw-text-primary);
+  font-family: var(--cw-font-family);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--cw-primary-500);
+  text-underline-offset: 2px;
+}
+
+/* ── Layout primitives ─────────────────────────────────────── */
+.container {
+  width: 100%;
+  max-width: var(--page-max);
+  margin-inline: auto;
+  padding-inline: var(--cw-space-5);
+}
+
+.section {
+  padding-block: clamp(var(--cw-space-10), 6vw, var(--cw-space-16));
+  scroll-margin-top: var(--site-header-h);
+}
+
+.section + .section {
+  padding-top: 0;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cw-space-2);
+  font-size: var(--cw-text-xs);
+  font-weight: var(--cw-font-bold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brand-gold);
+  background: var(--brand-gold-soft);
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--cw-radius-full);
+}
+
+.section__title {
+  margin: var(--cw-space-3) 0 0;
+  font-size: clamp(var(--cw-text-2xl), 3.5vw, var(--cw-text-3xl));
+  font-weight: var(--cw-font-bold);
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.section__lede {
+  margin-top: var(--cw-space-3);
+  max-width: 60ch;
+  color: var(--cw-text-secondary);
+  font-size: var(--cw-text-base);
+  line-height: 1.7;
+}
+
+.grid {
+  display: grid;
+  gap: var(--cw-space-4);
+}
+
+@media (min-width: 720px) {
+  .grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.muted {
+  color: var(--cw-text-muted);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cw-space-3);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cw-space-3);
+}
+
+code,
+kbd,
+samp {
+  font-family: var(--cw-font-mono);
+  font-size: 0.92em;
+}
+
+:not(pre) > code {
+  background: var(--cw-bg-subtle);
+  border: 1px solid var(--cw-border-muted);
+  border-radius: var(--cw-radius-sm);
+  padding: 0.1rem 0.38rem;
+  color: var(--cw-text-primary);
+}
+
+/* ── Site header (custom; CwHeader is an app-shell component) ── */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--cw-z-sticky, 200);
+  background: color-mix(in srgb, var(--cw-bg-surface) 85%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--cw-border-muted);
+}
+
+.site-header__inner {
+  display: flex;
+  align-items: center;
+  gap: var(--cw-space-4);
+  min-height: var(--site-header-h);
+  padding-block: var(--cw-space-2);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--cw-space-3);
+  text-decoration: none;
+  color: inherit;
+  margin-right: auto;
+}
+
+.brand img {
+  width: 34px;
+  height: 34px;
+}
+
+.brand__name {
+  font-weight: var(--cw-font-bold);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+
+.brand__tag {
+  font-size: var(--cw-text-xs);
+  color: var(--cw-text-muted);
+}
+
+.site-nav {
+  display: none;
+  gap: var(--cw-space-1);
+}
+
+.site-nav a {
+  color: var(--cw-text-secondary);
+  text-decoration: none;
+  font-size: var(--cw-text-sm);
+  font-weight: var(--cw-font-medium);
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--cw-radius-md);
+  transition: background var(--cw-duration-fast) var(--cw-ease-default),
+    color var(--cw-duration-fast) var(--cw-ease-default);
+}
+
+.site-nav a:hover {
+  color: var(--cw-text-primary);
+  background: var(--cw-bg-muted);
+}
+
+@media (min-width: 900px) {
+  .site-nav {
+    display: flex;
+  }
+}
+
+/* ── Hero ──────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--cw-border-muted);
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--cw-primary-500) 22%, transparent), transparent 42%),
+    radial-gradient(circle at 88% 0%, var(--brand-gold-soft), transparent 38%);
+}
+
+.hero__grid {
+  display: grid;
+  gap: var(--cw-space-8);
+  align-items: center;
+  padding-block: clamp(var(--cw-space-10), 7vw, var(--cw-space-16));
+}
+
+@media (min-width: 940px) {
+  .hero__grid {
+    grid-template-columns: 1.05fr 0.95fr;
+  }
+}
+
+.hero h1 {
+  margin: var(--cw-space-4) 0 0;
+  font-size: clamp(2.1rem, 5vw, 3.25rem);
+  font-weight: var(--cw-font-bold);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.hero h1 .accent {
+  background: linear-gradient(120deg, var(--cw-primary-400), var(--brand-gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero__lede {
+  margin-top: var(--cw-space-4);
+  max-width: 54ch;
+  color: var(--cw-text-secondary);
+  font-size: var(--cw-text-lg);
+  line-height: 1.65;
+}
+
+.hero__cta {
+  margin-top: var(--cw-space-6);
+}
+
+/* ── Quickstart card rows ──────────────────────────────────── */
+.kv {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cw-space-3);
+  background: var(--cw-bg-subtle);
+  border: 1px solid var(--cw-border-muted);
+  border-radius: var(--cw-radius-md);
+  padding: var(--cw-space-2) var(--cw-space-3);
+}
+
+.kv__label {
+  font-size: var(--cw-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cw-text-muted);
+}
+
+.kv__value {
+  font-family: var(--cw-font-mono);
+  font-size: var(--cw-text-sm);
+  color: var(--cw-text-primary);
+  overflow-wrap: anywhere;
+}
+
+/* ── Code block ────────────────────────────────────────────── */
+.codeblock {
+  border: 1px solid var(--cw-border-default);
+  border-radius: var(--cw-radius-lg);
+  overflow: hidden;
+  background: var(--cw-bg-elevated);
+}
+
+.codeblock__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cw-space-2);
+  padding: var(--cw-space-1) var(--cw-space-2) var(--cw-space-1) var(--cw-space-2);
+  border-bottom: 1px solid var(--cw-border-muted);
+  background: var(--cw-bg-surface);
+}
+
+.codeblock__tabs {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.codeblock__tab {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--cw-text-muted);
+  font: inherit;
+  font-size: var(--cw-text-sm);
+  font-weight: var(--cw-font-medium);
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--cw-radius-md);
+  cursor: pointer;
+}
+
+.codeblock__tab.is-active {
+  color: var(--cw-text-primary);
+  background: var(--cw-bg-muted);
+}
+
+.codeblock__pre {
+  margin: 0;
+  padding: var(--cw-space-4);
+  overflow-x: auto;
+  font-family: var(--cw-font-mono);
+  font-size: var(--cw-text-sm);
+  line-height: 1.6;
+  color: var(--cw-text-primary);
+}
+
+/* ── Endpoint rows (inside expand panels) ──────────────────── */
+/* CwExpandPanel animates open with a rows-only grid (grid-template-rows: 0fr→1fr)
+   and defines no column, so grid/flex descendants in the body collapse to
+   min-content. Pin a full-width, shrink-safe column on the wrapper. */
+.cw-expand__body-wrapper {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.method-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--cw-font-mono);
+  font-size: var(--cw-text-xs);
+  font-weight: var(--cw-font-bold);
+  letter-spacing: 0.03em;
+  line-height: 1;
+  padding: 0.28rem 0.4rem;
+  border-radius: var(--cw-radius-sm);
+  white-space: nowrap;
+}
+
+.method-tag.is-get {
+  color: var(--cw-tone-success-text);
+  background: var(--cw-tone-success-bg-subtle);
+}
+.method-tag.is-post {
+  color: var(--cw-tone-primary-text);
+  background: var(--cw-tone-primary-bg-subtle);
+}
+.method-tag.is-patch {
+  color: var(--cw-tone-warning-text);
+  background: var(--cw-tone-warning-bg-subtle);
+}
+.method-tag.is-delete {
+  color: var(--cw-tone-danger-text);
+  background: var(--cw-tone-danger-bg-subtle);
+}
+
+.endpoint {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: var(--cw-space-3);
+  align-items: start;
+  padding: var(--cw-space-3) 0;
+  border-top: 1px solid var(--cw-border-muted);
+}
+
+.endpoint:first-child {
+  border-top: none;
+}
+
+.endpoint__path {
+  font-family: var(--cw-font-mono);
+  font-size: var(--cw-text-sm);
+  color: var(--cw-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.endpoint__summary {
+  margin: 2px 0 0;
+  color: var(--cw-text-secondary);
+  font-size: var(--cw-text-sm);
+  line-height: 1.5;
+}
+
+.endpoint__params {
+  margin-top: 4px;
+  font-size: var(--cw-text-xs);
+  color: var(--cw-text-muted);
+  font-family: var(--cw-font-mono);
+}
+
+/* ── Footer ────────────────────────────────────────────────── */
+.site-footer {
+  border-top: 1px solid var(--cw-border-muted);
+  background: var(--cw-bg-surface);
+  margin-top: var(--cw-space-16);
+}
+
+.site-footer__grid {
+  display: grid;
+  gap: var(--cw-space-8);
+  padding-block: var(--cw-space-12);
+}
+
+@media (min-width: 720px) {
+  .site-footer__grid {
+    grid-template-columns: 1.6fr 1fr 1fr;
+  }
+}
+
+.site-footer h4 {
+  margin: 0 0 var(--cw-space-3);
+  font-size: var(--cw-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--cw-text-muted);
+}
+
+.site-footer ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cw-space-2);
+}
+
+.site-footer a {
+  color: var(--cw-text-secondary);
+  text-decoration: none;
+  font-size: var(--cw-text-sm);
+}
+
+.site-footer a:hover {
+  color: var(--cw-text-primary);
+}
+
+.site-footer__bar {
+  border-top: 1px solid var(--cw-border-muted);
+  padding-block: var(--cw-space-5);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cw-space-3);
+  justify-content: space-between;
+  align-items: center;
+  color: var(--cw-text-muted);
+  font-size: var(--cw-text-sm);
+}
