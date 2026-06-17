@@ -12,6 +12,7 @@ import {
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
 import { READ_EXCLUSIVE_CEILING } from '../common/permission-levels';
+import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
 import {
   DashboardLocationGroup,
   DashboardLocationPage,
@@ -451,7 +452,8 @@ export class DashboardService {
    * name, dev_eui, and — via pre-resolved ids — location name.
    */
   private buildNameOrFilter(name: string, locationIds: number[]): string {
-    const parts = [`name.ilike.%${name}%`, `dev_eui.ilike.%${name}%`];
+    const safeName = sanitizeOrFilterTerm(name);
+    const parts = [`name.ilike.%${safeName}%`, `dev_eui.ilike.%${safeName}%`];
     if (locationIds.length > 0) {
       parts.push(`location_id.in.(${locationIds.join(',')})`);
     }

@@ -24,7 +24,9 @@ function getRequesterIp(req: Request): string {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true keeps req.rawBody (a Buffer) alongside the parsed JSON body so
+  // the Polar webhook route can verify the signature over the unmodified payload.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const logger = new Logger('NestApplication');
   const expressApp = app.getHttpAdapter().getInstance() as any;
 

@@ -1,0 +1,22 @@
+{
+  "name": "@cropwatch/api-landing",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "CropWatch API intro/landing page — Svelte 5 + CWUI. Builds into ../static.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
+  },
+  "devDependencies": {
+    "@cropwatchdevelopment/cwui": "^0.1.107",
+    "@sveltejs/vite-plugin-svelte": "^5.0.0",
+    "@tsconfig/svelte": "^5.0.4",
+    "svelte": "^5.0.0",
+    "svelte-check": "^4.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.0.0"
+  }
+}

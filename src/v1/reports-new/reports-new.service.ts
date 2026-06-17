@@ -472,6 +472,18 @@ export class ReportsNewService {
     if (!normalizedDevEui || !normalizedName) {
       throw new BadRequestException('dev_eui and reportName are required');
     }
+    // Both values are interpolated into the storage object path
+    // (`${devEui}/${reportName}`) and signed with the service-role client, which
+    // bypasses storage RLS. Reject path separators / traversal so a crafted
+    // reportName (e.g. `../<otherDevEui>/report`) can't reach another tenant's
+    // folder.
+    const UNSAFE_PATH_SEGMENT = /[\\/]|\.\./;
+    if (
+      UNSAFE_PATH_SEGMENT.test(normalizedDevEui) ||
+      UNSAFE_PATH_SEGMENT.test(normalizedName)
+    ) {
+      throw new BadRequestException('Invalid dev_eui or reportName');
+    }
     const resolvedName = normalizedName.toLowerCase().endsWith('.pdf')
       ? normalizedName
       : `${normalizedName}.pdf`;

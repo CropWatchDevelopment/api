@@ -1,8 +1,9 @@
-import { Injectable, InternalServerErrorException, NotFoundException, NotImplementedException, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException, NotImplementedException, UnauthorizedException } from '@nestjs/common';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { CreateLocationOwnerDto } from './dto/create-location-owner.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { PaymentsService } from '../payments/payments.service';
 import { error, group } from 'console';
 import { LocationDto } from './dto/location.dto';
 import {
@@ -23,12 +24,24 @@ export class LocationsService {
 
   constructor(
     private readonly supabaseService: SupabaseService,
+    private readonly paymentsService: PaymentsService,
   ) { }
 
   async create(createLocationDto: CreateLocationDto, jwtPayload: any, authHeader: string) {
     const userId = getUserId(jwtPayload);
     const accessToken = getAccessToken(authHeader);
     const client = this.supabaseService.getClient(accessToken);
+
+    // Creating a location requires an active base subscription. CropWatch staff
+    // are exempt, mirroring the rest of the permission model.
+    if (
+      !isCropwatchStaff(jwtPayload) &&
+      !(await this.paymentsService.hasActiveBaseSubscription(jwtPayload, authHeader))
+    ) {
+      throw new ForbiddenException(
+        'An active base subscription is required to create a location.',
+      );
+    }
 
     createLocationDto.owner_id = userId; // Ensure the owner_id is set to the authenticated user
 
