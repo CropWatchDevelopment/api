@@ -38,6 +38,12 @@ lerna-debug.log*
 # Local database backups (contain real data — never commit)
 /backups
 
+# One-off rules-cutover migration scripts (contain customer email addresses —
+# already applied to the DB; kept locally for reference, never commit)
+/supabase/updates/011_tkebisu_rules_cutover.sql
+/supabase/updates/012_seagaia_rules_cutover.sql
+/supabase/updates/013_remaining_rules_cutover.sql
+
 # dotenv environment variable files
 .env
 .env.development.local
