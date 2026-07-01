@@ -23,6 +23,7 @@ Full background: [`docs/security-review.md`](../../docs/security-review.md),
 | `008_DESTRUCTIVE_legacy_table_drops.sql` | **Fully commented out.** Legacy table drops | Last, after everything is stable; take a backup first |
 | `009_remove_discord.sql` | Drops `user_discord_connections`, removes Discord notifier/communication-method rows (Discord is no longer used) | Any time |
 | `010_polar_device_licenses.sql` | Creates `billing_customers` + `device_licenses` for the Polar subscription/licensing feature | Before deploying the Polar API release; regenerate `database.types.ts` after |
+| `014_profile_preferences.sql` | Creates `profile_preferences` (1-to-1 with `profiles`) and an `auth.users.email` → `profiles.email` sync trigger for the account preferences + verified email-change feature | Before deploying the profile/preferences API release; regenerate `database.types.ts` after |
 
 ## Deploy/run interleaving (critical)
 

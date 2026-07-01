@@ -6,6 +6,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConflictResponse,
+  ApiForbiddenResponse,
   ApiInternalServerErrorResponse,
   ApiOkResponse,
   ApiOperation,
@@ -16,6 +17,8 @@ import { AuthService } from './auth.service';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
+import { UpdateEmailDto } from './dto/update-email.dto';
+import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 
 @Controller({ path: 'auth', version: '1' })
 @ApiBearerAuth('bearerAuth')
@@ -91,6 +94,75 @@ export class AuthController {
   })
   async updateUserProfile(@Body() body: UpdateUserProfileDto, @Req() req) {
     return this.authService.updateUserProfile(body, req.headers?.authorization, req.user);
+  }
+
+  @Patch('email')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Start a verified email change for the authenticated user' })
+  @ApiOkResponse({
+    description: 'Confirmation email sent; the change applies once confirmed.',
+    schema: { type: 'object', additionalProperties: true },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid or unavailable email address.',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'CropWatch (cropwatch.io / cropwatch.co.jp) accounts cannot change their email.',
+    type: ErrorResponseDto,
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to start email change.',
+    type: ErrorResponseDto,
+  })
+  async updateEmail(@Body() body: UpdateEmailDto, @Req() req) {
+    return this.authService.updateEmail(req.headers?.authorization, body.email, req.user);
+  }
+
+  @Get('preferences')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Get the authenticated user preferences (creates on first access)' })
+  @ApiOkResponse({
+    description: 'User preferences returned successfully.',
+    schema: { type: 'object', additionalProperties: true },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to read preferences.',
+    type: ErrorResponseDto,
+  })
+  async getPreferences(@Req() req) {
+    return this.authService.getPreferences(req.user, req.headers?.authorization);
+  }
+
+  @Patch('preferences')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update the authenticated user preferences' })
+  @ApiOkResponse({
+    description: 'User preferences updated successfully.',
+    schema: { type: 'object', additionalProperties: true },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid preferences payload.',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to update preferences.',
+    type: ErrorResponseDto,
+  })
+  async updatePreferences(@Body() body: UpdatePreferencesDto, @Req() req) {
+    return this.authService.updatePreferences(body, req.headers?.authorization, req.user);
   }
 
   @Throttle({ default: { limit: 2, ttl: 60000 } })
