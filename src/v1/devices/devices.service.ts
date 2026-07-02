@@ -33,7 +33,10 @@ export interface PagedDevicesResponse<T> {
 export class DevicesService {
   private readonly logger = new Logger(DevicesService.name);
 
-  constructor(private readonly supabaseService: SupabaseService, private readonly locationsService: LocationsService) { }
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly locationsService: LocationsService,
+  ) {}
 
   async findAll(
     jwtPayload: any,
@@ -49,17 +52,15 @@ export class DevicesService {
     const userId = getUserId(jwtPayload);
     const isGlobalUser = isCropwatchStaff(jwtPayload);
 
-    let devicesQuery = client
-      .from('cw_devices')
-      .select(
-        `
+    let devicesQuery = client.from('cw_devices').select(
+      `
     *,
     owner_match:cw_device_owners(),
     cw_device_owners(*),
     cw_locations(name, location_id)
   `,
-        { count: 'exact' },
-      );
+      { count: 'exact' },
+    );
 
     devicesQuery = this.applyDeviceReadScope(
       devicesQuery,
@@ -72,7 +73,9 @@ export class DevicesService {
     }
     if (searchName) {
       const safeName = sanitizeOrFilterTerm(searchName);
-      devicesQuery = devicesQuery.or(`name.ilike.%${safeName}%,dev_eui.ilike.%${safeName}%`);
+      devicesQuery = devicesQuery.or(
+        `name.ilike.%${safeName}%,dev_eui.ilike.%${safeName}%`,
+      );
     }
     if (searchLocation) {
       devicesQuery = devicesQuery.ilike('location', `%${searchLocation}%`);
@@ -162,7 +165,9 @@ export class DevicesService {
 
     query = this.applyDeviceReadScope(query, userId, isGlobalUser);
 
-    const { data: devices, error: devicesError } = await query.order('name', { ascending: true });
+    const { data: devices, error: devicesError } = await query.order('name', {
+      ascending: true,
+    });
 
     if (devicesError) {
       throw new InternalServerErrorException('Failed to fetch devices');
@@ -418,9 +423,7 @@ export class DevicesService {
 
     let deviceQuery = client
       .from('cw_devices')
-      .select(
-        `*, owner_match:cw_device_owners(), cw_device_owners(*)`,
-      )
+      .select(`*, owner_match:cw_device_owners(), cw_device_owners(*)`)
       .eq('dev_eui', normalizedDevEui);
 
     deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
@@ -525,7 +528,9 @@ export class DevicesService {
     }
     if (searchName) {
       const safeName = sanitizeOrFilterTerm(searchName);
-      devicesQuery = devicesQuery.or(`name.ilike.%${safeName}%,dev_eui.ilike.%${safeName}%`);
+      devicesQuery = devicesQuery.or(
+        `name.ilike.%${safeName}%,dev_eui.ilike.%${safeName}%`,
+      );
     }
     if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
       devicesQuery = devicesQuery.eq(
@@ -582,7 +587,7 @@ export class DevicesService {
           const latestFields = new Set([
             'created_at',
             deviceType.primary_data_v2,
-            deviceType.secondary_data_v2
+            deviceType.secondary_data_v2,
           ]);
 
           if (deviceType.data_table_v2 === 'cw_air_data') {
@@ -591,7 +596,7 @@ export class DevicesService {
 
           // sometimes the SET has empty values, we need to clean them
           const latestFieldsCleaned = new Set(
-            [...latestFields].filter(v => v !== '')
+            [...latestFields].filter((v) => v !== ''),
           );
 
           const { data: latestData, error: dataError } = await client
@@ -668,7 +673,9 @@ export class DevicesService {
 
     query = this.applyDeviceReadScope(query, userId, isGlobalUser);
 
-    const { data: devices, error: devicesError } = await query.order('name', { ascending: true });
+    const { data: devices, error: devicesError } = await query.order('name', {
+      ascending: true,
+    });
 
     if (devicesError) {
       throw new InternalServerErrorException('Failed to fetch devices');
@@ -756,7 +763,8 @@ export class DevicesService {
         device_type: deviceType.name,
         created_at: device.last_data_updated_at ?? device.created_at,
         lastUpdated: device.last_data_updated_at,
-        upload_interval: device.upload_interval ?? deviceType.default_upload_interval,
+        upload_interval:
+          device.upload_interval ?? deviceType.default_upload_interval,
         location_id: device.location_id,
         [primaryField]: latestData[primaryField],
         [secondaryField]: latestData[secondaryField],
@@ -786,12 +794,18 @@ export class DevicesService {
     if (!device.location_id) {
       throw new BadRequestException('location_id is required');
     }
-    const location = await this.locationsService.findOne(device.location_id, jwtPayload, authHeader);
+    const location = await this.locationsService.findOne(
+      device.location_id,
+      jwtPayload,
+      authHeader,
+    );
     if (!location) {
       throw new BadRequestException('Invalid location');
     }
     if (!isGlobalUser && location.owner_id !== userId) {
-      throw new UnauthorizedException('You do not have permission to create a device in this location');
+      throw new UnauthorizedException(
+        'You do not have permission to create a device in this location',
+      );
     }
 
     // create the device
@@ -819,9 +833,9 @@ export class DevicesService {
      * This makes sense because you can view locations, and all devices inside of them
      * there is no point in having permission to a device, but no permission to view the lcoation
      * as even if you could see a device, you would have no route to get to said device.
-     * 
+     *
      * Let's add permissions for all existing location users here!!!
-    *********************************************************************************/
+     *********************************************************************************/
 
     const { data: locationUsers, error: locationUsersError } = await client
       .from('cw_location_owners')
@@ -833,8 +847,11 @@ export class DevicesService {
     }
 
     // REmove YOU from the list of location users to add, as you are already the owner of the device and have all permissions
-    if (locationUsers.find(user => user.user_id === userId)) {
-      locationUsers.splice(locationUsers.findIndex(user => user.user_id === userId), 1);
+    if (locationUsers.find((user) => user.user_id === userId)) {
+      locationUsers.splice(
+        locationUsers.findIndex((user) => user.user_id === userId),
+        1,
+      );
     }
 
     // Add permissions for all existing location users
@@ -848,7 +865,9 @@ export class DevicesService {
         });
 
       if (addPermissionError) {
-        throw new InternalServerErrorException('Failed to add device permissions for location users');
+        throw new InternalServerErrorException(
+          'Failed to add device permissions for location users',
+        );
       }
     }
 
@@ -883,7 +902,8 @@ export class DevicesService {
       PermissionLevel.ADMIN,
     );
 
-    const { data: device, error: deviceError } = await existingDeviceQuery.single();
+    const { data: device, error: deviceError } =
+      await existingDeviceQuery.single();
 
     if (deviceError) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -906,7 +926,8 @@ export class DevicesService {
       PermissionLevel.ADMIN,
     );
 
-    const { data: newDeviceData, error: newDeviceError } = await newDeviceQuery.single();
+    const { data: newDeviceData, error: newDeviceError } =
+      await newDeviceQuery.single();
 
     if (newDeviceError) {
       throw new InternalServerErrorException('Failed to fetch new device');
@@ -1113,7 +1134,9 @@ export class DevicesService {
       destinationOwnerId = destination.owner_id ?? null;
       destinationMemberIds = (destination.cw_location_owners ?? [])
         .map((member: { user_id: string | null }) => member.user_id)
-        .filter((memberId: string | null): memberId is string => Boolean(memberId));
+        .filter((memberId: string | null): memberId is string =>
+          Boolean(memberId),
+        );
     }
 
     const updatePayload: Record<string, unknown> = { name, group, location_id };
@@ -1198,7 +1221,11 @@ export class DevicesService {
     }
   }
 
-  private applyDeviceReadScope(query: any, userId: string, isGlobalUser: boolean) {
+  private applyDeviceReadScope(
+    query: any,
+    userId: string,
+    isGlobalUser: boolean,
+  ) {
     if (isGlobalUser) {
       return query;
     }

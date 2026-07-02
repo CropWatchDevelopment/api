@@ -14,6 +14,10 @@ export class ReportFormContextDto {
   @ApiProperty({ type: () => CommunicationMethodDto, isArray: true })
   communicationMethods: CommunicationMethodDto[];
 
-  @ApiProperty({ type: () => ReportTemplateDto, nullable: true, required: false })
+  @ApiProperty({
+    type: () => ReportTemplateDto,
+    nullable: true,
+    required: false,
+  })
   template: ReportTemplateDto | null;
 }

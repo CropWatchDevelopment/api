@@ -26,6 +26,10 @@ export class RuleTemplateAssignmentDto {
   @ApiProperty({ nullable: true, required: false })
   permissionLevel: number | null;
 
-  @ApiProperty({ nullable: true, required: false, type: () => RuleTemplateStateDto })
+  @ApiProperty({
+    nullable: true,
+    required: false,
+    type: () => RuleTemplateStateDto,
+  })
   state: RuleTemplateStateDto | null;
 }

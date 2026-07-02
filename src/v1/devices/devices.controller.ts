@@ -35,7 +35,7 @@ import { ReplaceDeviceDto } from './dto/replace-device.dto';
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class DevicesController {
-  constructor(private readonly devicesService: DevicesService) { }
+  constructor(private readonly devicesService: DevicesService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -68,11 +68,31 @@ export class DevicesController {
     description: `
     Returns all devices for the authenticated user.`,
   })
-  @ApiQuery({ name: 'skip', description: 'Number of records to skip for pagination', required: false })
-  @ApiQuery({ name: 'take', description: 'Number of records to take for pagination', required: false })
-  @ApiQuery({ name: 'group', description: 'Filter by device group', required: false })
-  @ApiQuery({ name: 'name', description: 'Filter by device name or dev_eui', required: false })
-  @ApiQuery({ name: 'location', description: 'Filter by device location', required: false })
+  @ApiQuery({
+    name: 'skip',
+    description: 'Number of records to skip for pagination',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'take',
+    description: 'Number of records to take for pagination',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'group',
+    description: 'Filter by device group',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'name',
+    description: 'Filter by device name or dev_eui',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'location',
+    description: 'Filter by device location',
+    required: false,
+  })
   findAll(@Req() req) {
     const parsedSkip = parseInt(req.query.skip, 10);
     const parsedTake = parseInt(req.query.take, 10);
@@ -80,8 +100,18 @@ export class DevicesController {
     const take = Math.min(Number.isNaN(parsedTake) ? 100 : parsedTake, 1000);
     const searchGroup = req.query.group ? String(req.query.group) : undefined;
     const searchName = req.query.name ? String(req.query.name) : undefined;
-    const searchLocation = req.query.location ? String(req.query.location) : undefined;
-    return this.devicesService.findAll(req.user, req.headers.authorization, skip, take, searchGroup, searchName, searchLocation);
+    const searchLocation = req.query.location
+      ? String(req.query.location)
+      : undefined;
+    return this.devicesService.findAll(
+      req.user,
+      req.headers.authorization,
+      skip,
+      take,
+      searchGroup,
+      searchName,
+      searchLocation,
+    );
   }
 
   @Get('status')
@@ -96,7 +126,10 @@ export class DevicesController {
     const parsedTake = parseInt(req.query.take, 10);
     const skip = Number.isNaN(parsedSkip) ? 0 : parsedSkip;
     const take = Number.isNaN(parsedTake) ? undefined : parsedTake;
-    return this.devicesService.findAllStatus(req.user, req.headers.authorization);
+    return this.devicesService.findAllStatus(
+      req.user,
+      req.headers.authorization,
+    );
   }
 
   @Get('groups')
@@ -107,7 +140,10 @@ export class DevicesController {
     Returns the device groups for the authenticated user.`,
   })
   findAllDeviceGroups(@Req() req) {
-    return this.devicesService.findAllDeviceGroups(req.user, req.headers.authorization);
+    return this.devicesService.findAllDeviceGroups(
+      req.user,
+      req.headers.authorization,
+    );
   }
 
   @Get('device-types')
@@ -118,17 +154,44 @@ export class DevicesController {
     Returns the device types for the authenticated user.`,
   })
   findAllDeviceTypes(@Req() req) {
-    return this.devicesService.findAllDeviceTypes(req.user, req.headers.authorization);
+    return this.devicesService.findAllDeviceTypes(
+      req.user,
+      req.headers.authorization,
+    );
   }
 
   @Get('latest-primary-data')
   @UseGuards(JwtAuthGuard)
-  @ApiQuery({ name: 'skip', description: 'Number of records to skip for pagination', required: false })
-  @ApiQuery({ name: 'take', description: 'Number of records to take for pagination', required: false })
-  @ApiQuery({ name: 'group-by-device-group', description: 'Filter by device group', required: false })
-  @ApiQuery({ name: 'name', description: 'Filter by device name or dev_eui', required: false })
-  @ApiQuery({ name: 'location', description: 'Filter by device location', required: false })
-  @ApiQuery({ name: 'locationGroup', description: 'Group devices by location', required: false })
+  @ApiQuery({
+    name: 'skip',
+    description: 'Number of records to skip for pagination',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'take',
+    description: 'Number of records to take for pagination',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'group-by-device-group',
+    description: 'Filter by device group',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'name',
+    description: 'Filter by device name or dev_eui',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'location',
+    description: 'Filter by device location',
+    required: false,
+  })
+  @ApiQuery({
+    name: 'locationGroup',
+    description: 'Group devices by location',
+    required: false,
+  })
   @ApiOperation({
     summary: 'Get the latest primary data for all devices (paginated)',
     description: `
@@ -137,23 +200,48 @@ export class DevicesController {
   allLatestPrimaryData(@Req() req) {
     const skip = parseInt(req.query.skip, 10) || 0;
     const take = parseInt(req.query.take, 10) || 10;
-    const searchDeviceGroup = req.query['group-by-device-group'] ? String(req.query['group-by-device-group']) : undefined;
-    const locationGroup = req.query.locationGroup ? String(req.query.locationGroup) : undefined;
+    const searchDeviceGroup = req.query['group-by-device-group']
+      ? String(req.query['group-by-device-group'])
+      : undefined;
+    const locationGroup = req.query.locationGroup
+      ? String(req.query.locationGroup)
+      : undefined;
     const searchName = req.query.name ? String(req.query.name) : undefined;
-    const searchLocation = req.query.location ? String(req.query.location) : undefined;
-    return this.devicesService.findAllLatestData(req.user, skip, take, req.headers.authorization, searchDeviceGroup, searchName, searchLocation, locationGroup);
+    const searchLocation = req.query.location
+      ? String(req.query.location)
+      : undefined;
+    return this.devicesService.findAllLatestData(
+      req.user,
+      skip,
+      take,
+      req.headers.authorization,
+      searchDeviceGroup,
+      searchName,
+      searchLocation,
+      locationGroup,
+    );
   }
 
   @Get('location/:location_id')
   @UseGuards(JwtAuthGuard)
-  @ApiParam({ name: 'location_id', description: 'Location ID', type: Number, required: true })
+  @ApiParam({
+    name: 'location_id',
+    description: 'Location ID',
+    type: Number,
+    required: true,
+  })
   @ApiOperation({
-    summary: 'Get the latest primary data for all devices in a location (paginated)',
+    summary:
+      'Get the latest primary data for all devices in a location (paginated)',
     description: `
     Returns the latest, 2 primary data values from the table record for all devices in a specific location.`,
   })
   allDevicesInLocation(@Req() req, @Param('location_id') locationId: number) {
-    return this.devicesService.findAllDevicesInLocation(req.user, locationId, req.headers.authorization);
+    return this.devicesService.findAllDevicesInLocation(
+      req.user,
+      locationId,
+      req.headers.authorization,
+    );
   }
 
   @Get(':dev_eui')
@@ -208,14 +296,26 @@ export class DevicesController {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
-    return this.devicesService.findOne(req.user, devEui, req.headers.authorization);
+    return this.devicesService.findOne(
+      req.user,
+      devEui,
+      req.headers.authorization,
+    );
   }
 
   @Get(':dev_eui/data')
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
-  @ApiParam({ name: 'skip (0)', description: 'Number of records to skip for pagination', required: false })
-  @ApiParam({ name: 'take (144)', description: 'Number of records to take for pagination', required: false })
+  @ApiParam({
+    name: 'skip (0)',
+    description: 'Number of records to skip for pagination',
+    required: false,
+  })
+  @ApiParam({
+    name: 'take (144)',
+    description: 'Number of records to take for pagination',
+    required: false,
+  })
   @ApiOperation({
     summary: 'Get the latest FULL data for a device (paginated)',
     description: `
@@ -227,7 +327,13 @@ export class DevicesController {
     }
     const skip = parseInt(req.query.skip, 10) || 0;
     const take = parseInt(req.query.take, 10) || 144;
-    return this.devicesService.findData(req.user, devEui, skip, take, req.headers.authorization);
+    return this.devicesService.findData(
+      req.user,
+      devEui,
+      skip,
+      take,
+      req.headers.authorization,
+    );
   }
 
   @Get(':dev_eui/data-within-range')
@@ -256,18 +362,24 @@ export class DevicesController {
     example: new Date().toISOString(),
   })
   @ApiParam({
-    name: 'skip (0)', description: 'Number of records to skip for pagination', schema: {
+    name: 'skip (0)',
+    description: 'Number of records to skip for pagination',
+    schema: {
       type: 'number',
       format: 'int32',
       default: 0,
-    }, required: false
+    },
+    required: false,
   })
   @ApiParam({
-    name: 'take (144)', description: 'Number of records to take for pagination', schema: {
+    name: 'take (144)',
+    description: 'Number of records to take for pagination',
+    schema: {
       type: 'number',
       format: 'int32',
       default: 144,
-    }, required: false
+    },
+    required: false,
   })
   @ApiOperation({
     summary: 'Get device FULL data within a date/time range and paginated',
@@ -282,9 +394,19 @@ export class DevicesController {
     }
     const skip = parseInt(req.query.skip, 10) || 0;
     const take = parseInt(req.query.take, 10) || 144;
-    const start = req.query.start || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const start =
+      req.query.start ||
+      new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const end = req.query.end || new Date().toISOString();
-    return this.devicesService.findDataWithinRange(req.user, devEui, req.headers.authorization, start, end, skip, take);
+    return this.devicesService.findDataWithinRange(
+      req.user,
+      devEui,
+      req.headers.authorization,
+      start,
+      end,
+      skip,
+      take,
+    );
   }
 
   @Get(':dev_eui/latest-data')
@@ -299,7 +421,11 @@ export class DevicesController {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
-    return this.devicesService.findLatestData(req.user, devEui, req.headers.authorization);
+    return this.devicesService.findLatestData(
+      req.user,
+      devEui,
+      req.headers.authorization,
+    );
   }
 
   @Get(':dev_eui/latest-primary-data')
@@ -314,7 +440,12 @@ export class DevicesController {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
-    return this.devicesService.findLatestData(req.user, devEui, req.headers.authorization, true);
+    return this.devicesService.findLatestData(
+      req.user,
+      devEui,
+      req.headers.authorization,
+      true,
+    );
   }
 
   @Post(':dev_eui')
@@ -342,7 +473,8 @@ export class DevicesController {
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiOperation({
-    summary: '🔄 Replace a device with another device for the authenticated user',
+    summary:
+      '🔄 Replace a device with another device for the authenticated user',
     description: `
     Replaces an existing device with a new device for the authenticated user.
     This endpoint is not yet implemented and will return a 501 Not Implemented response until it is implemented.
@@ -356,14 +488,23 @@ export class DevicesController {
   ) {
     const normalizedDevEui = devEui?.trim();
     if (body.dev_eui?.trim() && body.dev_eui.trim() !== normalizedDevEui) {
-      throw new BadRequestException('dev_eui in body must match route parameter');
+      throw new BadRequestException(
+        'dev_eui in body must match route parameter',
+      );
     }
 
     const replacementDevice: ReplaceDeviceDto = body;
 
-    const insertResult = this.devicesService.replaceDevice(req.user, normalizedDevEui, replacementDevice, req.headers.authorization);
+    const insertResult = this.devicesService.replaceDevice(
+      req.user,
+      normalizedDevEui,
+      replacementDevice,
+      req.headers.authorization,
+    );
     if (!insertResult) {
-      throw new InternalServerErrorException('Device replacement is not yet implemented. Please contact support if you would like this feature to be prioritized.');
+      throw new InternalServerErrorException(
+        'Device replacement is not yet implemented. Please contact support if you would like this feature to be prioritized.',
+      );
     }
     return insertResult;
   }
@@ -390,7 +531,9 @@ export class DevicesController {
       throw new BadRequestException('dev_eui is required');
     }
     if (body.dev_eui?.trim() && body.dev_eui.trim() !== normalizedDevEui) {
-      throw new BadRequestException('dev_eui in body must match route parameter');
+      throw new BadRequestException(
+        'dev_eui in body must match route parameter',
+      );
     }
     if (!body.targetUserEmail?.trim()) {
       throw new BadRequestException('Target User Email is required');
@@ -430,6 +573,13 @@ export class DevicesController {
     if (!body.location_id) {
       throw new BadRequestException('Device location is required');
     }
-    return this.devicesService.updateDevice(req.user, devEui, body.name, body.group ?? null, body.location_id, req.headers.authorization);
+    return this.devicesService.updateDevice(
+      req.user,
+      devEui,
+      body.name,
+      body.group ?? null,
+      body.location_id,
+      req.headers.authorization,
+    );
   }
 }

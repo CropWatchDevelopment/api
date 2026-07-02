@@ -219,7 +219,9 @@ describe('DevicesService', () => {
         eq: jest.fn().mockReturnThis(),
         lte: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn().mockResolvedValue({ data: locationRow, error: null }),
+        maybeSingle: jest
+          .fn()
+          .mockResolvedValue({ data: locationRow, error: null }),
       };
     }
 
@@ -227,7 +229,9 @@ describe('DevicesService', () => {
       return {
         update: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        select: jest.fn().mockResolvedValue({ data: [{ dev_eui: 'DEV-001' }], error: null }),
+        select: jest
+          .fn()
+          .mockResolvedValue({ data: [{ dev_eui: 'DEV-001' }], error: null }),
       };
     }
 
@@ -254,7 +258,10 @@ describe('DevicesService', () => {
         getAdminClient: jest.fn(),
       };
       return {
-        service: new DevicesService(supabaseService as unknown as SupabaseService, {} as any),
+        service: new DevicesService(
+          supabaseService as unknown as SupabaseService,
+          {} as any,
+        ),
         fromMock,
       };
     }
@@ -286,11 +293,21 @@ describe('DevicesService', () => {
         insertBuilder,
       ]);
 
-      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 'Bearer token-1');
+      await service.updateDevice(
+        jwt,
+        'DEV-001',
+        'Sensor',
+        null,
+        2,
+        'Bearer token-1',
+      );
 
       // Mover needed manage scope on the destination location.
       expect(destinationBuilder.eq).toHaveBeenCalledWith('location_id', 2);
-      expect(destinationBuilder.lte).toHaveBeenCalledWith('owner_match.permission_level', 2);
+      expect(destinationBuilder.lte).toHaveBeenCalledWith(
+        'owner_match.permission_level',
+        2,
+      );
 
       // Device ownership follows the destination location owner.
       expect(updateBuilder.update).toHaveBeenCalledWith({
@@ -323,12 +340,23 @@ describe('DevicesService', () => {
         user_id: 'old-owner',
       });
       const destinationBuilder = createDestinationBuilder(null);
-      const { service, fromMock } = createService([permissionBuilder, destinationBuilder]);
+      const { service, fromMock } = createService([
+        permissionBuilder,
+        destinationBuilder,
+      ]);
 
       await expect(
-        service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 'Bearer token-1'),
+        service.updateDevice(
+          jwt,
+          'DEV-001',
+          'Sensor',
+          null,
+          2,
+          'Bearer token-1',
+        ),
       ).rejects.toMatchObject({
-        message: 'You do not have permission to move this device to that location',
+        message:
+          'You do not have permission to move this device to that location',
       });
 
       // The device update must never run.
@@ -342,9 +370,19 @@ describe('DevicesService', () => {
         user_id: 'old-owner',
       });
       const updateBuilder = createUpdateBuilder();
-      const { service, fromMock } = createService([permissionBuilder, updateBuilder]);
+      const { service, fromMock } = createService([
+        permissionBuilder,
+        updateBuilder,
+      ]);
 
-      await service.updateDevice(jwt, 'DEV-001', 'Renamed', 'greenhouse', 2, 'Bearer token-1');
+      await service.updateDevice(
+        jwt,
+        'DEV-001',
+        'Renamed',
+        'greenhouse',
+        2,
+        'Bearer token-1',
+      );
 
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Renamed',
@@ -377,7 +415,14 @@ describe('DevicesService', () => {
         insertBuilder,
       ]);
 
-      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 'Bearer token-1');
+      await service.updateDevice(
+        jwt,
+        'DEV-001',
+        'Sensor',
+        null,
+        2,
+        'Bearer token-1',
+      );
 
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Sensor',

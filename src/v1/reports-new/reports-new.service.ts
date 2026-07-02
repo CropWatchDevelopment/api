@@ -29,7 +29,9 @@ import { SaveReportTemplateDto } from './dto/save-report-template.dto';
 
 type TemplateRow = TableRow<'cw_report_templates'>;
 type LocationJoin = { name: string | null };
-type DeviceLocationJoin = { cw_locations?: LocationJoin | LocationJoin[] | null };
+type DeviceLocationJoin = {
+  cw_locations?: LocationJoin | LocationJoin[] | null;
+};
 type AssignmentRow = TableRow<'cw_device_report_assignments'> & {
   cw_devices?: DeviceLocationJoin | DeviceLocationJoin[] | null;
 };
@@ -125,14 +127,18 @@ export class ReportsNewService {
     const client = this.supabaseService.getClient(accessToken);
     const { data: assignmentsData, error: assignmentsError } = await client
       .from('cw_device_report_assignments')
-      .select('created_at, dev_eui, id, is_active, template_id, cw_devices(cw_locations(name))')
+      .select(
+        'created_at, dev_eui, id, is_active, template_id, cw_devices(cw_locations(name))',
+      )
       .in(
         'dev_eui',
         viewableDevices.map((device) => device.devEui),
       );
 
     if (assignmentsError) {
-      throw new InternalServerErrorException('Failed to load report assignments');
+      throw new InternalServerErrorException(
+        'Failed to load report assignments',
+      );
     }
 
     const assignments = (assignmentsData ?? []) as AssignmentRow[];
@@ -189,7 +195,9 @@ export class ReportsNewService {
         .maybeSingle(),
       client
         .from('cw_device_report_assignments')
-        .select('created_at, dev_eui, id, is_active, template_id, cw_devices(cw_locations(name))')
+        .select(
+          'created_at, dev_eui, id, is_active, template_id, cw_devices(cw_locations(name))',
+        )
         .eq('template_id', id)
         .in(
           'dev_eui',
@@ -201,7 +209,9 @@ export class ReportsNewService {
       throw new InternalServerErrorException('Failed to load report template');
     }
     if (assignmentsResult.error) {
-      throw new InternalServerErrorException('Failed to load report assignments');
+      throw new InternalServerErrorException(
+        'Failed to load report assignments',
+      );
     }
     if (!templateResult.data) {
       throw new NotFoundException('Report template not found');
@@ -266,7 +276,9 @@ export class ReportsNewService {
       .single();
 
     if (templateError || !templateData) {
-      throw new InternalServerErrorException('Failed to create report template');
+      throw new InternalServerErrorException(
+        'Failed to create report template',
+      );
     }
 
     try {
@@ -316,7 +328,9 @@ export class ReportsNewService {
       .eq('id', id);
 
     if (updateError) {
-      throw new InternalServerErrorException('Failed to update report template');
+      throw new InternalServerErrorException(
+        'Failed to update report template',
+      );
     }
 
     await this.replaceTemplateChildren(accessToken, id, normalized);
@@ -349,7 +363,9 @@ export class ReportsNewService {
       .eq('id', id);
 
     if (error) {
-      throw new InternalServerErrorException('Failed to delete report template');
+      throw new InternalServerErrorException(
+        'Failed to delete report template',
+      );
     }
 
     return { id };
@@ -371,7 +387,7 @@ export class ReportsNewService {
       ]);
 
     return {
-      devices: (devicesPage.data ?? []) as ReportFormContextDto['devices'],
+      devices: devicesPage.data ?? [],
       locations: (locations ?? []) as ReportFormContextDto['locations'],
       communicationMethods,
       template,
@@ -434,21 +450,25 @@ export class ReportsNewService {
           });
         if (error || !data) return [] as ReportTemplateHistoryItemDto[];
         return data
-          .filter((item) => item.name && item.name !== '.emptyFolderPlaceholder')
+          .filter(
+            (item) => item.name && item.name !== '.emptyFolderPlaceholder',
+          )
           .map(
             (item): ReportTemplateHistoryItemDto => ({
               devEui,
               deviceName: deviceNames.get(devEui) ?? null,
               name: item.name,
               id: (item as { id?: string | null }).id ?? null,
-              createdAt: (item as { created_at?: string | null }).created_at ?? null,
-              updatedAt: (item as { updated_at?: string | null }).updated_at ?? null,
+              createdAt:
+                (item as { created_at?: string | null }).created_at ?? null,
+              updatedAt:
+                (item as { updated_at?: string | null }).updated_at ?? null,
               lastAccessedAt:
-                (item as { last_accessed_at?: string | null }).last_accessed_at ??
-                null,
+                (item as { last_accessed_at?: string | null })
+                  .last_accessed_at ?? null,
               metadata:
-                (item as { metadata?: Record<string, unknown> | null }).metadata ??
-                null,
+                (item as { metadata?: Record<string, unknown> | null })
+                  .metadata ?? null,
             }),
           );
       }),
@@ -547,7 +567,8 @@ export class ReportsNewService {
         const canView =
           isStaff ||
           directOwner ||
-          (permissionLevel != null && permissionLevel < PermissionLevel.DISABLED);
+          (permissionLevel != null &&
+            permissionLevel < PermissionLevel.DISABLED);
         const canManage =
           isStaff ||
           directOwner ||
@@ -603,7 +624,7 @@ export class ReportsNewService {
       throw new InternalServerErrorException('Failed to load report schedule');
     }
 
-    return (data ?? []) as ScheduleRow[];
+    return data ?? [];
   }
 
   private async loadRecipientsByTemplateIds(
@@ -615,16 +636,16 @@ export class ReportsNewService {
     const { data, error } = await this.supabaseService
       .getClient(accessToken)
       .from('cw_report_template_recipients')
-      .select(
-        'communication_method, created_at, email, id, name, template_id',
-      )
+      .select('communication_method, created_at, email, id, name, template_id')
       .in('template_id', templateIds);
 
     if (error) {
-      throw new InternalServerErrorException('Failed to load report recipients');
+      throw new InternalServerErrorException(
+        'Failed to load report recipients',
+      );
     }
 
-    return (data ?? []) as RecipientRow[];
+    return data ?? [];
   }
 
   private async loadAlertPointsByTemplateIds(
@@ -642,10 +663,12 @@ export class ReportsNewService {
       .in('template_id', templateIds);
 
     if (error) {
-      throw new InternalServerErrorException('Failed to load report alert points');
+      throw new InternalServerErrorException(
+        'Failed to load report alert points',
+      );
     }
 
-    return (data ?? []) as AlertPointRow[];
+    return data ?? [];
   }
 
   private async loadDataProcessingSchedulesByTemplateIds(
@@ -668,7 +691,7 @@ export class ReportsNewService {
       );
     }
 
-    return (data ?? []) as DataProcessingScheduleRow[];
+    return data ?? [];
   }
 
   private async replaceTemplateChildren(
@@ -689,7 +712,9 @@ export class ReportsNewService {
       .from('cw_device_report_assignments')
       .insert(assignments);
     if (assignmentsError) {
-      throw new InternalServerErrorException('Failed to save report assignments');
+      throw new InternalServerErrorException(
+        'Failed to save report assignments',
+      );
     }
 
     if (payload.schedule.length > 0) {
@@ -705,7 +730,9 @@ export class ReportsNewService {
         .from('cw_report_template_schedule')
         .insert(rows);
       if (error) {
-        throw new InternalServerErrorException('Failed to save report schedule');
+        throw new InternalServerErrorException(
+          'Failed to save report schedule',
+        );
       }
     }
 
@@ -720,7 +747,9 @@ export class ReportsNewService {
         .from('cw_report_template_recipients')
         .insert(rows);
       if (error) {
-        throw new InternalServerErrorException('Failed to save report recipients');
+        throw new InternalServerErrorException(
+          'Failed to save report recipients',
+        );
       }
     }
 
@@ -799,13 +828,19 @@ export class ReportsNewService {
       ]);
 
     if (assignments.error) {
-      throw new InternalServerErrorException('Failed to remove report assignments');
+      throw new InternalServerErrorException(
+        'Failed to remove report assignments',
+      );
     }
     if (schedule.error) {
-      throw new InternalServerErrorException('Failed to remove report schedule');
+      throw new InternalServerErrorException(
+        'Failed to remove report schedule',
+      );
     }
     if (recipients.error) {
-      throw new InternalServerErrorException('Failed to remove report recipients');
+      throw new InternalServerErrorException(
+        'Failed to remove report recipients',
+      );
     }
     if (alertPoints.error) {
       throw new InternalServerErrorException(
@@ -858,8 +893,15 @@ function buildReportTemplates(args: {
   dpSchedules: DataProcessingScheduleRow[];
   devices: ManagedDevice[];
 }): ReportTemplateDto[] {
-  const { templates, assignments, schedule, recipients, alertPoints, dpSchedules, devices } =
-    args;
+  const {
+    templates,
+    assignments,
+    schedule,
+    recipients,
+    alertPoints,
+    dpSchedules,
+    devices,
+  } = args;
 
   const devicesById = new Map(devices.map((device) => [device.devEui, device]));
   const assignmentsByTemplateId = groupBy(
@@ -868,12 +910,19 @@ function buildReportTemplates(args: {
   );
   const scheduleByTemplateId = groupBy(schedule, (row) => row.template_id);
   const recipientsByTemplateId = groupBy(recipients, (row) => row.template_id);
-  const alertPointsByTemplateId = groupBy(alertPoints, (row) => row.template_id);
-  const dpSchedulesByTemplateId = groupBy(dpSchedules, (row) => row.template_id);
+  const alertPointsByTemplateId = groupBy(
+    alertPoints,
+    (row) => row.template_id,
+  );
+  const dpSchedulesByTemplateId = groupBy(
+    dpSchedules,
+    (row) => row.template_id,
+  );
 
   return templates
     .map((template): ReportTemplateDto | null => {
-      const templateAssignments = assignmentsByTemplateId.get(template.id) ?? [];
+      const templateAssignments =
+        assignmentsByTemplateId.get(template.id) ?? [];
       if (templateAssignments.length === 0) return null;
 
       return {
@@ -899,16 +948,18 @@ function buildReportTemplates(args: {
             };
           },
         ),
-        schedule: (scheduleByTemplateId.get(template.id) ?? []).map(mapSchedule),
+        schedule: (scheduleByTemplateId.get(template.id) ?? []).map(
+          mapSchedule,
+        ),
         recipients: (recipientsByTemplateId.get(template.id) ?? []).map(
           mapRecipient,
         ),
         alertPoints: (alertPointsByTemplateId.get(template.id) ?? []).map(
           mapAlertPoint,
         ),
-        dataProcessingSchedules: (dpSchedulesByTemplateId.get(template.id) ?? []).map(
-          mapDataProcessingSchedule,
-        ),
+        dataProcessingSchedules: (
+          dpSchedulesByTemplateId.get(template.id) ?? []
+        ).map(mapDataProcessingSchedule),
       };
     })
     .filter((report): report is ReportTemplateDto => report !== null)

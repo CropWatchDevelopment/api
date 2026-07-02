@@ -70,7 +70,8 @@ export class ReportsNewController {
   })
   @ApiQuery({
     name: 'templateId',
-    description: 'When provided, the matching report template is included in the response.',
+    description:
+      'When provided, the matching report template is included in the response.',
     required: false,
     type: Number,
   })
@@ -133,7 +134,8 @@ export class ReportsNewController {
 
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
-    description: 'Creates a report template and assigns it to the listed devices.',
+    description:
+      'Creates a report template and assigns it to the listed devices.',
     type: ReportTemplateDto,
     isArray: false,
   })

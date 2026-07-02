@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Polar } from '@polar-sh/sdk';
-import { validateEvent, WebhookVerificationError } from '@polar-sh/sdk/webhooks';
+import {
+  validateEvent,
+  WebhookVerificationError,
+} from '@polar-sh/sdk/webhooks';
 
 export { WebhookVerificationError };
 
@@ -45,9 +48,11 @@ export class PolarService {
   private readonly client: Polar;
 
   constructor(private readonly configService: ConfigService) {
-    const accessToken = this.configService.get<string>('POLAR_ACCESS_TOKEN') ?? '';
+    const accessToken =
+      this.configService.get<string>('POLAR_ACCESS_TOKEN') ?? '';
     const server =
-      (this.configService.get<string>('POLAR_SERVER') ?? 'sandbox') === 'production'
+      (this.configService.get<string>('POLAR_SERVER') ?? 'sandbox') ===
+      'production'
         ? 'production'
         : 'sandbox';
 
@@ -98,7 +103,8 @@ export class PolarService {
                 : 'seatTiers' in price
                   ? (price.seatTiers.tiers[0]?.pricePerSeat ?? null)
                   : null,
-            priceCurrency: 'priceCurrency' in price ? price.priceCurrency : null,
+            priceCurrency:
+              'priceCurrency' in price ? price.priceCurrency : null,
           })),
         });
       }
@@ -106,8 +112,12 @@ export class PolarService {
     return products;
   }
 
-  async listSubscriptions(externalCustomerId: string): Promise<PolarSubscriptionInfo[]> {
-    const iterator = await this.client.subscriptions.list({ externalCustomerId });
+  async listSubscriptions(
+    externalCustomerId: string,
+  ): Promise<PolarSubscriptionInfo[]> {
+    const iterator = await this.client.subscriptions.list({
+      externalCustomerId,
+    });
 
     const subscriptions: PolarSubscriptionInfo[] = [];
     for await (const page of iterator) {
@@ -136,7 +146,10 @@ export class PolarService {
     return checkout.url;
   }
 
-  async updateSeats(subscriptionId: string, seats: number): Promise<PolarSubscriptionInfo> {
+  async updateSeats(
+    subscriptionId: string,
+    seats: number,
+  ): Promise<PolarSubscriptionInfo> {
     const subscription = await this.client.subscriptions.update({
       id: subscriptionId,
       subscriptionUpdate: { seats },

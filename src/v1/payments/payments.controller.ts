@@ -47,19 +47,27 @@ export class PaymentsController {
     summary: 'Get the full billing overview (base sub, device seats, licenses)',
   })
   getState(@Req() req) {
-    return this.paymentsService.getState(req.user, req.headers?.authorization ?? '');
+    return this.paymentsService.getState(
+      req.user,
+      req.headers?.authorization ?? '',
+    );
   }
 
   @Get('licenses')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "List the user's device licenses" })
   getLicenses(@Req() req) {
-    return this.paymentsService.getLicenses(req.user, req.headers?.authorization ?? '');
+    return this.paymentsService.getLicenses(
+      req.user,
+      req.headers?.authorization ?? '',
+    );
   }
 
   @Post('subscriptions/base/checkout')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Create a hosted checkout for the base subscription' })
+  @ApiOperation({
+    summary: 'Create a hosted checkout for the base subscription',
+  })
   createBaseCheckout(@Body() dto: CreateBaseCheckoutDto, @Req() req) {
     return this.paymentsService.createBaseCheckout(
       req.user,
@@ -70,7 +78,9 @@ export class PaymentsController {
 
   @Post('subscriptions/device/checkout')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Create a hosted checkout for device licenses (seats)' })
+  @ApiOperation({
+    summary: 'Create a hosted checkout for device licenses (seats)',
+  })
   createDeviceCheckout(@Body() dto: CreateDeviceCheckoutDto, @Req() req) {
     return this.paymentsService.createDeviceCheckout(
       req.user,
@@ -94,7 +104,11 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({ summary: 'Assign a license to a device' })
-  assignLicense(@Param('id') id: string, @Body() dto: AssignLicenseDto, @Req() req) {
+  assignLicense(
+    @Param('id') id: string,
+    @Body() dto: AssignLicenseDto,
+    @Req() req,
+  ) {
     return this.paymentsService.assignLicense(
       req.user,
       req.headers?.authorization ?? '',
@@ -107,7 +121,11 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({ summary: 'Move a license to a different device' })
-  moveLicense(@Param('id') id: string, @Body() dto: MoveLicenseDto, @Req() req) {
+  moveLicense(
+    @Param('id') id: string,
+    @Body() dto: MoveLicenseDto,
+    @Req() req,
+  ) {
     return this.paymentsService.moveLicense(
       req.user,
       req.headers?.authorization ?? '',
@@ -131,7 +149,9 @@ export class PaymentsController {
   @Post('licenses/:id/cancel')
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
-  @ApiOperation({ summary: 'Cancel an unassigned license (reduce the paid seat count by one)' })
+  @ApiOperation({
+    summary: 'Cancel an unassigned license (reduce the paid seat count by one)',
+  })
   cancelLicense(@Param('id') id: string, @Req() req) {
     return this.paymentsService.cancelLicense(
       req.user,
@@ -144,7 +164,10 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Open the Polar customer billing portal' })
   openPortal(@Req() req) {
-    return this.paymentsService.openPortal(req.user, req.headers?.authorization ?? '');
+    return this.paymentsService.openPortal(
+      req.user,
+      req.headers?.authorization ?? '',
+    );
   }
 
   @Delete('subscriptions/base')
@@ -160,13 +183,18 @@ export class PaymentsController {
 
   @Post('webhook')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'Receive Polar webhook events (signature-verified)' })
+  @ApiOperation({
+    summary: 'Receive Polar webhook events (signature-verified)',
+  })
   handleWebhook(@Req() req) {
     const rawBody: Buffer | undefined = req.rawBody;
     if (!rawBody) {
       throw new BadRequestException('Missing webhook body');
     }
-    return this.paymentsService.handleWebhook(rawBody, this.normalizeHeaders(req.headers));
+    return this.paymentsService.handleWebhook(
+      rawBody,
+      this.normalizeHeaders(req.headers),
+    );
   }
 
   private parseId(id: string): number {

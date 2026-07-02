@@ -73,7 +73,9 @@ export const DASHBOARD_DATA_TABLES = [
 
 export type DashboardDataTable = (typeof DASHBOARD_DATA_TABLES)[number];
 
-export function isDashboardDataTable(name: unknown): name is DashboardDataTable {
+export function isDashboardDataTable(
+  name: unknown,
+): name is DashboardDataTable {
   return (
     typeof name === 'string' &&
     (DASHBOARD_DATA_TABLES as readonly string[]).includes(name)

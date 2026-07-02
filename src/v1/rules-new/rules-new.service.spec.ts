@@ -31,21 +31,36 @@ function buildQueryStub(handlers: {
   stub.select = jest.fn().mockReturnValue(stub);
   stub.insert = jest.fn().mockReturnValue({
     select: jest.fn().mockReturnValue({
-      single: jest.fn().mockResolvedValue(handlers.insertReturn ?? handlers.single ?? { data: null, error: null }),
+      single: jest
+        .fn()
+        .mockResolvedValue(
+          handlers.insertReturn ??
+            handlers.single ?? { data: null, error: null },
+        ),
     }),
     then: (resolve: (value: StubResult) => unknown) =>
       resolve(handlers.insertReturn ?? { data: null, error: null }),
   });
   stub.update = jest.fn().mockReturnValue({
-    eq: jest.fn().mockResolvedValue(handlers.updateReturn ?? { data: null, error: null }),
+    eq: jest
+      .fn()
+      .mockResolvedValue(handlers.updateReturn ?? { data: null, error: null }),
   });
   stub.delete = jest.fn().mockReturnValue({
-    eq: jest.fn().mockResolvedValue(handlers.deleteReturn ?? { data: null, error: null }),
+    eq: jest
+      .fn()
+      .mockResolvedValue(handlers.deleteReturn ?? { data: null, error: null }),
   });
   stub.eq = jest.fn().mockReturnValue(stub);
   stub.in = jest.fn().mockReturnValue(stub);
-  stub.single = jest.fn().mockResolvedValue(handlers.single ?? { data: null, error: null });
-  stub.maybeSingle = jest.fn().mockResolvedValue(handlers.maybeSingle ?? handlers.single ?? { data: null, error: null });
+  stub.single = jest
+    .fn()
+    .mockResolvedValue(handlers.single ?? { data: null, error: null });
+  stub.maybeSingle = jest
+    .fn()
+    .mockResolvedValue(
+      handlers.maybeSingle ?? handlers.single ?? { data: null, error: null },
+    );
   stub.then = (resolve) => resolve(handlers.list ?? { data: [], error: null });
   return stub as QueryStub;
 }
@@ -117,9 +132,7 @@ describe('RulesNewService', () => {
             dev_eui: 'AA',
             name: 'Device A',
             user_id: 'someone-else',
-            cw_device_owners: [
-              { user_id: 'user-1', permission_level: 4 },
-            ],
+            cw_device_owners: [{ user_id: 'user-1', permission_level: 4 }],
           },
         ],
         error: null,
@@ -223,7 +236,10 @@ describe('RulesNewService', () => {
   describe('triggered rules', () => {
     const jwt = { sub: 'user-1', email: 'user@example.com' };
 
-    const buildRule = (id: number, assignments: Array<{ devEui: string; isTriggered: boolean | null }>) => ({
+    const buildRule = (
+      id: number,
+      assignments: Array<{ devEui: string; isTriggered: boolean | null }>,
+    ) => ({
       id,
       name: `Rule ${id}`,
       description: null,
@@ -276,10 +292,12 @@ describe('RulesNewService', () => {
 
     it('findTriggeredCount reports triggered and total counts', async () => {
       const service = new RulesNewService({} as any, {} as any, {} as any);
-      jest.spyOn(service, 'findAll').mockResolvedValue([
-        buildRule(1, [{ devEui: 'AA', isTriggered: true }]),
-        buildRule(2, [{ devEui: 'BB', isTriggered: false }]),
-      ]);
+      jest
+        .spyOn(service, 'findAll')
+        .mockResolvedValue([
+          buildRule(1, [{ devEui: 'AA', isTriggered: true }]),
+          buildRule(2, [{ devEui: 'BB', isTriggered: false }]),
+        ]);
 
       await expect(
         service.findTriggeredCount(jwt, 'Bearer token-1'),

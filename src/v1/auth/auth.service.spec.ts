@@ -46,11 +46,15 @@ describe('AuthService', () => {
 
   describe('loginWithPassword', () => {
     it('should throw BadRequestException if the email is invalid', async () => {
-      await expect(service.loginWithPassword('not-an-email', 'StrongPassword123!')).rejects.toThrow(BadRequestException);
+      await expect(
+        service.loginWithPassword('not-an-email', 'StrongPassword123!'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException if the password is missing', async () => {
-      await expect(service.loginWithPassword('john@example.com', '')).rejects.toThrow(BadRequestException);
+      await expect(
+        service.loginWithPassword('john@example.com', ''),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException if supabase signInWithPassword returns error', async () => {
@@ -59,7 +63,9 @@ describe('AuthService', () => {
         error: { message: 'Invalid login credentials' },
       });
 
-      await expect(service.loginWithPassword('john@example.com', 'StrongPassword123!')).rejects.toThrow(BadRequestException);
+      await expect(
+        service.loginWithPassword('john@example.com', 'StrongPassword123!'),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('should return login metadata when sign in succeeds', async () => {
@@ -75,7 +81,10 @@ describe('AuthService', () => {
         error: null,
       });
 
-      const result = await service.loginWithPassword('john@example.com', 'StrongPassword123!');
+      const result = await service.loginWithPassword(
+        'john@example.com',
+        'StrongPassword123!',
+      );
 
       expect(mockSignIn).toHaveBeenCalledWith({
         email: 'john@example.com',

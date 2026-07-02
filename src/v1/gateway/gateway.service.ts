@@ -42,10 +42,18 @@ export class GatewayService {
     );
 
     const allGateways = [
-      ...(ownedGateways ?? []).map((og) => ({ id: og.id, gateway_id: og.gateway_id, is_online: og.is_online, is_public: og.is_public, gateway_name: og.gateway_name, updated_at: og.updated_at })),
-      ...(publicGateways ?? []).filter((pg) => !ownedGatewayIds.has(pg.gateway_id)),
+      ...(ownedGateways ?? []).map((og) => ({
+        id: og.id,
+        gateway_id: og.gateway_id,
+        is_online: og.is_online,
+        is_public: og.is_public,
+        gateway_name: og.gateway_name,
+        updated_at: og.updated_at,
+      })),
+      ...(publicGateways ?? []).filter(
+        (pg) => !ownedGatewayIds.has(pg.gateway_id),
+      ),
     ];
-
 
     return allGateways ?? [];
   }

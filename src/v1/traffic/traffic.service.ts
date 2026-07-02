@@ -51,14 +51,18 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
     const { data, error } = await this.supabaseService
       .getClient()
       .from(this.tableName)
-      .select('traffic_hour, people_count, bicycle_count, car_count, truck_count, bus_count')
+      .select(
+        'traffic_hour, people_count, bicycle_count, car_count, truck_count, bus_count',
+      )
       .eq('dev_eui', devEui)
       .gte('traffic_hour', startUtc.toISOString())
       .lt('traffic_hour', endUtc.toISOString())
       .order('traffic_hour', { ascending: true });
 
     if (error) {
-      throw new InternalServerErrorException('Failed to fetch monthly traffic report');
+      throw new InternalServerErrorException(
+        'Failed to fetch monthly traffic report',
+      );
     }
 
     // Build a map of all days in the month initialised to zero
@@ -81,7 +85,8 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
       if (bucket) {
         bucket.total_people += row.people_count ?? 0;
         bucket.total_bicycles += row.bicycle_count ?? 0;
-        bucket.total_vehicles += (row.car_count ?? 0) + (row.truck_count ?? 0) + (row.bus_count ?? 0);
+        bucket.total_vehicles +=
+          (row.car_count ?? 0) + (row.truck_count ?? 0) + (row.bus_count ?? 0);
       }
     }
 
@@ -92,7 +97,12 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
    * Converts a local midnight (year/month/day 00:00:00 in the given timezone)
    * to a UTC Date.
    */
-  private localMidnightToUtc(year: number, month: number, day: number, timezone: string): Date {
+  private localMidnightToUtc(
+    year: number,
+    month: number,
+    day: number,
+    timezone: string,
+  ): Date {
     const guess = new Date(Date.UTC(year, month - 1, day));
     const offsetMs = this.getTimezoneOffsetMs(guess, timezone);
     return new Date(Date.UTC(year, month - 1, day) - offsetMs);

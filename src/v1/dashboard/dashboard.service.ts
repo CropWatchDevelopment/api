@@ -57,17 +57,19 @@ export class DashboardService {
         ? 'cw_locations!inner(location_id, name, group)'
         : 'cw_locations(location_id, name, group)';
 
-    let devicesQuery = client
-      .from('cw_devices')
-      .select(
-        `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
+    let devicesQuery = client.from('cw_devices').select(
+      `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
          cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
          ${locationSelect},
          owner_match:cw_device_owners()`,
-        { count: 'exact' },
-      );
+      { count: 'exact' },
+    );
 
-    devicesQuery = this.applyDeviceReadScope(devicesQuery, userId, isGlobalUser);
+    devicesQuery = this.applyDeviceReadScope(
+      devicesQuery,
+      userId,
+      isGlobalUser,
+    );
 
     if (query.group) {
       devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
@@ -93,7 +95,9 @@ export class DashboardService {
 
     if (error) {
       this.logger.error(`Failed to fetch dashboard devices: ${error.message}`);
-      throw new InternalServerErrorException('Failed to fetch dashboard devices');
+      throw new InternalServerErrorException(
+        'Failed to fetch dashboard devices',
+      );
     }
 
     const devices = data ?? [];
@@ -138,9 +142,7 @@ export class DashboardService {
       : 'cw_locations(location_id, name, "group")';
     let locsQuery = client
       .from('cw_devices')
-      .select(
-        `location_id, ${locationSelect}, owner_match:cw_device_owners()`,
-      );
+      .select(`location_id, ${locationSelect}, owner_match:cw_device_owners()`);
     locsQuery = this.applyDeviceReadScope(locsQuery, userId, isGlobalUser);
     if (query.group) locsQuery = locsQuery.ilike('group', `%${query.group}%`);
     if (query.name) {
@@ -161,8 +163,12 @@ export class DashboardService {
 
     const { data: locData, error: locError } = await locsQuery;
     if (locError) {
-      this.logger.error(`Failed to list dashboard locations: ${locError.message}`);
-      throw new InternalServerErrorException('Failed to list dashboard locations');
+      this.logger.error(
+        `Failed to list dashboard locations: ${locError.message}`,
+      );
+      throw new InternalServerErrorException(
+        'Failed to list dashboard locations',
+      );
     }
 
     // Dedupe by location_id; null becomes the special 'none' bucket.
@@ -210,15 +216,17 @@ export class DashboardService {
       .map(([, v]) => (v as { location_id: number }).location_id);
     const includeNoLoc = pagedLocs.some(([k]) => k === 'none');
 
-    let devicesQuery = client
-      .from('cw_devices')
-      .select(
-        `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
+    let devicesQuery = client.from('cw_devices').select(
+      `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
          cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
          cw_locations(location_id, name, "group"),
          owner_match:cw_device_owners()`,
-      );
-    devicesQuery = this.applyDeviceReadScope(devicesQuery, userId, isGlobalUser);
+    );
+    devicesQuery = this.applyDeviceReadScope(
+      devicesQuery,
+      userId,
+      isGlobalUser,
+    );
 
     if (includeNoLoc && locIds.length > 0) {
       devicesQuery = devicesQuery.or(
@@ -230,7 +238,8 @@ export class DashboardService {
       devicesQuery = devicesQuery.in('location_id', locIds);
     }
 
-    if (query.group) devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
+    if (query.group)
+      devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
     if (query.name) {
       devicesQuery = devicesQuery.or(
         this.buildNameOrFilter(query.name, nameLocationIds),
@@ -245,7 +254,9 @@ export class DashboardService {
       this.logger.error(
         `Failed to fetch devices for dashboard locations: ${devicesError.message}`,
       );
-      throw new InternalServerErrorException('Failed to fetch dashboard devices');
+      throw new InternalServerErrorException(
+        'Failed to fetch dashboard devices',
+      );
     }
 
     const rows = (
@@ -259,13 +270,17 @@ export class DashboardService {
     }
     for (const row of rows) {
       const key =
-        row.location?.location_id != null ? String(row.location.location_id) : 'none';
+        row.location?.location_id != null
+          ? String(row.location.location_id)
+          : 'none';
       const bucket = groupsByKey.get(key);
       if (bucket) bucket.devices.push(row);
     }
 
     // Drop empty buckets (can happen when name filter excludes all devices in a slot).
-    const groups = [...groupsByKey.values()].filter((g) => g.devices.length > 0);
+    const groups = [...groupsByKey.values()].filter(
+      (g) => g.devices.length > 0,
+    );
 
     return { groups, total, skip, take };
   }
@@ -294,7 +309,8 @@ export class DashboardService {
 
     deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
 
-    const { data: device, error: deviceError } = await deviceQuery.maybeSingle();
+    const { data: device, error: deviceError } =
+      await deviceQuery.maybeSingle();
 
     if (deviceError) {
       this.logger.error(
@@ -418,7 +434,8 @@ export class DashboardService {
       Boolean(secondaryCol) && secondaryCol !== '-' && secondaryCol !== '';
     return {
       created_at: (row.created_at as string | null) ?? null,
-      primary: primaryCol && primaryCol !== '-' ? (row[primaryCol] ?? null) : null,
+      primary:
+        primaryCol && primaryCol !== '-' ? (row[primaryCol] ?? null) : null,
       secondary: hasSecondary ? (row[secondaryCol] ?? null) : null,
     } as DashboardRow['latest'];
   }

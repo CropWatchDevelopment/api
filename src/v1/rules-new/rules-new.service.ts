@@ -80,7 +80,9 @@ export class RulesNewService {
     const client = this.supabaseService.getClient(accessToken);
     const { data: assignmentsData, error: assignmentsError } = await client
       .from('cw_device_rule_assignments')
-      .select('created_at, dev_eui, id, is_active, template_id, cw_devices(cw_locations(name))')
+      .select(
+        'created_at, dev_eui, id, is_active, template_id, cw_devices(cw_locations(name))',
+      )
       .in(
         'dev_eui',
         viewableDevices.map((device) => device.devEui),
@@ -145,7 +147,9 @@ export class RulesNewService {
   ): Promise<{ count: number; triggered_count: number; total_count: number }> {
     const rules = await this.findAll(jwtPayload, authHeader);
     const triggeredCount = rules.filter((rule) =>
-      rule.assignments.some((assignment) => assignment.state?.isTriggered === true),
+      rule.assignments.some(
+        (assignment) => assignment.state?.isTriggered === true,
+      ),
     ).length;
 
     return {
@@ -214,7 +218,7 @@ export class RulesNewService {
     ]);
 
     const [rule] = buildRuleTemplates({
-      templates: [templateResult.data as TemplateRow],
+      templates: [templateResult.data],
       assignments,
       criteria,
       actions,
@@ -430,7 +434,8 @@ export class RulesNewService {
         const canView =
           isStaff ||
           directOwner ||
-          (permissionLevel != null && permissionLevel < PermissionLevel.DISABLED);
+          (permissionLevel != null &&
+            permissionLevel < PermissionLevel.DISABLED);
         const canManage =
           isStaff ||
           directOwner ||
@@ -463,7 +468,7 @@ export class RulesNewService {
       throw new InternalServerErrorException('Failed to load rule templates');
     }
 
-    return (data ?? []) as TemplateRow[];
+    return data ?? [];
   }
 
   private async loadCriteriaByTemplateIds(
@@ -484,7 +489,7 @@ export class RulesNewService {
       throw new InternalServerErrorException('Failed to load rule criteria');
     }
 
-    return (data ?? []) as CriterionRow[];
+    return data ?? [];
   }
 
   private async loadActionsByTemplateIds(
@@ -505,7 +510,7 @@ export class RulesNewService {
       throw new InternalServerErrorException('Failed to load rule actions');
     }
 
-    return (data ?? []) as ActionRow[];
+    return data ?? [];
   }
 
   async findAllActionTypes(authHeader: string): Promise<RuleActionTypeDto[]> {
@@ -542,7 +547,7 @@ export class RulesNewService {
     ]);
 
     return {
-      devices: (devicesPage.data ?? []) as RuleFormContextDto['devices'],
+      devices: devicesPage.data ?? [],
       locations: (locations ?? []) as RuleFormContextDto['locations'],
       actionTypes,
       template,
@@ -570,7 +575,7 @@ export class RulesNewService {
       throw new InternalServerErrorException('Failed to load rule state');
     }
 
-    return (data ?? []) as StateRow[];
+    return data ?? [];
   }
 
   private async replaceTemplateChildren(
@@ -607,9 +612,7 @@ export class RulesNewService {
       ]);
 
     if (assignmentsResult.error) {
-      throw new InternalServerErrorException(
-        'Failed to save rule assignments',
-      );
+      throw new InternalServerErrorException('Failed to save rule assignments');
     }
     if (criteriaResult.error) {
       throw new InternalServerErrorException('Failed to save rule criteria');
@@ -766,13 +769,15 @@ function mapCriterion(row: CriterionRow): RuleTemplateCriterionDto {
 
 function mapAction(row: ActionRow): RuleTemplateActionDto {
   const rawJoin = row.cw_rule_action_types;
-  const joined = Array.isArray(rawJoin) ? (rawJoin[0] ?? null) : (rawJoin ?? null);
+  const joined = Array.isArray(rawJoin)
+    ? (rawJoin[0] ?? null)
+    : (rawJoin ?? null);
   return {
     id: row.id,
     templateId: row.template_id,
     actionType: row.action_type,
     actionTypeName: joined?.name ?? null,
-    config: row.config as RuleTemplateActionDto['config'],
+    config: row.config,
     createdAt: row.created_at,
   };
 }
@@ -784,7 +789,9 @@ function unwrapJoin(raw: unknown): Record<string, unknown> | null {
 
 // findAll embeds cw_devices(cw_locations(name)) on each assignment row.
 function readAssignmentLocationName(assignment: AssignmentRow): string | null {
-  const device = unwrapJoin((assignment as { cw_devices?: unknown }).cw_devices);
+  const device = unwrapJoin(
+    (assignment as { cw_devices?: unknown }).cw_devices,
+  );
   const location = unwrapJoin(device?.cw_locations);
   const name = location?.name;
   return typeof name === 'string' && name.trim().length > 0 ? name : null;

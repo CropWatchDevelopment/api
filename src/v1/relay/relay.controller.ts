@@ -92,11 +92,7 @@ export class RelayController {
       throw new UnauthorizedException('Missing bearer token');
     }
 
-    return this.relayService.getLatestRelay(
-      req.user,
-      authHeader,
-      devEui,
-    );
+    return this.relayService.getLatestRelay(req.user, authHeader, devEui);
   }
 
   @Patch(':dev_eui')
@@ -143,7 +139,8 @@ export class RelayController {
     description: 'Missing or invalid bearer token.',
   })
   @ApiOperation({
-    summary: 'Turn a relay on for a fixed number of seconds, then let it revert',
+    summary:
+      'Turn a relay on for a fixed number of seconds, then let it revert',
   })
   pulseRelay(
     @Param('dev_eui') devEui: string,

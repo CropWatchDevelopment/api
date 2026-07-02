@@ -15,7 +15,13 @@ import { LocationsService } from './locations.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
-import { ApiBearerAuth, ApiOkResponse, ApiParam, ApiQuery, ApiSecurity } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiParam,
+  ApiQuery,
+  ApiSecurity,
+} from '@nestjs/swagger';
 import { LocationDto } from './dto/location.dto';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
 import { CreateLocationOwnerDto } from './dto/create-location-owner.dto';
@@ -29,23 +35,30 @@ import {
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class LocationsController {
-  constructor(private readonly locationsService: LocationsService) { }
+  constructor(private readonly locationsService: LocationsService) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Body() createLocationDto: CreateLocationDto, @Req() req) {
     const authHeader = req.headers?.authorization ?? '';
-    return this.locationsService.create(createLocationDto, req.user, authHeader);
+    return this.locationsService.create(
+      createLocationDto,
+      req.user,
+      authHeader,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
-    description:
-      "Current all of the user's rules configurations.",
+    description: "Current all of the user's rules configurations.",
     type: LocationDto,
     isArray: true,
   })
-  @ApiQuery({ name: 'name', description: 'Filter by location name', required: false })
+  @ApiQuery({
+    name: 'name',
+    description: 'Filter by location name',
+    required: false,
+  })
   @Get()
   findAll(@Req() req) {
     const authHeader = req.headers?.authorization ?? '';
@@ -55,8 +68,7 @@ export class LocationsController {
 
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
-    description:
-      "Current all of the user's location groups.",
+    description: "Current all of the user's location groups.",
     type: String,
     isArray: true,
   })
@@ -68,8 +80,7 @@ export class LocationsController {
 
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
-    description:
-      "Get a user's location configuration by ID.",
+    description: "Get a user's location configuration by ID.",
     type: LocationDto,
     isArray: false,
   })
@@ -81,16 +92,40 @@ export class LocationsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  update(@Param('id') id: string, @Body() updateLocationDto: UpdateLocationDto, @Req() req) {
+  update(
+    @Param('id') id: string,
+    @Body() updateLocationDto: UpdateLocationDto,
+    @Req() req,
+  ) {
     const authHeader = req.headers?.authorization ?? '';
-    return this.locationsService.update(+id, updateLocationDto, req.user, authHeader);
+    return this.locationsService.update(
+      +id,
+      updateLocationDto,
+      req.user,
+      authHeader,
+    );
   }
 
   @Post(':id/permission')
   @UseGuards(JwtAuthGuard)
-  @ApiParam({ name: 'id', description: 'ID of the location to update permissions for', type: Number })
-  @ApiParam({ name: 'newUserEmail', description: 'Email of the user to grant permissions to', type: String, example: 'user@example.com' })
-  @ApiQuery({ name: 'applyToAllDevices', description: 'Whether to apply the permission change to all devices associated with the location', type: Boolean, required: false })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the location to update permissions for',
+    type: Number,
+  })
+  @ApiParam({
+    name: 'newUserEmail',
+    description: 'Email of the user to grant permissions to',
+    type: String,
+    example: 'user@example.com',
+  })
+  @ApiQuery({
+    name: 'applyToAllDevices',
+    description:
+      'Whether to apply the permission change to all devices associated with the location',
+    type: Boolean,
+    required: false,
+  })
   @ApiOkResponse({
     description: 'The location permission has been successfully updated.',
     type: LocationDto,
@@ -105,8 +140,11 @@ export class LocationsController {
   ) {
     const authHeader = req.headers?.authorization ?? '';
     const locationId = Number.parseInt(id, 10);
-    const normalizedNewUserEmail = createLocationOwnerDto.user_email?.trim() || newUserEmail?.trim();
-    const applyToAllDevicesFlag = applyToAllDevices === 'true' || createLocationOwnerDto.applyToAllDevices === true;
+    const normalizedNewUserEmail =
+      createLocationOwnerDto.user_email?.trim() || newUserEmail?.trim();
+    const applyToAllDevicesFlag =
+      applyToAllDevices === 'true' ||
+      createLocationOwnerDto.applyToAllDevices === true;
 
     if (!Number.isInteger(locationId) || locationId < 1) {
       throw new BadRequestException('Location ID is required');
@@ -123,7 +161,9 @@ export class LocationsController {
       typeof createLocationOwnerDto.location_id === 'number' &&
       createLocationOwnerDto.location_id !== locationId
     ) {
-      throw new BadRequestException('location_id in body must match route parameter');
+      throw new BadRequestException(
+        'location_id in body must match route parameter',
+      );
     }
 
     return this.locationsService.createLocationPermission(
@@ -142,40 +182,93 @@ export class LocationsController {
 
   @Patch(':id/permission')
   @UseGuards(JwtAuthGuard)
-  @ApiParam({ name: 'id', description: 'ID of the location to update permissions for', type: Number })
-  @ApiQuery({ name: 'applyToAllDevices', description: 'Whether to apply the permission change to all devices associated with the location', type: Boolean, required: false })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the location to update permissions for',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'applyToAllDevices',
+    description:
+      'Whether to apply the permission change to all devices associated with the location',
+    type: Boolean,
+    required: false,
+  })
   @ApiOkResponse({
     description: 'The location permission has been successfully updated.',
     type: LocationDto,
   })
-  async updateLocationPermission(@Param('id') id: string, @Body() updateLocationOwnerDto: UpdateLocationOwnerDto, @Query('applyToAllDevices') applyToAllDevices: string = 'false', @Req() req) {
+  async updateLocationPermission(
+    @Param('id') id: string,
+    @Body() updateLocationOwnerDto: UpdateLocationOwnerDto,
+    @Query('applyToAllDevices') applyToAllDevices: string = 'false',
+    @Req() req,
+  ) {
     const authHeader = req.headers?.authorization ?? '';
     const applyToAllDevicesFlag = applyToAllDevices === 'true';
-    return this.locationsService.updateLocationPermission(+id, updateLocationOwnerDto, applyToAllDevicesFlag, req.user, authHeader);
+    return this.locationsService.updateLocationPermission(
+      +id,
+      updateLocationOwnerDto,
+      applyToAllDevicesFlag,
+      req.user,
+      authHeader,
+    );
   }
 
   @Patch(':id/permission-level')
   @UseGuards(JwtAuthGuard)
-  @ApiParam({ name: 'id', description: 'ID of the location to update permissions for', type: Number })
-  @ApiQuery({ name: 'applyToAllDevices', description: 'Whether to apply the permission change to all devices associated with the location', type: Boolean, required: false })
+  @ApiParam({
+    name: 'id',
+    description: 'ID of the location to update permissions for',
+    type: Number,
+  })
+  @ApiQuery({
+    name: 'applyToAllDevices',
+    description:
+      'Whether to apply the permission change to all devices associated with the location',
+    type: Boolean,
+    required: false,
+  })
   @ApiOkResponse({
     description: 'The location permission has been successfully updated.',
     type: LocationDto,
   })
-  async updateUserPermissionLevel(@Param('id') id: string, @Body() updateLocationUserPermissionLevelDto: any, @Query('applyToAllDevices') applyToAllDevices: string = 'false', @Req() req) {
+  async updateUserPermissionLevel(
+    @Param('id') id: string,
+    @Body() updateLocationUserPermissionLevelDto: any,
+    @Query('applyToAllDevices') applyToAllDevices: string = 'false',
+    @Req() req,
+  ) {
     const authHeader = req.headers?.authorization ?? '';
     const applyToAllDevicesFlag = applyToAllDevices === 'true';
-    return this.locationsService.updateUserPermissionLevel(+id, updateLocationUserPermissionLevelDto, applyToAllDevicesFlag, req.user, authHeader);
+    return this.locationsService.updateUserPermissionLevel(
+      +id,
+      updateLocationUserPermissionLevelDto,
+      applyToAllDevicesFlag,
+      req.user,
+      authHeader,
+    );
   }
 
   @Delete(':id/permission')
   @UseGuards(JwtAuthGuard)
-  remove(@Param('id') id: number, @Query('permission_id') permissionId: number, @Req() req) {
+  remove(
+    @Param('id') id: number,
+    @Query('permission_id') permissionId: number,
+    @Req() req,
+  ) {
     if (!id || !permissionId) {
-      throw new BadRequestException('Location ID and Permission ID are required');
+      throw new BadRequestException(
+        'Location ID and Permission ID are required',
+      );
     }
 
     const authHeader = req.headers?.authorization ?? '';
-    return this.locationsService.removeLocationPermission(id, permissionId, req.user, authHeader);
+    return this.locationsService.removeLocationPermission(
+      id,
+      permissionId,
+      req.user,
+      authHeader,
+    );
   }
 }

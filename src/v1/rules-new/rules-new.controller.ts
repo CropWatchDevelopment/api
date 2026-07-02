@@ -34,7 +34,7 @@ export class RulesNewController {
 
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
-    description: "Lists every rule template visible to the current user.",
+    description: 'Lists every rule template visible to the current user.',
     type: RuleTemplateDto,
     isArray: true,
   })
@@ -51,7 +51,8 @@ export class RulesNewController {
 
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
-    description: 'Lists every action type a rule template action can reference.',
+    description:
+      'Lists every action type a rule template action can reference.',
     type: RuleActionTypeDto,
     isArray: true,
   })
@@ -69,15 +70,13 @@ export class RulesNewController {
   })
   @ApiQuery({
     name: 'templateId',
-    description: 'When provided, the matching rule template is included in the response.',
+    description:
+      'When provided, the matching rule template is included in the response.',
     required: false,
     type: Number,
   })
   @Get('form-context')
-  getFormContext(
-    @Req() req,
-    @Query('templateId') templateId?: string,
-  ) {
+  getFormContext(@Req() req, @Query('templateId') templateId?: string) {
     const authHeader = req.headers?.authorization ?? '';
     const parsed = templateId !== undefined ? Number(templateId) : NaN;
     const id = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
@@ -143,7 +142,8 @@ export class RulesNewController {
 
   @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
-    description: 'Creates a rule template and assigns it to the listed devices.',
+    description:
+      'Creates a rule template and assigns it to the listed devices.',
     type: RuleTemplateDto,
     isArray: false,
   })

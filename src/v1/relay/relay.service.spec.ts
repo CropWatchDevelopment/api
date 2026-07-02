@@ -51,10 +51,11 @@ describe('RelayService', () => {
       } as unknown as ConfigService,
       new RelayCommandLockService(),
       {
-        getClient: jest.fn(() =>
-          clientOverride ?? {
-            from: jest.fn(),
-          },
+        getClient: jest.fn(
+          () =>
+            clientOverride ?? {
+              from: jest.fn(),
+            },
         ),
       } as unknown as SupabaseService,
     );
@@ -92,12 +93,10 @@ describe('RelayService', () => {
   it('returns the latest relay row for users who can read the device', async () => {
     const service = createService();
 
-    jest
-      .spyOn(service as any, 'loadRelayDeviceContext')
-      .mockResolvedValue({
-        ...deviceContext,
-        permissionLevel: 3,
-      });
+    jest.spyOn(service as any, 'loadRelayDeviceContext').mockResolvedValue({
+      ...deviceContext,
+      permissionLevel: 3,
+    });
     jest
       .spyOn(service as any, 'findLatestRelayRow')
       .mockResolvedValue(relayRow);
@@ -114,12 +113,10 @@ describe('RelayService', () => {
   it('returns the latest relay row for viewer-level users', async () => {
     const service = createService();
 
-    jest
-      .spyOn(service as any, 'loadRelayDeviceContext')
-      .mockResolvedValue({
-        ...deviceContext,
-        permissionLevel: 4,
-      });
+    jest.spyOn(service as any, 'loadRelayDeviceContext').mockResolvedValue({
+      ...deviceContext,
+      permissionLevel: 4,
+    });
     jest
       .spyOn(service as any, 'findLatestRelayRow')
       .mockResolvedValue(relayRow);
@@ -136,12 +133,10 @@ describe('RelayService', () => {
   it('rejects latest relay reads when the user has no access to the device', async () => {
     const service = createService();
 
-    jest
-      .spyOn(service as any, 'loadRelayDeviceContext')
-      .mockResolvedValue({
-        ...deviceContext,
-        permissionLevel: 5,
-      });
+    jest.spyOn(service as any, 'loadRelayDeviceContext').mockResolvedValue({
+      ...deviceContext,
+      permissionLevel: 5,
+    });
 
     await expect(
       service.getLatestRelay(
@@ -175,13 +170,15 @@ describe('RelayService', () => {
       .mockResolvedValue(relayRow);
 
     const originalFetch = global.fetch;
-    global.fetch = jest.fn(async () =>
-      new Response(JSON.stringify({}), {
-        headers: {
-          'content-type': 'application/json',
-        },
-        status: 200,
-      })) as typeof fetch;
+    global.fetch = jest.fn(
+      async () =>
+        new Response(JSON.stringify({}), {
+          headers: {
+            'content-type': 'application/json',
+          },
+          status: 200,
+        }),
+    ) as typeof fetch;
 
     await expect(
       service.updateRelay(
@@ -286,9 +283,11 @@ describe('RelayService', () => {
         { durationSeconds: 60, relay: 1 },
       ),
     ).rejects.toMatchObject({
-      message: 'Timed relay pulse requires the target relay to currently be off',
+      message:
+        'Timed relay pulse requires the target relay to currently be off',
       response: {
-        message: 'Timed relay pulse requires the target relay to currently be off',
+        message:
+          'Timed relay pulse requires the target relay to currently be off',
         statusCode: 409,
       },
       status: 409,

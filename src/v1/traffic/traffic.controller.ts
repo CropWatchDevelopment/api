@@ -150,8 +150,18 @@ export class TrafficController {
     type: ErrorResponseDto,
   })
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
-  @ApiQuery({ name: 'year', description: 'Report year (e.g. 2026)', type: Number, example: 2026 })
-  @ApiQuery({ name: 'month', description: 'Report month (1-12)', type: Number, example: 3 })
+  @ApiQuery({
+    name: 'year',
+    description: 'Report year (e.g. 2026)',
+    type: Number,
+    example: 2026,
+  })
+  @ApiQuery({
+    name: 'month',
+    description: 'Report month (1-12)',
+    type: Number,
+    example: 3,
+  })
   @ApiQuery({
     name: 'timezone',
     required: false,

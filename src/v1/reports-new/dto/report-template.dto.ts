@@ -18,7 +18,9 @@ export class ReportTemplateDto {
   @ApiProperty({ nullable: true, required: false })
   deviceTypeId: number | null;
 
-  @ApiProperty({ description: 'Sampling interval in minutes used when building the report.' })
+  @ApiProperty({
+    description: 'Sampling interval in minutes used when building the report.',
+  })
   dataPullInterval: number;
 
   @ApiProperty()
@@ -39,6 +41,9 @@ export class ReportTemplateDto {
   @ApiProperty({ type: () => ReportTemplateAlertPointDto, isArray: true })
   alertPoints: ReportTemplateAlertPointDto[];
 
-  @ApiProperty({ type: () => ReportTemplateDataProcessingScheduleDto, isArray: true })
+  @ApiProperty({
+    type: () => ReportTemplateDataProcessingScheduleDto,
+    isArray: true,
+  })
   dataProcessingSchedules: ReportTemplateDataProcessingScheduleDto[];
 }

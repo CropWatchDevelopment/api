@@ -175,21 +175,33 @@ export class SaveReportTemplateDto {
   @IsString({ each: true })
   devEuis: string[];
 
-  @ApiProperty({ type: () => SaveReportTemplateScheduleDto, isArray: true, required: false })
+  @ApiProperty({
+    type: () => SaveReportTemplateScheduleDto,
+    isArray: true,
+    required: false,
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => SaveReportTemplateScheduleDto)
   schedule?: SaveReportTemplateScheduleDto[];
 
-  @ApiProperty({ type: () => SaveReportTemplateRecipientDto, isArray: true, required: false })
+  @ApiProperty({
+    type: () => SaveReportTemplateRecipientDto,
+    isArray: true,
+    required: false,
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => SaveReportTemplateRecipientDto)
   recipients?: SaveReportTemplateRecipientDto[];
 
-  @ApiProperty({ type: () => SaveReportTemplateAlertPointDto, isArray: true, required: false })
+  @ApiProperty({
+    type: () => SaveReportTemplateAlertPointDto,
+    isArray: true,
+    required: false,
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

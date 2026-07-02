@@ -50,19 +50,26 @@ function readRelayStatus(value: unknown): boolean | null {
   return null;
 }
 
-function readDecodedPayload(payload: Record<string, unknown>): Record<string, unknown> {
+function readDecodedPayload(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
   const data = readApplicationUp(payload);
-  const uplinkMessage = isRecord(data.uplink_message) ? data.uplink_message : null;
-  const decodedPayload = uplinkMessage && isRecord(uplinkMessage.decoded_payload)
-    ? uplinkMessage.decoded_payload
+  const uplinkMessage = isRecord(data.uplink_message)
+    ? data.uplink_message
     : null;
+  const decodedPayload =
+    uplinkMessage && isRecord(uplinkMessage.decoded_payload)
+      ? uplinkMessage.decoded_payload
+      : null;
 
   return decodedPayload ?? {};
 }
 
 function readConfirmationTime(payload: Record<string, unknown>): string {
   const data = readApplicationUp(payload);
-  const uplinkMessage = isRecord(data.uplink_message) ? data.uplink_message : null;
+  const uplinkMessage = isRecord(data.uplink_message)
+    ? data.uplink_message
+    : null;
 
   return (
     readString(data?.received_at) ||
@@ -73,8 +80,12 @@ function readConfirmationTime(payload: Record<string, unknown>): string {
 
 function readConfirmationDevEui(payload: Record<string, unknown>): string {
   const data = readApplicationUp(payload);
-  const endDeviceIds = isRecord(data.end_device_ids) ? data.end_device_ids : null;
-  const identifiers = Array.isArray(payload.identifiers) ? payload.identifiers : [];
+  const endDeviceIds = isRecord(data.end_device_ids)
+    ? data.end_device_ids
+    : null;
+  const identifiers = Array.isArray(payload.identifiers)
+    ? payload.identifiers
+    : [];
 
   for (const entry of identifiers) {
     if (!isRecord(entry)) {

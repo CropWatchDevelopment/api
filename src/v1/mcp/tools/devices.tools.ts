@@ -39,11 +39,15 @@ export class DeviceMcpTools {
         .min(1)
         .max(1000)
         .optional()
-        .describe('Maximum number of devices to return (default 100, max 1000).'),
+        .describe(
+          'Maximum number of devices to return (default 100, max 1000).',
+        ),
       name: z
         .string()
         .optional()
-        .describe('Filter by device name or dev_eui (case-insensitive contains).'),
+        .describe(
+          'Filter by device name or dev_eui (case-insensitive contains).',
+        ),
       group: z
         .string()
         .optional()
@@ -97,11 +101,7 @@ export class DeviceMcpTools {
       openWorldHint: false,
     },
   })
-  async getDevice(
-    { dev_eui },
-    _context: Context,
-    request: AuthedRequest,
-  ) {
+  async getDevice({ dev_eui }, _context: Context, request: AuthedRequest) {
     const authHeader = request.headers.authorization ?? '';
     const device = await this.devicesService.findOne(
       request.user,
@@ -114,7 +114,9 @@ export class DeviceMcpTools {
   /** Wrap any serializable value as an MCP text-content result. */
   private json(value: unknown) {
     return {
-      content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
+      content: [
+        { type: 'text' as const, text: JSON.stringify(value, null, 2) },
+      ],
     };
   }
 }

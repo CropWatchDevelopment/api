@@ -28,7 +28,7 @@ async function bootstrap() {
   // the Polar webhook route can verify the signature over the unmodified payload.
   const app = await NestFactory.create(AppModule, { rawBody: true });
   const logger = new Logger('NestApplication');
-  const expressApp = app.getHttpAdapter().getInstance() as any;
+  const expressApp = app.getHttpAdapter().getInstance();
 
   expressApp.set('trust proxy', true);
   app.enableCors();
@@ -63,11 +63,13 @@ async function bootstrap() {
     next();
   });
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: '1',
@@ -99,9 +101,15 @@ Developer notes:
       'bearerAuth',
     )
     .addApiKey({ type: 'apiKey', in: 'header', name: 'x-api-key' }, 'apiKey')
-    .setLicense('License & Distribution', 'https://www.cropwatch.io/legal/license')
+    .setLicense(
+      'License & Distribution',
+      'https://www.cropwatch.io/legal/license',
+    )
     .setTermsOfService('https://www.cropwatch.io/legal/terms-of-service')
-    .setExternalDoc('GitHub Repository', 'https://github.com/CropWatchDevelopment/api')
+    .setExternalDoc(
+      'GitHub Repository',
+      'https://github.com/CropWatchDevelopment/api',
+    )
     .setContact(
       'CropWatch Support',
       'https://github.com/CropWatchDevelopment/api/issues',
@@ -115,7 +123,7 @@ Developer notes:
     return {
       ...doc,
       paths: Object.fromEntries(
-        Object.entries(doc.paths).filter(([path]) => path.startsWith(prefix))
+        Object.entries(doc.paths).filter(([path]) => path.startsWith(prefix)),
       ),
     };
   }

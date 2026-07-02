@@ -1,4 +1,7 @@
-import { BadGatewayException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  BadGatewayException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { TtiApplicationDownlink } from './relay-command-profile';
 

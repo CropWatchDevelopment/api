@@ -8,7 +8,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { getAccessToken, getUserId } from '../../supabase/supabase-token.helper';
+import {
+  getAccessToken,
+  getUserId,
+} from '../../supabase/supabase-token.helper';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 
@@ -131,7 +134,10 @@ export class AuthService {
     }
 
     // Defensive pre-check: username must be unique across all profiles.
-    if (typeof normalized.username === 'string' && normalized.username.length > 0) {
+    if (
+      typeof normalized.username === 'string' &&
+      normalized.username.length > 0
+    ) {
       const { data: existing, error: lookupError } = await client
         .from('profiles')
         .select('id')
@@ -141,7 +147,9 @@ export class AuthService {
         .maybeSingle();
 
       if (lookupError) {
-        throw new InternalServerErrorException('Failed to verify username availability');
+        throw new InternalServerErrorException(
+          'Failed to verify username availability',
+        );
       }
 
       if (existing) {
@@ -178,8 +186,15 @@ export class AuthService {
     const accessToken = getAccessToken(authHeader);
 
     // Corporate CropWatch accounts are locked to their email of record.
-    const currentEmail = (jwtPayload?.email ?? '').toString().trim().toLowerCase();
-    if (RESTRICTED_EMAIL_CHANGE_DOMAINS.some((domain) => currentEmail.endsWith(domain))) {
+    const currentEmail = (jwtPayload?.email ?? '')
+      .toString()
+      .trim()
+      .toLowerCase();
+    if (
+      RESTRICTED_EMAIL_CHANGE_DOMAINS.some((domain) =>
+        currentEmail.endsWith(domain),
+      )
+    ) {
       throw new ForbiddenException(
         'CropWatch email addresses (cropwatch.io / cropwatch.co.jp) cannot change their email.',
       );
@@ -215,7 +230,10 @@ export class AuthService {
         message?: string;
       };
       const message =
-        payload.msg || payload.error_description || payload.message || 'Failed to start email change';
+        payload.msg ||
+        payload.error_description ||
+        payload.message ||
+        'Failed to start email change';
       if (response.status === 401) {
         throw new UnauthorizedException(message);
       }
@@ -227,7 +245,8 @@ export class AuthService {
 
     return {
       pending: true,
-      message: 'Confirmation email sent. Check your inbox to complete the change.',
+      message:
+        'Confirmation email sent. Check your inbox to complete the change.',
     };
   }
 
@@ -251,7 +270,10 @@ export class AuthService {
 
     const { data: inserted, error: insertError } = await client
       .from('profile_preferences')
-      .upsert({ user_id: userId }, { onConflict: 'user_id', ignoreDuplicates: false })
+      .upsert(
+        { user_id: userId },
+        { onConflict: 'user_id', ignoreDuplicates: false },
+      )
       .select('*')
       .single();
     if (insertError || !inserted) {
@@ -274,7 +296,8 @@ export class AuthService {
     for (const key of PREFERENCE_KEYS) {
       if (updateDto[key] !== undefined) {
         const value = updateDto[key];
-        patch[key] = typeof value === 'string' && value.trim() === '' ? null : value;
+        patch[key] =
+          typeof value === 'string' && value.trim() === '' ? null : value;
       }
     }
 

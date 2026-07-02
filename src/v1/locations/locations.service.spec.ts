@@ -1,4 +1,7 @@
-import { InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { LocationsService } from './locations.service';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { PaymentsService } from '../payments/payments.service';
@@ -60,7 +63,9 @@ describe('LocationsService', () => {
     });
     const service = createService(client);
 
-    await expect(service.findOne(123, { sub: 'user-1' }, 'Bearer token-1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.findOne(123, { sub: 'user-1' }, 'Bearer token-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(locationQuery.maybeSingle).toHaveBeenCalledTimes(1);
   });
 
@@ -123,7 +128,11 @@ describe('LocationsService', () => {
     const service = createService(client);
 
     await expect(
-      service.findOne(84, { sub: 'user-1', email: 'farmer@example.com' }, 'Bearer token-1'),
+      service.findOne(
+        84,
+        { sub: 'user-1', email: 'farmer@example.com' },
+        'Bearer token-1',
+      ),
     ).resolves.toEqual({
       location_id: 84,
       name: 'Customer Location',
@@ -132,8 +141,14 @@ describe('LocationsService', () => {
   });
 
   it('updateLocationPermission should not clean up when a device permission upsert fails', async () => {
-    const permissionCheckQuery = createBuilder({ data: { location_id: 77 }, error: null });
-    const locationOwnerUpsertQuery = createBuilder({ data: { id: 1 }, error: null });
+    const permissionCheckQuery = createBuilder({
+      data: { location_id: 77 },
+      error: null,
+    });
+    const locationOwnerUpsertQuery = createBuilder({
+      data: { id: 1 },
+      error: null,
+    });
     const locationDevicesQuery = createBuilder({
       data: [{ dev_eui: 'ABC123' }, { dev_eui: 'XYZ789' }],
       error: null,
@@ -166,8 +181,15 @@ describe('LocationsService', () => {
     ).rejects.toBeInstanceOf(InternalServerErrorException);
 
     // Assert we made no rollback/cleanup attempts.
-    const calledTables = client.from.mock.calls.map(([table]: [string]) => table);
-    expect(calledTables).toEqual(['cw_locations', 'cw_location_owners', 'cw_devices', 'cw_device_owners']);
+    const calledTables = client.from.mock.calls.map(
+      ([table]: [string]) => table,
+    );
+    expect(calledTables).toEqual([
+      'cw_locations',
+      'cw_location_owners',
+      'cw_devices',
+      'cw_device_owners',
+    ]);
     expect(locationOwnerUpsertQuery.delete).not.toHaveBeenCalled();
     expect(failingDeviceOwnerUpsertQuery.delete).not.toHaveBeenCalled();
   });

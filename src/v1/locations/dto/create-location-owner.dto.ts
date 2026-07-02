@@ -1,10 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEmail, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import { Database } from '../../../../database.types';
-import { MAX_PERMISSION_LEVEL, MIN_PERMISSION_LEVEL } from '../../common/permission-levels';
+import {
+  MAX_PERMISSION_LEVEL,
+  MIN_PERMISSION_LEVEL,
+} from '../../common/permission-levels';
 
-type LocationOwnerInsert = Database['public']['Tables']['cw_location_owners']['Insert'];
+type LocationOwnerInsert =
+  Database['public']['Tables']['cw_location_owners']['Insert'];
 
 export class CreateLocationOwnerDto implements LocationOwnerInsert {
   @ApiProperty()

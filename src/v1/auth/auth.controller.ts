@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './guards/jwt.auth.guard';
 import {
@@ -24,7 +32,7 @@ import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -61,7 +69,11 @@ export class AuthController {
     },
   })
   async getUserProfile(@Req() req) {
-    return this.authService.getUserProfile(req.user, req.headers?.authorization, req.user);
+    return this.authService.getUserProfile(
+      req.user,
+      req.headers?.authorization,
+      req.user,
+    );
   }
 
   @Patch('user-profile')
@@ -93,12 +105,18 @@ export class AuthController {
     type: ErrorResponseDto,
   })
   async updateUserProfile(@Body() body: UpdateUserProfileDto, @Req() req) {
-    return this.authService.updateUserProfile(body, req.headers?.authorization, req.user);
+    return this.authService.updateUserProfile(
+      body,
+      req.headers?.authorization,
+      req.user,
+    );
   }
 
   @Patch('email')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Start a verified email change for the authenticated user' })
+  @ApiOperation({
+    summary: 'Start a verified email change for the authenticated user',
+  })
   @ApiOkResponse({
     description: 'Confirmation email sent; the change applies once confirmed.',
     schema: { type: 'object', additionalProperties: true },
@@ -112,7 +130,8 @@ export class AuthController {
     type: ErrorResponseDto,
   })
   @ApiForbiddenResponse({
-    description: 'CropWatch (cropwatch.io / cropwatch.co.jp) accounts cannot change their email.',
+    description:
+      'CropWatch (cropwatch.io / cropwatch.co.jp) accounts cannot change their email.',
     type: ErrorResponseDto,
   })
   @ApiInternalServerErrorResponse({
@@ -120,12 +139,18 @@ export class AuthController {
     type: ErrorResponseDto,
   })
   async updateEmail(@Body() body: UpdateEmailDto, @Req() req) {
-    return this.authService.updateEmail(req.headers?.authorization, body.email, req.user);
+    return this.authService.updateEmail(
+      req.headers?.authorization,
+      body.email,
+      req.user,
+    );
   }
 
   @Get('preferences')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Get the authenticated user preferences (creates on first access)' })
+  @ApiOperation({
+    summary: 'Get the authenticated user preferences (creates on first access)',
+  })
   @ApiOkResponse({
     description: 'User preferences returned successfully.',
     schema: { type: 'object', additionalProperties: true },
@@ -139,7 +164,10 @@ export class AuthController {
     type: ErrorResponseDto,
   })
   async getPreferences(@Req() req) {
-    return this.authService.getPreferences(req.user, req.headers?.authorization);
+    return this.authService.getPreferences(
+      req.user,
+      req.headers?.authorization,
+    );
   }
 
   @Patch('preferences')
@@ -162,7 +190,11 @@ export class AuthController {
     type: ErrorResponseDto,
   })
   async updatePreferences(@Body() body: UpdatePreferencesDto, @Req() req) {
-    return this.authService.updatePreferences(body, req.headers?.authorization, req.user);
+    return this.authService.updatePreferences(
+      body,
+      req.headers?.authorization,
+      req.user,
+    );
   }
 
   @Throttle({ default: { limit: 2, ttl: 60000 } })

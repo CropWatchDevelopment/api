@@ -125,9 +125,7 @@ describe('AirService', () => {
         throw new Error(`Unexpected table ${table}`);
       });
 
-      await expect(
-        service.createNote(dto, jwtPayload),
-      ).resolves.toEqual({
+      await expect(service.createNote(dto, jwtPayload)).resolves.toEqual({
         created_at: resolvedCreatedAt,
         created_by: 'user-123@example.com',
         dev_eui: '2CF7F1C073800102',

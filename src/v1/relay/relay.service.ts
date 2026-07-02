@@ -17,7 +17,11 @@ import {
   isCropwatchStaff,
 } from '../../supabase/supabase-token.helper';
 import type { TableInsert, TableRow } from '../../v1/types/supabase';
-import { canManage, canRead, PermissionLevel } from '../common/permission-levels';
+import {
+  canManage,
+  canRead,
+  PermissionLevel,
+} from '../common/permission-levels';
 import { PulseRelayDto } from './dto/pulse-relay.dto';
 import { UpdateRelayDto } from './dto/update-relay.dto';
 import {
@@ -40,10 +44,7 @@ import {
   mapTtiClientError,
   resolveTtiApplicationId,
 } from './tti-client';
-import {
-  isValidTtiDeviceId,
-  normalizeTtiDeviceId,
-} from './tti-device-id';
+import { isValidTtiDeviceId, normalizeTtiDeviceId } from './tti-device-id';
 
 type DeviceOwnerRow = TableRow<'cw_device_owners'>;
 type DeviceTypeRow = TableRow<'cw_device_type'>;
@@ -144,7 +145,9 @@ export class RelayService {
     private readonly relayCommandLockService: RelayCommandLockService,
     private readonly supabaseService: SupabaseService,
   ) {
-    if (!readString(this.configService.get<string>('PRIVATE_TTI_WEBHOOK_TOKEN'))) {
+    if (
+      !readString(this.configService.get<string>('PRIVATE_TTI_WEBHOOK_TOKEN'))
+    ) {
       this.logger.warn(
         'PRIVATE_TTI_WEBHOOK_TOKEN is not set — the TTI relay webhook will reject all uplinks until it is configured',
       );
@@ -378,10 +381,7 @@ export class RelayService {
     authorizationHeader?: string,
     downlinkApiKeyHeader?: string,
   ) {
-    this.assertWebhookAuthorization(
-      authorizationHeader,
-      downlinkApiKeyHeader,
-    );
+    this.assertWebhookAuthorization(authorizationHeader, downlinkApiKeyHeader);
 
     const confirmation = parseRelayConfirmation(payload);
     if (!confirmation) {
@@ -582,7 +582,9 @@ export class RelayService {
 
   private readConfirmationTimeoutMs(): number {
     const parsed = Number(
-      this.configService.get<string>('PRIVATE_TTI_RELAY_CONFIRMATION_TIMEOUT_MS'),
+      this.configService.get<string>(
+        'PRIVATE_TTI_RELAY_CONFIRMATION_TIMEOUT_MS',
+      ),
     );
 
     if (Number.isFinite(parsed) && parsed >= 1000) {

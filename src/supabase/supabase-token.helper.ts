@@ -1,28 +1,31 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { UnauthorizedException } from '@nestjs/common';
 /*********************************************************************
-   * 
-   * Private functions to handle common tasks such as extracting user ID from JWT payload,
-   * 
-   ********************************************************************/
+ *
+ * Private functions to handle common tasks such as extracting user ID from JWT payload,
+ *
+ ********************************************************************/
 
 export function getUserId(jwtPayload: any): string {
-    const userId = jwtPayload?.sub;
-    if (typeof userId !== 'string' || !userId.trim()) {
-        throw new UnauthorizedException('Invalid bearer token');
-    }
-    return userId;
+  const userId = jwtPayload?.sub;
+  if (typeof userId !== 'string' || !userId.trim()) {
+    throw new UnauthorizedException('Invalid bearer token');
+  }
+  return userId;
 }
 
 export function getAccessToken(authHeader: string): string {
-    const rawHeader = authHeader?.trim() ?? '';
-    const [scheme, token] = rawHeader.split(' ');
-    if (scheme?.toLowerCase() !== 'bearer' || !token) {
-        throw new UnauthorizedException('Missing bearer token');
-    }
-    return token;
+  const rawHeader = authHeader?.trim() ?? '';
+  const [scheme, token] = rawHeader.split(' ');
+  if (scheme?.toLowerCase() !== 'bearer' || !token) {
+    throw new UnauthorizedException('Missing bearer token');
+  }
+  return token;
 }
 
 export function isCropwatchStaff(jwtPayload: any): boolean {
-    const email = jwtPayload?.email;
-    return typeof email === 'string' && email.trim().toLowerCase().endsWith('@cropwatch.io');
+  const email = jwtPayload?.email;
+  return (
+    typeof email === 'string' &&
+    email.trim().toLowerCase().endsWith('@cropwatch.io')
+  );
 }

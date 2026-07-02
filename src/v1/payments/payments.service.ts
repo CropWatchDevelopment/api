@@ -51,9 +51,11 @@ export class PaymentsService {
       this.polarService.deviceProductId,
     ]);
     return {
-      base: products.find((p) => p.id === this.polarService.baseProductId) ?? null,
+      base:
+        products.find((p) => p.id === this.polarService.baseProductId) ?? null,
       device:
-        products.find((p) => p.id === this.polarService.deviceProductId) ?? null,
+        products.find((p) => p.id === this.polarService.deviceProductId) ??
+        null,
     };
   }
 
@@ -67,7 +69,10 @@ export class PaymentsService {
     await this.ensureBillingCustomer(client, userId);
 
     const subscriptions = await this.listSubscriptionsSafe(userId);
-    const baseSub = this.pickSubscription(subscriptions, this.polarService.baseProductId);
+    const baseSub = this.pickSubscription(
+      subscriptions,
+      this.polarService.baseProductId,
+    );
     const deviceSub = this.pickSubscription(
       subscriptions,
       this.polarService.deviceProductId,
@@ -107,7 +112,10 @@ export class PaymentsService {
     };
   }
 
-  async getLicenses(jwtPayload: any, authHeader: string): Promise<BillingLicense[]> {
+  async getLicenses(
+    jwtPayload: any,
+    authHeader: string,
+  ): Promise<BillingLicense[]> {
     const userId = getUserId(jwtPayload);
     const client = this.supabaseService.getClient(getAccessToken(authHeader));
     return this.fetchLicenses(client, userId);
@@ -119,11 +127,17 @@ export class PaymentsService {
    * cached `billing_customers.base_status` so a transient outage doesn't block
    * a legitimately-subscribed user.
    */
-  async hasActiveBaseSubscription(jwtPayload: any, authHeader: string): Promise<boolean> {
+  async hasActiveBaseSubscription(
+    jwtPayload: any,
+    authHeader: string,
+  ): Promise<boolean> {
     const userId = getUserId(jwtPayload);
     try {
       const subscriptions = await this.polarService.listSubscriptions(userId);
-      const baseSub = this.pickSubscription(subscriptions, this.polarService.baseProductId);
+      const baseSub = this.pickSubscription(
+        subscriptions,
+        this.polarService.baseProductId,
+      );
       return !!baseSub && ACTIVE_SUBSCRIPTION_STATUSES.includes(baseSub.status);
     } catch (error) {
       this.logger.warn(
@@ -136,7 +150,8 @@ export class PaymentsService {
         .eq('user_id', userId)
         .maybeSingle();
       return (
-        !!data?.base_status && ACTIVE_SUBSCRIPTION_STATUSES.includes(data.base_status)
+        !!data?.base_status &&
+        ACTIVE_SUBSCRIPTION_STATUSES.includes(data.base_status)
       );
     }
   }
@@ -155,7 +170,10 @@ export class PaymentsService {
     await this.ensureBillingCustomer(client, userId);
 
     const subscriptions = await this.listSubscriptionsSafe(userId);
-    const existing = this.pickSubscription(subscriptions, this.polarService.baseProductId);
+    const existing = this.pickSubscription(
+      subscriptions,
+      this.polarService.baseProductId,
+    );
     if (existing && ACTIVE_SUBSCRIPTION_STATUSES.includes(existing.status)) {
       throw new ConflictException('A base subscription is already active.');
     }
@@ -179,7 +197,10 @@ export class PaymentsService {
     await this.ensureBillingCustomer(client, userId);
 
     const subscriptions = await this.listSubscriptionsSafe(userId);
-    const existing = this.pickSubscription(subscriptions, this.polarService.deviceProductId);
+    const existing = this.pickSubscription(
+      subscriptions,
+      this.polarService.deviceProductId,
+    );
     if (existing && ACTIVE_SUBSCRIPTION_STATUSES.includes(existing.status)) {
       throw new ConflictException(
         'A device subscription already exists. Change the seat count instead.',
@@ -187,7 +208,10 @@ export class PaymentsService {
     }
 
     const checkoutUrl = await this.polarService.createCheckout({
-      productId: this.requireProductId(this.polarService.deviceProductId, 'device'),
+      productId: this.requireProductId(
+        this.polarService.deviceProductId,
+        'device',
+      ),
       externalCustomerId: userId,
       customerEmail: this.readEmail(jwtPayload),
       // Informational: the seat count is confirmed by Polar (webhook / getState
@@ -217,7 +241,9 @@ export class PaymentsService {
     }
 
     const licenses = await this.fetchLicenses(client, userId);
-    const assigned = licenses.filter((l) => l.status === 'assigned' && l.devEui);
+    const assigned = licenses.filter(
+      (l) => l.status === 'assigned' && l.devEui,
+    );
     if (seats < assigned.length) {
       const names = assigned
         .map((l) => l.deviceName ?? l.devEui)
@@ -260,12 +286,18 @@ export class PaymentsService {
     const client = this.supabaseService.getClient(getAccessToken(authHeader));
 
     const subscriptions = await this.listSubscriptionsSafe(userId);
-    const baseSub = this.pickSubscription(subscriptions, this.polarService.baseProductId);
+    const baseSub = this.pickSubscription(
+      subscriptions,
+      this.polarService.baseProductId,
+    );
     if (!baseSub) {
       throw new NotFoundException('No base subscription to cancel.');
     }
 
-    const updated = await this.polarService.cancelSubscription(baseSub.id, atPeriodEnd);
+    const updated = await this.polarService.cancelSubscription(
+      baseSub.id,
+      atPeriodEnd,
+    );
 
     // The device subscription (all device licenses) cannot exist without the
     // base subscription, so cancel it with the same timing. The license rows are
@@ -341,7 +373,11 @@ export class PaymentsService {
 
     const { error } = await client
       .from('device_licenses')
-      .update({ dev_eui: null, status: 'unassigned', updated_at: new Date().toISOString() })
+      .update({
+        dev_eui: null,
+        status: 'unassigned',
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', licenseId)
       .eq('user_id', userId);
     if (error) {
@@ -510,7 +546,10 @@ export class PaymentsService {
       // EVERY license, assigned or not. A still-scheduled cancel
       // ('subscription.canceled' while status stays 'active') keeps the seats
       // live, so we fall through and reconcile to the current paid seat count.
-      if (eventType === 'subscription.revoked' || subscription.status === 'canceled') {
+      if (
+        eventType === 'subscription.revoked' ||
+        subscription.status === 'canceled'
+      ) {
         await this.deleteAllLicenses(client, userId);
         await this.patchBillingCustomer(client, userId, {
           device_subscription_id: null,
@@ -579,7 +618,9 @@ export class PaymentsService {
       const removable = rows
         .filter((r) => r.status !== 'assigned' && !r.dev_eui)
         .sort((a, b) => b.seat_index - a.seat_index);
-      const toRemove = removable.slice(0, current - targetSeats).map((r) => r.id);
+      const toRemove = removable
+        .slice(0, current - targetSeats)
+        .map((r) => r.id);
 
       if (toRemove.length < current - targetSeats) {
         this.logger.warn(
@@ -593,7 +634,9 @@ export class PaymentsService {
           .delete()
           .in('id', toRemove);
         if (deleteError) {
-          throw new InternalServerErrorException('Failed to remove device licenses');
+          throw new InternalServerErrorException(
+            'Failed to remove device licenses',
+          );
         }
       }
     }
@@ -621,11 +664,16 @@ export class PaymentsService {
 
     const { data: inserted, error: insertError } = await client
       .from('billing_customers')
-      .upsert({ user_id: userId }, { onConflict: 'user_id', ignoreDuplicates: false })
+      .upsert(
+        { user_id: userId },
+        { onConflict: 'user_id', ignoreDuplicates: false },
+      )
       .select('*')
       .single();
     if (insertError || !inserted) {
-      throw new InternalServerErrorException('Failed to create billing customer');
+      throw new InternalServerErrorException(
+        'Failed to create billing customer',
+      );
     }
     return inserted;
   }
@@ -649,7 +697,9 @@ export class PaymentsService {
         { onConflict: 'user_id' },
       );
     if (error) {
-      this.logger.warn(`Failed to link billing customer ${userId}: ${error.message}`);
+      this.logger.warn(
+        `Failed to link billing customer ${userId}: ${error.message}`,
+      );
     }
   }
 
@@ -690,7 +740,9 @@ export class PaymentsService {
     try {
       return await this.polarService.listSubscriptions(userId);
     } catch (error) {
-      this.logger.warn(`Failed to list Polar subscriptions for ${userId}: ${error}`);
+      this.logger.warn(
+        `Failed to list Polar subscriptions for ${userId}: ${error}`,
+      );
       return [];
     }
   }
@@ -832,7 +884,9 @@ export class PaymentsService {
       .delete()
       .eq('user_id', userId);
     if (error) {
-      this.logger.warn(`Failed to delete device licenses for ${userId}: ${error.message}`);
+      this.logger.warn(
+        `Failed to delete device licenses for ${userId}: ${error.message}`,
+      );
     }
   }
 
@@ -876,8 +930,8 @@ export class PaymentsService {
     cw_devices?: { name: string | null } | { name: string | null }[] | null;
   }): BillingLicense {
     const device = Array.isArray(row.cw_devices)
-      ? row.cw_devices[0] ?? null
-      : row.cw_devices ?? null;
+      ? (row.cw_devices[0] ?? null)
+      : (row.cw_devices ?? null);
     return {
       id: row.id,
       seatIndex: row.seat_index,

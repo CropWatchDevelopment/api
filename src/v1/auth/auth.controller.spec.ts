@@ -39,7 +39,10 @@ describe('AuthController', () => {
 
       const result = await controller.login(dto);
 
-      expect(mockAuthService.loginWithPassword).toHaveBeenCalledWith(dto.email, dto.password);
+      expect(mockAuthService.loginWithPassword).toHaveBeenCalledWith(
+        dto.email,
+        dto.password,
+      );
       expect(result).toEqual(expected);
     });
   });

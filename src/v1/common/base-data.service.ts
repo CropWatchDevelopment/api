@@ -7,7 +7,10 @@ import {
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from './timezone-formatter.service';
 import { TableRow, TableName } from '../types/supabase';
-import { getUserId, isCropwatchStaff } from '../../supabase/supabase-token.helper';
+import {
+  getUserId,
+  isCropwatchStaff,
+} from '../../supabase/supabase-token.helper';
 import { READ_EXCLUSIVE_CEILING } from './permission-levels';
 
 /**
@@ -62,7 +65,6 @@ export abstract class BaseDataService<T extends TableName> {
       );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return (data ?? []).map((row) => ({
       ...row,
       created_at: this.timezoneFormatter.formatTimestamp(
@@ -95,7 +97,9 @@ export abstract class BaseDataService<T extends TableName> {
     const { data, error } = await query.maybeSingle();
 
     if (error) {
-      throw new InternalServerErrorException('Failed to validate device access');
+      throw new InternalServerErrorException(
+        'Failed to validate device access',
+      );
     }
 
     if (!data) {
