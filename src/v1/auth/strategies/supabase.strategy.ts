@@ -7,11 +7,15 @@ import type { AuthenticatedUser } from '../authenticated-user';
 
 @Injectable()
 export class SupabaseStrategy extends PassportStrategy(Strategy) {
-  public constructor(private readonly configService: ConfigService) {
+  public constructor(configService: ConfigService) {
+    const secret = configService.get<string>('PRIVATE_SUPABASE_JWT_SECRET');
+    if (!secret) {
+      throw new Error('PRIVATE_SUPABASE_JWT_SECRET is not configured');
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('PRIVATE_SUPABASE_JWT_SECRET'),
+      secretOrKey: secret,
     });
   }
 

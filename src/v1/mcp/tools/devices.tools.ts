@@ -67,7 +67,19 @@ export class DeviceMcpTools {
     },
   })
   async listDevices(
-    { skip, take, name, group, location },
+    {
+      skip,
+      take,
+      name,
+      group,
+      location,
+    }: {
+      skip?: number;
+      take?: number;
+      name?: string;
+      group?: string;
+      location?: string;
+    },
     _context: Context,
     request: AuthedRequest,
   ) {
@@ -100,7 +112,11 @@ export class DeviceMcpTools {
       openWorldHint: false,
     },
   })
-  async getDevice({ dev_eui }, _context: Context, request: AuthedRequest) {
+  async getDevice(
+    { dev_eui }: { dev_eui: string },
+    _context: Context,
+    request: AuthedRequest,
+  ) {
     const device = await this.devicesService.findOne(request.user, dev_eui);
     return this.json(device);
   }

@@ -12,6 +12,8 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import type { RawBodyRequest } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -173,7 +175,7 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Receive Polar webhook events (signature-verified)',
   })
-  handleWebhook(@Req() req) {
+  handleWebhook(@Req() req: RawBodyRequest<Request>) {
     const rawBody: Buffer | undefined = req.rawBody;
     if (!rawBody) {
       throw new BadRequestException('Missing webhook body');
