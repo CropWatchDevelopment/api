@@ -6,6 +6,11 @@ on:
   push:
     branches:
       - master
+      - develop
+  pull_request:
+    branches:
+      - master
+      - develop
 
 permissions:
   contents: read
@@ -29,6 +34,9 @@ jobs:
       # Prefer frozen lockfile in CI for reproducible installs
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint:check
 
       # Generate coverage (ensure coverage/lcov.info exists after this)
       - name: Test (with coverage)

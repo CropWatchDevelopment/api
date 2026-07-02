@@ -29,11 +29,9 @@
     "@nestjs/mapped-types": "^2.1.1",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.19",
-    "@nestjs/platform-socket.io": "^11.1.19",
     "@nestjs/serve-static": "^5.0.5",
     "@nestjs/swagger": "^11.3.2",
     "@nestjs/throttler": "^6.5.0",
-    "@nestjs/websockets": "^11.1.19",
     "@polar-sh/sdk": "^0.48.1",
     "@rekog/mcp-nest": "^1.9.10",
     "@supabase/supabase-js": "^2.104.0",
@@ -44,7 +42,6 @@
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "swagger-ui-dist": "^5.32.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -63,7 +60,6 @@
     "globals": "^16.5.0",
     "jest": "^30.3.0",
     "prettier": "^3.8.3",
-    "source-map-support": "^0.5.21",
     "supabase": "^2.93.0",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
