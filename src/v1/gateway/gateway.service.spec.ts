@@ -82,7 +82,7 @@ describe('GatewayService', () => {
     supabaseService.getClient.mockReturnValue(client);
 
     await expect(
-      service.findOne(' gw-001 ', { sub: 'user-123' }),
+      service.findOne(' gw-001 ', { sub: 'user-123', email: null, isStaff: false }),
     ).resolves.toEqual(gateway);
 
     expect(supabaseService.getClient).toHaveBeenCalledWith();
@@ -135,7 +135,7 @@ describe('GatewayService', () => {
       );
     supabaseService.getClient.mockReturnValue(client);
 
-    await expect(service.findAll({ sub: 'user-123' })).resolves.toEqual(
+    await expect(service.findAll({ sub: 'user-123', email: null, isStaff: false })).resolves.toEqual(
       expectedGateways,
     );
 

@@ -6,11 +6,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
-import {
-  getAccessToken,
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import { READ_EXCLUSIVE_CEILING } from '../common/permission-levels';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
 import {
@@ -21,6 +16,7 @@ import {
   DashboardRow,
   isDashboardDataTable,
 } from './dashboard.types';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Injectable()
 export class DashboardService {
@@ -29,14 +25,12 @@ export class DashboardService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
   async getDevices(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     query: DashboardQuery,
   ): Promise<DashboardPage> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
 
     const skip = Math.max(0, query.skip ?? 0);
     const take = Math.min(Math.max(1, query.take ?? 50), 200);
@@ -115,14 +109,12 @@ export class DashboardService {
   }
 
   async getLocations(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     query: DashboardQuery,
   ): Promise<DashboardLocationPage> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
 
     const skip = Math.max(0, query.skip ?? 0);
     const take = Math.min(Math.max(1, query.take ?? 20), 100);
@@ -286,14 +278,12 @@ export class DashboardService {
   }
 
   async getLatest(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     devEui: string,
-    authHeader: string,
   ): Promise<Record<string, unknown> | null> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const normalized = devEui?.trim();
 
     if (!normalized) {

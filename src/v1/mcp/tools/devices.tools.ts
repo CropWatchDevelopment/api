@@ -3,12 +3,13 @@ import { Injectable } from '@nestjs/common';
 import { Tool, type Context } from '@rekog/mcp-nest';
 import { z } from 'zod';
 import { DevicesService } from '../../devices/devices.service';
+import type { AuthenticatedUser } from '../../auth/authenticated-user';
 
-// The MCP module applies JwtAuthGuard, which puts the Supabase JWT payload on
-// `request.user`. The domain services also need the raw Authorization header so
-// their Supabase client stays RLS-scoped to the caller — same contract the REST
-// controllers use (`devicesService.findAll(req.user, req.headers.authorization, ...)`).
-type AuthedRequest = Request & { user: any };
+// The MCP module applies JwtAuthGuard, which puts the AuthenticatedUser on
+// `request.user`. Note: the Supabase client is the service-role client and
+// bypasses RLS — authorization is enforced in the domain services (the same
+// owner/staff scoping the REST controllers rely on).
+type AuthedRequest = Request & { user: AuthenticatedUser };
 
 /**
  * Read-only MCP tools over device data.
@@ -70,10 +71,8 @@ export class DeviceMcpTools {
     _context: Context,
     request: AuthedRequest,
   ) {
-    const authHeader = request.headers.authorization ?? '';
     const result = await this.devicesService.findAll(
       request.user,
-      authHeader,
       skip ?? 0,
       take ?? 100,
       group,
@@ -102,12 +101,7 @@ export class DeviceMcpTools {
     },
   })
   async getDevice({ dev_eui }, _context: Context, request: AuthedRequest) {
-    const authHeader = request.headers.authorization ?? '';
-    const device = await this.devicesService.findOne(
-      request.user,
-      dev_eui,
-      authHeader,
-    );
+    const device = await this.devicesService.findOne(request.user, dev_eui);
     return this.json(device);
   }
 

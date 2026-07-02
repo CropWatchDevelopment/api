@@ -2,13 +2,15 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Patch,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './guards/jwt.auth.guard';
+import { CurrentUser } from './current-user.decorator';
+import type { AuthenticatedUser } from './authenticated-user';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -49,8 +51,8 @@ export class AuthController {
       message: 'Unauthorized',
     },
   })
-  async protected(@Req() req) {
-    return req.user;
+  async protected(@CurrentUser() user: AuthenticatedUser) {
+    return user;
   }
 
   @Get('user-profile')
@@ -68,12 +70,8 @@ export class AuthController {
       message: 'Unauthorized',
     },
   })
-  async getUserProfile(@Req() req) {
-    return this.authService.getUserProfile(
-      req.user,
-      req.headers?.authorization,
-      req.user,
-    );
+  async getUserProfile(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getUserProfile(user);
   }
 
   @Patch('user-profile')
@@ -104,12 +102,11 @@ export class AuthController {
     description: 'Failed to update user profile.',
     type: ErrorResponseDto,
   })
-  async updateUserProfile(@Body() body: UpdateUserProfileDto, @Req() req) {
-    return this.authService.updateUserProfile(
-      body,
-      req.headers?.authorization,
-      req.user,
-    );
+  async updateUserProfile(
+    @Body() body: UpdateUserProfileDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.authService.updateUserProfile(body, user);
   }
 
   @Patch('email')
@@ -138,12 +135,12 @@ export class AuthController {
     description: 'Failed to start email change.',
     type: ErrorResponseDto,
   })
-  async updateEmail(@Body() body: UpdateEmailDto, @Req() req) {
-    return this.authService.updateEmail(
-      req.headers?.authorization,
-      body.email,
-      req.user,
-    );
+  async updateEmail(
+    @Body() body: UpdateEmailDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    return this.authService.updateEmail(authHeader, body.email, user);
   }
 
   @Get('preferences')
@@ -163,11 +160,8 @@ export class AuthController {
     description: 'Failed to read preferences.',
     type: ErrorResponseDto,
   })
-  async getPreferences(@Req() req) {
-    return this.authService.getPreferences(
-      req.user,
-      req.headers?.authorization,
-    );
+  async getPreferences(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getPreferences(user);
   }
 
   @Patch('preferences')
@@ -189,12 +183,11 @@ export class AuthController {
     description: 'Failed to update preferences.',
     type: ErrorResponseDto,
   })
-  async updatePreferences(@Body() body: UpdatePreferencesDto, @Req() req) {
-    return this.authService.updatePreferences(
-      body,
-      req.headers?.authorization,
-      req.user,
-    );
+  async updatePreferences(
+    @Body() body: UpdatePreferencesDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.authService.updatePreferences(body, user);
   }
 
   @Throttle({ default: { limit: 2, ttl: 60000 } })

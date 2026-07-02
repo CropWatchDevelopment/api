@@ -13,11 +13,6 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { PaymentsService } from '../payments/payments.service';
 import { error, group } from 'console';
 import { LocationDto } from './dto/location.dto';
-import {
-  getAccessToken,
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
 import {
   MANAGE_CEILING,
@@ -25,6 +20,7 @@ import {
   READ_EXCLUSIVE_CEILING,
 } from '../common/permission-levels';
 import { filterStaffOwnerRows } from '../common/owner-filter.helper';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Injectable()
 export class LocationsService {
@@ -35,20 +31,17 @@ export class LocationsService {
 
   async create(
     createLocationDto: CreateLocationDto,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ) {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
     // Creating a location requires an active base subscription. CropWatch staff
     // are exempt, mirroring the rest of the permission model.
     if (
-      !isCropwatchStaff(jwtPayload) &&
+      !user.isStaff &&
       !(await this.paymentsService.hasActiveBaseSubscription(
-        jwtPayload,
-        authHeader,
+        user,
       ))
     ) {
       throw new ForbiddenException(
@@ -97,11 +90,10 @@ export class LocationsService {
     return locationData;
   }
 
-  async findAll(jwtPayload: any, authHeader: string, searchName?: string) {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+  async findAll(user: AuthenticatedUser, searchName?: string) {
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+    const isGlobalUser = user.isStaff;
 
     let query = client.from('cw_locations').select(`
     *,
@@ -124,11 +116,10 @@ export class LocationsService {
     return data;
   }
 
-  async findOne(id: number, jwtPayload: any, authHeader: string) {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+  async findOne(id: number, user: AuthenticatedUser) {
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+    const isGlobalUser = user.isStaff;
 
     let query = client
       .from('cw_locations')
@@ -163,13 +154,11 @@ export class LocationsService {
   async update(
     id: number,
     updateLocationDto: UpdateLocationDto,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ) {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+    const isGlobalUser = user.isStaff;
 
     // check if you have permission to update location permissions
     let permissionQuery = client
@@ -226,13 +215,11 @@ export class LocationsService {
   }
 
   async findAllLocationGroups(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<string[]> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+    const isGlobalUser = user.isStaff;
 
     let query = client
       .from('cw_locations')
@@ -265,13 +252,11 @@ export class LocationsService {
     createLocationOwnerDto: CreateLocationOwnerDto,
     permissionLevel: number,
     applyPermissionToAllDevices: boolean,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ) {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+    const isGlobalUser = user.isStaff;
 
     // check if you have permission to update location permissions
     let permissionQuery = client
@@ -368,13 +353,11 @@ export class LocationsService {
     id: number,
     updateLocationOwnerDto: UpdateLocationOwnerDto,
     applyPermissionToAllDevices: boolean,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ) {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+    const isGlobalUser = user.isStaff;
 
     // check if you have permission to update location permissions
     let permissionQuery = client
@@ -460,13 +443,11 @@ export class LocationsService {
     id: number,
     updateLocationOwnerDto: any,
     applyPermissionToAllDevices: boolean,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ) {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+    const isGlobalUser = user.isStaff;
 
     const email = updateLocationOwnerDto.email;
     const permission_level = updateLocationOwnerDto.permission_level;
@@ -532,13 +513,11 @@ export class LocationsService {
   async removeLocationPermission(
     location_id: number,
     permissionId: number,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ) {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+    const isGlobalUser = user.isStaff;
 
     // Check if current user has permissions to remove another user's permissions from the location
     let permissionQuery = client

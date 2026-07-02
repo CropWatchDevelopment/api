@@ -2,12 +2,12 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { BaseDataService } from '../common/base-data.service';
 import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Injectable()
 export class AirService extends BaseDataService<'cw_air_data'> {
@@ -22,13 +22,13 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     devEui: string,
     month: string,
     year: string,
-    jwtPayload: any,
+    user: AuthenticatedUser,
   ): Promise<any[]> {
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
-    await this.assertDeviceAccess(normalizedDevEui, jwtPayload);
+    await this.assertDeviceAccess(normalizedDevEui, user);
     const client = this.supabaseService.getClient();
 
     const startOfMonth = new Date(
@@ -60,14 +60,14 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     return data;
   }
 
-  async createNote(createAirNoteDto: CreateAirAnnotationDto, jwtPayload: any) {
+  async createNote(createAirNoteDto: CreateAirAnnotationDto, user: AuthenticatedUser) {
     const normalizedDevEui = createAirNoteDto.dev_eui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
-    const createdBy = jwtPayload?.email?.trim();
+    const createdBy = user.email?.trim();
 
-    await this.assertDeviceAccess(normalizedDevEui, jwtPayload);
+    await this.assertDeviceAccess(normalizedDevEui, user);
     const client = this.supabaseService.getClient();
     const resolvedCreatedAt = await this.resolveAnnotationCreatedAt(
       client,
@@ -93,22 +93,7 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     return data;
   }
 
-  private resolveAnnotationAuthorId(jwtPayload: any): string {
-    const subject =
-      typeof jwtPayload?.sub === 'string'
-        ? jwtPayload.sub.trim()
-        : typeof jwtPayload?.id === 'string'
-          ? jwtPayload.id.trim()
-          : '';
-
-    if (!subject) {
-      throw new UnauthorizedException('Authenticated user is required');
-    }
-
-    return subject;
-  }
-
-  async deleteNote(noteId: number, jwtPayload: any) {
+  async deleteNote(noteId: number, user: AuthenticatedUser) {
     const client = this.supabaseService.getClient();
     const { data: existingNote, error: fetchError } = await client
       .from('cw_air_annotations')
@@ -124,7 +109,7 @@ export class AirService extends BaseDataService<'cw_air_data'> {
       throw new BadRequestException('Air annotation not found');
     }
 
-    await this.assertDeviceAccess(existingNote.dev_eui, jwtPayload);
+    await this.assertDeviceAccess(existingNote.dev_eui, user);
 
     const { error: deleteError } = await client
       .from('cw_air_annotations')

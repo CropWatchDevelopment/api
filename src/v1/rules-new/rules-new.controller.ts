@@ -8,7 +8,6 @@ import {
   Patch,
   Post,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -25,14 +24,15 @@ import { RuleTemplateDto } from './dto/rule-template.dto';
 import { RuleTriggerLogDto } from './dto/rule-trigger-log.dto';
 import { SaveRuleTemplateDto } from './dto/save-rule-template.dto';
 import { RulesNewService } from './rules-new.service';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 @Controller({ path: 'rules-new', version: '1' })
+@UseGuards(JwtAuthGuard)
 export class RulesNewController {
   constructor(private readonly rulesNewService: RulesNewService) {}
-
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Lists every rule template visible to the current user.',
     type: RuleTemplateDto,
@@ -44,12 +44,9 @@ export class RulesNewController {
     required: false,
   })
   @Get()
-  findAll(@Req() req, @Query('search') search?: string) {
-    const authHeader = req.headers?.authorization ?? '';
-    return this.rulesNewService.findAll(req.user, authHeader, search);
+  findAll(@CurrentUser() user: AuthenticatedUser, @Query('search') search?: string) {
+    return this.rulesNewService.findAll(user, search);
   }
-
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
       'Lists every action type a rule template action can reference.',
@@ -57,12 +54,9 @@ export class RulesNewController {
     isArray: true,
   })
   @Get('action-types')
-  findAllActionTypes(@Req() req) {
-    const authHeader = req.headers?.authorization ?? '';
-    return this.rulesNewService.findAllActionTypes(authHeader);
+  findAllActionTypes(@CurrentUser() user: AuthenticatedUser) {
+    return this.rulesNewService.findAllActionTypes();
   }
-
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
       'Bundled data needed to render the rules-new create/edit form: devices (with cw_locations join), locations, action types, and optionally a template.',
@@ -76,14 +70,11 @@ export class RulesNewController {
     type: Number,
   })
   @Get('form-context')
-  getFormContext(@Req() req, @Query('templateId') templateId?: string) {
-    const authHeader = req.headers?.authorization ?? '';
+  getFormContext(@CurrentUser() user: AuthenticatedUser, @Query('templateId') templateId?: string) {
     const parsed = templateId !== undefined ? Number(templateId) : NaN;
     const id = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-    return this.rulesNewService.getFormContext(req.user, authHeader, id);
+    return this.rulesNewService.getFormContext(user, id);
   }
-
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
       'Lists rule templates that are currently triggered on at least one device the user can view; assignments are narrowed to the triggered ones.',
@@ -91,12 +82,9 @@ export class RulesNewController {
     isArray: true,
   })
   @Get('triggered')
-  findAllTriggered(@Req() req) {
-    const authHeader = req.headers?.authorization ?? '';
-    return this.rulesNewService.findAllTriggered(req.user, authHeader);
+  findAllTriggered(@CurrentUser() user: AuthenticatedUser) {
+    return this.rulesNewService.findAllTriggered(user);
   }
-
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
       'Counts of currently-triggered rule templates and of all visible rule templates.',
@@ -110,12 +98,9 @@ export class RulesNewController {
     },
   })
   @Get('triggered/count')
-  findTriggeredCount(@Req() req) {
-    const authHeader = req.headers?.authorization ?? '';
-    return this.rulesNewService.findTriggeredCount(req.user, authHeader);
+  findTriggeredCount(@CurrentUser() user: AuthenticatedUser) {
+    return this.rulesNewService.findTriggeredCount(user);
   }
-
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
       'Lists the trigger/reset history for a rule template, newest first.',
@@ -123,24 +108,18 @@ export class RulesNewController {
     isArray: true,
   })
   @Get(':id/history')
-  findHistory(@Param('id', ParseIntPipe) id: number, @Req() req) {
-    const authHeader = req.headers?.authorization ?? '';
-    return this.rulesNewService.getHistory(id, req.user, authHeader);
+  findHistory(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.rulesNewService.getHistory(id, user);
   }
-
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Returns a single rule template the user can view.',
     type: RuleTemplateDto,
     isArray: false,
   })
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number, @Req() req) {
-    const authHeader = req.headers?.authorization ?? '';
-    return this.rulesNewService.findOne(id, req.user, authHeader);
+  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.rulesNewService.findOne(id, user);
   }
-
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
       'Creates a rule template and assigns it to the listed devices.',
@@ -149,12 +128,9 @@ export class RulesNewController {
   })
   @ApiBody({ type: SaveRuleTemplateDto })
   @Post()
-  create(@Body() body: SaveRuleTemplateDto, @Req() req) {
-    const authHeader = req.headers?.authorization ?? '';
-    return this.rulesNewService.create(body, req.user, authHeader);
+  create(@Body() body: SaveRuleTemplateDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.rulesNewService.create(body, user);
   }
-
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Replaces a rule template with the provided configuration.',
     type: RuleTemplateDto,
@@ -165,13 +141,10 @@ export class RulesNewController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: SaveRuleTemplateDto,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    const authHeader = req.headers?.authorization ?? '';
-    return this.rulesNewService.update(id, body, req.user, authHeader);
+    return this.rulesNewService.update(id, body, user);
   }
-
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Deletes a rule template the user manages.',
     schema: {
@@ -180,8 +153,7 @@ export class RulesNewController {
     },
   })
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number, @Req() req) {
-    const authHeader = req.headers?.authorization ?? '';
-    return this.rulesNewService.remove(id, req.user, authHeader);
+  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.rulesNewService.remove(id, user);
   }
 }

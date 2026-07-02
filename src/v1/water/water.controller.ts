@@ -5,7 +5,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Req,
 } from '@nestjs/common';
 import { WaterService } from './water.service';
 import { WaterDataDto } from './dto/water-data.dto';
@@ -21,15 +20,17 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Controller({ path: 'water', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
+@UseGuards(JwtAuthGuard)
 export class WaterController {
   constructor(private readonly waterService: WaterService) {}
 
   @Get(':dev_eui')
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Water data returned successfully.',
     type: WaterDataDto,
@@ -89,7 +90,7 @@ export class WaterController {
   })
   findOne(
     @Param('dev_eui') devEui: string,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('timezone') timezone?: string,
@@ -117,7 +118,7 @@ export class WaterController {
       devEui,
       startDate,
       endDate,
-      req.user,
+      user,
       timezone,
     );
   }

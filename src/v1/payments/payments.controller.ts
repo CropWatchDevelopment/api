@@ -20,6 +20,8 @@ import {
   ApiSecurity,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { PaymentsService } from './payments.service';
 import { CreateBaseCheckoutDto } from './dto/create-base-checkout.dto';
 import { CreateDeviceCheckoutDto } from './dto/create-device-checkout.dto';
@@ -46,20 +48,18 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Get the full billing overview (base sub, device seats, licenses)',
   })
-  getState(@Req() req) {
+  getState(@CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.getState(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
     );
   }
 
   @Get('licenses')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "List the user's device licenses" })
-  getLicenses(@Req() req) {
+  getLicenses(@CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.getLicenses(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
     );
   }
 
@@ -68,10 +68,9 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Create a hosted checkout for the base subscription',
   })
-  createBaseCheckout(@Body() dto: CreateBaseCheckoutDto, @Req() req) {
+  createBaseCheckout(@Body() dto: CreateBaseCheckoutDto, @CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.createBaseCheckout(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
       dto.discountId ?? null,
     );
   }
@@ -81,10 +80,9 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Create a hosted checkout for device licenses (seats)',
   })
-  createDeviceCheckout(@Body() dto: CreateDeviceCheckoutDto, @Req() req) {
+  createDeviceCheckout(@Body() dto: CreateDeviceCheckoutDto, @CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.createDeviceCheckout(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
       dto.quantity,
     );
   }
@@ -92,10 +90,9 @@ export class PaymentsController {
   @Patch('subscriptions/device/seats')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Change the number of device licenses (seats)' })
-  changeDeviceSeats(@Body() dto: ChangeSeatsDto, @Req() req) {
+  changeDeviceSeats(@Body() dto: ChangeSeatsDto, @CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.changeDeviceSeats(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
       dto.seats,
     );
   }
@@ -107,11 +104,10 @@ export class PaymentsController {
   assignLicense(
     @Param('id') id: string,
     @Body() dto: AssignLicenseDto,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.paymentsService.assignLicense(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
       this.parseId(id),
       dto.devEui,
     );
@@ -124,11 +120,10 @@ export class PaymentsController {
   moveLicense(
     @Param('id') id: string,
     @Body() dto: MoveLicenseDto,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.paymentsService.moveLicense(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
       this.parseId(id),
       dto.devEui,
     );
@@ -138,10 +133,9 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({ summary: 'Unassign a license from its device' })
-  unassignLicense(@Param('id') id: string, @Req() req) {
+  unassignLicense(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.unassignLicense(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
       this.parseId(id),
     );
   }
@@ -152,10 +146,9 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Cancel an unassigned license (reduce the paid seat count by one)',
   })
-  cancelLicense(@Param('id') id: string, @Req() req) {
+  cancelLicense(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.cancelLicense(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
       this.parseId(id),
     );
   }
@@ -163,20 +156,18 @@ export class PaymentsController {
   @Post('portal')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Open the Polar customer billing portal' })
-  openPortal(@Req() req) {
+  openPortal(@CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.openPortal(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
     );
   }
 
   @Delete('subscriptions/base')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Cancel the base subscription' })
-  cancelBase(@Body() dto: CancelBaseDto, @Req() req) {
+  cancelBase(@Body() dto: CancelBaseDto, @CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.cancelBaseSubscription(
-      req.user,
-      req.headers?.authorization ?? '',
+      user,
       dto.atPeriodEnd ?? true,
     );
   }

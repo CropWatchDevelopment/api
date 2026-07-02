@@ -5,7 +5,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Req,
 } from '@nestjs/common';
 import { SoilService } from './soil.service';
 import { SoilDataDto } from './dto/soil-data.dto';
@@ -21,15 +20,17 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Controller({ path: 'soil', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
+@UseGuards(JwtAuthGuard)
 export class SoilController {
   constructor(private readonly soilService: SoilService) {}
 
   @Get(':dev_eui')
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Soil data returned successfully.',
     type: SoilDataDto,
@@ -89,7 +90,7 @@ export class SoilController {
   })
   findOne(
     @Param('dev_eui') devEui: string,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('timezone') timezone?: string,
@@ -117,7 +118,7 @@ export class SoilController {
       devEui,
       startDate,
       endDate,
-      req.user,
+      user,
       timezone,
     );
   }

@@ -8,10 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../../supabase/supabase.service';
-import {
-  getAccessToken,
-  getUserId,
-} from '../../supabase/supabase-token.helper';
+import type { AuthenticatedUser } from './authenticated-user';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 
@@ -86,10 +83,9 @@ export class AuthService {
       result,
     };
   }
-  async getUserProfile(user: any, authHeader: string, jwtPayload: any) {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
+  async getUserProfile(user: AuthenticatedUser) {
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
     const { data, error } = await client
       .from('profiles')
       .select('*')
@@ -105,12 +101,10 @@ export class AuthService {
 
   async updateUserProfile(
     updateDto: UpdateUserProfileDto,
-    authHeader: string,
-    jwtPayload: any,
+    user: AuthenticatedUser,
   ) {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
 
     const normalized: UpdateUserProfileDto = {};
     if (updateDto.full_name !== undefined) {
@@ -182,14 +176,17 @@ export class AuthService {
    * the CropWatch /auth/confirm route). profiles.email is synced by the
    * on_auth_user_email_updated DB trigger after confirmation.
    */
-  async updateEmail(authHeader: string, newEmail: string, jwtPayload: any) {
-    const accessToken = getAccessToken(authHeader);
+  async updateEmail(
+    authHeader: string | undefined,
+    newEmail: string,
+    user: AuthenticatedUser,
+  ) {
+    // GoTrue needs the caller's own bearer token (see fetch below), so this
+    // is the one place the raw Authorization header is still parsed.
+    const accessToken = this.readBearerToken(authHeader);
 
     // Corporate CropWatch accounts are locked to their email of record.
-    const currentEmail = (jwtPayload?.email ?? '')
-      .toString()
-      .trim()
-      .toLowerCase();
+    const currentEmail = user.email ?? '';
     if (
       RESTRICTED_EMAIL_CHANGE_DOMAINS.some((domain) =>
         currentEmail.endsWith(domain),
@@ -251,10 +248,9 @@ export class AuthService {
   }
 
   /** Read the caller's preferences, creating an empty row on first access. */
-  async getPreferences(jwtPayload: any, authHeader: string) {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
+  async getPreferences(user: AuthenticatedUser) {
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
 
     const { data, error } = await client
       .from('profile_preferences')
@@ -285,12 +281,10 @@ export class AuthService {
   /** Patch the caller's preferences (get-or-create + merge in a single upsert). */
   async updatePreferences(
     updateDto: UpdatePreferencesDto,
-    authHeader: string,
-    jwtPayload: any,
+    user: AuthenticatedUser,
   ) {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
 
     const patch: UpdatePreferencesDto = {};
     for (const key of PREFERENCE_KEYS) {
@@ -319,5 +313,14 @@ export class AuthService {
     }
 
     return data;
+  }
+
+  private readBearerToken(authHeader: string | undefined): string {
+    const rawHeader = authHeader?.trim() ?? '';
+    const [scheme, token] = rawHeader.split(' ');
+    if (scheme?.toLowerCase() !== 'bearer' || !token) {
+      throw new UnauthorizedException('Missing bearer token');
+    }
+    return token;
   }
 }

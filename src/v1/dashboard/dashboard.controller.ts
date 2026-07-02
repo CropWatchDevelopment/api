@@ -3,7 +3,6 @@ import {
   Get,
   Param,
   Query,
-  Req,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -18,15 +17,17 @@ import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { DashboardService } from './dashboard.service';
 import { DashboardQuery } from './dashboard.types';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Controller({ path: 'dashboard', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
+@UseGuards(JwtAuthGuard)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('devices')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
       'Paginated list of devices the user can see, with latest primary/secondary readings',
@@ -38,7 +39,7 @@ export class DashboardController {
   @ApiQuery({ name: 'location', required: false })
   @ApiQuery({ name: 'locationGroup', required: false })
   async getDevices(
-    @Req() req: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() q: Record<string, string | undefined>,
   ) {
     const query: DashboardQuery = {
@@ -50,14 +51,12 @@ export class DashboardController {
       locationGroup: q.locationGroup?.trim() || undefined,
     };
     return this.dashboardService.getDevices(
-      req.user,
-      req.headers.authorization,
+      user,
       query,
     );
   }
 
   @Get('locations')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
       'Paginated list of locations the user can see, each with its devices and latest readings',
@@ -69,7 +68,7 @@ export class DashboardController {
   @ApiQuery({ name: 'location', required: false })
   @ApiQuery({ name: 'locationGroup', required: false })
   async getLocations(
-    @Req() req: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Query() q: Record<string, string | undefined>,
   ) {
     const query: DashboardQuery = {
@@ -81,28 +80,25 @@ export class DashboardController {
       locationGroup: q.locationGroup?.trim() || undefined,
     };
     return this.dashboardService.getLocations(
-      req.user,
-      req.headers.authorization,
+      user,
       query,
     );
   }
 
   @Get('devices/:dev_eui/latest')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
       'Latest full data row for a single device (all columns from its data_table_v2)',
   })
   @ApiParam({ name: 'dev_eui', required: true })
   async getLatest(
-    @Req() req: any,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('dev_eui') devEui: string,
     @Res({ passthrough: true }) res: Response,
   ) {
     const row = await this.dashboardService.getLatest(
-      req.user,
+      user,
       devEui,
-      req.headers.authorization,
     );
     if (row === null) {
       res.status(204);

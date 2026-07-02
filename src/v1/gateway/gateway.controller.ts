@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Param,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { GatewayService } from './gateway.service';
@@ -19,15 +18,17 @@ import {
 } from '@nestjs/swagger';
 import { GatewayDto } from './dto/gateway.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 @Controller({ path: 'gateway', version: '1' })
+@UseGuards(JwtAuthGuard)
 export class GatewayController {
   constructor(private readonly gatewayService: GatewayService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get gateways for the authenticated user',
     description:
@@ -42,12 +43,11 @@ export class GatewayController {
     description: 'Missing or invalid bearer token.',
     type: ErrorResponseDto,
   })
-  findAll(@Req() req) {
-    return this.gatewayService.findAll(req.user);
+  findAll(@CurrentUser() user: AuthenticatedUser) {
+    return this.gatewayService.findAll(user);
   }
 
   @Get(':gatewayId')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get a gateway for the authenticated user',
     description:
@@ -70,11 +70,11 @@ export class GatewayController {
       'Gateway not found or not accessible to the authenticated user.',
     type: ErrorResponseDto,
   })
-  findOne(@Param('gatewayId') gatewayId: string, @Req() req) {
+  findOne(@Param('gatewayId') gatewayId: string, @CurrentUser() user: AuthenticatedUser) {
     if (!gatewayId?.trim()) {
       throw new BadRequestException('gateway_id is required');
     }
 
-    return this.gatewayService.findOne(gatewayId, req.user);
+    return this.gatewayService.findOne(gatewayId, user);
   }
 }

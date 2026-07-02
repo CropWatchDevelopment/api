@@ -521,6 +521,16 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
     },
     "/v1/auth/email": {
       "patch": {
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -598,31 +608,41 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             "in": "query",
             "name": "group",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
           {
             "in": "query",
             "name": "location",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
           {
             "in": "query",
             "name": "name",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
           {
             "in": "query",
             "name": "skip",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
           {
             "in": "query",
             "name": "take",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
         ],
       },
@@ -640,37 +660,49 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             "in": "query",
             "name": "group-by-device-group",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
           {
             "in": "query",
             "name": "location",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
           {
             "in": "query",
             "name": "locationGroup",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
           {
             "in": "query",
             "name": "name",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
           {
             "in": "query",
             "name": "skip",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
           {
             "in": "query",
             "name": "take",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
         ],
       },
@@ -763,6 +795,22 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             "required": false,
             "schema": {},
           },
+          {
+            "in": "query",
+            "name": "skip",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "take",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
         ],
       },
     },
@@ -806,10 +854,26 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           },
           {
             "in": "query",
+            "name": "skip",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
             "name": "start",
             "required": false,
             "schema": {
               "format": "date-time",
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "take",
+            "required": true,
+            "schema": {
               "type": "string",
             },
           },
@@ -899,7 +963,9 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             "in": "query",
             "name": "name",
             "required": false,
-            "schema": {},
+            "schema": {
+              "type": "string",
+            },
           },
         ],
       },

@@ -53,7 +53,7 @@ type RejectionCase = {
 const AUTH_HEADER = 'Bearer test-token';
 const MOCK_USER = {
   email: 'user@example.com',
-  id: 'user-123',
+  isStaff: false,
   sub: 'user-123',
 };
 const ISO_DATETIME_PLACEHOLDER = '<ISO_8601_DATETIME>';
@@ -506,7 +506,6 @@ describe('V1 Route Input Contracts', () => {
       expectedCall: {
         args: [
           MOCK_USER,
-          AUTH_HEADER,
           5,
           1000,
           'Field Group',
@@ -524,7 +523,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER],
+        args: [MOCK_USER],
         method: 'findAllStatus',
         service: 'devices',
       },
@@ -536,7 +535,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER],
+        args: [MOCK_USER],
         method: 'findAllDeviceGroups',
         service: 'devices',
       },
@@ -552,7 +551,6 @@ describe('V1 Route Input Contracts', () => {
           MOCK_USER,
           7,
           11,
-          AUTH_HEADER,
           'Irrigation',
           'West Node',
           'Field 7',
@@ -569,7 +567,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, 42, AUTH_HEADER],
+        args: [MOCK_USER, 42],
         method: 'findAllDevicesInLocation',
         service: 'devices',
       },
@@ -581,7 +579,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, 'DEV-001', AUTH_HEADER],
+        args: [MOCK_USER, 'DEV-001'],
         method: 'findOne',
         service: 'devices',
       },
@@ -593,7 +591,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, 'DEV-001', 3, 9, AUTH_HEADER],
+        args: [MOCK_USER, 'DEV-001', 3, 9],
         method: 'findData',
         service: 'devices',
       },
@@ -605,7 +603,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, 'DEV-001', 'user@example.com', 2, AUTH_HEADER],
+        args: [MOCK_USER, 'DEV-001', 'user@example.com', 2],
         method: 'updatePermissionLevel',
         service: 'devices',
       },
@@ -625,7 +623,6 @@ describe('V1 Route Input Contracts', () => {
         args: [
           MOCK_USER,
           'DEV-001',
-          AUTH_HEADER,
           '2026-01-01T00:00:00.000Z',
           '2026-01-02T12:00:00.000Z',
           2,
@@ -642,7 +639,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, 'DEV-001', AUTH_HEADER],
+        args: [MOCK_USER, 'DEV-001'],
         method: 'findLatestData',
         service: 'devices',
       },
@@ -654,7 +651,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, 'DEV-001', AUTH_HEADER, true],
+        args: [MOCK_USER, 'DEV-001', true],
         method: 'findLatestData',
         service: 'devices',
       },
@@ -672,7 +669,6 @@ describe('V1 Route Input Contracts', () => {
           'Renamed Device',
           'Zone A',
           54,
-          AUTH_HEADER,
         ],
         method: 'updateDevice',
         service: 'devices',
@@ -690,7 +686,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [{ name: 'North Field' }, MOCK_USER, AUTH_HEADER],
+        args: [{ name: 'North Field' }, MOCK_USER],
         method: 'create',
         service: 'locations',
       },
@@ -705,7 +701,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER, undefined],
+        args: [MOCK_USER, undefined],
         method: 'findAll',
         service: 'locations',
       },
@@ -717,7 +713,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, AUTH_HEADER],
+        args: [MOCK_USER],
         method: 'findAllLocationGroups',
         service: 'locations',
       },
@@ -729,7 +725,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [15, MOCK_USER, AUTH_HEADER],
+        args: [15, MOCK_USER],
         method: 'findOne',
         service: 'locations',
       },
@@ -741,7 +737,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [15, { name: 'North Field' }, MOCK_USER, AUTH_HEADER],
+        args: [15, { name: 'North Field' }, MOCK_USER],
         method: 'update',
         service: 'locations',
       },
@@ -766,7 +762,6 @@ describe('V1 Route Input Contracts', () => {
           3,
           true,
           MOCK_USER,
-          AUTH_HEADER,
         ],
         method: 'createLocationPermission',
         service: 'locations',
@@ -784,7 +779,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [15, { admin_user_id: 'admin-1' }, true, MOCK_USER, AUTH_HEADER],
+        args: [15, { admin_user_id: 'admin-1' }, true, MOCK_USER],
         method: 'updateLocationPermission',
         service: 'locations',
       },
@@ -804,7 +799,6 @@ describe('V1 Route Input Contracts', () => {
           { extra: 'keep-me', permission_level: 3, user_id: 'user-456' },
           true,
           MOCK_USER,
-          AUTH_HEADER,
         ],
         method: 'updateUserPermissionLevel',
         service: 'locations',
@@ -822,7 +816,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [15, 3, MOCK_USER, AUTH_HEADER],
+        args: [15, 3, MOCK_USER],
         method: 'removeLocationPermission',
         service: 'locations',
       },

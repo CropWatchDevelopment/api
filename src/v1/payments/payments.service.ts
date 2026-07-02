@@ -10,11 +10,6 @@ import {
 } from '@nestjs/common';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
-import {
-  getAccessToken,
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import { MANAGE_CEILING } from '../common/permission-levels';
 import type { TableInsert, TableRow } from '../types/supabase';
 import {
@@ -27,6 +22,7 @@ import {
   BillingProductsResponse,
   SubscriptionStateResponse,
 } from './payments.types';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type BillingCustomerRow = TableRow<'billing_customers'>;
 
@@ -60,11 +56,10 @@ export class PaymentsService {
   }
 
   async getState(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<SubscriptionStateResponse> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
     await this.ensureBillingCustomer(client, userId);
 
@@ -113,11 +108,10 @@ export class PaymentsService {
   }
 
   async getLicenses(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<BillingLicense[]> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
     return this.fetchLicenses(client, userId);
   }
 
@@ -128,10 +122,9 @@ export class PaymentsService {
    * a legitimately-subscribed user.
    */
   async hasActiveBaseSubscription(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<boolean> {
-    const userId = getUserId(jwtPayload);
+    const userId = user.sub;
     try {
       const subscriptions = await this.polarService.listSubscriptions(userId);
       const baseSub = this.pickSubscription(
@@ -143,7 +136,7 @@ export class PaymentsService {
       this.logger.warn(
         `Base-subscription check fell back to cache for ${userId}: ${error}`,
       );
-      const client = this.supabaseService.getClient(getAccessToken(authHeader));
+      const client = this.supabaseService.getClient();
       const { data } = await client
         .from('billing_customers')
         .select('base_status')
@@ -161,12 +154,11 @@ export class PaymentsService {
   // ---------------------------------------------------------------------------
 
   async createBaseCheckout(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     discountId?: string | null,
   ): Promise<{ checkoutUrl: string }> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
     await this.ensureBillingCustomer(client, userId);
 
     const subscriptions = await this.listSubscriptionsSafe(userId);
@@ -181,19 +173,18 @@ export class PaymentsService {
     const checkoutUrl = await this.polarService.createCheckout({
       productId: this.requireProductId(this.polarService.baseProductId, 'base'),
       externalCustomerId: userId,
-      customerEmail: this.readEmail(jwtPayload),
+      customerEmail: this.readEmail(user),
       discountId: discountId ?? null,
     });
     return { checkoutUrl };
   }
 
   async createDeviceCheckout(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     quantity: number,
   ): Promise<{ checkoutUrl: string }> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
     await this.ensureBillingCustomer(client, userId);
 
     const subscriptions = await this.listSubscriptionsSafe(userId);
@@ -213,7 +204,7 @@ export class PaymentsService {
         'device',
       ),
       externalCustomerId: userId,
-      customerEmail: this.readEmail(jwtPayload),
+      customerEmail: this.readEmail(user),
       // Informational: the seat count is confirmed by Polar (webhook / getState
       // reconcile). Honoured on the hosted checkout's seat selector.
       metadata: { seats: quantity },
@@ -222,12 +213,11 @@ export class PaymentsService {
   }
 
   async changeDeviceSeats(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     seats: number,
   ): Promise<{ seats: number }> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
     const subscriptions = await this.listSubscriptionsSafe(userId);
     const deviceSub = this.pickSubscription(
@@ -261,11 +251,9 @@ export class PaymentsService {
   }
 
   async openPortal(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<{ portalUrl: string }> {
-    const userId = getUserId(jwtPayload);
-    getAccessToken(authHeader); // validate bearer token shape
+    const userId = user.sub;
     try {
       const portalUrl = await this.polarService.createPortalSession(userId);
       return { portalUrl };
@@ -278,12 +266,11 @@ export class PaymentsService {
   }
 
   async cancelBaseSubscription(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     atPeriodEnd: boolean,
   ): Promise<{ status: string }> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
     const subscriptions = await this.listSubscriptionsSafe(userId);
     const baseSub = this.pickSubscription(
@@ -322,14 +309,13 @@ export class PaymentsService {
   // ---------------------------------------------------------------------------
 
   async assignLicense(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     licenseId: number,
     devEui: string,
   ): Promise<BillingLicense> {
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
+    const client = this.supabaseService.getClient();
 
     const license = await this.loadOwnedLicense(client, userId, licenseId);
     if (license.status === 'assigned' && license.dev_eui) {
@@ -345,14 +331,13 @@ export class PaymentsService {
   }
 
   async moveLicense(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     licenseId: number,
     devEui: string,
   ): Promise<BillingLicense> {
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
+    const client = this.supabaseService.getClient();
 
     await this.loadOwnedLicense(client, userId, licenseId);
     await this.assertDeviceManageable(client, userId, isGlobalUser, devEui);
@@ -362,12 +347,11 @@ export class PaymentsService {
   }
 
   async unassignLicense(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     licenseId: number,
   ): Promise<BillingLicense> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
     await this.loadOwnedLicense(client, userId, licenseId);
 
@@ -393,12 +377,11 @@ export class PaymentsService {
    * Polar's seat minimum is 1). Assigned licenses must be unassigned first.
    */
   async cancelLicense(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     licenseId: number,
   ): Promise<{ canceled: boolean }> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
     const license = await this.loadOwnedLicense(client, userId, licenseId);
     if (license.dev_eui || license.status === 'assigned') {
@@ -778,8 +761,8 @@ export class PaymentsService {
     return productId;
   }
 
-  private readEmail(jwtPayload: any): string | null {
-    const email = jwtPayload?.email;
+  private readEmail(user: AuthenticatedUser): string | null {
+    const email = user.email;
     return typeof email === 'string' && email.trim() ? email.trim() : null;
   }
 

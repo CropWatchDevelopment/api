@@ -7,11 +7,8 @@ import {
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from './timezone-formatter.service';
 import { TableRow, TableName } from '../types/supabase';
-import {
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import { READ_EXCLUSIVE_CEILING } from './permission-levels';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 /**
  * Base service class for common data fetching operations across different data types
@@ -36,7 +33,7 @@ export abstract class BaseDataService<T extends TableName> {
     devEui: string,
     startDate: Date,
     endDate: Date,
-    jwtPayload: any,
+    user: AuthenticatedUser,
     timezone?: string,
   ): Promise<TableRow<T>[]> {
     const normalizedDevEui = devEui?.trim();
@@ -48,7 +45,7 @@ export abstract class BaseDataService<T extends TableName> {
       this.timezoneFormatter.assertValidTimeZone(normalizedTimeZone);
     }
 
-    await this.assertDeviceAccess(normalizedDevEui, jwtPayload);
+    await this.assertDeviceAccess(normalizedDevEui, user);
 
     const { data, error } = await this.supabaseService
       .getClient()
@@ -77,10 +74,10 @@ export abstract class BaseDataService<T extends TableName> {
 
   protected async assertDeviceAccess(
     devEui: string,
-    jwtPayload: any,
+    user: AuthenticatedUser,
   ): Promise<void> {
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     let query = this.supabaseService
       .getClient()
       .from('cw_devices')

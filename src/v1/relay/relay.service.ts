@@ -10,11 +10,6 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../../supabase/supabase.service';
-import {
-  getAccessToken,
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import type { TableInsert, TableRow } from '../../v1/types/supabase';
 import {
   canManage,
@@ -43,6 +38,7 @@ import {
   resolveTtiApplicationId,
 } from './tti-client';
 import { isValidTtiDeviceId, normalizeTtiDeviceId } from './tti-device-id';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type DeviceOwnerRow = TableRow<'cw_device_owners'>;
 type DeviceTypeRow = TableRow<'cw_device_type'>;
@@ -146,15 +142,14 @@ export class RelayService {
     }
   }
 
-  async getLatestRelay(jwtPayload: any, authHeader: string, devEui: string) {
+  async getLatestRelay(user: AuthenticatedUser, devEui: string) {
     const normalizedDevEui = normalizeDevEui(devEui);
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
 
     const context = await this.loadRelayDeviceContext(
-      jwtPayload,
-      authHeader,
+      user,
       normalizedDevEui,
     );
     if (!canRead(context.permissionLevel)) {
@@ -170,8 +165,7 @@ export class RelayService {
   }
 
   async updateRelay(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     devEui: string,
     updateRelayDto: UpdateRelayDto,
   ) {
@@ -182,8 +176,7 @@ export class RelayService {
 
     const { relay, targetState } = updateRelayDto;
     const context = await this.loadRelayDeviceContext(
-      jwtPayload,
-      authHeader,
+      user,
       normalizedDevEui,
     );
     if (!canManage(context.permissionLevel)) {
@@ -257,8 +250,7 @@ export class RelayService {
   }
 
   async pulseRelay(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     devEui: string,
     pulseRelayDto: PulseRelayDto,
   ) {
@@ -269,8 +261,7 @@ export class RelayService {
 
     const { durationSeconds, relay } = pulseRelayDto;
     const context = await this.loadRelayDeviceContext(
-      jwtPayload,
-      authHeader,
+      user,
       normalizedDevEui,
     );
     if (!canManage(context.permissionLevel)) {
@@ -402,14 +393,12 @@ export class RelayService {
   }
 
   private async loadRelayDeviceContext(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     devEui: string,
   ): Promise<RelayDeviceContext> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
 
     const { data, error } = await client
       .from('cw_devices')

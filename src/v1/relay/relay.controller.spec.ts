@@ -47,34 +47,25 @@ describe('RelayController', () => {
   });
 
   it('forwards latest relay lookups to the relay service', () => {
-    const req = {
-      headers: {
-        authorization: 'Bearer test-token',
-      },
-      user: {
-        email: 'user@example.com',
-        sub: 'user-1',
-      },
+    const user = {
+      email: 'user@example.com',
+      isStaff: false,
+      sub: 'user-1',
     };
 
-    controller.getLatestRelay('A8404194635A05FB', req);
+    controller.getLatestRelay('A8404194635A05FB', user);
 
     expect(relayService.getLatestRelay).toHaveBeenCalledWith(
-      req.user,
-      'Bearer test-token',
+      user,
       'A8404194635A05FB',
     );
   });
 
   it('forwards timed relay pulse requests to the relay service', () => {
-    const req = {
-      headers: {
-        authorization: 'Bearer test-token',
-      },
-      user: {
-        email: 'user@example.com',
-        sub: 'user-1',
-      },
+    const user = {
+      email: 'user@example.com',
+      isStaff: false,
+      sub: 'user-1',
     };
 
     controller.pulseRelay(
@@ -83,12 +74,11 @@ describe('RelayController', () => {
         durationSeconds: 60,
         relay: 1,
       },
-      req,
+      user,
     );
 
     expect(relayService.pulseRelay).toHaveBeenCalledWith(
-      req.user,
-      'Bearer test-token',
+      user,
       'A8404194635A05FB',
       {
         durationSeconds: 60,

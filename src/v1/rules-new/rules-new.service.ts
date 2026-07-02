@@ -6,11 +6,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
-import {
-  getAccessToken,
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import type { TableRow } from '../types/supabase';
 import { MANAGE_CEILING, PermissionLevel } from '../common/permission-levels';
 import { DevicesService } from '../devices/devices.service';
@@ -24,6 +19,7 @@ import { RuleTemplateStateDto } from './dto/rule-template-state.dto';
 import { RuleTemplateDto } from './dto/rule-template.dto';
 import { RuleTriggerLogDto } from './dto/rule-trigger-log.dto';
 import { SaveRuleTemplateDto } from './dto/save-rule-template.dto';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type TemplateRow = TableRow<'cw_rule_templates'>;
 type TriggerLogRow = TableRow<'cw_rule_trigger_log'>;
@@ -65,19 +61,17 @@ export class RulesNewService {
   ) {}
 
   async findAll(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     searchTerm?: string,
   ): Promise<RuleTemplateDto[]> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const devices = await this.listManagedDevices(userId, isStaff);
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) return [];
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const { data: assignmentsData, error: assignmentsError } = await client
       .from('cw_device_rule_assignments')
       .select(
@@ -97,11 +91,10 @@ export class RulesNewService {
     if (templateIds.length === 0) return [];
 
     const [templates, criteria, actions, states] = await Promise.all([
-      this.loadTemplatesByIds(accessToken, templateIds),
-      this.loadCriteriaByTemplateIds(accessToken, templateIds),
-      this.loadActionsByTemplateIds(accessToken, templateIds),
+      this.loadTemplatesByIds(templateIds),
+      this.loadCriteriaByTemplateIds(templateIds),
+      this.loadActionsByTemplateIds(templateIds),
       this.loadStates(
-        accessToken,
         templateIds,
         assignments.map((row) => row.dev_eui),
       ),
@@ -127,10 +120,9 @@ export class RulesNewService {
    * inherited from findAll (device read scope).
    */
   async findAllTriggered(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<RuleTemplateDto[]> {
-    const rules = await this.findAll(jwtPayload, authHeader);
+    const rules = await this.findAll(user);
     return rules
       .map((rule) => ({
         ...rule,
@@ -142,10 +134,9 @@ export class RulesNewService {
   }
 
   async findTriggeredCount(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<{ count: number; triggered_count: number; total_count: number }> {
-    const rules = await this.findAll(jwtPayload, authHeader);
+    const rules = await this.findAll(user);
     const triggeredCount = rules.filter((rule) =>
       rule.assignments.some(
         (assignment) => assignment.state?.isTriggered === true,
@@ -162,20 +153,18 @@ export class RulesNewService {
 
   async findOne(
     id: number,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<RuleTemplateDto> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const devices = await this.listManagedDevices(userId, isStaff);
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) {
       throw new NotFoundException('Rule template not found');
     }
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const [templateResult, assignmentsResult] = await Promise.all([
       client
         .from('cw_rule_templates')
@@ -208,10 +197,9 @@ export class RulesNewService {
     }
 
     const [criteria, actions, states] = await Promise.all([
-      this.loadCriteriaByTemplateIds(accessToken, [id]),
-      this.loadActionsByTemplateIds(accessToken, [id]),
+      this.loadCriteriaByTemplateIds([id]),
+      this.loadActionsByTemplateIds([id]),
       this.loadStates(
-        accessToken,
         [id],
         assignments.map((row) => row.dev_eui),
       ),
@@ -235,25 +223,23 @@ export class RulesNewService {
 
   async getHistory(
     id: number,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<RuleTriggerLogDto[]> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
     // Reuse findOne so a hidden or non-existent template returns 404 instead of
     // an empty list.
-    await this.findOne(id, jwtPayload, authHeader);
+    await this.findOne(id, user);
 
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const devices = await this.listManagedDevices(userId, isStaff);
     const viewableDevices = devices.filter((device) => device.canView);
     const deviceNames = new Map(
       devices.map((device) => [device.devEui, device.name]),
     );
 
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_rule_trigger_log')
       .select(
         'created_at, dev_eui, id, reset_at, reset_value, template_id, triggered_at, triggered_value',
@@ -287,18 +273,16 @@ export class RulesNewService {
 
   async create(
     payload: SaveRuleTemplateDto,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<RuleTemplateDto> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
     const normalized = normalizeSaveRequest(payload);
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const devices = await this.listManagedDevices(userId, isStaff);
     assertDevicesCanBeManaged(devices, normalized.devEuis);
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const { data: templateData, error: templateError } = await client
       .from('cw_rule_templates')
       .insert({
@@ -316,31 +300,28 @@ export class RulesNewService {
 
     try {
       await this.replaceTemplateChildren(
-        accessToken,
         templateData.id,
         normalized,
       );
     } catch (error) {
-      await this.deleteTemplateBestEffort(accessToken, templateData.id);
+      await this.deleteTemplateBestEffort(templateData.id);
       throw error;
     }
 
-    return this.findOne(templateData.id, jwtPayload, authHeader);
+    return this.findOne(templateData.id, user);
   }
 
   async update(
     id: number,
     payload: SaveRuleTemplateDto,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<RuleTemplateDto> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
     const normalized = normalizeSaveRequest(payload);
-    const existing = await this.findOne(id, jwtPayload, authHeader);
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const existing = await this.findOne(id, user);
+    const devices = await this.listManagedDevices(userId, isStaff);
 
     const allDevEuis = uniqueValues([
       ...existing.assignments.map((assignment) => assignment.devEui),
@@ -348,7 +329,7 @@ export class RulesNewService {
     ]);
     assertDevicesCanBeManaged(devices, allDevEuis);
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const { error: updateError } = await client
       .from('cw_rule_templates')
       .update({
@@ -363,32 +344,30 @@ export class RulesNewService {
       throw new InternalServerErrorException('Failed to update rule template');
     }
 
-    await this.replaceTemplateChildren(accessToken, id, normalized);
-    await this.deleteTemplateState(accessToken, id);
+    await this.replaceTemplateChildren(id, normalized);
+    await this.deleteTemplateState(id);
 
-    return this.findOne(id, jwtPayload, authHeader);
+    return this.findOne(id, user);
   }
 
   async remove(
     id: number,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<{ id: number }> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
-    const existing = await this.findOne(id, jwtPayload, authHeader);
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const existing = await this.findOne(id, user);
+    const devices = await this.listManagedDevices(userId, isStaff);
     assertDevicesCanBeManaged(
       devices,
       existing.assignments.map((assignment) => assignment.devEui),
     );
 
-    await this.deleteTemplateState(accessToken, id);
-    await this.deleteTemplateChildren(accessToken, id);
+    await this.deleteTemplateState(id);
+    await this.deleteTemplateChildren(id);
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const { error } = await client
       .from('cw_rule_templates')
       .delete()
@@ -403,10 +382,9 @@ export class RulesNewService {
 
   private async listManagedDevices(
     userId: string,
-    accessToken: string,
-    isStaff: boolean,
+        isStaff: boolean,
   ): Promise<ManagedDevice[]> {
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const { data, error } = await client
       .from('cw_devices')
       .select('dev_eui, name, user_id, cw_device_owners(*)');
@@ -453,13 +431,12 @@ export class RulesNewService {
   }
 
   private async loadTemplatesByIds(
-    accessToken: string,
-    templateIds: number[],
+        templateIds: number[],
   ): Promise<TemplateRow[]> {
     if (templateIds.length === 0) return [];
 
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_rule_templates')
       .select('created_at, description, device_type_id, id, is_active, name')
       .in('id', templateIds);
@@ -472,13 +449,12 @@ export class RulesNewService {
   }
 
   private async loadCriteriaByTemplateIds(
-    accessToken: string,
-    templateIds: number[],
+        templateIds: number[],
   ): Promise<CriterionRow[]> {
     if (templateIds.length === 0) return [];
 
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_rule_template_criteria')
       .select(
         'created_at, id, operator, reset_value, subject, template_id, trigger_value',
@@ -493,13 +469,12 @@ export class RulesNewService {
   }
 
   private async loadActionsByTemplateIds(
-    accessToken: string,
-    templateIds: number[],
+        templateIds: number[],
   ): Promise<ActionRow[]> {
     if (templateIds.length === 0) return [];
 
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_rule_template_actions')
       .select(
         'action_type, config, created_at, id, template_id, cw_rule_action_types(id, name)',
@@ -513,10 +488,9 @@ export class RulesNewService {
     return data ?? [];
   }
 
-  async findAllActionTypes(authHeader: string): Promise<RuleActionTypeDto[]> {
-    const accessToken = getAccessToken(authHeader);
+  async findAllActionTypes(): Promise<RuleActionTypeDto[]> {
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_rule_action_types')
       .select('created_at, id, name')
       .order('name', { ascending: true });
@@ -533,16 +507,15 @@ export class RulesNewService {
   }
 
   async getFormContext(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     templateId?: number,
   ): Promise<RuleFormContextDto> {
     const [devicesPage, locations, actionTypes, template] = await Promise.all([
-      this.devicesService.findAll(jwtPayload, authHeader),
-      this.locationsService.findAll(jwtPayload, authHeader),
-      this.findAllActionTypes(authHeader),
+      this.devicesService.findAll(user),
+      this.locationsService.findAll(user),
+      this.findAllActionTypes(),
       typeof templateId === 'number'
-        ? this.findOne(templateId, jwtPayload, authHeader)
+        ? this.findOne(templateId, user)
         : Promise.resolve(null),
     ]);
 
@@ -555,15 +528,14 @@ export class RulesNewService {
   }
 
   private async loadStates(
-    accessToken: string,
-    templateIds: number[],
+        templateIds: number[],
     devEuis: string[],
   ): Promise<StateRow[]> {
     const uniqueDevEuis = uniqueValues(devEuis);
     if (templateIds.length === 0 || uniqueDevEuis.length === 0) return [];
 
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_rule_state')
       .select(
         'dev_eui, id, is_triggered, last_reset_at, last_triggered_at, template_id',
@@ -579,13 +551,12 @@ export class RulesNewService {
   }
 
   private async replaceTemplateChildren(
-    accessToken: string,
-    templateId: number,
+        templateId: number,
     payload: NormalizedSaveRequest,
   ): Promise<void> {
-    await this.deleteTemplateChildren(accessToken, templateId);
+    await this.deleteTemplateChildren(templateId);
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const assignments = payload.devEuis.map((devEui) => ({
       dev_eui: devEui,
       template_id: templateId,
@@ -623,10 +594,9 @@ export class RulesNewService {
   }
 
   private async deleteTemplateChildren(
-    accessToken: string,
-    templateId: number,
+        templateId: number,
   ): Promise<void> {
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const [assignmentsResult, criteriaResult, actionsResult] =
       await Promise.all([
         client
@@ -657,11 +627,10 @@ export class RulesNewService {
   }
 
   private async deleteTemplateState(
-    accessToken: string,
-    templateId: number,
+        templateId: number,
   ): Promise<void> {
     const { error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_rule_state')
       .delete()
       .eq('template_id', templateId);
@@ -672,13 +641,12 @@ export class RulesNewService {
   }
 
   private async deleteTemplateBestEffort(
-    accessToken: string,
-    templateId: number,
+        templateId: number,
   ): Promise<void> {
     try {
-      await this.deleteTemplateChildren(accessToken, templateId);
+      await this.deleteTemplateChildren(templateId);
       await this.supabaseService
-        .getClient(accessToken)
+        .getClient()
         .from('cw_rule_templates')
         .delete()
         .eq('id', templateId);

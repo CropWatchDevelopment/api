@@ -77,8 +77,9 @@ describe('AirService', () => {
 
   describe('createNote', () => {
     it('resolves millisecond timestamps to the canonical air reading before insert', async () => {
-      const jwtPayload = {
+      const user = {
         email: 'user-123@example.com',
+        isStaff: false,
         sub: 'user-123',
       };
       const dto: CreateAirAnnotationDto = {
@@ -125,7 +126,7 @@ describe('AirService', () => {
         throw new Error(`Unexpected table ${table}`);
       });
 
-      await expect(service.createNote(dto, jwtPayload)).resolves.toEqual({
+      await expect(service.createNote(dto, user)).resolves.toEqual({
         created_at: resolvedCreatedAt,
         created_by: 'user-123@example.com',
         dev_eui: '2CF7F1C073800102',
@@ -137,7 +138,7 @@ describe('AirService', () => {
 
       expect((service as any).assertDeviceAccess).toHaveBeenCalledWith(
         '2CF7F1C073800102',
-        jwtPayload,
+        user,
       );
       expect(exactMatchBuilder.eq).toHaveBeenNthCalledWith(
         1,

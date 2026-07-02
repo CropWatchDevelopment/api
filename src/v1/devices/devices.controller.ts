@@ -8,7 +8,7 @@ import {
   Param,
   Patch,
   Post,
-  Req,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { DevicesService } from './devices.service';
@@ -30,15 +30,17 @@ import { DeviceDto } from './dto/device.dto';
 import { UpdateDevicePermissionDto } from './dto/update-device-permission.dto';
 import { UpdateDeviceNameGroupLocalDto } from './dto/update-device-name-group-local.dto';
 import { ReplaceDeviceDto } from './dto/replace-device.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Controller({ path: 'devices', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
+@UseGuards(JwtAuthGuard)
 export class DevicesController {
   constructor(private readonly devicesService: DevicesService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description:
       "Current all of the user's authenticated devices returned when run successfully.",
@@ -93,75 +95,63 @@ export class DevicesController {
     description: 'Filter by device location',
     required: false,
   })
-  findAll(@Req() req) {
-    const parsedSkip = parseInt(req.query.skip, 10);
-    const parsedTake = parseInt(req.query.take, 10);
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('skip') rawSkip?: string,
+    @Query('take') rawTake?: string,
+    @Query('group') searchGroup?: string,
+    @Query('name') searchName?: string,
+    @Query('location') searchLocation?: string,
+  ) {
+    const parsedSkip = parseInt(rawSkip ?? '', 10);
+    const parsedTake = parseInt(rawTake ?? '', 10);
     const skip = Number.isNaN(parsedSkip) ? 0 : parsedSkip;
     const take = Math.min(Number.isNaN(parsedTake) ? 100 : parsedTake, 1000);
-    const searchGroup = req.query.group ? String(req.query.group) : undefined;
-    const searchName = req.query.name ? String(req.query.name) : undefined;
-    const searchLocation = req.query.location
-      ? String(req.query.location)
-      : undefined;
     return this.devicesService.findAll(
-      req.user,
-      req.headers.authorization,
+      user,
       skip,
       take,
-      searchGroup,
-      searchName,
-      searchLocation,
+      searchGroup || undefined,
+      searchName || undefined,
+      searchLocation || undefined,
     );
   }
 
   @Get('status')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Returns online vs offline devices for the authenticated user',
     description: `
     Returns the online vs offline status of all devices for the authenticated user.`,
   })
-  findAllDeviceStatus(@Req() req) {
-    const parsedSkip = parseInt(req.query.skip, 10);
-    const parsedTake = parseInt(req.query.take, 10);
-    const skip = Number.isNaN(parsedSkip) ? 0 : parsedSkip;
-    const take = Number.isNaN(parsedTake) ? undefined : parsedTake;
-    return this.devicesService.findAllStatus(
-      req.user,
-      req.headers.authorization,
-    );
+  findAllDeviceStatus(@CurrentUser() user: AuthenticatedUser) {
+    return this.devicesService.findAllStatus(user);
   }
 
   @Get('groups')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Returns device groups for the authenticated user',
     description: `
     Returns the device groups for the authenticated user.`,
   })
-  findAllDeviceGroups(@Req() req) {
+  findAllDeviceGroups(@CurrentUser() user: AuthenticatedUser) {
     return this.devicesService.findAllDeviceGroups(
-      req.user,
-      req.headers.authorization,
+      user,
     );
   }
 
   @Get('device-types')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Returns device types for the authenticated user',
     description: `
     Returns the device types for the authenticated user.`,
   })
-  findAllDeviceTypes(@Req() req) {
+  findAllDeviceTypes(@CurrentUser() user: AuthenticatedUser) {
     return this.devicesService.findAllDeviceTypes(
-      req.user,
-      req.headers.authorization,
+      user,
     );
   }
 
   @Get('latest-primary-data')
-  @UseGuards(JwtAuthGuard)
   @ApiQuery({
     name: 'skip',
     description: 'Number of records to skip for pagination',
@@ -197,33 +187,29 @@ export class DevicesController {
     description: `
     Returns the latest, 2 primary data values from the table record for all devices.`,
   })
-  allLatestPrimaryData(@Req() req) {
-    const skip = parseInt(req.query.skip, 10) || 0;
-    const take = parseInt(req.query.take, 10) || 10;
-    const searchDeviceGroup = req.query['group-by-device-group']
-      ? String(req.query['group-by-device-group'])
-      : undefined;
-    const locationGroup = req.query.locationGroup
-      ? String(req.query.locationGroup)
-      : undefined;
-    const searchName = req.query.name ? String(req.query.name) : undefined;
-    const searchLocation = req.query.location
-      ? String(req.query.location)
-      : undefined;
+  allLatestPrimaryData(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('skip') rawSkip?: string,
+    @Query('take') rawTake?: string,
+    @Query('group-by-device-group') searchDeviceGroup?: string,
+    @Query('locationGroup') locationGroup?: string,
+    @Query('name') searchName?: string,
+    @Query('location') searchLocation?: string,
+  ) {
+    const skip = parseInt(rawSkip ?? '', 10) || 0;
+    const take = parseInt(rawTake ?? '', 10) || 10;
     return this.devicesService.findAllLatestData(
-      req.user,
+      user,
       skip,
       take,
-      req.headers.authorization,
-      searchDeviceGroup,
-      searchName,
-      searchLocation,
-      locationGroup,
+      searchDeviceGroup || undefined,
+      searchName || undefined,
+      searchLocation || undefined,
+      locationGroup || undefined,
     );
   }
 
   @Get('location/:location_id')
-  @UseGuards(JwtAuthGuard)
   @ApiParam({
     name: 'location_id',
     description: 'Location ID',
@@ -236,16 +222,14 @@ export class DevicesController {
     description: `
     Returns the latest, 2 primary data values from the table record for all devices in a specific location.`,
   })
-  allDevicesInLocation(@Req() req, @Param('location_id') locationId: number) {
+  allDevicesInLocation(@CurrentUser() user: AuthenticatedUser, @Param('location_id') locationId: number) {
     return this.devicesService.findAllDevicesInLocation(
-      req.user,
+      user,
       locationId,
-      req.headers.authorization,
     );
   }
 
   @Get(':dev_eui')
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: "Current user's device returned successfully.",
     type: DeviceDto,
@@ -292,19 +276,17 @@ export class DevicesController {
     description: `
     Returns a specific device for the authenticated user.`,
   })
-  findOne(@Req() req, @Param('dev_eui') devEui: string) {
+  findOne(@CurrentUser() user: AuthenticatedUser, @Param('dev_eui') devEui: string) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
     return this.devicesService.findOne(
-      req.user,
+      user,
       devEui,
-      req.headers.authorization,
     );
   }
 
   @Get(':dev_eui/data')
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiParam({
     name: 'skip (0)',
@@ -321,23 +303,21 @@ export class DevicesController {
     description: `
     Returns the latest, data from the table record for a device paginated.`,
   })
-  data(@Req() req, @Param('dev_eui') devEui: string) {
+  data(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('dev_eui') devEui: string,
+    @Query('skip') rawSkip?: string,
+    @Query('take') rawTake?: string,
+  ) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
-    const skip = parseInt(req.query.skip, 10) || 0;
-    const take = parseInt(req.query.take, 10) || 144;
-    return this.devicesService.findData(
-      req.user,
-      devEui,
-      skip,
-      take,
-      req.headers.authorization,
-    );
+    const skip = parseInt(rawSkip ?? '', 10) || 0;
+    const take = parseInt(rawTake ?? '', 10) || 144;
+    return this.devicesService.findData(user, devEui, skip, take);
   }
 
   @Get(':dev_eui/data-within-range')
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiQuery({
     name: 'start',
@@ -388,20 +368,25 @@ export class DevicesController {
     Within the time window, the skip/take will be applied to the filtered data for pagination. For example, if there are 100 records in the time window and skip=10 and take=20, records 11-30 will be returned.
     Defaults to the last 24 hours if no range is provided.`,
   })
-  dataWithinRange(@Req() req, @Param('dev_eui') devEui: string) {
+  dataWithinRange(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('dev_eui') devEui: string,
+    @Query('skip') rawSkip?: string,
+    @Query('take') rawTake?: string,
+    @Query('start') rawStart?: string,
+    @Query('end') rawEnd?: string,
+  ) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
-    const skip = parseInt(req.query.skip, 10) || 0;
-    const take = parseInt(req.query.take, 10) || 144;
+    const skip = parseInt(rawSkip ?? '', 10) || 0;
+    const take = parseInt(rawTake ?? '', 10) || 144;
     const start =
-      req.query.start ||
-      new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const end = req.query.end || new Date().toISOString();
+      rawStart || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const end = rawEnd || new Date().toISOString();
     return this.devicesService.findDataWithinRange(
-      req.user,
+      user,
       devEui,
-      req.headers.authorization,
       start,
       end,
       skip,
@@ -410,46 +395,41 @@ export class DevicesController {
   }
 
   @Get(':dev_eui/latest-data')
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiOperation({
     summary: 'Get the 1 latest FULL data value for a device',
     description: `
     Returns the full latest data record for a device.`,
   })
-  latestData(@Req() req, @Param('dev_eui') devEui: string) {
+  latestData(@CurrentUser() user: AuthenticatedUser, @Param('dev_eui') devEui: string) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
     return this.devicesService.findLatestData(
-      req.user,
+      user,
       devEui,
-      req.headers.authorization,
     );
   }
 
   @Get(':dev_eui/latest-primary-data')
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiOperation({
     summary: 'Get the latest primary data for a device',
     description: `
     Returns the latest, 2 primary data values from the table record for a device.`,
   })
-  latestPrimaryData(@Req() req, @Param('dev_eui') devEui: string) {
+  latestPrimaryData(@CurrentUser() user: AuthenticatedUser, @Param('dev_eui') devEui: string) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
     return this.devicesService.findLatestData(
-      req.user,
+      user,
       devEui,
-      req.headers.authorization,
       true,
     );
   }
 
   @Post(':dev_eui')
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiOperation({
     summary: 'Create a new device for the authenticated user',
@@ -460,7 +440,7 @@ export class DevicesController {
     `,
   })
   create(
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('dev_eui') devEui: string,
     @Body() _body?: unknown,
   ) {
@@ -470,7 +450,6 @@ export class DevicesController {
   }
 
   @Post(':dev_eui/replace')
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiOperation({
     summary:
@@ -482,7 +461,7 @@ export class DevicesController {
     `,
   })
   replace(
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('dev_eui') devEui: string,
     @Body() body: ReplaceDeviceDto,
   ) {
@@ -496,10 +475,9 @@ export class DevicesController {
     const replacementDevice: ReplaceDeviceDto = body;
 
     const insertResult = this.devicesService.replaceDevice(
-      req.user,
+      user,
       normalizedDevEui,
       replacementDevice,
-      req.headers.authorization,
     );
     if (!insertResult) {
       throw new InternalServerErrorException(
@@ -510,7 +488,6 @@ export class DevicesController {
   }
 
   @Patch(':dev_eui/permission-level')
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiOperation({
     summary: 'Update the permission level for a device',
@@ -521,7 +498,7 @@ export class DevicesController {
     `,
   })
   updatePermissionLevel(
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('dev_eui') devEui: string,
     @Body() body: UpdateDevicePermissionDto,
   ) {
@@ -542,16 +519,14 @@ export class DevicesController {
       throw new BadRequestException('Permission Level is required');
     }
     return this.devicesService.updatePermissionLevel(
-      req.user,
+      user,
       normalizedDevEui,
       body.targetUserEmail,
       body.permissionLevel,
-      req.headers.authorization,
     );
   }
 
   @Patch(':dev_eui')
-  @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
   @ApiOperation({
     summary: 'Update a device',
@@ -560,7 +535,7 @@ export class DevicesController {
     `,
   })
   updateDevice(
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
     @Param('dev_eui') devEui: string,
     @Body() body: UpdateDeviceNameGroupLocalDto,
   ) {
@@ -574,12 +549,11 @@ export class DevicesController {
       throw new BadRequestException('Device location is required');
     }
     return this.devicesService.updateDevice(
-      req.user,
+      user,
       devEui,
       body.name,
       body.group ?? null,
       body.location_id,
-      req.headers.authorization,
     );
   }
 }

@@ -3,6 +3,7 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { BaseDataService } from '../common/base-data.service';
 import { TrafficMonthlyReportDto } from './dto/traffic-monthly-report.dto';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Injectable()
 export class TrafficService extends BaseDataService<'cw_traffic2'> {
@@ -17,12 +18,12 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
     devEui: string,
     year: number,
     month: number,
-    jwtPayload: any,
+    user: AuthenticatedUser,
     timezone: string = 'Asia/Tokyo',
   ): Promise<TrafficMonthlyReportDto[]> {
     const tz = timezone || 'Asia/Tokyo';
     this.timezoneFormatter.assertValidTimeZone(tz);
-    await this.assertDeviceAccess(devEui, jwtPayload);
+    await this.assertDeviceAccess(devEui, user);
 
     // Compute month boundaries as UTC timestamps corresponding to local midnight
     const startUtc = this.localMidnightToUtc(year, month, 1, tz);

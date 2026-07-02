@@ -116,8 +116,7 @@ describe('RulesNewService', () => {
 
     await expect(
       serviceWithClient.findAll(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
       ),
     ).resolves.toEqual([]);
 
@@ -172,8 +171,7 @@ describe('RulesNewService', () => {
             },
           ],
         },
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
@@ -227,14 +225,13 @@ describe('RulesNewService', () => {
     await expect(
       serviceWithClient.findOne(
         1,
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   describe('triggered rules', () => {
-    const jwt = { sub: 'user-1', email: 'user@example.com' };
+    const jwt = { sub: 'user-1', email: 'user@example.com', isStaff: false };
 
     const buildRule = (
       id: number,
@@ -282,7 +279,7 @@ describe('RulesNewService', () => {
         buildRule(3, [{ devEui: 'DD', isTriggered: null }]),
       ]);
 
-      const triggered = await service.findAllTriggered(jwt, 'Bearer token-1');
+      const triggered = await service.findAllTriggered(jwt);
 
       expect(triggered).toHaveLength(1);
       expect(triggered[0].id).toBe(1);
@@ -300,7 +297,7 @@ describe('RulesNewService', () => {
         ]);
 
       await expect(
-        service.findTriggeredCount(jwt, 'Bearer token-1'),
+        service.findTriggeredCount(jwt),
       ).resolves.toEqual({ count: 1, triggered_count: 1, total_count: 2 });
     });
   });

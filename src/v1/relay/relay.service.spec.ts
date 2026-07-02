@@ -79,8 +79,7 @@ describe('RelayService', () => {
 
     await expect(
       service.updateRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'a8404194635a05fb',
         { relay: 1, targetState: 'on' },
       ),
@@ -103,8 +102,7 @@ describe('RelayService', () => {
 
     await expect(
       service.getLatestRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'a8404194635a05fb',
       ),
     ).resolves.toEqual(relayRow);
@@ -123,8 +121,7 @@ describe('RelayService', () => {
 
     await expect(
       service.getLatestRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'a8404194635a05fb',
       ),
     ).resolves.toEqual(relayRow);
@@ -140,8 +137,7 @@ describe('RelayService', () => {
 
     await expect(
       service.getLatestRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'A8404194635A05FB',
       ),
     ).rejects.toMatchObject({
@@ -180,8 +176,7 @@ describe('RelayService', () => {
 
     await expect(
       service.updateRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'A8404194635A05FB',
         { relay: 1, targetState: 'on' },
       ),
@@ -242,8 +237,7 @@ describe('RelayService', () => {
 
     await expect(
       service.pulseRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'A8404194635A05FB',
         { durationSeconds: 1, relay: 1 },
       ),
@@ -275,8 +269,7 @@ describe('RelayService', () => {
 
     await expect(
       service.pulseRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'A8404194635A05FB',
         { durationSeconds: 60, relay: 1 },
       ),

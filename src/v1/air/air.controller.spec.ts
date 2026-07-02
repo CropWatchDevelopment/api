@@ -41,17 +41,17 @@ describe('AirController', () => {
         note: 'stable reading',
         title: 'Daily review',
       };
-      const req = {
-        user: {
-          sub: 'user-123',
-        },
+      const user = {
+        sub: 'user-123',
+        email: 'user@example.com',
+        isStaff: false,
       };
       const expected = { data: { ...dto, id: 1 }, error: null };
 
       mockAirService.createNote.mockResolvedValue(expected);
 
-      await expect(controller.createNote(dto, req)).resolves.toEqual(expected);
-      expect(mockAirService.createNote).toHaveBeenCalledWith(dto, req.user);
+      await expect(controller.createNote(dto, user)).resolves.toEqual(expected);
+      expect(mockAirService.createNote).toHaveBeenCalledWith(dto, user);
     });
 
     it('accepts a valid payload under the global validation pipe settings', async () => {

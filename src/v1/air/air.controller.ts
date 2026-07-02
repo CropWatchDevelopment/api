@@ -7,7 +7,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Req,
   Delete,
 } from '@nestjs/common';
 import { AirService } from './air.service';
@@ -25,41 +24,40 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Controller({ path: 'air', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
+@UseGuards(JwtAuthGuard)
 export class AirController {
   constructor(private readonly airService: AirService) {}
 
   @Post('notes')
-  @UseGuards(JwtAuthGuard)
   async createNote(
     @Body() createAirNoteDto: CreateAirAnnotationDto,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.airService.createNote(createAirNoteDto, req.user);
+    return this.airService.createNote(createAirNoteDto, user);
   }
 
   @Get('notes/:dev_eui/month/:month/year/:year')
-  @UseGuards(JwtAuthGuard)
   async findAll(
     @Param('dev_eui') devEui: string,
     @Param('month') month: string,
     @Param('year') year: string,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.airService.findAllNotes(devEui, month, year, req.user);
+    return this.airService.findAllNotes(devEui, month, year, user);
   }
 
   @Delete('notes/:note_id')
-  @UseGuards(JwtAuthGuard)
-  async deleteNote(@Param('note_id') noteId: number, @Req() req) {
-    return this.airService.deleteNote(noteId, req.user);
+  async deleteNote(@Param('note_id') noteId: number, @CurrentUser() user: AuthenticatedUser) {
+    return this.airService.deleteNote(noteId, user);
   }
 
   @Get(':dev_eui')
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Air data returned successfully.',
     type: AirDataDto,
@@ -119,7 +117,7 @@ export class AirController {
   })
   findOne(
     @Param('dev_eui') devEui: string,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('timezone') timezone?: string,
@@ -147,7 +145,7 @@ export class AirController {
       devEui,
       startDate,
       endDate,
-      req.user,
+      user,
       timezone,
     );
   }

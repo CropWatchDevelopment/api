@@ -7,11 +7,6 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
-import {
-  getAccessToken,
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import type { TableRow } from '../types/supabase';
 import { MANAGE_CEILING, PermissionLevel } from '../common/permission-levels';
 import { DevicesService } from '../devices/devices.service';
@@ -26,6 +21,7 @@ import { ReportTemplateRecipientDto } from './dto/report-template-recipient.dto'
 import { ReportTemplateScheduleDto } from './dto/report-template-schedule.dto';
 import { ReportTemplateDto } from './dto/report-template.dto';
 import { SaveReportTemplateDto } from './dto/save-report-template.dto';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type TemplateRow = TableRow<'cw_report_templates'>;
 type LocationJoin = { name: string | null };
@@ -112,19 +108,17 @@ export class ReportsNewService {
   ) {}
 
   async findAll(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     searchTerm?: string,
   ): Promise<ReportTemplateDto[]> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const devices = await this.listManagedDevices(userId, isStaff);
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) return [];
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const { data: assignmentsData, error: assignmentsError } = await client
       .from('cw_device_report_assignments')
       .select(
@@ -147,11 +141,11 @@ export class ReportsNewService {
 
     const [templates, schedule, recipients, alertPoints, dpSchedules] =
       await Promise.all([
-        this.loadTemplatesByIds(accessToken, templateIds),
-        this.loadScheduleByTemplateIds(accessToken, templateIds),
-        this.loadRecipientsByTemplateIds(accessToken, templateIds),
-        this.loadAlertPointsByTemplateIds(accessToken, templateIds),
-        this.loadDataProcessingSchedulesByTemplateIds(accessToken, templateIds),
+        this.loadTemplatesByIds(templateIds),
+        this.loadScheduleByTemplateIds(templateIds),
+        this.loadRecipientsByTemplateIds(templateIds),
+        this.loadAlertPointsByTemplateIds(templateIds),
+        this.loadDataProcessingSchedulesByTemplateIds(templateIds),
       ]);
 
     const reports = buildReportTemplates({
@@ -171,20 +165,18 @@ export class ReportsNewService {
 
   async findOne(
     id: number,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<ReportTemplateDto> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const devices = await this.listManagedDevices(userId, isStaff);
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) {
       throw new NotFoundException('Report template not found');
     }
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const [templateResult, assignmentsResult] = await Promise.all([
       client
         .from('cw_report_templates')
@@ -223,10 +215,10 @@ export class ReportsNewService {
     }
 
     const [schedule, recipients, alertPoints, dpSchedules] = await Promise.all([
-      this.loadScheduleByTemplateIds(accessToken, [id]),
-      this.loadRecipientsByTemplateIds(accessToken, [id]),
-      this.loadAlertPointsByTemplateIds(accessToken, [id]),
-      this.loadDataProcessingSchedulesByTemplateIds(accessToken, [id]),
+      this.loadScheduleByTemplateIds([id]),
+      this.loadRecipientsByTemplateIds([id]),
+      this.loadAlertPointsByTemplateIds([id]),
+      this.loadDataProcessingSchedulesByTemplateIds([id]),
     ]);
 
     const [report] = buildReportTemplates({
@@ -248,18 +240,16 @@ export class ReportsNewService {
 
   async create(
     payload: SaveReportTemplateDto,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<ReportTemplateDto> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
     const normalized = normalizeSaveRequest(payload);
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const devices = await this.listManagedDevices(userId, isStaff);
     assertDevicesCanBeManaged(devices, normalized.devEuis);
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const { data: templateData, error: templateError } = await client
       .from('cw_report_templates')
       .insert({
@@ -283,31 +273,28 @@ export class ReportsNewService {
 
     try {
       await this.replaceTemplateChildren(
-        accessToken,
         templateData.id,
         normalized,
       );
     } catch (error) {
-      await this.deleteTemplateBestEffort(accessToken, templateData.id);
+      await this.deleteTemplateBestEffort(templateData.id);
       throw error;
     }
 
-    return this.findOne(templateData.id, jwtPayload, authHeader);
+    return this.findOne(templateData.id, user);
   }
 
   async update(
     id: number,
     payload: SaveReportTemplateDto,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<ReportTemplateDto> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
     const normalized = normalizeSaveRequest(payload);
-    const existing = await this.findOne(id, jwtPayload, authHeader);
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const existing = await this.findOne(id, user);
+    const devices = await this.listManagedDevices(userId, isStaff);
 
     const allDevEuis = uniqueValues([
       ...existing.assignments.map((assignment) => assignment.devEui),
@@ -315,7 +302,7 @@ export class ReportsNewService {
     ]);
     assertDevicesCanBeManaged(devices, allDevEuis);
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const { error: updateError } = await client
       .from('cw_report_templates')
       .update({
@@ -333,30 +320,28 @@ export class ReportsNewService {
       );
     }
 
-    await this.replaceTemplateChildren(accessToken, id, normalized);
+    await this.replaceTemplateChildren(id, normalized);
 
-    return this.findOne(id, jwtPayload, authHeader);
+    return this.findOne(id, user);
   }
 
   async remove(
     id: number,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<{ id: number }> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
-    const existing = await this.findOne(id, jwtPayload, authHeader);
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const existing = await this.findOne(id, user);
+    const devices = await this.listManagedDevices(userId, isStaff);
     assertDevicesCanBeManaged(
       devices,
       existing.assignments.map((assignment) => assignment.devEui),
     );
 
-    await this.deleteTemplateChildren(accessToken, id);
+    await this.deleteTemplateChildren(id);
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const { error } = await client
       .from('cw_report_templates')
       .delete()
@@ -372,17 +357,16 @@ export class ReportsNewService {
   }
 
   async getFormContext(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     templateId?: number,
   ): Promise<ReportFormContextDto> {
     const [devicesPage, locations, communicationMethods, template] =
       await Promise.all([
-        this.devicesService.findAll(jwtPayload, authHeader),
-        this.locationsService.findAll(jwtPayload, authHeader),
-        this.findAllCommunicationMethods(authHeader),
+        this.devicesService.findAll(user),
+        this.locationsService.findAll(user),
+        this.findAllCommunicationMethods(),
         typeof templateId === 'number'
-          ? this.findOne(templateId, jwtPayload, authHeader)
+          ? this.findOne(templateId, user)
           : Promise.resolve(null),
       ]);
 
@@ -394,12 +378,9 @@ export class ReportsNewService {
     };
   }
 
-  async findAllCommunicationMethods(
-    authHeader: string,
-  ): Promise<CommunicationMethodDto[]> {
-    const accessToken = getAccessToken(authHeader);
+  async findAllCommunicationMethods(): Promise<CommunicationMethodDto[]> {
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('communication_methods')
       .select('communication_method_id, name, is_active')
       .eq('is_active', true)
@@ -420,14 +401,12 @@ export class ReportsNewService {
 
   async getHistory(
     id: number,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<ReportTemplateHistoryItemDto[]> {
     // Reuse findOne so a hidden or non-existent template returns 404 instead of
     // an empty list.
-    const template = await this.findOne(id, jwtPayload, authHeader);
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
+    const template = await this.findOne(id, user);
+    const client = this.supabaseService.getClient();
 
     const devEuis = uniqueValues(
       template.assignments.map((assignment) => assignment.devEui),
@@ -480,12 +459,10 @@ export class ReportsNewService {
   async getDownloadUrl(
     devEui: string,
     reportName: string,
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<{ url: string }> {
-    const userId = getUserId(jwtPayload);
-    const accessToken = getAccessToken(authHeader);
-    const isStaff = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isStaff = user.isStaff;
 
     const normalizedDevEui = devEui?.trim();
     const normalizedName = reportName?.trim();
@@ -508,7 +485,7 @@ export class ReportsNewService {
       ? normalizedName
       : `${normalizedName}.pdf`;
 
-    const devices = await this.listManagedDevices(userId, accessToken, isStaff);
+    const devices = await this.listManagedDevices(userId, isStaff);
     const device = devices.find((entry) => entry.devEui === normalizedDevEui);
     if (!device || !device.canView) {
       throw new UnauthorizedException(
@@ -518,7 +495,7 @@ export class ReportsNewService {
 
     const storageClient =
       this.supabaseService.getAdminClient() ??
-      this.supabaseService.getClient(accessToken);
+      this.supabaseService.getClient();
     const { data, error } = await storageClient.storage
       .from(STORAGE_BUCKET)
       .createSignedUrl(`${normalizedDevEui}/${resolvedName}`, 60, {
@@ -536,10 +513,9 @@ export class ReportsNewService {
 
   private async listManagedDevices(
     userId: string,
-    accessToken: string,
-    isStaff: boolean,
+        isStaff: boolean,
   ): Promise<ManagedDevice[]> {
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const { data, error } = await client
       .from('cw_devices')
       .select('dev_eui, name, user_id, cw_device_owners(*)');
@@ -586,13 +562,12 @@ export class ReportsNewService {
   }
 
   private async loadTemplatesByIds(
-    accessToken: string,
-    templateIds: number[],
+        templateIds: number[],
   ): Promise<TemplateRow[]> {
     if (templateIds.length === 0) return [];
 
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_report_templates')
       .select(
         'created_at, data_pull_interval, description, device_type_id, id, is_active, name',
@@ -607,13 +582,12 @@ export class ReportsNewService {
   }
 
   private async loadScheduleByTemplateIds(
-    accessToken: string,
-    templateIds: number[],
+        templateIds: number[],
   ): Promise<ScheduleRow[]> {
     if (templateIds.length === 0) return [];
 
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_report_template_schedule')
       .select(
         'created_at, end_of_day, end_of_month, end_of_week, id, is_active, template_id, utc_offset',
@@ -628,13 +602,12 @@ export class ReportsNewService {
   }
 
   private async loadRecipientsByTemplateIds(
-    accessToken: string,
-    templateIds: number[],
+        templateIds: number[],
   ): Promise<RecipientRow[]> {
     if (templateIds.length === 0) return [];
 
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_report_template_recipients')
       .select('communication_method, created_at, email, id, name, template_id')
       .in('template_id', templateIds);
@@ -649,13 +622,12 @@ export class ReportsNewService {
   }
 
   private async loadAlertPointsByTemplateIds(
-    accessToken: string,
-    templateIds: number[],
+        templateIds: number[],
   ): Promise<AlertPointRow[]> {
     if (templateIds.length === 0) return [];
 
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_report_template_alert_points')
       .select(
         'created_at, data_point_key, hex_color, id, max, min, name, operator, template_id, value',
@@ -672,13 +644,12 @@ export class ReportsNewService {
   }
 
   private async loadDataProcessingSchedulesByTemplateIds(
-    accessToken: string,
-    templateIds: number[],
+        templateIds: number[],
   ): Promise<DataProcessingScheduleRow[]> {
     if (templateIds.length === 0) return [];
 
     const { data, error } = await this.supabaseService
-      .getClient(accessToken)
+      .getClient()
       .from('cw_report_template_data_processing_schedules')
       .select(
         'created_at, crosses_midnight, day_of_week, end_time, id, is_enabled, rule_type, start_time, template_id, timezone, updated_at, valid_from, valid_to',
@@ -695,13 +666,12 @@ export class ReportsNewService {
   }
 
   private async replaceTemplateChildren(
-    accessToken: string,
-    templateId: number,
+        templateId: number,
     payload: NormalizedSaveRequest,
   ): Promise<void> {
-    await this.deleteTemplateChildren(accessToken, templateId);
+    await this.deleteTemplateChildren(templateId);
 
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
 
     const assignments = payload.devEuis.map((devEui) => ({
       dev_eui: devEui,
@@ -799,10 +769,9 @@ export class ReportsNewService {
   }
 
   private async deleteTemplateChildren(
-    accessToken: string,
-    templateId: number,
+        templateId: number,
   ): Promise<void> {
-    const client = this.supabaseService.getClient(accessToken);
+    const client = this.supabaseService.getClient();
     const [assignments, schedule, recipients, alertPoints, dpSchedules] =
       await Promise.all([
         client
@@ -855,13 +824,12 @@ export class ReportsNewService {
   }
 
   private async deleteTemplateBestEffort(
-    accessToken: string,
-    templateId: number,
+        templateId: number,
   ): Promise<void> {
     try {
-      await this.deleteTemplateChildren(accessToken, templateId);
+      await this.deleteTemplateChildren(templateId);
       await this.supabaseService
-        .getClient(accessToken)
+        .getClient()
         .from('cw_report_templates')
         .delete()
         .eq('id', templateId);

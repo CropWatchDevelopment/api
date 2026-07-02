@@ -131,7 +131,7 @@ describe('DevicesService', () => {
     );
 
     const result = await latestDataService.findAllLatestData(
-      { sub: 'user-1' },
+      { sub: 'user-1', email: null, isStaff: false },
       0,
       25,
       'Bearer test-token',
@@ -187,7 +187,7 @@ describe('DevicesService', () => {
 
     await expect(
       deviceService.findOne(
-        { sub: 'staff-1', email: 'staff@cropwatch.io' },
+        { sub: 'staff-1', email: 'staff@cropwatch.io', isStaff: true },
         'DEV-001',
         'Bearer test-token',
       ),
@@ -201,7 +201,7 @@ describe('DevicesService', () => {
   });
 
   describe('updateDevice location moves', () => {
-    const jwt = { sub: 'mover-1', email: 'mover@example.com' };
+    const jwt = { sub: 'mover-1', email: 'mover@example.com', isStaff: false };
 
     function createPermissionCheckBuilder(deviceRow: unknown) {
       return {

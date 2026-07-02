@@ -64,7 +64,7 @@ describe('LocationsService', () => {
     const service = createService(client);
 
     await expect(
-      service.findOne(123, { sub: 'user-1' }, 'Bearer token-1'),
+      service.findOne(123, { sub: 'user-1', email: null, isStaff: false }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(locationQuery.maybeSingle).toHaveBeenCalledTimes(1);
   });
@@ -90,7 +90,7 @@ describe('LocationsService', () => {
     await expect(
       service.findOne(
         83,
-        { sub: 'staff-1', email: 'staff@cropwatch.io' },
+        { sub: 'staff-1', email: 'staff@cropwatch.io', isStaff: true },
         'Bearer token-1',
       ),
     ).resolves.toEqual({
@@ -130,7 +130,7 @@ describe('LocationsService', () => {
     await expect(
       service.findOne(
         84,
-        { sub: 'user-1', email: 'farmer@example.com' },
+        { sub: 'user-1', email: 'farmer@example.com', isStaff: false },
         'Bearer token-1',
       ),
     ).resolves.toEqual({
@@ -175,7 +175,7 @@ describe('LocationsService', () => {
           is_active: true,
         },
         true,
-        { sub: 'admin-1' },
+        { sub: 'admin-1', email: null, isStaff: false },
         'Bearer token-1',
       ),
     ).rejects.toBeInstanceOf(InternalServerErrorException);

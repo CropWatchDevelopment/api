@@ -8,11 +8,6 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
-import {
-  getAccessToken,
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import { LocationsService } from '../locations/locations.service';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
 import { CreateDeviceDto } from './dto/create-device.dto';
@@ -21,6 +16,7 @@ import {
   PermissionLevel,
   READ_EXCLUSIVE_CEILING,
 } from '../common/permission-levels';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 export interface PagedDevicesResponse<T> {
   total?: number;
@@ -39,18 +35,16 @@ export class DevicesService {
   ) {}
 
   async findAll(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     skip: number = 0,
     take?: number,
     searchGroup?: string,
     searchName?: string,
     searchLocation?: string,
   ): Promise<PagedDevicesResponse<TableRow<'cw_devices'>>> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
 
     let devicesQuery = client.from('cw_devices').select(
       `
@@ -105,14 +99,12 @@ export class DevicesService {
   }
 
   async findOne(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     devEui: string,
-    authHeader: string,
   ): Promise<TableRow<'cw_devices'>> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -149,13 +141,11 @@ export class DevicesService {
   }
 
   public async findAllStatus(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<{ online: number; offline: number }> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
 
     let query = client
       .from('cw_devices')
@@ -205,13 +195,11 @@ export class DevicesService {
   }
 
   public async findAllDeviceGroups(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<{ group: string | null; count: number }[]> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
 
     let query = client
       .from('cw_devices')
@@ -247,12 +235,10 @@ export class DevicesService {
   }
 
   public async findAllDeviceTypes(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
   ): Promise<{ type: string | null; count: number }[]> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
 
     const { data: types, error } = await client
       .from('cw_device_type')
@@ -270,20 +256,17 @@ export class DevicesService {
   }
 
   public async findData(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     devEui: string,
     skip: number = 0,
     take: number = 144,
-    authHeader: string,
   ): Promise<PagedDevicesResponse<any>> {
     this.logger.log(
       `findData called: devEui=${devEui}, skip=${skip}, take=${take}`,
     );
-
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       this.logger.warn('findData: dev_eui is empty or missing');
@@ -402,9 +385,8 @@ export class DevicesService {
   }
 
   public async findDataWithinRange(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     devEui: string,
-    authHeader: string,
     start: Date | string = new Date(
       Date.now() - 24 * 60 * 60 * 1000,
     ).toISOString(),
@@ -412,10 +394,9 @@ export class DevicesService {
     skip: number = 0,
     take: number = 144,
   ): Promise<PagedDevicesResponse<any>> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -488,19 +469,17 @@ export class DevicesService {
   }
 
   public async findAllLatestData(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     skip: number = 0,
     take: number = 10,
-    authHeader: string,
     searchGroup?: string,
     searchName?: string,
     searchLocation?: string,
     locationGroup?: string,
   ): Promise<PagedDevicesResponse<any>> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const hasLocationFilter =
       typeof searchLocation === 'string' && searchLocation.trim().length > 0;
     const locationIdFilter = hasLocationFilter
@@ -656,14 +635,12 @@ export class DevicesService {
   }
 
   public async findAllDevicesInLocation(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     locationId: number,
-    authHeader: string,
   ): Promise<TableRow<'cw_devices'>[]> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
 
     let query = client
       .from('cw_devices')
@@ -688,15 +665,13 @@ export class DevicesService {
   }
 
   public async findLatestData(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     devEui: string,
-    authHeader: string,
     primaryAndSecondaryOnly = false,
   ) {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -775,15 +750,13 @@ export class DevicesService {
   }
 
   public async createDevice(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     devEui: string,
     device: CreateDeviceDto,
-    authHeader: string,
   ) {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -795,8 +768,7 @@ export class DevicesService {
     }
     const location = await this.locationsService.findOne(
       device.location_id,
-      jwtPayload,
-      authHeader,
+      user,
     );
     if (!location) {
       throw new BadRequestException('Invalid location');
@@ -874,16 +846,14 @@ export class DevicesService {
   }
 
   async replaceDevice(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     devEui: string,
     newDevice: CreateDeviceDto,
-    authHeader: string,
   ) {
     // Ensure user has access to the device they want to replace
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -962,16 +932,14 @@ export class DevicesService {
   }
 
   async updatePermissionLevel(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     devEui: string,
     targetUserEmail: string,
     permissionLevel: number,
-    authHeader: string,
   ) {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -1037,17 +1005,15 @@ export class DevicesService {
   }
 
   async updateDevice(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     devEui: string,
     name: string,
     group: string | null,
     location_id: number,
-    authHeader: string,
   ) {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');

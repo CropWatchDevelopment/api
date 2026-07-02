@@ -5,16 +5,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { getUserId } from '../../supabase/supabase-token.helper';
 import type { TableRow } from '../types/supabase';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Injectable()
 export class GatewayService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async findAll(jwtPayload: any): Promise<TableRow<'cw_gateways'>[]> {
+  async findAll(user: AuthenticatedUser): Promise<TableRow<'cw_gateways'>[]> {
     const client = this.supabaseService.getClient();
-    const userId = getUserId(jwtPayload);
+    const userId = user.sub;
 
     const { data: ownedGateways, error: ownedGatewaysError } = await client
       .from('cw_gateways')
@@ -53,7 +53,7 @@ export class GatewayService {
 
   async findOne(
     gatewayIdentifier: string,
-    jwtPayload: any,
+    user: AuthenticatedUser,
   ): Promise<TableRow<'cw_gateways'>> {
     const normalizedGatewayIdentifier = gatewayIdentifier?.trim();
     if (!normalizedGatewayIdentifier) {
@@ -61,7 +61,7 @@ export class GatewayService {
     }
 
     const client = this.supabaseService.getClient();
-    const userId = getUserId(jwtPayload);
+    const userId = user.sub;
 
     const query = client
       .from('cw_gateways')

@@ -9,8 +9,6 @@ import {
   Param,
   Patch,
   Post,
-  Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -27,6 +25,8 @@ import {
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { JwtAuthGuard } from '../../v1/auth/guards/jwt.auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { PulseRelayDto } from './dto/pulse-relay.dto';
 import { UpdateRelayDto } from './dto/update-relay.dto';
 import { RelayService } from './relay.service';
@@ -82,17 +82,15 @@ export class RelayController {
   @ApiOperation({
     summary: 'Get the latest relay values for a device',
   })
-  getLatestRelay(@Param('dev_eui') devEui: string, @Req() req) {
+  getLatestRelay(
+    @Param('dev_eui') devEui: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const authHeader = req.headers?.authorization;
-    if (!authHeader) {
-      throw new UnauthorizedException('Missing bearer token');
-    }
-
-    return this.relayService.getLatestRelay(req.user, authHeader, devEui);
+    return this.relayService.getLatestRelay(user, devEui);
   }
 
   @Patch(':dev_eui')
@@ -112,19 +110,9 @@ export class RelayController {
   updateRelay(
     @Param('dev_eui') devEui: string,
     @Body() updateRelayDto: UpdateRelayDto,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    const authHeader = req.headers?.authorization;
-    if (!authHeader) {
-      throw new UnauthorizedException('Missing bearer token');
-    }
-
-    return this.relayService.updateRelay(
-      req.user,
-      authHeader,
-      devEui,
-      updateRelayDto,
-    );
+    return this.relayService.updateRelay(user, devEui, updateRelayDto);
   }
 
   @Post(':dev_eui/pulse')
@@ -145,19 +133,9 @@ export class RelayController {
   pulseRelay(
     @Param('dev_eui') devEui: string,
     @Body() pulseRelayDto: PulseRelayDto,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    const authHeader = req.headers?.authorization;
-    if (!authHeader) {
-      throw new UnauthorizedException('Missing bearer token');
-    }
-
-    return this.relayService.pulseRelay(
-      req.user,
-      authHeader,
-      devEui,
-      pulseRelayDto,
-    );
+    return this.relayService.pulseRelay(user, devEui, pulseRelayDto);
   }
 
   @Post('tti/up')

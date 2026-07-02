@@ -24,33 +24,23 @@ describe('GatewayController', () => {
     expect(controller).toBeDefined();
   });
 
-  it('passes gateway id and authenticated request data to the service', () => {
+  it('passes gateway id and authenticated user to the service', () => {
+    const user = { sub: 'user-123', email: null, isStaff: false };
     const gateway = { gateway_id: 'gw-001' };
     gatewayService.findOne.mockReturnValue(gateway);
 
-    expect(
-      controller.findOne('gw-001', {
-        user: { sub: 'user-123' },
-        headers: { authorization: 'Bearer access-token' },
-      }),
-    ).toBe(gateway);
+    expect(controller.findOne('gw-001', user)).toBe(gateway);
 
-    expect(gatewayService.findOne).toHaveBeenCalledWith('gw-001', {
-      sub: 'user-123',
-    });
+    expect(gatewayService.findOne).toHaveBeenCalledWith('gw-001', user);
   });
 
-  it('passes authenticated request data to find all gateways', () => {
+  it('passes the authenticated user to find all gateways', () => {
+    const user = { sub: 'user-123', email: null, isStaff: false };
     const gateways = [{ gateway_id: 'gw-001' }];
     gatewayService.findAll.mockReturnValue(gateways);
 
-    expect(
-      controller.findAll({
-        user: { sub: 'user-123' },
-        headers: { authorization: 'Bearer access-token' },
-      }),
-    ).toBe(gateways);
+    expect(controller.findAll(user)).toBe(gateways);
 
-    expect(gatewayService.findAll).toHaveBeenCalledWith({ sub: 'user-123' });
+    expect(gatewayService.findAll).toHaveBeenCalledWith(user);
   });
 });

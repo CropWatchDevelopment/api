@@ -5,7 +5,6 @@ import {
   Param,
   Query,
   UseGuards,
-  Req,
 } from '@nestjs/common';
 import { TrafficService } from './traffic.service';
 import { TrafficDataDto } from './dto/traffic-data.dto';
@@ -23,15 +22,17 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Controller({ path: 'traffic', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
+@UseGuards(JwtAuthGuard)
 export class TrafficController {
   constructor(private readonly trafficService: TrafficService) {}
 
   @Get(':dev_eui')
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Traffic data returned successfully.',
     type: TrafficDataDto,
@@ -91,7 +92,7 @@ export class TrafficController {
   })
   findOne(
     @Param('dev_eui') devEui: string,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('timezone') timezone?: string,
@@ -119,13 +120,12 @@ export class TrafficController {
       devEui,
       startDate,
       endDate,
-      req.user,
+      user,
       timezone,
     );
   }
 
   @Get(':dev_eui/monthly')
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Monthly traffic report returned successfully.',
     type: TrafficMonthlyReportDto,
@@ -166,7 +166,7 @@ export class TrafficController {
   getMonthlyReport(
     @Param('dev_eui') devEui: string,
     @Query() query: TrafficReportDto,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!devEui) {
       throw new BadRequestException('dev_eui is required');
@@ -175,7 +175,7 @@ export class TrafficController {
       devEui,
       query.year,
       query.month,
-      req.user,
+      user,
       query.timezone,
     );
   }
