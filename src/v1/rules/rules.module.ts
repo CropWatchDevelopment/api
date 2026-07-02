@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { SupabaseModule } from '../../supabase/supabase.module';
 import { DevicesModule } from '../devices/devices.module';
 import { LocationsModule } from '../locations/locations.module';
-import { RulesNewController } from './rules-new.controller';
-import { RulesNewService } from './rules-new.service';
+import { RulesController } from './rules.controller';
+import { RulesService } from './rules.service';
 
 @Module({
   imports: [SupabaseModule, DevicesModule, LocationsModule],
-  controllers: [RulesNewController],
-  providers: [RulesNewService],
+  controllers: [RulesController],
+  providers: [RulesService],
 })
-export class RulesNewModule {}
+export class RulesModule {}

@@ -23,16 +23,16 @@ import { ReportFormContextDto } from './dto/report-form-context.dto';
 import { ReportTemplateDto } from './dto/report-template.dto';
 import { ReportTemplateHistoryItemDto } from './dto/report-template-history-item.dto';
 import { SaveReportTemplateDto } from './dto/save-report-template.dto';
-import { ReportsNewService } from './reports-new.service';
+import { ReportsService } from './reports.service';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
-@Controller({ path: 'reports-new', version: '1' })
+@Controller({ path: 'reports', version: '1' })
 @UseGuards(JwtAuthGuard)
-export class ReportsNewController {
-  constructor(private readonly reportsNewService: ReportsNewService) {}
+export class ReportsController {
+  constructor(private readonly reportsService: ReportsService) {}
   @ApiOkResponse({
     description: 'Lists every report template visible to the current user.',
     type: ReportTemplateDto,
@@ -48,7 +48,7 @@ export class ReportsNewController {
     @CurrentUser() user: AuthenticatedUser,
     @Query('search') search?: string,
   ) {
-    return this.reportsNewService.findAll(user, search);
+    return this.reportsService.findAll(user, search);
   }
   @ApiOkResponse({
     description:
@@ -58,11 +58,11 @@ export class ReportsNewController {
   })
   @Get('communication-methods')
   findAllCommunicationMethods() {
-    return this.reportsNewService.findAllCommunicationMethods();
+    return this.reportsService.findAllCommunicationMethods();
   }
   @ApiOkResponse({
     description:
-      'Bundled data needed to render the reports-new create/edit form: devices (with cw_locations join), locations, communication methods, and optionally a template.',
+      'Bundled data needed to render the reports create/edit form: devices (with cw_locations join), locations, communication methods, and optionally a template.',
     type: ReportFormContextDto,
   })
   @ApiQuery({
@@ -79,7 +79,7 @@ export class ReportsNewController {
   ) {
     const parsed = templateId !== undefined ? Number(templateId) : NaN;
     const id = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
-    return this.reportsNewService.getFormContext(user, id);
+    return this.reportsService.getFormContext(user, id);
   }
   @ApiOkResponse({
     description:
@@ -95,7 +95,7 @@ export class ReportsNewController {
     @Param('reportName') reportName: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.reportsNewService.getDownloadUrl(devEui, reportName, user);
+    return this.reportsService.getDownloadUrl(devEui, reportName, user);
   }
   @ApiOkResponse({
     description:
@@ -108,7 +108,7 @@ export class ReportsNewController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.reportsNewService.getHistory(id, user);
+    return this.reportsService.getHistory(id, user);
   }
   @ApiOkResponse({
     description: 'Returns a single report template the user can view.',
@@ -120,7 +120,7 @@ export class ReportsNewController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.reportsNewService.findOne(id, user);
+    return this.reportsService.findOne(id, user);
   }
   @ApiOkResponse({
     description:
@@ -134,7 +134,7 @@ export class ReportsNewController {
     @Body() body: SaveReportTemplateDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.reportsNewService.create(body, user);
+    return this.reportsService.create(body, user);
   }
   @ApiOkResponse({
     description: 'Replaces a report template with the provided configuration.',
@@ -148,7 +148,7 @@ export class ReportsNewController {
     @Body() body: SaveReportTemplateDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.reportsNewService.update(id, body, user);
+    return this.reportsService.update(id, body, user);
   }
   @ApiOkResponse({
     description: 'Deletes a report template the user manages.',
@@ -162,6 +162,6 @@ export class ReportsNewController {
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.reportsNewService.remove(id, user);
+    return this.reportsService.remove(id, user);
   }
 }

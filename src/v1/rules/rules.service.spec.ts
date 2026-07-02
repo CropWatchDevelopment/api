@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
-import { RulesNewService } from './rules-new.service';
+import { RulesService } from './rules.service';
 
 type StubResult = { data: unknown; error: unknown };
 
@@ -65,13 +65,13 @@ function buildQueryStub(handlers: {
   return stub as QueryStub;
 }
 
-describe('RulesNewService', () => {
-  let service: RulesNewService;
+describe('RulesService', () => {
+  let service: RulesService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        RulesNewService,
+        RulesService,
         {
           provide: SupabaseService,
           useValue: {
@@ -90,7 +90,7 @@ describe('RulesNewService', () => {
       ],
     }).compile();
 
-    service = module.get<RulesNewService>(RulesNewService);
+    service = module.get<RulesService>(RulesService);
   });
 
   it('should be defined', () => {
@@ -105,7 +105,7 @@ describe('RulesNewService', () => {
       from: jest.fn(() => devicesQuery),
     };
 
-    const serviceWithClient = new RulesNewService(
+    const serviceWithClient = new RulesService(
       {
         getClient: jest.fn(() => client),
         getAdminClient: jest.fn(),
@@ -144,7 +144,7 @@ describe('RulesNewService', () => {
       from: jest.fn(() => devicesQuery),
     };
 
-    const serviceWithClient = new RulesNewService(
+    const serviceWithClient = new RulesService(
       {
         getClient: jest.fn(() => client),
         getAdminClient: jest.fn(),
@@ -215,7 +215,7 @@ describe('RulesNewService', () => {
       .mockImplementationOnce(() => templateQuery)
       .mockImplementationOnce(() => assignmentsQuery);
 
-    const serviceWithClient = new RulesNewService(
+    const serviceWithClient = new RulesService(
       {
         getClient: jest.fn(() => ({ from: fromMock })),
         getAdminClient: jest.fn(),
@@ -272,7 +272,7 @@ describe('RulesNewService', () => {
     });
 
     it('findAllTriggered returns only templates with triggered assignments, narrowed to those assignments', async () => {
-      const service = new RulesNewService(
+      const service = new RulesService(
         {} as unknown as SupabaseService,
         {} as unknown as DevicesService,
         {} as unknown as LocationsService,
@@ -295,7 +295,7 @@ describe('RulesNewService', () => {
     });
 
     it('findTriggeredCount reports triggered and total counts', async () => {
-      const service = new RulesNewService(
+      const service = new RulesService(
         {} as unknown as SupabaseService,
         {} as unknown as DevicesService,
         {} as unknown as LocationsService,

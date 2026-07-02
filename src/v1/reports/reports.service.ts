@@ -9,7 +9,15 @@ import {
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
-import { MANAGE_CEILING, PermissionLevel } from '../common/permission-levels';
+import {
+  listManagedDevices,
+  type ManagedDevice,
+} from '../common/managed-devices.helper';
+import {
+  groupBy,
+  matchesSearch,
+  uniqueValues,
+} from '../common/collection.helpers';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
 import { CommunicationMethodDto } from './dto/communication-method.dto';
@@ -38,18 +46,8 @@ type AlertPointRow = TableRow<'cw_report_template_alert_points'>;
 type DataProcessingScheduleRow =
   TableRow<'cw_report_template_data_processing_schedules'>;
 type CommunicationMethodRow = TableRow<'communication_methods'>;
-type DeviceRow = TableRow<'cw_devices'>;
-type DeviceOwnerRow = TableRow<'cw_device_owners'>;
 
 const STORAGE_BUCKET = 'Reports';
-
-interface ManagedDevice {
-  devEui: string;
-  name: string | null;
-  permissionLevel: number | null;
-  canView: boolean;
-  canManage: boolean;
-}
 
 interface NormalizedScheduleRow {
   endOfDay: boolean;
@@ -101,7 +99,7 @@ interface NormalizedSaveRequest {
 }
 
 @Injectable()
-export class ReportsNewService {
+export class ReportsService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly devicesService: DevicesService,
@@ -115,7 +113,11 @@ export class ReportsNewService {
     const userId = user.sub;
     const isStaff = user.isStaff;
 
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) return [];
 
@@ -171,7 +173,11 @@ export class ReportsNewService {
     const userId = user.sub;
     const isStaff = user.isStaff;
 
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) {
       throw new NotFoundException('Report template not found');
@@ -247,7 +253,11 @@ export class ReportsNewService {
     const isStaff = user.isStaff;
 
     const normalized = normalizeSaveRequest(payload);
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
     assertDevicesCanBeManaged(devices, normalized.devEuis);
 
     const client = this.supabaseService.getClient();
@@ -304,7 +314,11 @@ export class ReportsNewService {
 
     const normalized = normalizeSaveRequest(payload);
     const existing = await this.findOne(id, user);
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
 
     const allDevEuis = uniqueValues([
       ...existing.assignments.map((assignment) => assignment.devEui),
@@ -340,7 +354,11 @@ export class ReportsNewService {
     const isStaff = user.isStaff;
 
     const existing = await this.findOne(id, user);
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
     assertDevicesCanBeManaged(
       devices,
       existing.assignments.map((assignment) => assignment.devEui),
@@ -492,7 +510,11 @@ export class ReportsNewService {
       ? normalizedName
       : `${normalizedName}.pdf`;
 
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
     const device = devices.find((entry) => entry.devEui === normalizedDevEui);
     if (!device || !device.canView) {
       throw new UnauthorizedException(
@@ -515,56 +537,6 @@ export class ReportsNewService {
     }
 
     return { url: data.signedUrl };
-  }
-
-  private async listManagedDevices(
-    userId: string,
-    isStaff: boolean,
-  ): Promise<ManagedDevice[]> {
-    const client = this.supabaseService.getClient();
-    const { data, error } = await client
-      .from('cw_devices')
-      .select('dev_eui, name, user_id, cw_device_owners(*)');
-
-    if (error) {
-      throw new InternalServerErrorException('Failed to load devices');
-    }
-
-    const rows = (data ?? []) as Array<
-      Pick<DeviceRow, 'dev_eui' | 'name' | 'user_id'> & {
-        cw_device_owners?: DeviceOwnerRow[] | null;
-      }
-    >;
-
-    return rows
-      .map((row): ManagedDevice => {
-        const owners = Array.isArray(row.cw_device_owners)
-          ? row.cw_device_owners
-          : [];
-        const ownEntry = owners.find((entry) => entry.user_id === userId);
-        const directOwner = row.user_id === userId;
-        const permissionLevel = directOwner
-          ? PermissionLevel.ADMIN
-          : (ownEntry?.permission_level ?? null);
-        const canView =
-          isStaff ||
-          directOwner ||
-          (permissionLevel != null &&
-            permissionLevel < PermissionLevel.DISABLED);
-        const canManage =
-          isStaff ||
-          directOwner ||
-          (permissionLevel != null && permissionLevel <= MANAGE_CEILING);
-
-        return {
-          devEui: row.dev_eui,
-          name: row.name?.trim() ? row.name : null,
-          permissionLevel,
-          canView,
-          canManage,
-        };
-      })
-      .filter((device) => device.devEui.length > 0);
   }
 
   private async loadTemplatesByIds(
@@ -1131,16 +1103,6 @@ function assertDevicesCanBeManaged(
   }
 }
 
-function matchesSearch(report: ReportTemplateDto, search: string): boolean {
-  const deviceText = report.assignments
-    .map((assignment) => `${assignment.deviceName ?? ''} ${assignment.devEui}`)
-    .join(' ');
-  return [report.name, report.description ?? '', deviceText]
-    .join(' ')
-    .toLowerCase()
-    .includes(search);
-}
-
 function trimOrNull(value: string | null | undefined): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -1149,22 +1111,4 @@ function trimOrNull(value: string | null | undefined): string | null {
 
 function numberOrNull(value: number | null | undefined): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function groupBy<T, TKey>(items: T[], key: (item: T) => TKey): Map<TKey, T[]> {
-  const result = new Map<TKey, T[]>();
-  for (const item of items) {
-    const groupKey = key(item);
-    const existing = result.get(groupKey);
-    if (existing) {
-      existing.push(item);
-    } else {
-      result.set(groupKey, [item]);
-    }
-  }
-  return result;
-}
-
-function uniqueValues<T extends string | number>(values: T[]): T[] {
-  return [...new Set(values)];
 }

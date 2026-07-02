@@ -8,7 +8,15 @@ import {
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
-import { MANAGE_CEILING, PermissionLevel } from '../common/permission-levels';
+import {
+  listManagedDevices,
+  type ManagedDevice,
+} from '../common/managed-devices.helper';
+import {
+  groupBy,
+  matchesSearch,
+  uniqueValues,
+} from '../common/collection.helpers';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
 import { RuleActionTypeDto } from './dto/rule-action-type.dto';
@@ -32,16 +40,6 @@ type ActionRow = TableRow<'cw_rule_template_actions'> & {
   cw_rule_action_types?: ActionTypeJoin | ActionTypeJoin[] | null;
 };
 type StateRow = TableRow<'cw_rule_state'>;
-type DeviceRow = TableRow<'cw_devices'>;
-type DeviceOwnerRow = TableRow<'cw_device_owners'>;
-
-interface ManagedDevice {
-  devEui: string;
-  name: string | null;
-  permissionLevel: number | null;
-  canView: boolean;
-  canManage: boolean;
-}
 
 interface NormalizedSaveRequest {
   name: string;
@@ -54,7 +52,7 @@ interface NormalizedSaveRequest {
 }
 
 @Injectable()
-export class RulesNewService {
+export class RulesService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly devicesService: DevicesService,
@@ -68,7 +66,11 @@ export class RulesNewService {
     const userId = user.sub;
     const isStaff = user.isStaff;
 
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) return [];
 
@@ -154,7 +156,11 @@ export class RulesNewService {
     const userId = user.sub;
     const isStaff = user.isStaff;
 
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) {
       throw new NotFoundException('Rule template not found');
@@ -228,7 +234,11 @@ export class RulesNewService {
     // an empty list.
     await this.findOne(id, user);
 
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
     const viewableDevices = devices.filter((device) => device.canView);
     const deviceNames = new Map(
       devices.map((device) => [device.devEui, device.name]),
@@ -275,7 +285,11 @@ export class RulesNewService {
     const isStaff = user.isStaff;
 
     const normalized = normalizeSaveRequest(payload);
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
     assertDevicesCanBeManaged(devices, normalized.devEuis);
 
     const client = this.supabaseService.getClient();
@@ -325,7 +339,11 @@ export class RulesNewService {
 
     const normalized = normalizeSaveRequest(payload);
     const existing = await this.findOne(id, user);
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
 
     const allDevEuis = uniqueValues([
       ...existing.assignments.map((assignment) => assignment.devEui),
@@ -359,7 +377,11 @@ export class RulesNewService {
     const isStaff = user.isStaff;
 
     const existing = await this.findOne(id, user);
-    const devices = await this.listManagedDevices(userId, isStaff);
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      userId,
+      isStaff,
+    );
     assertDevicesCanBeManaged(
       devices,
       existing.assignments.map((assignment) => assignment.devEui),
@@ -379,56 +401,6 @@ export class RulesNewService {
     }
 
     return { id };
-  }
-
-  private async listManagedDevices(
-    userId: string,
-    isStaff: boolean,
-  ): Promise<ManagedDevice[]> {
-    const client = this.supabaseService.getClient();
-    const { data, error } = await client
-      .from('cw_devices')
-      .select('dev_eui, name, user_id, cw_device_owners(*)');
-
-    if (error) {
-      throw new InternalServerErrorException('Failed to load devices');
-    }
-
-    const rows = (data ?? []) as Array<
-      Pick<DeviceRow, 'dev_eui' | 'name' | 'user_id'> & {
-        cw_device_owners?: DeviceOwnerRow[] | null;
-      }
-    >;
-
-    return rows
-      .map((row): ManagedDevice => {
-        const owners = Array.isArray(row.cw_device_owners)
-          ? row.cw_device_owners
-          : [];
-        const ownEntry = owners.find((entry) => entry.user_id === userId);
-        const directOwner = row.user_id === userId;
-        const permissionLevel = directOwner
-          ? PermissionLevel.ADMIN
-          : (ownEntry?.permission_level ?? null);
-        const canView =
-          isStaff ||
-          directOwner ||
-          (permissionLevel != null &&
-            permissionLevel < PermissionLevel.DISABLED);
-        const canManage =
-          isStaff ||
-          directOwner ||
-          (permissionLevel != null && permissionLevel <= MANAGE_CEILING);
-
-        return {
-          devEui: row.dev_eui,
-          name: row.name?.trim() ? row.name : null,
-          permissionLevel,
-          canView,
-          canManage,
-        };
-      })
-      .filter((device) => device.devEui.length > 0);
   }
 
   private async loadTemplatesByIds(
@@ -859,32 +831,4 @@ function assertDevicesCanBeManaged(
       'You do not have permission to manage one or more selected devices',
     );
   }
-}
-
-function matchesSearch(rule: RuleTemplateDto, search: string): boolean {
-  const deviceText = rule.assignments
-    .map((assignment) => `${assignment.deviceName ?? ''} ${assignment.devEui}`)
-    .join(' ');
-  return [rule.name, rule.description ?? '', deviceText]
-    .join(' ')
-    .toLowerCase()
-    .includes(search);
-}
-
-function groupBy<T, TKey>(items: T[], key: (item: T) => TKey): Map<TKey, T[]> {
-  const result = new Map<TKey, T[]>();
-  for (const item of items) {
-    const groupKey = key(item);
-    const existing = result.get(groupKey);
-    if (existing) {
-      existing.push(item);
-    } else {
-      result.set(groupKey, [item]);
-    }
-  }
-  return result;
-}
-
-function uniqueValues<T extends string | number>(values: T[]): T[] {
-  return [...new Set(values)];
 }

@@ -12,8 +12,8 @@ import { join } from 'path';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { DevicesModule } from './v1/devices/devices.module';
-import { RulesNewModule } from './v1/rules-new/rules-new.module';
-import { ReportsNewModule } from './v1/reports-new/reports-new.module';
+import { RulesModule } from './v1/rules/rules.module';
+import { ReportsModule } from './v1/reports/reports.module';
 import { LocationsModule } from './v1/locations/locations.module';
 import { RelayModule } from './v1/relay/relay.module';
 import { GatewayModule } from './v1/gateway/gateway.module';
@@ -49,8 +49,8 @@ import { CropwatchMcpModule } from './v1/mcp/mcp.module';
       },
     ]),
     DevicesModule,
-    RulesNewModule,
-    ReportsNewModule,
+    RulesModule,
+    ReportsModule,
     LocationsModule,
     RelayModule,
     GatewayModule,

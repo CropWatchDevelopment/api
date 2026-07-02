@@ -1,24 +1,24 @@
 import { ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { SaveRuleTemplateDto } from './dto/save-rule-template.dto';
-import { RulesNewController } from './rules-new.controller';
-import { RulesNewService } from './rules-new.service';
+import { RulesController } from './rules.controller';
+import { RulesService } from './rules.service';
 
-describe('RulesNewController', () => {
-  let controller: RulesNewController;
+describe('RulesController', () => {
+  let controller: RulesController;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [RulesNewController],
+      controllers: [RulesController],
       providers: [
         {
-          provide: RulesNewService,
+          provide: RulesService,
           useValue: {},
         },
       ],
     }).compile();
 
-    controller = module.get<RulesNewController>(RulesNewController);
+    controller = module.get<RulesController>(RulesController);
   });
 
   it('should be defined', () => {
