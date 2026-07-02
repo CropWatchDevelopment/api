@@ -168,6 +168,18 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         ],
         "type": "object",
       },
+      "UpdateEmailDto": {
+        "properties": {
+          "email": {
+            "example": "user@example.com",
+            "type": "string",
+          },
+        },
+        "required": [
+          "email",
+        ],
+        "type": "object",
+      },
       "UpdateLocationDto": {
         "properties": {
           "created_at": {
@@ -237,6 +249,144 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             "type": "string",
           },
           "user_id": {
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "UpdatePreferencesDto": {
+        "properties": {
+          "area_unit": {
+            "enum": [
+              "hectares",
+              "acres",
+              "square_meters",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "co2_unit": {
+            "enum": [
+              "ppm",
+              "mg_m3",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "date_format": {
+            "enum": [
+              "yyyy_mm_dd",
+              "dd_mm_yyyy",
+              "mm_dd_yyyy",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "distance_unit": {
+            "enum": [
+              "km",
+              "mi",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "ec_unit": {
+            "enum": [
+              "ms_cm",
+              "ds_cm",
+              "us_cm",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "pressure_unit": {
+            "enum": [
+              "hpa",
+              "kpa",
+              "bar",
+              "psi",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "rainfall_unit": {
+            "enum": [
+              "mm",
+              "cm",
+              "in",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "soil_moisture_unit": {
+            "enum": [
+              "vwc_percent",
+              "relative_percent",
+              "kpa",
+              "centibar",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "temperature_unit": {
+            "enum": [
+              "celsius",
+              "fahrenheit",
+              "kelvin",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "theme": {
+            "enum": [
+              "light",
+              "dark",
+              "system",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "time_format": {
+            "enum": [
+              "24h",
+              "12h",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "timezone": {
+            "example": "Asia/Tokyo",
+            "nullable": true,
+            "type": "object",
+          },
+          "water_level_unit": {
+            "enum": [
+              "cm",
+              "mm",
+              "inch",
+              "foot",
+              "meter",
+              "yard",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "weight_unit": {
+            "enum": [
+              "kg",
+              "lb",
+            ],
+            "nullable": true,
+            "type": "string",
+          },
+          "wind_speed_unit": {
+            "enum": [
+              "m_s",
+              "km_h",
+              "mph",
+              "kt",
+            ],
+            "nullable": true,
             "type": "string",
           },
         },
@@ -369,6 +519,20 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
     "/v1/auth": {
       "get": {},
     },
+    "/v1/auth/email": {
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEmailDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
     "/v1/auth/login": {
       "post": {
         "requestBody": {
@@ -390,6 +554,21 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
                   "password",
                 ],
                 "type": "object",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/auth/preferences": {
+      "get": {},
+      "patch": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePreferencesDto",
               },
             },
           },

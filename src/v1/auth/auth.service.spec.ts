@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { SupabaseService } from '../../supabase/supabase.service';
 
@@ -25,6 +26,12 @@ describe('AuthService', () => {
           useValue: {
             getAuthClient: jest.fn().mockReturnValue(mockClient),
             getClient: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(),
           },
         },
       ],
