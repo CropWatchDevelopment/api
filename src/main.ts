@@ -1,12 +1,16 @@
 import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import {
+  SwaggerModule,
+  DocumentBuilder,
+  type OpenAPIObject,
+} from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { getCommit } from './utils/gitCommit';
 import helmet from 'helmet';
 import { join } from 'path';
 import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { STATUS_CODES } from 'http';
-import type { NextFunction, Request, Response } from 'express';
+import type { Express, NextFunction, Request, Response } from 'express';
 
 function getRequesterIp(req: Request): string {
   const forwardedFor = req.headers['x-forwarded-for'];
@@ -27,7 +31,8 @@ async function bootstrap() {
   // the Polar webhook route can verify the signature over the unmodified payload.
   const app = await NestFactory.create(AppModule, { rawBody: true });
   const logger = new Logger('NestApplication');
-  const expressApp = app.getHttpAdapter().getInstance();
+  // The Express adapter's getInstance() is typed `any`; pin it once here.
+  const expressApp = app.getHttpAdapter().getInstance() as Express;
 
   expressApp.set('trust proxy', true);
   app.enableCors();
@@ -118,7 +123,7 @@ Developer notes:
   const documentFactory = () => SwaggerModule.createDocument(app, config);
 
   const fullDoc = SwaggerModule.createDocument(app, config);
-  function filterByPrefix(doc: any, prefix: string) {
+  function filterByPrefix(doc: OpenAPIObject, prefix: string): OpenAPIObject {
     return {
       ...doc,
       paths: Object.fromEntries(
@@ -131,8 +136,12 @@ Developer notes:
   const v2Doc = filterByPrefix(fullDoc, '/v2');
 
   // register raw JSON endpoints on the underlying Express instance
-  expressApp.get('/docs-json-v1', (_req: any, res: any) => res.json(v1Doc));
-  expressApp.get('/docs-json-v2', (_req: any, res: any) => res.json(v2Doc));
+  expressApp.get('/docs-json-v1', (_req: Request, res: Response) =>
+    res.json(v1Doc),
+  );
+  expressApp.get('/docs-json-v2', (_req: Request, res: Response) =>
+    res.json(v2Doc),
+  );
 
   SwaggerModule.setup('docs', app, documentFactory, {
     explorer: true,
@@ -170,4 +179,4 @@ Developer notes:
   );
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

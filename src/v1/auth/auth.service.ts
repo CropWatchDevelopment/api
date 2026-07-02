@@ -7,7 +7,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
+import type { TableRow } from '../types/supabase';
 import type { AuthenticatedUser } from './authenticated-user';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
@@ -15,6 +17,12 @@ import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 // Accounts on these domains are locked to their corporate identity and may not
 // change their email address (checked against the caller's current email).
 const RESTRICTED_EMAIL_CHANGE_DOMAINS = ['@cropwatch.io', '@cropwatch.co.jp'];
+
+type ProfileRow = TableRow<'profiles'>;
+type PreferencesRow = TableRow<'profile_preferences'>;
+
+/** Shape of a PostgREST single/maybeSingle response from the untyped client. */
+type QueryResult<T> = { data: T | null; error: PostgrestError | null };
 
 const PREFERENCE_KEYS = [
   'theme',
@@ -86,11 +94,11 @@ export class AuthService {
   async getUserProfile(user: AuthenticatedUser) {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single();
+      .single()) as QueryResult<ProfileRow>;
 
     if (error) {
       throw new BadRequestException('Failed to fetch user profile');
@@ -132,13 +140,13 @@ export class AuthService {
       typeof normalized.username === 'string' &&
       normalized.username.length > 0
     ) {
-      const { data: existing, error: lookupError } = await client
+      const { data: existing, error: lookupError } = (await client
         .from('profiles')
         .select('id')
         .eq('username', normalized.username)
         .neq('id', userId)
         .limit(1)
-        .maybeSingle();
+        .maybeSingle()) as QueryResult<Pick<ProfileRow, 'id'>>;
 
       if (lookupError) {
         throw new InternalServerErrorException(
@@ -151,12 +159,12 @@ export class AuthService {
       }
     }
 
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('profiles')
       .update(normalized)
       .eq('id', userId)
       .select('*')
-      .single();
+      .single()) as QueryResult<ProfileRow>;
 
     if (error) {
       // Postgres unique-violation, in case the DB has a constraint we bypassed above.
@@ -252,11 +260,11 @@ export class AuthService {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
 
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('profile_preferences')
       .select('*')
       .eq('user_id', userId)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<PreferencesRow>;
     if (error) {
       throw new InternalServerErrorException('Failed to read preferences');
     }
@@ -264,14 +272,14 @@ export class AuthService {
       return data;
     }
 
-    const { data: inserted, error: insertError } = await client
+    const { data: inserted, error: insertError } = (await client
       .from('profile_preferences')
       .upsert(
         { user_id: userId },
         { onConflict: 'user_id', ignoreDuplicates: false },
       )
       .select('*')
-      .single();
+      .single()) as QueryResult<PreferencesRow>;
     if (insertError || !inserted) {
       throw new InternalServerErrorException('Failed to create preferences');
     }
@@ -299,14 +307,14 @@ export class AuthService {
       throw new BadRequestException('No preference fields provided to update');
     }
 
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('profile_preferences')
       .upsert(
         { user_id: userId, ...patch, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' },
       )
       .select('*')
-      .single();
+      .single()) as QueryResult<PreferencesRow>;
 
     if (error) {
       throw new InternalServerErrorException('Failed to update preferences');

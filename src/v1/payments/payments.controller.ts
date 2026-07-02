@@ -16,7 +16,6 @@ import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import {
   ApiBearerAuth,
-  ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiSecurity,

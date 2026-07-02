@@ -110,8 +110,8 @@ describe('RulesNewService', () => {
         getClient: jest.fn(() => client),
         getAdminClient: jest.fn(),
       } as unknown as SupabaseService,
-      {} as any,
-      {} as any,
+      {} as unknown as DevicesService,
+      {} as unknown as LocationsService,
     );
 
     await expect(
@@ -149,8 +149,8 @@ describe('RulesNewService', () => {
         getClient: jest.fn(() => client),
         getAdminClient: jest.fn(),
       } as unknown as SupabaseService,
-      {} as any,
-      {} as any,
+      {} as unknown as DevicesService,
+      {} as unknown as LocationsService,
     );
 
     await expect(
@@ -220,8 +220,8 @@ describe('RulesNewService', () => {
         getClient: jest.fn(() => ({ from: fromMock })),
         getAdminClient: jest.fn(),
       } as unknown as SupabaseService,
-      {} as any,
-      {} as any,
+      {} as unknown as DevicesService,
+      {} as unknown as LocationsService,
     );
 
     await expect(
@@ -272,7 +272,11 @@ describe('RulesNewService', () => {
     });
 
     it('findAllTriggered returns only templates with triggered assignments, narrowed to those assignments', async () => {
-      const service = new RulesNewService({} as any, {} as any, {} as any);
+      const service = new RulesNewService(
+        {} as unknown as SupabaseService,
+        {} as unknown as DevicesService,
+        {} as unknown as LocationsService,
+      );
       jest.spyOn(service, 'findAll').mockResolvedValue([
         buildRule(1, [
           { devEui: 'AA', isTriggered: true },
@@ -291,7 +295,11 @@ describe('RulesNewService', () => {
     });
 
     it('findTriggeredCount reports triggered and total counts', async () => {
-      const service = new RulesNewService({} as any, {} as any, {} as any);
+      const service = new RulesNewService(
+        {} as unknown as SupabaseService,
+        {} as unknown as DevicesService,
+        {} as unknown as LocationsService,
+      );
       jest
         .spyOn(service, 'findAll')
         .mockResolvedValue([

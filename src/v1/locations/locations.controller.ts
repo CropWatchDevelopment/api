@@ -213,7 +213,7 @@ export class LocationsController {
   })
   async updateUserPermissionLevel(
     @Param('id') id: string,
-    @Body() updateLocationUserPermissionLevelDto: any,
+    @Body() updateLocationUserPermissionLevelDto: unknown,
     @Query('applyToAllDevices') applyToAllDevices: string = 'false',
     @CurrentUser() user: AuthenticatedUser,
   ) {

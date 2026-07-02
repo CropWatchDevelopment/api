@@ -164,14 +164,15 @@ describe('RelayService', () => {
       .mockResolvedValue(relayRow);
 
     const originalFetch = global.fetch;
-    global.fetch = jest.fn(
-      async () =>
+    global.fetch = jest.fn(() =>
+      Promise.resolve(
         new Response(JSON.stringify({}), {
           headers: {
             'content-type': 'application/json',
           },
           status: 200,
         }),
+      ),
     ) as typeof fetch;
 
     await expect(
@@ -208,9 +209,9 @@ describe('RelayService', () => {
     });
 
     const originalFetch = global.fetch;
-    global.fetch = jest.fn(async (_input, init) => {
+    global.fetch = jest.fn((_input: RequestInfo | URL, init?: RequestInit) => {
       expect(init?.method).toBe('POST');
-      expect(JSON.parse(String(init?.body))).toEqual({
+      expect(JSON.parse(init?.body as string)).toEqual({
         downlinks: [
           {
             confirmed: false,
@@ -219,7 +220,7 @@ describe('RelayService', () => {
               'cropwatch:kind:pulse',
               'cropwatch:target:on',
               'cropwatch:duration_ms:1000',
-            ]),
+            ]) as string[],
             f_port: 2,
             frm_payload: 'BQERA+g=',
             priority: 'NORMAL',
@@ -227,12 +228,14 @@ describe('RelayService', () => {
         ],
       });
 
-      return new Response(JSON.stringify({}), {
-        headers: {
-          'content-type': 'application/json',
-        },
-        status: 200,
-      });
+      return Promise.resolve(
+        new Response(JSON.stringify({}), {
+          headers: {
+            'content-type': 'application/json',
+          },
+          status: 200,
+        }),
+      );
     }) as typeof fetch;
 
     await expect(
@@ -386,8 +389,19 @@ describe('RelayService', () => {
       .spyOn(service as any, 'findLatestRelayRow')
       .mockResolvedValue(relayRow);
 
+    const persistRelayConfirmation = (
+      service as unknown as {
+        persistRelayConfirmation: (confirmation: {
+          devEui: string;
+          receivedAt: string;
+          relay1?: boolean;
+          relay2?: boolean;
+        }) => Promise<unknown>;
+      }
+    ).persistRelayConfirmation.bind(service);
+
     await expect(
-      (service as any).persistRelayConfirmation({
+      persistRelayConfirmation({
         devEui: 'A8404194635A05FB',
         receivedAt: '2026-04-05T04:23:55.360223162Z',
         relay1: true,

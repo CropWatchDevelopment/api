@@ -57,7 +57,7 @@ export class ReportsNewController {
     isArray: true,
   })
   @Get('communication-methods')
-  findAllCommunicationMethods(@CurrentUser() user: AuthenticatedUser) {
+  findAllCommunicationMethods() {
     return this.reportsNewService.findAllCommunicationMethods();
   }
   @ApiOkResponse({

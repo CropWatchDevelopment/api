@@ -7,10 +7,27 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { PaymentsService } from '../payments/payments.service';
 
 describe('LocationsService', () => {
-  type QueryResult = { data: any; error: any };
+  type QueryResult = { data: unknown; error: unknown };
 
-  const createBuilder = (result: QueryResult) => {
-    const builder: any = {
+  type QueryBuilder = {
+    data: unknown;
+    error: unknown;
+    select: jest.Mock;
+    eq: jest.Mock;
+    gt: jest.Mock;
+    lt: jest.Mock;
+    lte: jest.Mock;
+    or: jest.Mock;
+    order: jest.Mock;
+    maybeSingle: jest.Mock;
+    single: jest.Mock;
+    upsert: jest.Mock;
+    insert: jest.Mock;
+    delete: jest.Mock;
+  };
+
+  const createBuilder = (result: QueryResult): QueryBuilder => {
+    const builder: QueryBuilder = {
       data: result.data,
       error: result.error,
       select: jest.fn(() => builder),
@@ -20,8 +37,8 @@ describe('LocationsService', () => {
       lte: jest.fn(() => builder),
       or: jest.fn(() => builder),
       order: jest.fn(() => builder),
-      maybeSingle: jest.fn(async () => result),
-      single: jest.fn(async () => result),
+      maybeSingle: jest.fn(() => Promise.resolve(result)),
+      single: jest.fn(() => Promise.resolve(result)),
       upsert: jest.fn(() => builder),
       insert: jest.fn(() => builder),
       delete: jest.fn(() => builder),
@@ -29,24 +46,24 @@ describe('LocationsService', () => {
     return builder;
   };
 
-  const createClient = (queues: Record<string, any[]>) => ({
-    from: jest.fn((table: string) => {
+  const createClient = (queues: Record<string, QueryBuilder[]>) => ({
+    from: jest.fn((table: string): QueryBuilder => {
       const tableQueue = queues[table];
       if (!tableQueue || tableQueue.length === 0) {
         throw new Error(`No mock builder available for table: ${table}`);
       }
-      return tableQueue.shift();
+      return tableQueue.shift() as QueryBuilder;
     }),
   });
 
-  const createService = (client: any) =>
+  const createService = (client: ReturnType<typeof createClient>) =>
     new LocationsService(
       {
         getClient: jest.fn(() => client),
         getAdminClient: jest.fn(),
       } as unknown as SupabaseService,
       {
-        hasActiveBaseSubscription: jest.fn(async () => true),
+        hasActiveBaseSubscription: jest.fn(() => Promise.resolve(true)),
       } as unknown as PaymentsService,
     );
 

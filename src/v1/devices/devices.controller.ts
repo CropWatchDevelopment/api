@@ -143,8 +143,8 @@ export class DevicesController {
     description: `
     Returns the device types for the authenticated user.`,
   })
-  findAllDeviceTypes(@CurrentUser() user: AuthenticatedUser) {
-    return this.devicesService.findAllDeviceTypes(user);
+  findAllDeviceTypes() {
+    return this.devicesService.findAllDeviceTypes();
   }
 
   @Get('latest-primary-data')
@@ -434,11 +434,7 @@ export class DevicesController {
     Please contact support if you would like this feature to be prioritized.
     `,
   })
-  create(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('dev_eui') devEui: string,
-    @Body() _body?: unknown,
-  ) {
+  create(@Param('dev_eui') _devEui: string) {
     throw new NotImplementedException(
       'Device creation is not yet implemented. Please contact support if you would like this feature to be prioritized.',
     );
@@ -455,7 +451,7 @@ export class DevicesController {
     Please contact support if you would like this feature to be prioritized.
     `,
   })
-  replace(
+  async replace(
     @CurrentUser() user: AuthenticatedUser,
     @Param('dev_eui') devEui: string,
     @Body() body: ReplaceDeviceDto,
@@ -469,7 +465,7 @@ export class DevicesController {
 
     const replacementDevice: ReplaceDeviceDto = body;
 
-    const insertResult = this.devicesService.replaceDevice(
+    const insertResult = await this.devicesService.replaceDevice(
       user,
       normalizedDevEui,
       replacementDevice,

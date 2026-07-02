@@ -3,15 +3,14 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
-  NotImplementedException,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { CreateLocationOwnerDto } from './dto/create-location-owner.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { PaymentsService } from '../payments/payments.service';
-import { error, group } from 'console';
 import { LocationDto } from './dto/location.dto';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
 import {
@@ -20,7 +19,30 @@ import {
   READ_EXCLUSIVE_CEILING,
 } from '../common/permission-levels';
 import { filterStaffOwnerRows } from '../common/owner-filter.helper';
+import type { TableRow } from '../types/supabase';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+
+type LocationRow = TableRow<'cw_locations'>;
+type LocationOwnerRow = TableRow<'cw_location_owners'>;
+type OwnerProfile = Pick<TableRow<'profiles'>, 'id' | 'full_name' | 'email'>;
+type LocationOwnerWithProfile = LocationOwnerRow & {
+  profiles?: OwnerProfile | OwnerProfile[] | null;
+};
+type LocationRecord = LocationRow & {
+  cw_location_owners: LocationOwnerWithProfile[];
+};
+type QueryResult<T> = { data: T | null; error: PostgrestError | null };
+
+/**
+ * Structural constraint for the Supabase query builders the scope helpers
+ * accept: the helpers only chain `.eq`, `.lt`/`.lte`, and `.or`.
+ */
+interface LocationScopeQuery<Q> {
+  eq(column: string, value: unknown): Q;
+  lt(column: string, value: unknown): Q;
+  lte(column: string, value: unknown): Q;
+  or(filters: string): Q;
+}
 
 @Injectable()
 export class LocationsService {
@@ -46,14 +68,14 @@ export class LocationsService {
 
     createLocationDto.owner_id = userId; // Ensure the owner_id is set to the authenticated user
 
-    const { data: locationData, error: locationError } = await client
+    const { data: locationData, error: locationError } = (await client
       .from('cw_locations')
       .insert({
         ...createLocationDto,
         owner_id: userId,
       })
       .select('*')
-      .single();
+      .single()) as QueryResult<LocationRow>;
 
     if (locationError) {
       throw new InternalServerErrorException('Failed to create location');
@@ -70,7 +92,7 @@ export class LocationsService {
       description: null,
     };
 
-    const { data: ownerData, error: ownerError } = await client
+    const { error: ownerError } = await client
       .from('cw_location_owners')
       .insert({
         ...locationOwnerObject,
@@ -108,7 +130,7 @@ export class LocationsService {
       throw new InternalServerErrorException('Failed to fetch locations');
     }
 
-    return data;
+    return (data ?? []) as LocationRecord[];
   }
 
   async findOne(id: number, user: AuthenticatedUser) {
@@ -125,9 +147,9 @@ export class LocationsService {
 
     query = this.applyLocationReadScope(query, userId, isGlobalUser);
 
-    const { data, error } = await query
+    const { data, error } = (await query
       .order('name', { ascending: true })
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<LocationRecord>;
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch location');
@@ -172,7 +194,7 @@ export class LocationsService {
       isGlobalUser,
     );
     const { data: locationCurrentPermission, error: locationPermissionError } =
-      await permissionQuery.maybeSingle();
+      (await permissionQuery.maybeSingle()) as QueryResult<LocationRecord>;
     if (locationPermissionError)
       throw new InternalServerErrorException(
         'Failed to fetch location permissions',
@@ -194,7 +216,9 @@ export class LocationsService {
       updateQuery = updateQuery.eq('owner_id', userId);
     }
 
-    const { data, error } = await updateQuery.select('*').single();
+    const { data, error } = (await updateQuery
+      .select('*')
+      .single()) as QueryResult<LocationRow>;
 
     if (error) {
       throw new InternalServerErrorException('Failed to update location');
@@ -233,8 +257,9 @@ export class LocationsService {
       throw new InternalServerErrorException('Failed to fetch location groups');
     }
 
+    const rows = (data ?? []) as Pick<LocationRow, 'group'>[];
     const uniqueGroupArray = Array.from(
-      new Set(data.map((item) => item.group)),
+      new Set(rows.map((item) => item.group)),
     ).filter((group) => group !== null);
 
     return uniqueGroupArray;
@@ -268,7 +293,7 @@ export class LocationsService {
       isGlobalUser,
     );
     const { data: locationCurrentPermission, error: locationPermissionError } =
-      await permissionQuery.maybeSingle();
+      (await permissionQuery.maybeSingle()) as QueryResult<LocationRecord>;
     if (locationPermissionError)
       throw new InternalServerErrorException(
         'Failed to fetch location permissions',
@@ -369,7 +394,7 @@ export class LocationsService {
       isGlobalUser,
     );
     const { data: locationCurrentPermission, error: locationPermissionError } =
-      await permissionQuery.maybeSingle();
+      (await permissionQuery.maybeSingle()) as QueryResult<LocationRecord>;
     if (locationPermissionError)
       throw new InternalServerErrorException(
         'Failed to fetch location permissions',
@@ -434,7 +459,7 @@ export class LocationsService {
 
   async updateUserPermissionLevel(
     id: number,
-    updateLocationOwnerDto: any,
+    updateLocationOwnerDto: unknown,
     applyPermissionToAllDevices: boolean,
     user: AuthenticatedUser,
   ) {
@@ -442,9 +467,11 @@ export class LocationsService {
     const client = this.supabaseService.getClient();
     const isGlobalUser = user.isStaff;
 
-    const email = updateLocationOwnerDto.email;
-    const permission_level = updateLocationOwnerDto.permission_level;
-    const location_id = updateLocationOwnerDto.location_id;
+    const { email, permission_level, location_id } = updateLocationOwnerDto as {
+      email: string;
+      permission_level: number | null;
+      location_id: number;
+    };
 
     // check if you have permission to update location permissions
     let permissionQuery = client
@@ -463,7 +490,7 @@ export class LocationsService {
       isGlobalUser,
     );
     const { data: locationCurrentPermission, error: locationPermissionError } =
-      await permissionQuery.maybeSingle();
+      (await permissionQuery.maybeSingle()) as QueryResult<LocationRecord>;
     if (locationPermissionError)
       throw new InternalServerErrorException(
         'Failed to fetch location permissions',
@@ -528,7 +555,8 @@ export class LocationsService {
       userId,
       isGlobalUser,
     );
-    const { data: requestingUser, error } = await permissionQuery.maybeSingle();
+    const { data: requestingUser, error } =
+      (await permissionQuery.maybeSingle()) as QueryResult<LocationRecord>;
 
     if (error) {
       throw new InternalServerErrorException(
@@ -545,12 +573,12 @@ export class LocationsService {
     const {
       data: locationPermissionRecord,
       error: locationPermissionRecordError,
-    } = await client
+    } = (await client
       .from('cw_location_owners')
       .select('*')
       .eq('id', permissionId)
       .eq('location_id', location_id)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<LocationOwnerRow>;
     if (locationPermissionRecordError)
       throw new InternalServerErrorException(
         'Failed to fetch location permission record',
@@ -600,11 +628,11 @@ export class LocationsService {
     };
   }
 
-  private applyLocationReadScope(
-    query: any,
+  private applyLocationReadScope<Q extends LocationScopeQuery<Q>>(
+    query: Q,
     userId: string,
     isGlobalUser: boolean,
-  ) {
+  ): Q {
     if (isGlobalUser) {
       return query;
     }
@@ -615,11 +643,11 @@ export class LocationsService {
       .or(`owner_id.eq.${userId},owner_match.not.is.null`);
   }
 
-  private applyLocationManageScope(
-    query: any,
+  private applyLocationManageScope<Q extends LocationScopeQuery<Q>>(
+    query: Q,
     userId: string,
     isGlobalUser: boolean,
-  ) {
+  ): Q {
     if (isGlobalUser) {
       return query;
     }

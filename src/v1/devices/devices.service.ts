@@ -6,6 +6,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
 import { LocationsService } from '../locations/locations.service';
@@ -17,6 +18,59 @@ import {
   READ_EXCLUSIVE_CEILING,
 } from '../common/permission-levels';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+
+type DeviceRow = TableRow<'cw_devices'>;
+type DeviceOwnerRow = TableRow<'cw_device_owners'>;
+type DeviceTypeRow = TableRow<'cw_device_type'>;
+type LocationRow = TableRow<'cw_locations'>;
+type LocationOwnerRow = TableRow<'cw_location_owners'>;
+
+type LocationJoin = Pick<LocationRow, 'location_id' | 'name' | 'group'>;
+
+/** Device row plus the relations embedded by the select strings below. */
+type DeviceRecord = DeviceRow & {
+  /** Not present in the generated cw_devices Row type; read defensively by findLatestData. */
+  created_at?: string | null;
+  cw_device_owners?: DeviceOwnerRow[];
+  cw_locations?: LocationJoin | LocationJoin[] | null;
+  cw_device_type?: DeviceTypeRow | DeviceTypeRow[] | null;
+};
+
+type LatestDeviceTypeJoin = Pick<
+  DeviceTypeRow,
+  | 'name'
+  | 'default_upload_interval'
+  | 'primary_data_v2'
+  | 'secondary_data_v2'
+  | 'data_table_v2'
+>;
+
+/** Columns selected by findAllLatestData. */
+type LatestDeviceRecord = Pick<
+  DeviceRow,
+  'dev_eui' | 'name' | 'group' | 'location_id' | 'last_data_updated_at'
+> & {
+  cw_device_type: LatestDeviceTypeJoin | LatestDeviceTypeJoin[] | null;
+  cw_locations: LocationJoin | LocationJoin[] | null;
+};
+
+/** Row from a per-device-type data table (cw_air_data, ...) — columns vary by table. */
+type SensorDataRow = Record<string, unknown>;
+
+type SingleResult<T> = { data: T | null; error: PostgrestError | null };
+type ListResult<T> = {
+  data: T[] | null;
+  count?: number | null;
+  error: PostgrestError | null;
+};
+
+/** Structural shape of the PostgREST filter builder methods the scope helpers use. */
+interface DeviceScopeQuery<Q> {
+  eq(column: string, value: unknown): Q;
+  lt(column: string, value: unknown): Q;
+  lte(column: string, value: unknown): Q;
+  or(filters: string): Q;
+}
 
 export interface PagedDevicesResponse<T> {
   total?: number;
@@ -41,7 +95,7 @@ export class DevicesService {
     searchGroup?: string,
     searchName?: string,
     searchLocation?: string,
-  ): Promise<PagedDevicesResponse<TableRow<'cw_devices'>>> {
+  ): Promise<PagedDevicesResponse<DeviceRecord>> {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
     const isGlobalUser = user.isStaff;
@@ -87,21 +141,22 @@ export class DevicesService {
       throw new InternalServerErrorException('Failed to fetch devices');
     }
 
+    const rows = (data ?? []) as DeviceRecord[];
     const responseTake =
-      typeof take === 'number' ? take : (count ?? data?.length ?? 0);
+      typeof take === 'number' ? take : (count ?? rows.length);
 
     return {
       total: count ?? 0,
       skip,
       take: responseTake,
-      data: data ?? [],
+      data: rows,
     };
   }
 
   async findOne(
     user: AuthenticatedUser,
     devEui: string,
-  ): Promise<TableRow<'cw_devices'>> {
+  ): Promise<DeviceRecord> {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
     const isGlobalUser = user.isStaff;
@@ -125,9 +180,9 @@ export class DevicesService {
 
     query = this.applyDeviceReadScope(query, userId, isGlobalUser);
 
-    const { data, error } = await query
+    const { data, error } = (await query
       .order('name', { ascending: true })
-      .single();
+      .single()) as SingleResult<DeviceRecord>;
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -218,7 +273,8 @@ export class DevicesService {
       throw new NotFoundException('No device groups found');
     }
 
-    const groupCounts = groups.reduce(
+    const groupRows = groups as Pick<DeviceRow, 'group'>[];
+    const groupCounts = groupRows.reduce(
       (acc, item) => {
         const existing = acc.find((g) => g.group === item.group);
         if (existing) {
@@ -234,11 +290,8 @@ export class DevicesService {
     return groupCounts;
   }
 
-  public async findAllDeviceTypes(
-    user: AuthenticatedUser,
-  ): Promise<{ type: string | null; count: number }[]> {
+  public async findAllDeviceTypes(): Promise<DeviceTypeRow[]> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
 
     const { data: types, error } = await client
       .from('cw_device_type')
@@ -252,7 +305,7 @@ export class DevicesService {
       throw new NotFoundException('No device types found');
     }
 
-    return types;
+    return types as DeviceTypeRow[];
   }
 
   public async findData(
@@ -260,7 +313,7 @@ export class DevicesService {
     devEui: string,
     skip: number = 0,
     take: number = 144,
-  ): Promise<PagedDevicesResponse<any>> {
+  ): Promise<PagedDevicesResponse<SensorDataRow>> {
     this.logger.log(
       `findData called: devEui=${devEui}, skip=${skip}, take=${take}`,
     );
@@ -289,7 +342,8 @@ export class DevicesService {
 
     deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
 
-    const { data: device, error: deviceError } = await deviceQuery.single();
+    const { data: device, error: deviceError } =
+      (await deviceQuery.single()) as SingleResult<DeviceRecord>;
 
     if (deviceError) {
       this.logger.error(
@@ -309,11 +363,11 @@ export class DevicesService {
     this.logger.debug(
       `findData: fetching device type id=${device.type} for devEui=${normalizedDevEui}`,
     );
-    const { data: deviceType, error: deviceTypeError } = await client
+    const { data: deviceType, error: deviceTypeError } = (await client
       .from('cw_device_type')
       .select('*')
       .eq('id', device.type)
-      .maybeSingle();
+      .maybeSingle()) as SingleResult<DeviceTypeRow>;
 
     if (deviceTypeError) {
       this.logger.error(
@@ -350,13 +404,13 @@ export class DevicesService {
     this.logger.debug(
       `findData: querying table=${dataTable}, select=${getAnnotations}, range=${skip}-${skip + take - 1}`,
     );
-    const { data: latestData, error: dataError } = await client
+    const { data: latestData, error: dataError } = (await client
       .from(dataTable)
       .select(`${getAnnotations}`)
       .eq('dev_eui', normalizedDevEui)
       .order('created_at', { ascending: false })
       .range(skip, skip + take - 1)
-      .limit(take);
+      .limit(take)) as ListResult<SensorDataRow>;
 
     if (dataError) {
       this.logger.error(
@@ -393,7 +447,7 @@ export class DevicesService {
     end: Date | string = new Date().toISOString(),
     skip: number = 0,
     take: number = 144,
-  ): Promise<PagedDevicesResponse<any>> {
+  ): Promise<PagedDevicesResponse<SensorDataRow>> {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
     const isGlobalUser = user.isStaff;
@@ -409,7 +463,8 @@ export class DevicesService {
 
     deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
 
-    const { data: device, error: deviceError } = await deviceQuery.single();
+    const { data: device, error: deviceError } =
+      (await deviceQuery.single()) as SingleResult<DeviceRecord>;
 
     if (deviceError) {
       this.logger.error(
@@ -423,11 +478,11 @@ export class DevicesService {
       throw new NotFoundException('Device not found');
     }
 
-    const { data: deviceType, error: deviceTypeError } = await client
+    const { data: deviceType, error: deviceTypeError } = (await client
       .from('cw_device_type')
       .select('*')
       .eq('id', device.type)
-      .maybeSingle();
+      .maybeSingle()) as SingleResult<DeviceTypeRow>;
 
     if (deviceTypeError) {
       throw new InternalServerErrorException('Failed to fetch device type');
@@ -440,18 +495,14 @@ export class DevicesService {
     const startDate = new Date(start).toISOString();
     const endDate = new Date(end).toISOString();
 
-    const {
-      data: latestData,
-      count,
-      error: dataError,
-    } = await client
+    const { data: latestData, error: dataError } = (await client
       .from(deviceType.data_table_v2)
       .select('*')
       .eq('dev_eui', normalizedDevEui)
       .gte('created_at', startDate)
       .lte('created_at', endDate)
       .order('created_at', { ascending: false })
-      .range(skip, skip + take - 1);
+      .range(skip, skip + take - 1)) as ListResult<SensorDataRow>;
 
     if (dataError) {
       throw new InternalServerErrorException('Failed to fetch Data');
@@ -476,7 +527,7 @@ export class DevicesService {
     searchName?: string,
     searchLocation?: string,
     locationGroup?: string,
-  ): Promise<PagedDevicesResponse<any>> {
+  ): Promise<PagedDevicesResponse<Record<string, unknown>>> {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
     const isGlobalUser = user.isStaff;
@@ -485,9 +536,6 @@ export class DevicesService {
     const locationIdFilter = hasLocationFilter
       ? Number(searchLocation)
       : undefined;
-    const countLocationSelect = hasLocationFilter
-      ? 'cw_locations!inner(location_id, name, group)'
-      : 'cw_locations(location_id, name, group)';
     const dataLocationSelect = hasLocationFilter
       ? 'cw_locations!inner(location_id, name, group)'
       : 'cw_locations(location_id, name, group)';
@@ -545,9 +593,10 @@ export class DevicesService {
       throw new NotFoundException('No devices found');
     }
 
+    const deviceRows = device as LatestDeviceRecord[];
     const devicesWithLatestData = (
       await Promise.all(
-        device.map(async (d) => {
+        deviceRows.map(async (d) => {
           const deviceType = Array.isArray(d.cw_device_type)
             ? d.cw_device_type[0]
             : d.cw_device_type;
@@ -637,7 +686,7 @@ export class DevicesService {
   public async findAllDevicesInLocation(
     user: AuthenticatedUser,
     locationId: number,
-  ): Promise<TableRow<'cw_devices'>[]> {
+  ): Promise<DeviceRecord[]> {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
     const isGlobalUser = user.isStaff;
@@ -661,7 +710,7 @@ export class DevicesService {
       throw new NotFoundException('No devices found for this location');
     }
 
-    return devices;
+    return devices as DeviceRecord[];
   }
 
   public async findLatestData(
@@ -684,7 +733,8 @@ export class DevicesService {
 
     deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
 
-    const { data: device, error: deviceError } = await deviceQuery.single();
+    const { data: device, error: deviceError } =
+      (await deviceQuery.single()) as SingleResult<DeviceRecord>;
 
     if (deviceError) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -694,11 +744,11 @@ export class DevicesService {
       throw new NotFoundException('Device not found');
     }
 
-    const { data: deviceType, error: deviceTypeError } = await client
+    const { data: deviceType, error: deviceTypeError } = (await client
       .from('cw_device_type')
       .select('*')
       .eq('id', device.type)
-      .maybeSingle();
+      .maybeSingle()) as SingleResult<DeviceTypeRow>;
 
     if (deviceTypeError) {
       throw new InternalServerErrorException('Failed to fetch device type');
@@ -708,13 +758,13 @@ export class DevicesService {
       throw new NotFoundException('Device type not found');
     }
 
-    const { data: latestData, error: dataError } = await client
+    const { data: latestData, error: dataError } = (await client
       .from(deviceType.data_table_v2)
       .select('*')
       .eq('dev_eui', normalizedDevEui)
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle()) as SingleResult<SensorDataRow>;
 
     if (dataError) {
       throw new InternalServerErrorException('Failed to fetch latest data');
@@ -766,10 +816,10 @@ export class DevicesService {
     if (!device.location_id) {
       throw new BadRequestException('location_id is required');
     }
-    const location = await this.locationsService.findOne(
+    const location = (await this.locationsService.findOne(
       device.location_id,
       user,
-    );
+    )) as LocationRow | null;
     if (!location) {
       throw new BadRequestException('Invalid location');
     }
@@ -780,7 +830,7 @@ export class DevicesService {
     }
 
     // create the device
-    const { data: createdDeviceData, error: createDeviceError } = await client
+    const { data: createdDeviceData, error: createDeviceError } = (await client
       .from('cw_devices')
       .insert({
         dev_eui: normalizedDevEui,
@@ -791,7 +841,7 @@ export class DevicesService {
         user_id: userId,
       })
       .select('*')
-      .single();
+      .single()) as SingleResult<DeviceRow>;
 
     if (createDeviceError) {
       throw new InternalServerErrorException('Failed to create device');
@@ -872,7 +922,7 @@ export class DevicesService {
     );
 
     const { data: device, error: deviceError } =
-      await existingDeviceQuery.single();
+      (await existingDeviceQuery.single()) as SingleResult<DeviceRecord>;
 
     if (deviceError) {
       throw new InternalServerErrorException('Failed to fetch device');
@@ -896,7 +946,7 @@ export class DevicesService {
     );
 
     const { data: newDeviceData, error: newDeviceError } =
-      await newDeviceQuery.single();
+      (await newDeviceQuery.single()) as SingleResult<DeviceRecord>;
 
     if (newDeviceError) {
       throw new InternalServerErrorException('Failed to fetch new device');
@@ -907,7 +957,7 @@ export class DevicesService {
     }
 
     // We have access to both devices, let's now update the existing device with the new device.
-    const { data: updatedDeviceData, error: updateDeviceError } = await client
+    const { data: updatedDeviceData, error: updateDeviceError } = (await client
       .from('cw_devices')
       .update({
         dev_eui: newDevice.dev_eui,
@@ -918,7 +968,7 @@ export class DevicesService {
       })
       .eq('dev_eui', normalizedDevEui)
       .select('*')
-      .single();
+      .single()) as SingleResult<DeviceRow>;
 
     if (updateDeviceError) {
       throw new InternalServerErrorException('Failed to update device');
@@ -965,7 +1015,7 @@ export class DevicesService {
     );
 
     const { data: RequestingUserHasPermission, error: deviceError } =
-      await permissionQuery.single();
+      (await permissionQuery.single()) as SingleResult<DeviceRecord>;
 
     if (!RequestingUserHasPermission || deviceError) {
       throw new UnauthorizedException(
@@ -988,12 +1038,12 @@ export class DevicesService {
     }
 
     // do the thing
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('cw_device_owners')
       .update({ permission_level: permissionLevel })
       .eq('dev_eui', devEui)
       .eq('user_id', targetUser.id)
-      .select('*');
+      .select('*')) as ListResult<DeviceOwnerRow>;
 
     if (!data || error) {
       throw new BadRequestException(
@@ -1042,7 +1092,7 @@ export class DevicesService {
     );
 
     const { data: RequestingUserHasPermission, error: deviceError } =
-      await permissionQuery.single();
+      (await permissionQuery.single()) as SingleResult<DeviceRecord>;
 
     if (!RequestingUserHasPermission || deviceError) {
       throw new UnauthorizedException(
@@ -1050,10 +1100,7 @@ export class DevicesService {
       );
     }
 
-    const currentDevice = RequestingUserHasPermission as {
-      location_id: number | null;
-      user_id: string | null;
-    };
+    const currentDevice = RequestingUserHasPermission;
     const isMovingLocation =
       Number(currentDevice.location_id) !== Number(location_id);
 
@@ -1083,7 +1130,11 @@ export class DevicesService {
       }
 
       const { data: destination, error: destinationError } =
-        await destinationQuery.maybeSingle();
+        (await destinationQuery.maybeSingle()) as SingleResult<
+          Pick<LocationRow, 'location_id' | 'owner_id'> & {
+            cw_location_owners: Pick<LocationOwnerRow, 'user_id'>[] | null;
+          }
+        >;
 
       if (destinationError) {
         throw new InternalServerErrorException(
@@ -1110,11 +1161,11 @@ export class DevicesService {
       updatePayload.user_id = destinationOwnerId;
     }
 
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('cw_devices')
       .update(updatePayload)
       .eq('dev_eui', devEui)
-      .select('*');
+      .select('*')) as ListResult<DeviceRow>;
 
     if (!data || error) {
       throw new BadRequestException('Failed to update device');
@@ -1141,7 +1192,7 @@ export class DevicesService {
    * — ownership via cw_devices.user_id is implicit and outranks all levels.
    */
   private async resetDevicePermissionsForMove(
-    client: any,
+    client: ReturnType<SupabaseService['getClient']>,
     devEui: string,
     moverId: string,
     destinationOwnerId: string | null,
@@ -1186,11 +1237,11 @@ export class DevicesService {
     }
   }
 
-  private applyDeviceReadScope(
-    query: any,
+  private applyDeviceReadScope<Q extends DeviceScopeQuery<Q>>(
+    query: Q,
     userId: string,
     isGlobalUser: boolean,
-  ) {
+  ): Q {
     if (isGlobalUser) {
       return query;
     }
@@ -1201,12 +1252,12 @@ export class DevicesService {
       .or(`user_id.eq.${userId},owner_match.not.is.null`);
   }
 
-  private applyDeviceManageScope(
-    query: any,
+  private applyDeviceManageScope<Q extends DeviceScopeQuery<Q>>(
+    query: Q,
     userId: string,
     isGlobalUser: boolean,
     maxPermissionLevel: number,
-  ) {
+  ): Q {
     if (isGlobalUser) {
       return query;
     }

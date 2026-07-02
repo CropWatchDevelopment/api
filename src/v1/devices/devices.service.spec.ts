@@ -242,9 +242,17 @@ describe('DevicesService', () => {
       };
     }
 
+    type DeviceOwnerInsert = {
+      dev_eui: string;
+      user_id: string;
+      permission_level: number;
+    };
+
     function createInsertBuilder() {
       return {
-        insert: jest.fn().mockResolvedValue({ error: null }),
+        insert: jest
+          .fn<Promise<{ error: null }>, [rows: DeviceOwnerInsert[]]>()
+          .mockResolvedValue({ error: null }),
       };
     }
 

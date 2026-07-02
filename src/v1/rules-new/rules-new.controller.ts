@@ -57,7 +57,7 @@ export class RulesNewController {
     isArray: true,
   })
   @Get('action-types')
-  findAllActionTypes(@CurrentUser() user: AuthenticatedUser) {
+  findAllActionTypes() {
     return this.rulesNewService.findAllActionTypes();
   }
   @ApiOkResponse({

@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
 import { MANAGE_CEILING, PermissionLevel } from '../common/permission-levels';
@@ -278,7 +279,7 @@ export class RulesNewService {
     assertDevicesCanBeManaged(devices, normalized.devEuis);
 
     const client = this.supabaseService.getClient();
-    const { data: templateData, error: templateError } = await client
+    const { data: templateData, error: templateError } = (await client
       .from('cw_rule_templates')
       .insert({
         name: normalized.name,
@@ -287,7 +288,18 @@ export class RulesNewService {
         is_active: normalized.isActive,
       })
       .select('created_at, description, device_type_id, id, is_active, name')
-      .single();
+      .single()) as {
+      data: Pick<
+        TemplateRow,
+        | 'created_at'
+        | 'description'
+        | 'device_type_id'
+        | 'id'
+        | 'is_active'
+        | 'name'
+      > | null;
+      error: PostgrestError | null;
+    };
 
     if (templateError || !templateData) {
       throw new InternalServerErrorException('Failed to create rule template');
@@ -510,7 +522,7 @@ export class RulesNewService {
 
     return {
       devices: devicesPage.data ?? [],
-      locations: (locations ?? []) as RuleFormContextDto['locations'],
+      locations: locations ?? [],
       actionTypes,
       template,
     };

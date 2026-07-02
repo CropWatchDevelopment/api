@@ -62,10 +62,11 @@ export abstract class BaseDataService<T extends TableName> {
       );
     }
 
-    return (data ?? []).map((row) => ({
+    const rows = (data ?? []) as (TableRow<T> & { created_at: string })[];
+
+    return rows.map((row) => ({
       ...row,
       created_at: this.timezoneFormatter.formatTimestamp(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         row.created_at,
         normalizedTimeZone,
       ),

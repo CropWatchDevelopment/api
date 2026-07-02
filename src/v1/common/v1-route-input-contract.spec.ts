@@ -1048,12 +1048,13 @@ describe('V1 Route Input Contracts', () => {
     expect(response.status).toBe(testCase.expectedStatus);
 
     if (testCase.expectedMessage !== undefined) {
+      const body = response.body as { message: string | string[] };
       if (Array.isArray(testCase.expectedMessage)) {
-        expect(response.body.message).toEqual(
+        expect(body.message).toEqual(
           expect.arrayContaining(testCase.expectedMessage),
         );
       } else {
-        expect(response.body.message).toBe(testCase.expectedMessage);
+        expect(body.message).toBe(testCase.expectedMessage);
       }
     }
 

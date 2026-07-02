@@ -68,7 +68,7 @@ describe('AirController', () => {
         title: 'Daily review',
       };
 
-      const result = await pipe.transform(payload, {
+      const result: unknown = await pipe.transform(payload, {
         type: 'body',
         metatype: CreateAirAnnotationDto,
         data: '',

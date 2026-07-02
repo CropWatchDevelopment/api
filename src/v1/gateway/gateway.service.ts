@@ -4,15 +4,32 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+
+type GatewayRow = TableRow<'cw_gateways'>;
+type GatewayOwnerRow = TableRow<'cw_gateways_owners'>;
+type GatewayRecord = GatewayRow & {
+  cw_gateways_owners?: GatewayOwnerRow[];
+};
+type GatewayListItem = Pick<
+  GatewayRow,
+  | 'id'
+  | 'gateway_id'
+  | 'is_online'
+  | 'is_public'
+  | 'gateway_name'
+  | 'updated_at'
+>;
+type QueryResult<T> = { data: T | null; error: PostgrestError | null };
 
 @Injectable()
 export class GatewayService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
-  async findAll(user: AuthenticatedUser): Promise<TableRow<'cw_gateways'>[]> {
+  async findAll(user: AuthenticatedUser): Promise<GatewayListItem[]> {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
 
@@ -30,12 +47,13 @@ export class GatewayService {
       throw new InternalServerErrorException('Failed to fetch gateways');
     }
 
-    const ownedGatewayIds = new Set(
-      ownedGateways?.map((og) => og.gateway_id) ?? [],
-    );
+    const ownedRows = (ownedGateways ?? []) as GatewayRecord[];
+    const publicRows = (publicGateways ?? []) as GatewayRow[];
 
-    const allGateways = [
-      ...(ownedGateways ?? []).map((og) => ({
+    const ownedGatewayIds = new Set(ownedRows.map((og) => og.gateway_id));
+
+    const allGateways: GatewayListItem[] = [
+      ...ownedRows.map((og) => ({
         id: og.id,
         gateway_id: og.gateway_id,
         is_online: og.is_online,
@@ -43,18 +61,16 @@ export class GatewayService {
         gateway_name: og.gateway_name,
         updated_at: og.updated_at,
       })),
-      ...(publicGateways ?? []).filter(
-        (pg) => !ownedGatewayIds.has(pg.gateway_id),
-      ),
+      ...publicRows.filter((pg) => !ownedGatewayIds.has(pg.gateway_id)),
     ];
 
-    return allGateways ?? [];
+    return allGateways;
   }
 
   async findOne(
     gatewayIdentifier: string,
     user: AuthenticatedUser,
-  ): Promise<TableRow<'cw_gateways'>> {
+  ): Promise<GatewayRow> {
     const normalizedGatewayIdentifier = gatewayIdentifier?.trim();
     if (!normalizedGatewayIdentifier) {
       throw new BadRequestException('gateway_id is required');
@@ -73,7 +89,8 @@ export class GatewayService {
       )
       .eq('gateway_id', normalizedGatewayIdentifier);
 
-    const { data, error } = await query.maybeSingle();
+    const { data, error } =
+      (await query.maybeSingle()) as QueryResult<GatewayRecord>;
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch gateway');
@@ -83,9 +100,7 @@ export class GatewayService {
       throw new NotFoundException('Gateway not found');
     }
 
-    const isOwner = data.cw_gateways_owners?.some(
-      (o: any) => o.user_id === userId,
-    );
+    const isOwner = data.cw_gateways_owners?.some((o) => o.user_id === userId);
     if (!data.is_public && !isOwner) {
       throw new NotFoundException('Gateway not found');
     }

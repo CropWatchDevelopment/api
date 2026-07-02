@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '../../database.types';
 import { SUPABASE_ADMIN_CLIENT, SUPABASE_CLIENT } from './supabase.constants';
 import { SupabaseService } from './supabase.service';
 
@@ -10,7 +11,7 @@ import { SupabaseService } from './supabase.service';
     {
       provide: SUPABASE_CLIENT,
       inject: [ConfigService],
-      useFactory: (configService: ConfigService): SupabaseClient => {
+      useFactory: (configService: ConfigService): SupabaseClient<Database> => {
         const url = configService.get<string>('PRIVATE_SUPABASE_URL');
         const anonKey = configService.get<string>('PRIVATE_SUPABASE_ANON_KEY');
         if (!url || !anonKey) {
@@ -18,7 +19,7 @@ import { SupabaseService } from './supabase.service';
             'PRIVATE_SUPABASE_URL and PRIVATE_SUPABASE_ANON_KEY are required',
           );
         }
-        return createClient(url, anonKey, {
+        return createClient<Database>(url, anonKey, {
           auth: { autoRefreshToken: false, persistSession: false },
         });
       },
@@ -26,7 +27,7 @@ import { SupabaseService } from './supabase.service';
     {
       provide: SUPABASE_ADMIN_CLIENT,
       inject: [ConfigService],
-      useFactory: (configService: ConfigService): SupabaseClient => {
+      useFactory: (configService: ConfigService): SupabaseClient<Database> => {
         const url = configService.get<string>('PRIVATE_SUPABASE_URL');
         const serviceRoleKey = configService.get<string>(
           'PRIVATE_SUPABASE_SERVICE_ROLE_KEY',
@@ -36,7 +37,7 @@ import { SupabaseService } from './supabase.service';
             'PRIVATE_SUPABASE_URL and PRIVATE_SUPABASE_SERVICE_ROLE_KEY are required',
           );
         }
-        return createClient(url, serviceRoleKey, {
+        return createClient<Database>(url, serviceRoleKey, {
           auth: { autoRefreshToken: false, persistSession: false },
         });
       },

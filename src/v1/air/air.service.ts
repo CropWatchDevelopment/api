@@ -3,11 +3,17 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { BaseDataService } from '../common/base-data.service';
 import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
+import type { TableRow } from '../types/supabase';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+
+type AirAnnotationRow = TableRow<'cw_air_annotations'>;
+type AirDataTimestampRow = Pick<TableRow<'cw_air_data'>, 'created_at'>;
+type QueryResult<T> = { data: T | null; error: PostgrestError | null };
 
 @Injectable()
 export class AirService extends BaseDataService<'cw_air_data'> {
@@ -23,7 +29,7 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     month: string,
     year: string,
     user: AuthenticatedUser,
-  ): Promise<any[]> {
+  ): Promise<AirAnnotationRow[]> {
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -57,7 +63,7 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     if (error) {
       throw new InternalServerErrorException('Failed to fetch air annotations');
     }
-    return data;
+    return (data ?? []) as AirAnnotationRow[];
   }
 
   async createNote(
@@ -78,7 +84,7 @@ export class AirService extends BaseDataService<'cw_air_data'> {
       createAirNoteDto.created_at,
     );
 
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('cw_air_annotations')
       .insert({
         ...createAirNoteDto,
@@ -87,7 +93,7 @@ export class AirService extends BaseDataService<'cw_air_data'> {
         dev_eui: normalizedDevEui,
       })
       .select('*')
-      .single();
+      .single()) as QueryResult<AirAnnotationRow>;
 
     if (error) {
       throw new BadRequestException('Failed to create air annotation');
@@ -98,11 +104,11 @@ export class AirService extends BaseDataService<'cw_air_data'> {
 
   async deleteNote(noteId: number, user: AuthenticatedUser) {
     const client = this.supabaseService.getClient();
-    const { data: existingNote, error: fetchError } = await client
+    const { data: existingNote, error: fetchError } = (await client
       .from('cw_air_annotations')
       .select('*')
       .eq('id', noteId)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<AirAnnotationRow>;
 
     if (fetchError) {
       throw new InternalServerErrorException('Failed to fetch air annotation');
@@ -131,12 +137,12 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     devEui: string,
     requestedCreatedAt: string,
   ): Promise<string> {
-    const { data: exactMatch, error: exactMatchError } = await client
+    const { data: exactMatch, error: exactMatchError } = (await client
       .from('cw_air_data')
       .select('created_at')
       .eq('dev_eui', devEui)
       .eq('created_at', requestedCreatedAt)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<AirDataTimestampRow>;
 
     if (exactMatchError) {
       throw new InternalServerErrorException(
@@ -150,14 +156,14 @@ export class AirService extends BaseDataService<'cw_air_data'> {
 
     const { rangeEnd, rangeStart } =
       this.getTimestampResolutionWindow(requestedCreatedAt);
-    const { data: matches, error: matchError } = await client
+    const { data: matches, error: matchError } = (await client
       .from('cw_air_data')
       .select('created_at')
       .eq('dev_eui', devEui)
       .gte('created_at', rangeStart)
       .lt('created_at', rangeEnd)
       .order('created_at', { ascending: true })
-      .limit(2);
+      .limit(2)) as QueryResult<AirDataTimestampRow[]>;
 
     if (matchError) {
       throw new InternalServerErrorException(

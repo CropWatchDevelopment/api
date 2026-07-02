@@ -51,7 +51,7 @@ export class AuthController {
       message: 'Unauthorized',
     },
   })
-  async protected(@CurrentUser() user: AuthenticatedUser) {
+  protected(@CurrentUser() user: AuthenticatedUser) {
     return user;
   }
 

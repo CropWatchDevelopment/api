@@ -1,9 +1,21 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { BaseDataService } from '../common/base-data.service';
+import type { TableRow } from '../types/supabase';
 import { TrafficMonthlyReportDto } from './dto/traffic-monthly-report.dto';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+
+type TrafficHourRow = Pick<
+  TableRow<'cw_traffic2'>,
+  | 'traffic_hour'
+  | 'people_count'
+  | 'bicycle_count'
+  | 'car_count'
+  | 'truck_count'
+  | 'bus_count'
+>;
 
 @Injectable()
 export class TrafficService extends BaseDataService<'cw_traffic2'> {
@@ -31,7 +43,7 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
     const nextYear = month === 12 ? year + 1 : year;
     const endUtc = this.localMidnightToUtc(nextYear, nextMonth, 1, tz);
 
-    const { data, error } = await this.supabaseService
+    const { data, error } = (await this.supabaseService
       .getClient()
       .from(this.tableName)
       .select(
@@ -40,7 +52,10 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
       .eq('dev_eui', devEui)
       .gte('traffic_hour', startUtc.toISOString())
       .lt('traffic_hour', endUtc.toISOString())
-      .order('traffic_hour', { ascending: true });
+      .order('traffic_hour', { ascending: true })) as {
+      data: TrafficHourRow[] | null;
+      error: PostgrestError | null;
+    };
 
     if (error) {
       throw new InternalServerErrorException(
@@ -63,6 +78,9 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
 
     // Aggregate each row into its local date bucket
     for (const row of data ?? []) {
+      // traffic_hour is nullable in the schema, but the gte/lt filters above
+      // exclude null rows; skip defensively to keep the types honest.
+      if (!row.traffic_hour) continue;
       const localDate = this.toLocalDateString(row.traffic_hour, tz);
       const bucket = dayMap.get(localDate);
       if (bucket) {

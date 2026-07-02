@@ -37,7 +37,7 @@ describe('RelayController', () => {
   });
 
   it('forwards the TTI downlink API key header to the relay service', () => {
-    controller.handleTtiUp({ uplink_message: {} }, undefined, 'tti-token');
+    void controller.handleTtiUp({ uplink_message: {} }, undefined, 'tti-token');
 
     expect(relayService.handleTtiUp).toHaveBeenCalledWith(
       { uplink_message: {} },
@@ -53,7 +53,7 @@ describe('RelayController', () => {
       sub: 'user-1',
     };
 
-    controller.getLatestRelay('A8404194635A05FB', user);
+    void controller.getLatestRelay('A8404194635A05FB', user);
 
     expect(relayService.getLatestRelay).toHaveBeenCalledWith(
       user,
@@ -68,7 +68,7 @@ describe('RelayController', () => {
       sub: 'user-1',
     };
 
-    controller.pulseRelay(
+    void controller.pulseRelay(
       'A8404194635A05FB',
       {
         durationSeconds: 60,

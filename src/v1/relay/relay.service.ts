@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableInsert, TableRow } from '../../v1/types/supabase';
 import {
@@ -46,6 +47,9 @@ type LocationOwnerRow = TableRow<'cw_location_owners'>;
 type DeviceRow = TableRow<'cw_devices'>;
 type RelayRow = TableRow<'cw_relay_data'>;
 type RelayInsert = TableInsert<'cw_relay_data'>;
+
+/** Shape of a PostgREST response from the untyped Supabase client. */
+type QueryResult<T> = { data: T | null; error: PostgrestError | null };
 
 type RelayDeviceContext = {
   applicationId: string;
@@ -391,11 +395,11 @@ export class RelayService {
     const userId = user.sub;
     const isGlobalUser = user.isStaff;
 
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('cw_devices')
       .select('*, cw_device_owners(*), cw_device_type(*)')
       .eq('dev_eui', devEui)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<DeviceRecord>;
 
     if (error) {
       this.logger.error(
@@ -409,7 +413,7 @@ export class RelayService {
       throw new NotFoundException('Device not found');
     }
 
-    const device = data as DeviceRecord;
+    const device = data;
     const deviceId = normalizeTtiDeviceId(device.tti_name);
     if (!deviceId || !isValidTtiDeviceId(deviceId)) {
       throw new BadRequestException('Device is missing a valid TTI device id');
@@ -457,11 +461,11 @@ export class RelayService {
     }
 
     if (device.location_id) {
-      const { data, error } = await client
+      const { data, error } = (await client
         .from('cw_location_owners')
         .select('*')
         .eq('location_id', device.location_id)
-        .eq('user_id', userId);
+        .eq('user_id', userId)) as QueryResult<LocationOwnerRow[]>;
 
       if (error) {
         this.logger.error(
@@ -473,7 +477,7 @@ export class RelayService {
         );
       }
 
-      for (const owner of (data ?? []) as LocationOwnerRow[]) {
+      for (const owner of data ?? []) {
         permissionLevels.push(readPermissionLevel(owner.permission_level));
       }
     }
@@ -485,14 +489,14 @@ export class RelayService {
 
   private async findLatestRelayRow(devEui: string): Promise<RelayRow | null> {
     const client = this.supabaseService.getClient();
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('cw_relay_data')
       .select('*')
       .eq('dev_eui', devEui)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<RelayRow>;
 
     if (error) {
       this.logger.error(
@@ -502,7 +506,7 @@ export class RelayService {
       throw new InternalServerErrorException('Failed to fetch relay data');
     }
 
-    return (data as RelayRow | null) ?? null;
+    return data ?? null;
   }
 
   private async persistRelayConfirmation(
@@ -519,13 +523,13 @@ export class RelayService {
       relay_2: confirmation.relay2 ?? latestRow?.relay_2 ?? null,
     };
 
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('cw_relay_data')
       .upsert(mergedRow, {
         onConflict: 'dev_eui',
       })
       .select('*')
-      .single();
+      .single()) as QueryResult<RelayRow>;
 
     if (error || !data) {
       this.logger.error(
@@ -537,6 +541,6 @@ export class RelayService {
       );
     }
 
-    return data as RelayRow;
+    return data;
   }
 }

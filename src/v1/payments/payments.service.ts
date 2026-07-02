@@ -8,7 +8,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient, type PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { MANAGE_CEILING } from '../common/permission-levels';
 import type { TableInsert, TableRow } from '../types/supabase';
@@ -25,6 +25,14 @@ import {
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type BillingCustomerRow = TableRow<'billing_customers'>;
+type DeviceLicenseRow = TableRow<'device_licenses'>;
+type LicenseSeatRow = Pick<
+  DeviceLicenseRow,
+  'id' | 'seat_index' | 'status' | 'dev_eui'
+>;
+
+/** Shape of a PostgREST response from the untyped Supabase client. */
+type QueryResult<T> = { data: T | null; error: PostgrestError | null };
 
 const ACTIVE_SUBSCRIPTION_STATUSES = ['active', 'trialing', 'past_due'];
 
@@ -128,14 +136,14 @@ export class PaymentsService {
       return !!baseSub && ACTIVE_SUBSCRIPTION_STATUSES.includes(baseSub.status);
     } catch (error) {
       this.logger.warn(
-        `Base-subscription check fell back to cache for ${userId}: ${error}`,
+        `Base-subscription check fell back to cache for ${userId}: ${String(error)}`,
       );
       const client = this.supabaseService.getClient();
-      const { data } = await client
+      const { data } = (await client
         .from('billing_customers')
         .select('base_status')
         .eq('user_id', userId)
-        .maybeSingle();
+        .maybeSingle()) as QueryResult<Pick<BillingCustomerRow, 'base_status'>>;
       return (
         !!data?.base_status &&
         ACTIVE_SUBSCRIPTION_STATUSES.includes(data.base_status)
@@ -250,7 +258,9 @@ export class PaymentsService {
       const portalUrl = await this.polarService.createPortalSession(userId);
       return { portalUrl };
     } catch (error) {
-      this.logger.warn(`Failed to open Polar portal for ${userId}: ${error}`);
+      this.logger.warn(
+        `Failed to open Polar portal for ${userId}: ${String(error)}`,
+      );
       throw new BadRequestException(
         'No billing account yet. Subscribe before opening the billing portal.',
       );
@@ -555,11 +565,13 @@ export class PaymentsService {
     subscriptionId: string,
     targetSeats: number,
   ): Promise<void> {
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('device_licenses')
       .select('id, seat_index, status, dev_eui')
       .eq('user_id', userId)
-      .order('seat_index', { ascending: true });
+      .order('seat_index', { ascending: true })) as QueryResult<
+      LicenseSeatRow[]
+    >;
     if (error) {
       throw new InternalServerErrorException('Failed to read device licenses');
     }
@@ -625,11 +637,11 @@ export class PaymentsService {
     client: SupabaseClient,
     userId: string,
   ): Promise<BillingCustomerRow> {
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('billing_customers')
       .select('*')
       .eq('user_id', userId)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<BillingCustomerRow>;
     if (error) {
       throw new InternalServerErrorException('Failed to read billing customer');
     }
@@ -637,14 +649,14 @@ export class PaymentsService {
       return data;
     }
 
-    const { data: inserted, error: insertError } = await client
+    const { data: inserted, error: insertError } = (await client
       .from('billing_customers')
       .upsert(
         { user_id: userId },
         { onConflict: 'user_id', ignoreDuplicates: false },
       )
       .select('*')
-      .single();
+      .single()) as QueryResult<BillingCustomerRow>;
     if (insertError || !inserted) {
       throw new InternalServerErrorException(
         'Failed to create billing customer',
@@ -716,7 +728,7 @@ export class PaymentsService {
       return await this.polarService.listSubscriptions(userId);
     } catch (error) {
       this.logger.warn(
-        `Failed to list Polar subscriptions for ${userId}: ${error}`,
+        `Failed to list Polar subscriptions for ${userId}: ${String(error)}`,
       );
       return [];
     }
@@ -763,12 +775,12 @@ export class PaymentsService {
     userId: string,
     licenseId: number,
   ): Promise<TableRow<'device_licenses'>> {
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('device_licenses')
       .select('*')
       .eq('id', licenseId)
       .eq('user_id', userId)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<DeviceLicenseRow>;
     if (error) {
       throw new InternalServerErrorException('Failed to read license');
     }

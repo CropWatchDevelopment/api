@@ -47,10 +47,15 @@ describe('createTtiClient', () => {
   it('targets the TTI downlink replace endpoint with bearer auth and the queued payload', async () => {
     let requestUrl = '';
     let requestInit: RequestInit | undefined;
-    const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      requestUrl = String(input);
+    const fetchFn = ((input: RequestInfo | URL, init?: RequestInit) => {
+      requestUrl =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
       requestInit = init;
-      return createJsonResponse({});
+      return Promise.resolve(createJsonResponse({}));
     }) as typeof fetch;
 
     const client = createTtiClient(configService, fetchFn);
@@ -67,7 +72,7 @@ describe('createTtiClient', () => {
     expect(new Headers(requestInit?.headers).get('authorization')).toBe(
       'Bearer tti-secret',
     );
-    expect(JSON.parse(String(requestInit?.body))).toEqual({
+    expect(JSON.parse(requestInit?.body as string)).toEqual({
       downlinks: [
         {
           confirmed: false,
@@ -81,13 +86,15 @@ describe('createTtiClient', () => {
   });
 
   it('surfaces TTI error responses as structured client errors', async () => {
-    const fetchFn = (async () =>
-      createJsonResponse(
-        {
-          message:
-            'error:pkg/auth/rights:no_application_rights (no rights for application `dragino-lt-22222@cropwatch`)',
-        },
-        403,
+    const fetchFn = (() =>
+      Promise.resolve(
+        createJsonResponse(
+          {
+            message:
+              'error:pkg/auth/rights:no_application_rights (no rights for application `dragino-lt-22222@cropwatch`)',
+          },
+          403,
+        ),
       )) as typeof fetch;
 
     const client = createTtiClient(configService, fetchFn);

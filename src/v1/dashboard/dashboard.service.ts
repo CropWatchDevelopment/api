@@ -5,9 +5,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { READ_EXCLUSIVE_CEILING } from '../common/permission-levels';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
+import type { TableRow } from '../types/supabase';
 import {
   DashboardLocationGroup,
   DashboardLocationPage,
@@ -17,6 +19,40 @@ import {
   isDashboardDataTable,
 } from './dashboard.types';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+
+type DeviceRow = TableRow<'cw_devices'>;
+type DeviceTypeRow = TableRow<'cw_device_type'>;
+type LocationRow = TableRow<'cw_locations'>;
+
+type LocationJoin = Pick<LocationRow, 'location_id' | 'name' | 'group'>;
+type DeviceTypeJoin = Pick<
+  DeviceTypeRow,
+  | 'id'
+  | 'name'
+  | 'data_table_v2'
+  | 'primary_data_v2'
+  | 'secondary_data_v2'
+  | 'default_upload_interval'
+>;
+
+/** Columns selected by the device queries in getDevices/getLocations. */
+type DashboardDeviceRecord = Pick<
+  DeviceRow,
+  | 'dev_eui'
+  | 'name'
+  | 'group'
+  | 'upload_interval'
+  | 'last_data_updated_at'
+  | 'error_status'
+> & {
+  cw_device_type: DeviceTypeJoin | DeviceTypeJoin[] | null;
+  cw_locations: LocationJoin | LocationJoin[] | null;
+};
+
+/** Columns selected by the location-listing query in getLocations. */
+type DeviceLocationRecord = Pick<DeviceRow, 'location_id'> & {
+  cw_locations: LocationJoin | LocationJoin[] | null;
+};
 
 @Injectable()
 export class DashboardService {
@@ -94,7 +130,7 @@ export class DashboardService {
       );
     }
 
-    const devices = data ?? [];
+    const devices = (data ?? []) as DashboardDeviceRecord[];
 
     const rows = await Promise.all(
       devices.map((d) => this.buildRow(client, d)),
@@ -171,15 +207,15 @@ export class DashboardService {
     } | null;
     const uniqueLocs = new Map<string, LocInfo>();
     let hasNoLocationBucket = false;
-    for (const d of locData ?? []) {
-      const locId = (d as any).location_id;
+    for (const d of (locData ?? []) as DeviceLocationRecord[]) {
+      const locId = d.location_id;
       if (locId == null) {
         hasNoLocationBucket = true;
         continue;
       }
       const key = String(locId);
       if (uniqueLocs.has(key)) continue;
-      const rawLoc = (d as any).cw_locations;
+      const rawLoc = d.cw_locations;
       const loc = Array.isArray(rawLoc) ? rawLoc[0] : rawLoc;
       uniqueLocs.set(key, {
         location_id: locId,
@@ -252,7 +288,11 @@ export class DashboardService {
     }
 
     const rows = (
-      await Promise.all((devices ?? []).map((d) => this.buildRow(client, d)))
+      await Promise.all(
+        ((devices ?? []) as DashboardDeviceRecord[]).map((d) =>
+          this.buildRow(client, d),
+        ),
+      )
     ).filter((r): r is DashboardRow => r !== null);
 
     // Bucket devices into the page's location slots, preserving page order.
@@ -312,9 +352,15 @@ export class DashboardService {
       throw new NotFoundException('Device not found');
     }
 
-    const deviceType = Array.isArray(device.cw_device_type)
-      ? device.cw_device_type[0]
-      : device.cw_device_type;
+    const deviceRecord = device as Pick<DeviceRow, 'dev_eui'> & {
+      cw_device_type:
+        | Pick<DeviceTypeRow, 'data_table_v2'>
+        | Pick<DeviceTypeRow, 'data_table_v2'>[]
+        | null;
+    };
+    const deviceType = Array.isArray(deviceRecord.cw_device_type)
+      ? deviceRecord.cw_device_type[0]
+      : deviceRecord.cw_device_type;
     const table = deviceType?.data_table_v2;
 
     if (!isDashboardDataTable(table)) {
@@ -323,13 +369,16 @@ export class DashboardService {
       );
     }
 
-    const { data: latest, error: latestError } = await client
+    const { data: latest, error: latestError } = (await client
       .from(table)
       .select('*')
       .eq('dev_eui', normalized)
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle()) as {
+      data: Record<string, unknown> | null;
+      error: PostgrestError | null;
+    };
 
     if (latestError) {
       this.logger.error(
@@ -338,12 +387,12 @@ export class DashboardService {
       throw new InternalServerErrorException('Failed to fetch latest data');
     }
 
-    return (latest as Record<string, unknown> | null) ?? null;
+    return latest ?? null;
   }
 
   private async buildRow(
     client: ReturnType<SupabaseService['getClient']>,
-    d: any,
+    d: DashboardDeviceRecord,
   ): Promise<DashboardRow | null> {
     const deviceType = Array.isArray(d.cw_device_type)
       ? d.cw_device_type[0]
@@ -449,8 +498,8 @@ export class DashboardService {
       return [];
     }
 
-    return (data ?? [])
-      .map((l: any) => l.location_id)
+    return ((data ?? []) as Pick<LocationRow, 'location_id'>[])
+      .map((l) => l.location_id)
       .filter((id: unknown): id is number => typeof id === 'number');
   }
 
@@ -467,11 +516,13 @@ export class DashboardService {
     return parts.join(',');
   }
 
-  private applyDeviceReadScope(
-    query: any,
-    userId: string,
-    isGlobalUser: boolean,
-  ) {
+  private applyDeviceReadScope<
+    Q extends {
+      eq(column: string, value: unknown): Q;
+      lt(column: string, value: unknown): Q;
+      or(filters: string): Q;
+    },
+  >(query: Q, userId: string, isGlobalUser: boolean): Q {
     if (isGlobalUser) {
       return query;
     }

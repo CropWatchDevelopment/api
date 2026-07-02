@@ -1,6 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import { AirService } from './air.service';
 import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
+import { SupabaseService } from '../../supabase/supabase.service';
+import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 
 function createExactMatchBuilder(response: {
   data: { created_at: string } | null;
@@ -61,9 +63,15 @@ describe('AirService', () => {
     mockSupabaseService = {
       getClient: jest.fn(() => client),
     };
-    service = new AirService(mockSupabaseService as any, {} as any);
+    service = new AirService(
+      mockSupabaseService as unknown as SupabaseService,
+      {} as TimezoneFormatterService,
+    );
     jest
-      .spyOn(service as any, 'assertDeviceAccess')
+      .spyOn(
+        service as unknown as { assertDeviceAccess: () => Promise<void> },
+        'assertDeviceAccess',
+      )
       .mockResolvedValue(undefined);
   });
 
@@ -136,10 +144,10 @@ describe('AirService', () => {
         title: 'Shift review',
       });
 
-      expect((service as any).assertDeviceAccess).toHaveBeenCalledWith(
-        '2CF7F1C073800102',
-        user,
-      );
+      expect(
+        (service as unknown as { assertDeviceAccess: jest.Mock })
+          .assertDeviceAccess,
+      ).toHaveBeenCalledWith('2CF7F1C073800102', user);
       expect(exactMatchBuilder.eq).toHaveBeenNthCalledWith(
         1,
         'dev_eui',
