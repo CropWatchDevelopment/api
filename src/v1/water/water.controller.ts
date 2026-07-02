@@ -2,19 +2,13 @@ import {
   BadRequestException,
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
   Query,
   UseGuards,
   Req,
 } from '@nestjs/common';
 import { WaterService } from './water.service';
 import { WaterDataDto } from './dto/water-data.dto';
-import type { CreateWaterDto } from './dto/create-water.dto';
-import type { UpdateWaterDto } from './dto/update-water.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
   ApiBadRequestResponse,
@@ -33,11 +27,6 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 @ApiSecurity('apiKey')
 export class WaterController {
   constructor(private readonly waterService: WaterService) {}
-
-  // @Post()
-  // create(@Body() createWaterDto: CreateWaterDto) {
-  //   return this.waterService.create(createWaterDto);
-  // }
 
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)

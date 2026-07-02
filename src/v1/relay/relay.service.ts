@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  GatewayTimeoutException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -30,7 +29,6 @@ import {
 } from './relay-command-profile';
 import { RelayCommandLockService } from './relay-command-lock.service';
 import {
-  doesRelayRowConfirmTarget,
   parseRelayConfirmation,
   readRelayRowTimestamp,
 } from './relay-confirmation';
@@ -64,12 +62,6 @@ type DeviceRecord = DeviceRow & {
   cw_device_owners?: DeviceOwnerRow[];
   cw_device_type?: DeviceTypeRow | DeviceTypeRow[] | null;
 };
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -239,13 +231,6 @@ export class RelayService {
         downlinks: [buildRelayDownlink(relay, targetState, correlationIds)],
       });
 
-      // const confirmedRow = await this.waitForRelayConfirmation(
-      //   normalizedDevEui,
-      //   relay,
-      //   targetState,
-      //   requestedAt,
-      // );
-
       return {
         confirmed: true,
         dev_eui: normalizedDevEui,
@@ -255,10 +240,6 @@ export class RelayService {
         targetState,
       };
     } catch (error) {
-      if (error instanceof GatewayTimeoutException) {
-        throw error;
-      }
-
       if (
         error instanceof BadRequestException ||
         error instanceof ForbiddenException ||
@@ -355,10 +336,6 @@ export class RelayService {
         targetState: 'on',
       };
     } catch (error) {
-      if (error instanceof GatewayTimeoutException) {
-        throw error;
-      }
-
       if (
         error instanceof BadRequestException ||
         error instanceof ConflictException ||
@@ -546,64 +523,6 @@ export class RelayService {
     }
 
     return (data as RelayRow | null) ?? null;
-  }
-
-  private async waitForRelayConfirmation(
-    devEui: string,
-    relay: 1 | 2,
-    targetState: 'off' | 'on',
-    requestedAt: string,
-  ): Promise<RelayRow> {
-    const timeoutMs = this.readConfirmationTimeoutMs();
-    const pollIntervalMs = this.readConfirmationPollIntervalMs();
-    const deadline = Date.now() + timeoutMs;
-
-    while (Date.now() <= deadline) {
-      const latestRow = await this.findLatestRelayRow(devEui);
-      if (
-        latestRow &&
-        doesRelayRowConfirmTarget(latestRow, relay, targetState, requestedAt)
-      ) {
-        return latestRow;
-      }
-
-      const remainingMs = deadline - Date.now();
-      if (remainingMs <= 0) {
-        break;
-      }
-
-      await sleep(Math.min(pollIntervalMs, remainingMs));
-    }
-
-    throw new GatewayTimeoutException(
-      `Timed out waiting for relay ${relay} confirmation from TTI`,
-    );
-  }
-
-  private readConfirmationTimeoutMs(): number {
-    const parsed = Number(
-      this.configService.get<string>(
-        'PRIVATE_TTI_RELAY_CONFIRMATION_TIMEOUT_MS',
-      ),
-    );
-
-    if (Number.isFinite(parsed) && parsed >= 1000) {
-      return parsed;
-    }
-
-    return 35_000;
-  }
-
-  private readConfirmationPollIntervalMs(): number {
-    const parsed = Number(
-      this.configService.get<string>('PRIVATE_TTI_RELAY_CONFIRMATION_POLL_MS'),
-    );
-
-    if (Number.isFinite(parsed) && parsed >= 250) {
-      return parsed;
-    }
-
-    return 1000;
   }
 
   private async persistRelayConfirmation(

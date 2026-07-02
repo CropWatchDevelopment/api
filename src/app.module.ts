@@ -6,7 +6,6 @@ import { ConfigModule } from '@nestjs/config';
 import { AirModule } from './v1/air/air.module';
 import { SoilModule } from './v1/soil/soil.module';
 import { WaterModule } from './v1/water/water.module';
-import { PowerModule } from './v1/power/power.module';
 import { TrafficModule } from './v1/traffic/traffic.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -29,7 +28,6 @@ import { CropwatchMcpModule } from './v1/mcp/mcp.module';
     AirModule,
     SoilModule,
     WaterModule,
-    PowerModule,
     TrafficModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'static'),

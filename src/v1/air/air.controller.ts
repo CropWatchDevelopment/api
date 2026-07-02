@@ -32,11 +32,6 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 export class AirController {
   constructor(private readonly airService: AirService) {}
 
-  // @Post()
-  // create(@Body() createAirDto: CreateAirDto) {
-  //   return this.airService.create(createAirDto);
-  // }
-
   @Post('notes')
   @UseGuards(JwtAuthGuard)
   async createNote(

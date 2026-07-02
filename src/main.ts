@@ -6,7 +6,6 @@ import helmet from 'helmet';
 import { join } from 'path';
 import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { STATUS_CODES } from 'http';
-import { doubleCsrf } from 'csrf-csrf';
 import type { NextFunction, Request, Response } from 'express';
 
 function getRequesterIp(req: Request): string {

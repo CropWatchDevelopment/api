@@ -2,19 +2,13 @@ import {
   BadRequestException,
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
   Query,
   UseGuards,
   Req,
 } from '@nestjs/common';
 import { SoilService } from './soil.service';
 import { SoilDataDto } from './dto/soil-data.dto';
-import type { CreateSoilDto } from './dto/create-soil.dto';
-import type { UpdateSoilDto } from './dto/update-soil.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
   ApiBadRequestResponse,
@@ -33,11 +27,6 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 @ApiSecurity('apiKey')
 export class SoilController {
   constructor(private readonly soilService: SoilService) {}
-
-  // @Post()
-  // create(@Body() createSoilDto: CreateSoilDto) {
-  //   return this.soilService.create(createSoilDto);
-  // }
 
   @Get(':dev_eui')
   @UseGuards(JwtAuthGuard)

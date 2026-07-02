@@ -1,18 +1,12 @@
 import {
   BadRequestException,
-  Body,
   Controller,
-  Delete,
   Get,
   Param,
-  Patch,
-  Post,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import { GatewayService } from './gateway.service';
-import { CreateGatewayDto } from './dto/create-gateway.dto';
-import { UpdateGatewayDto } from './dto/update-gateway.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
   ApiBearerAuth,
@@ -31,11 +25,6 @@ import { ErrorResponseDto } from '../common/dto/error-response.dto';
 @Controller({ path: 'gateway', version: '1' })
 export class GatewayController {
   constructor(private readonly gatewayService: GatewayService) {}
-
-  // @Post()
-  // create(@Body() createGatewayDto: CreateGatewayDto) {
-  //   return this.gatewayService.create(createGatewayDto);
-  // }
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -88,14 +77,4 @@ export class GatewayController {
 
     return this.gatewayService.findOne(gatewayId, req.user);
   }
-
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateGatewayDto: UpdateGatewayDto) {
-  //   return this.gatewayService.update(+id, updateGatewayDto);
-  // }
-
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.gatewayService.remove(+id);
-  // }
 }

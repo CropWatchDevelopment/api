@@ -158,8 +158,6 @@ describe('RelayService', () => {
     const service = createService({
       PRIVATE_TTI_API_KEY: 'tti-secret',
       PRIVATE_TTI_BASE_URL: 'https://tti.example.com',
-      PRIVATE_TTI_RELAY_CONFIRMATION_POLL_MS: '250',
-      PRIVATE_TTI_RELAY_CONFIRMATION_TIMEOUT_MS: '1000',
     });
 
     jest

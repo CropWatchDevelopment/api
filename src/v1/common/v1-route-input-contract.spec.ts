@@ -15,8 +15,6 @@ import { DevicesController } from '../devices/devices.controller';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsController } from '../locations/locations.controller';
 import { LocationsService } from '../locations/locations.service';
-import { PowerController } from '../power/power.controller';
-import { PowerService } from '../power/power.service';
 import { SoilController } from '../soil/soil.controller';
 import { SoilService } from '../soil/soil.service';
 import { TrafficController } from '../traffic/traffic.controller';
@@ -362,7 +360,6 @@ describe('V1 Route Input Contracts', () => {
         'updateUserPermissionLevel',
         'removeLocationPermission',
       ]),
-      power: createMockedMethods(['findOne']),
       soil: createMockedMethods(['findOne']),
       traffic: createMockedMethods(['findOne']),
       water: createMockedMethods(['findOne']),
@@ -374,7 +371,6 @@ describe('V1 Route Input Contracts', () => {
         AuthController,
         DevicesController,
         LocationsController,
-        PowerController,
         SoilController,
         TrafficController,
         WaterController,
@@ -384,7 +380,6 @@ describe('V1 Route Input Contracts', () => {
         { provide: AuthService, useValue: serviceRegistry.auth },
         { provide: DevicesService, useValue: serviceRegistry.devices },
         { provide: LocationsService, useValue: serviceRegistry.locations },
-        { provide: PowerService, useValue: serviceRegistry.power },
         { provide: SoilService, useValue: serviceRegistry.soil },
         { provide: TrafficService, useValue: serviceRegistry.traffic },
         { provide: WaterService, useValue: serviceRegistry.water },
@@ -835,17 +830,6 @@ describe('V1 Route Input Contracts', () => {
       method: 'delete',
       name: 'DELETE /v1/locations/:id/permission preserves permission_id query input',
       url: '/v1/locations/15/permission?permission_id=3',
-    },
-    {
-      expectedCall: {
-        args: [9],
-        method: 'findOne',
-        service: 'power',
-      },
-      expectedStatus: 200,
-      method: 'get',
-      name: 'GET /v1/power/:id preserves numeric ids',
-      url: '/v1/power/9',
     },
     {
       auth: true,

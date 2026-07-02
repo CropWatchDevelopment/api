@@ -1076,20 +1076,6 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         ],
       },
     },
-    "/v1/power/{id}": {
-      "get": {
-        "parameters": [
-          {
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "type": "string",
-            },
-          },
-        ],
-      },
-    },
     "/v1/soil/{dev_eui}": {
       "get": {
         "parameters": [

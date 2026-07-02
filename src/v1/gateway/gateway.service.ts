@@ -4,8 +4,6 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateGatewayDto } from './dto/create-gateway.dto';
-import { UpdateGatewayDto } from './dto/update-gateway.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { getUserId } from '../../supabase/supabase-token.helper';
 import type { TableRow } from '../types/supabase';
@@ -13,11 +11,6 @@ import type { TableRow } from '../types/supabase';
 @Injectable()
 export class GatewayService {
   constructor(private readonly supabaseService: SupabaseService) {}
-
-  create(createGatewayDto: CreateGatewayDto) {
-    void createGatewayDto;
-    return 'This action adds a new gateway';
-  }
 
   async findAll(jwtPayload: any): Promise<TableRow<'cw_gateways'>[]> {
     const client = this.supabaseService.getClient();
@@ -98,14 +91,5 @@ export class GatewayService {
     }
 
     return data;
-  }
-
-  update(id: number, updateGatewayDto: UpdateGatewayDto) {
-    void updateGatewayDto;
-    return `This action updates a #${id} gateway`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} gateway`;
   }
 }

@@ -27,8 +27,8 @@ import {
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
 import { DeviceDto } from './dto/device.dto';
-import { UpdateDevicePermissionDto } from './dto/UpdateDevicePermission.dto';
-import { UpdateDeviceNameGroupLocalDto } from './dto/UpdateDeviceNameGroupLocal.dto';
+import { UpdateDevicePermissionDto } from './dto/update-device-permission.dto';
+import { UpdateDeviceNameGroupLocalDto } from './dto/update-device-name-group-local.dto';
 import { ReplaceDeviceDto } from './dto/replace-device.dto';
 
 @Controller({ path: 'devices', version: '1' })

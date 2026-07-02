@@ -431,7 +431,10 @@ export class DevicesService {
     const { data: device, error: deviceError } = await deviceQuery.single();
 
     if (deviceError) {
-      console.error(deviceError);
+      this.logger.error(
+        `Failed to fetch device ${normalizedDevEui}`,
+        deviceError.message,
+      );
       throw new InternalServerErrorException('Failed to fetch device');
     }
 
@@ -574,10 +577,6 @@ export class DevicesService {
               `Skipping device ${d.dev_eui} because its device type is missing`,
             );
             return null;
-          }
-
-          if (deviceType.name === '[SEEED] DataLogger WaterLevel') {
-            console.log('hit');
           }
 
           const location = Array.isArray(d.cw_locations)

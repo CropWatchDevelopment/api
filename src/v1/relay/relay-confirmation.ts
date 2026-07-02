@@ -1,9 +1,4 @@
-import type {
-  RelayConfirmation,
-  RelayDataRow,
-  RelayNumber,
-  RelayTargetState,
-} from './relay.types';
+import type { RelayConfirmation, RelayDataRow } from './relay.types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -149,32 +144,3 @@ export function readRelayRowTimestamp(
   return row.created_at || row.last_update || '';
 }
 
-export function compareIsoTimestamps(left: string, right: string): number {
-  const leftTime = Date.parse(left);
-  const rightTime = Date.parse(right);
-
-  if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime)) {
-    return leftTime - rightTime;
-  }
-
-  return left.localeCompare(right);
-}
-
-export function doesRelayRowConfirmTarget(
-  row: RelayDataRow,
-  relay: RelayNumber,
-  targetState: RelayTargetState,
-  baselineTime: string,
-): boolean {
-  const rowTime = readRelayRowTimestamp(row);
-  if (!rowTime || compareIsoTimestamps(rowTime, baselineTime) <= 0) {
-    return false;
-  }
-
-  const relayValue = relay === 1 ? row.relay_1 : row.relay_2;
-  if (relayValue === null) {
-    return false;
-  }
-
-  return targetState === 'on' ? relayValue : !relayValue;
-}

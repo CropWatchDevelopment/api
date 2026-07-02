@@ -2,11 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
   Query,
   UseGuards,
   Req,
@@ -15,8 +11,6 @@ import { TrafficService } from './traffic.service';
 import { TrafficDataDto } from './dto/traffic-data.dto';
 import { TrafficReportDto } from './dto/traffic-report.dto';
 import { TrafficMonthlyReportDto } from './dto/traffic-monthly-report.dto';
-import type { CreateTrafficDto } from './dto/create-traffic.dto';
-import type { UpdateTrafficDto } from './dto/update-traffic.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
   ApiBadRequestResponse,
