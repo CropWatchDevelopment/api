@@ -134,9 +134,7 @@ export class DevicesController {
     Returns the device groups for the authenticated user.`,
   })
   findAllDeviceGroups(@CurrentUser() user: AuthenticatedUser) {
-    return this.devicesService.findAllDeviceGroups(
-      user,
-    );
+    return this.devicesService.findAllDeviceGroups(user);
   }
 
   @Get('device-types')
@@ -146,9 +144,7 @@ export class DevicesController {
     Returns the device types for the authenticated user.`,
   })
   findAllDeviceTypes(@CurrentUser() user: AuthenticatedUser) {
-    return this.devicesService.findAllDeviceTypes(
-      user,
-    );
+    return this.devicesService.findAllDeviceTypes(user);
   }
 
   @Get('latest-primary-data')
@@ -222,11 +218,11 @@ export class DevicesController {
     description: `
     Returns the latest, 2 primary data values from the table record for all devices in a specific location.`,
   })
-  allDevicesInLocation(@CurrentUser() user: AuthenticatedUser, @Param('location_id') locationId: number) {
-    return this.devicesService.findAllDevicesInLocation(
-      user,
-      locationId,
-    );
+  allDevicesInLocation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('location_id') locationId: number,
+  ) {
+    return this.devicesService.findAllDevicesInLocation(user, locationId);
   }
 
   @Get(':dev_eui')
@@ -276,14 +272,14 @@ export class DevicesController {
     description: `
     Returns a specific device for the authenticated user.`,
   })
-  findOne(@CurrentUser() user: AuthenticatedUser, @Param('dev_eui') devEui: string) {
+  findOne(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('dev_eui') devEui: string,
+  ) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
-    return this.devicesService.findOne(
-      user,
-      devEui,
-    );
+    return this.devicesService.findOne(user, devEui);
   }
 
   @Get(':dev_eui/data')
@@ -401,14 +397,14 @@ export class DevicesController {
     description: `
     Returns the full latest data record for a device.`,
   })
-  latestData(@CurrentUser() user: AuthenticatedUser, @Param('dev_eui') devEui: string) {
+  latestData(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('dev_eui') devEui: string,
+  ) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
-    return this.devicesService.findLatestData(
-      user,
-      devEui,
-    );
+    return this.devicesService.findLatestData(user, devEui);
   }
 
   @Get(':dev_eui/latest-primary-data')
@@ -418,15 +414,14 @@ export class DevicesController {
     description: `
     Returns the latest, 2 primary data values from the table record for a device.`,
   })
-  latestPrimaryData(@CurrentUser() user: AuthenticatedUser, @Param('dev_eui') devEui: string) {
+  latestPrimaryData(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('dev_eui') devEui: string,
+  ) {
     if (!devEui?.trim()) {
       throw new BadRequestException('dev_eui is required');
     }
-    return this.devicesService.findLatestData(
-      user,
-      devEui,
-      true,
-    );
+    return this.devicesService.findLatestData(user, devEui, true);
   }
 
   @Post(':dev_eui')

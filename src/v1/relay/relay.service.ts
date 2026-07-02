@@ -148,10 +148,7 @@ export class RelayService {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const context = await this.loadRelayDeviceContext(
-      user,
-      normalizedDevEui,
-    );
+    const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
     if (!canRead(context.permissionLevel)) {
       throw new NotFoundException('Device not found');
     }
@@ -175,10 +172,7 @@ export class RelayService {
     }
 
     const { relay, targetState } = updateRelayDto;
-    const context = await this.loadRelayDeviceContext(
-      user,
-      normalizedDevEui,
-    );
+    const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
     if (!canManage(context.permissionLevel)) {
       throw new ForbiddenException(
         'You do not have permission to control this relay',
@@ -260,10 +254,7 @@ export class RelayService {
     }
 
     const { durationSeconds, relay } = pulseRelayDto;
-    const context = await this.loadRelayDeviceContext(
-      user,
-      normalizedDevEui,
-    );
+    const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
     if (!canManage(context.permissionLevel)) {
       throw new ForbiddenException(
         'You do not have permission to control this relay',

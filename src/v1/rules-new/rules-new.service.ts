@@ -119,9 +119,7 @@ export class RulesNewService {
    * triggered, narrowed to those triggered assignments. Visibility scoping is
    * inherited from findAll (device read scope).
    */
-  async findAllTriggered(
-    user: AuthenticatedUser,
-  ): Promise<RuleTemplateDto[]> {
+  async findAllTriggered(user: AuthenticatedUser): Promise<RuleTemplateDto[]> {
     const rules = await this.findAll(user);
     return rules
       .map((rule) => ({
@@ -151,10 +149,7 @@ export class RulesNewService {
     };
   }
 
-  async findOne(
-    id: number,
-    user: AuthenticatedUser,
-  ): Promise<RuleTemplateDto> {
+  async findOne(id: number, user: AuthenticatedUser): Promise<RuleTemplateDto> {
     const userId = user.sub;
     const isStaff = user.isStaff;
 
@@ -299,10 +294,7 @@ export class RulesNewService {
     }
 
     try {
-      await this.replaceTemplateChildren(
-        templateData.id,
-        normalized,
-      );
+      await this.replaceTemplateChildren(templateData.id, normalized);
     } catch (error) {
       await this.deleteTemplateBestEffort(templateData.id);
       throw error;
@@ -350,10 +342,7 @@ export class RulesNewService {
     return this.findOne(id, user);
   }
 
-  async remove(
-    id: number,
-    user: AuthenticatedUser,
-  ): Promise<{ id: number }> {
+  async remove(id: number, user: AuthenticatedUser): Promise<{ id: number }> {
     const userId = user.sub;
     const isStaff = user.isStaff;
 
@@ -382,7 +371,7 @@ export class RulesNewService {
 
   private async listManagedDevices(
     userId: string,
-        isStaff: boolean,
+    isStaff: boolean,
   ): Promise<ManagedDevice[]> {
     const client = this.supabaseService.getClient();
     const { data, error } = await client
@@ -431,7 +420,7 @@ export class RulesNewService {
   }
 
   private async loadTemplatesByIds(
-        templateIds: number[],
+    templateIds: number[],
   ): Promise<TemplateRow[]> {
     if (templateIds.length === 0) return [];
 
@@ -449,7 +438,7 @@ export class RulesNewService {
   }
 
   private async loadCriteriaByTemplateIds(
-        templateIds: number[],
+    templateIds: number[],
   ): Promise<CriterionRow[]> {
     if (templateIds.length === 0) return [];
 
@@ -469,7 +458,7 @@ export class RulesNewService {
   }
 
   private async loadActionsByTemplateIds(
-        templateIds: number[],
+    templateIds: number[],
   ): Promise<ActionRow[]> {
     if (templateIds.length === 0) return [];
 
@@ -528,7 +517,7 @@ export class RulesNewService {
   }
 
   private async loadStates(
-        templateIds: number[],
+    templateIds: number[],
     devEuis: string[],
   ): Promise<StateRow[]> {
     const uniqueDevEuis = uniqueValues(devEuis);
@@ -551,7 +540,7 @@ export class RulesNewService {
   }
 
   private async replaceTemplateChildren(
-        templateId: number,
+    templateId: number,
     payload: NormalizedSaveRequest,
   ): Promise<void> {
     await this.deleteTemplateChildren(templateId);
@@ -593,9 +582,7 @@ export class RulesNewService {
     }
   }
 
-  private async deleteTemplateChildren(
-        templateId: number,
-  ): Promise<void> {
+  private async deleteTemplateChildren(templateId: number): Promise<void> {
     const client = this.supabaseService.getClient();
     const [assignmentsResult, criteriaResult, actionsResult] =
       await Promise.all([
@@ -626,9 +613,7 @@ export class RulesNewService {
     }
   }
 
-  private async deleteTemplateState(
-        templateId: number,
-  ): Promise<void> {
+  private async deleteTemplateState(templateId: number): Promise<void> {
     const { error } = await this.supabaseService
       .getClient()
       .from('cw_rule_state')
@@ -640,9 +625,7 @@ export class RulesNewService {
     }
   }
 
-  private async deleteTemplateBestEffort(
-        templateId: number,
-  ): Promise<void> {
+  private async deleteTemplateBestEffort(templateId: number): Promise<void> {
     try {
       await this.deleteTemplateChildren(templateId);
       await this.supabaseService

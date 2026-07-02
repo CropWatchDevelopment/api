@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -50,10 +43,7 @@ export class DashboardController {
       location: q.location?.trim() || undefined,
       locationGroup: q.locationGroup?.trim() || undefined,
     };
-    return this.dashboardService.getDevices(
-      user,
-      query,
-    );
+    return this.dashboardService.getDevices(user, query);
   }
 
   @Get('locations')
@@ -79,10 +69,7 @@ export class DashboardController {
       location: q.location?.trim() || undefined,
       locationGroup: q.locationGroup?.trim() || undefined,
     };
-    return this.dashboardService.getLocations(
-      user,
-      query,
-    );
+    return this.dashboardService.getLocations(user, query);
   }
 
   @Get('devices/:dev_eui/latest')
@@ -96,10 +83,7 @@ export class DashboardController {
     @Param('dev_eui') devEui: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const row = await this.dashboardService.getLatest(
-      user,
-      devEui,
-    );
+    const row = await this.dashboardService.getLatest(user, devEui);
     if (row === null) {
       res.status(204);
       return;

@@ -60,7 +60,10 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     return data;
   }
 
-  async createNote(createAirNoteDto: CreateAirAnnotationDto, user: AuthenticatedUser) {
+  async createNote(
+    createAirNoteDto: CreateAirAnnotationDto,
+    user: AuthenticatedUser,
+  ) {
     const normalizedDevEui = createAirNoteDto.dev_eui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');

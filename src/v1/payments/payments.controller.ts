@@ -49,18 +49,14 @@ export class PaymentsController {
     summary: 'Get the full billing overview (base sub, device seats, licenses)',
   })
   getState(@CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.getState(
-      user,
-    );
+    return this.paymentsService.getState(user);
   }
 
   @Get('licenses')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: "List the user's device licenses" })
   getLicenses(@CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.getLicenses(
-      user,
-    );
+    return this.paymentsService.getLicenses(user);
   }
 
   @Post('subscriptions/base/checkout')
@@ -68,7 +64,10 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Create a hosted checkout for the base subscription',
   })
-  createBaseCheckout(@Body() dto: CreateBaseCheckoutDto, @CurrentUser() user: AuthenticatedUser) {
+  createBaseCheckout(
+    @Body() dto: CreateBaseCheckoutDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.paymentsService.createBaseCheckout(
       user,
       dto.discountId ?? null,
@@ -80,21 +79,21 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Create a hosted checkout for device licenses (seats)',
   })
-  createDeviceCheckout(@Body() dto: CreateDeviceCheckoutDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.createDeviceCheckout(
-      user,
-      dto.quantity,
-    );
+  createDeviceCheckout(
+    @Body() dto: CreateDeviceCheckoutDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.paymentsService.createDeviceCheckout(user, dto.quantity);
   }
 
   @Patch('subscriptions/device/seats')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Change the number of device licenses (seats)' })
-  changeDeviceSeats(@Body() dto: ChangeSeatsDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.changeDeviceSeats(
-      user,
-      dto.seats,
-    );
+  changeDeviceSeats(
+    @Body() dto: ChangeSeatsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.paymentsService.changeDeviceSeats(user, dto.seats);
   }
 
   @Post('licenses/:id/assign')
@@ -122,22 +121,18 @@ export class PaymentsController {
     @Body() dto: MoveLicenseDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.paymentsService.moveLicense(
-      user,
-      this.parseId(id),
-      dto.devEui,
-    );
+    return this.paymentsService.moveLicense(user, this.parseId(id), dto.devEui);
   }
 
   @Post('licenses/:id/unassign')
   @UseGuards(JwtAuthGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({ summary: 'Unassign a license from its device' })
-  unassignLicense(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.unassignLicense(
-      user,
-      this.parseId(id),
-    );
+  unassignLicense(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.paymentsService.unassignLicense(user, this.parseId(id));
   }
 
   @Post('licenses/:id/cancel')
@@ -146,26 +141,27 @@ export class PaymentsController {
   @ApiOperation({
     summary: 'Cancel an unassigned license (reduce the paid seat count by one)',
   })
-  cancelLicense(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.cancelLicense(
-      user,
-      this.parseId(id),
-    );
+  cancelLicense(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.paymentsService.cancelLicense(user, this.parseId(id));
   }
 
   @Post('portal')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Open the Polar customer billing portal' })
   openPortal(@CurrentUser() user: AuthenticatedUser) {
-    return this.paymentsService.openPortal(
-      user,
-    );
+    return this.paymentsService.openPortal(user);
   }
 
   @Delete('subscriptions/base')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Cancel the base subscription' })
-  cancelBase(@Body() dto: CancelBaseDto, @CurrentUser() user: AuthenticatedUser) {
+  cancelBase(
+    @Body() dto: CancelBaseDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.paymentsService.cancelBaseSubscription(
       user,
       dto.atPeriodEnd ?? true,

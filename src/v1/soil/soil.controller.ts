@@ -114,12 +114,6 @@ export class SoilController {
       throw new BadRequestException('start must be before end');
     }
 
-    return this.soilService.findOne(
-      devEui,
-      startDate,
-      endDate,
-      user,
-      timezone,
-    );
+    return this.soilService.findOne(devEui, startDate, endDate, user, timezone);
   }
 }

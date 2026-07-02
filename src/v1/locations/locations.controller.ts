@@ -40,11 +40,11 @@ export class LocationsController {
   constructor(private readonly locationsService: LocationsService) {}
 
   @Post()
-  create(@Body() createLocationDto: CreateLocationDto, @CurrentUser() user: AuthenticatedUser) {
-    return this.locationsService.create(
-      createLocationDto,
-      user,
-    );
+  create(
+    @Body() createLocationDto: CreateLocationDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.locationsService.create(createLocationDto, user);
   }
   @ApiOkResponse({
     description: "Current all of the user's rules configurations.",
@@ -88,11 +88,7 @@ export class LocationsController {
     @Body() updateLocationDto: UpdateLocationDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.locationsService.update(
-      +id,
-      updateLocationDto,
-      user,
-    );
+    return this.locationsService.update(+id, updateLocationDto, user);
   }
 
   @Post(':id/permission')

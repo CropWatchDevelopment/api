@@ -55,9 +55,7 @@ export class PaymentsService {
     };
   }
 
-  async getState(
-    user: AuthenticatedUser,
-  ): Promise<SubscriptionStateResponse> {
+  async getState(user: AuthenticatedUser): Promise<SubscriptionStateResponse> {
     const userId = user.sub;
     const client = this.supabaseService.getClient();
 
@@ -107,9 +105,7 @@ export class PaymentsService {
     };
   }
 
-  async getLicenses(
-    user: AuthenticatedUser,
-  ): Promise<BillingLicense[]> {
+  async getLicenses(user: AuthenticatedUser): Promise<BillingLicense[]> {
     const userId = user.sub;
     const client = this.supabaseService.getClient();
     return this.fetchLicenses(client, userId);
@@ -121,9 +117,7 @@ export class PaymentsService {
    * cached `billing_customers.base_status` so a transient outage doesn't block
    * a legitimately-subscribed user.
    */
-  async hasActiveBaseSubscription(
-    user: AuthenticatedUser,
-  ): Promise<boolean> {
+  async hasActiveBaseSubscription(user: AuthenticatedUser): Promise<boolean> {
     const userId = user.sub;
     try {
       const subscriptions = await this.polarService.listSubscriptions(userId);
@@ -250,9 +244,7 @@ export class PaymentsService {
     return { seats };
   }
 
-  async openPortal(
-    user: AuthenticatedUser,
-  ): Promise<{ portalUrl: string }> {
+  async openPortal(user: AuthenticatedUser): Promise<{ portalUrl: string }> {
     const userId = user.sub;
     try {
       const portalUrl = await this.polarService.createPortalSession(userId);

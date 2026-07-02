@@ -143,4 +143,3 @@ export function readRelayRowTimestamp(
 
   return row.created_at || row.last_update || '';
 }
-

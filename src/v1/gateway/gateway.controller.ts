@@ -70,7 +70,10 @@ export class GatewayController {
       'Gateway not found or not accessible to the authenticated user.',
     type: ErrorResponseDto,
   })
-  findOne(@Param('gatewayId') gatewayId: string, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('gatewayId') gatewayId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     if (!gatewayId?.trim()) {
       throw new BadRequestException('gateway_id is required');
     }

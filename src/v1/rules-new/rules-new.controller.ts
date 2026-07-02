@@ -44,7 +44,10 @@ export class RulesNewController {
     required: false,
   })
   @Get()
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query('search') search?: string) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('search') search?: string,
+  ) {
     return this.rulesNewService.findAll(user, search);
   }
   @ApiOkResponse({
@@ -70,7 +73,10 @@ export class RulesNewController {
     type: Number,
   })
   @Get('form-context')
-  getFormContext(@CurrentUser() user: AuthenticatedUser, @Query('templateId') templateId?: string) {
+  getFormContext(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('templateId') templateId?: string,
+  ) {
     const parsed = templateId !== undefined ? Number(templateId) : NaN;
     const id = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
     return this.rulesNewService.getFormContext(user, id);
@@ -108,7 +114,10 @@ export class RulesNewController {
     isArray: true,
   })
   @Get(':id/history')
-  findHistory(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findHistory(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.rulesNewService.getHistory(id, user);
   }
   @ApiOkResponse({
@@ -117,7 +126,10 @@ export class RulesNewController {
     isArray: false,
   })
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.rulesNewService.findOne(id, user);
   }
   @ApiOkResponse({
@@ -128,7 +140,10 @@ export class RulesNewController {
   })
   @ApiBody({ type: SaveRuleTemplateDto })
   @Post()
-  create(@Body() body: SaveRuleTemplateDto, @CurrentUser() user: AuthenticatedUser) {
+  create(
+    @Body() body: SaveRuleTemplateDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.rulesNewService.create(body, user);
   }
   @ApiOkResponse({
@@ -153,7 +168,10 @@ export class RulesNewController {
     },
   })
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.rulesNewService.remove(id, user);
   }
 }

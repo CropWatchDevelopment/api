@@ -29,10 +29,7 @@ export class LocationsService {
     private readonly paymentsService: PaymentsService,
   ) {}
 
-  async create(
-    createLocationDto: CreateLocationDto,
-    user: AuthenticatedUser,
-  ) {
+  async create(createLocationDto: CreateLocationDto, user: AuthenticatedUser) {
     const userId = user.sub;
     const client = this.supabaseService.getClient();
 
@@ -40,9 +37,7 @@ export class LocationsService {
     // are exempt, mirroring the rest of the permission model.
     if (
       !user.isStaff &&
-      !(await this.paymentsService.hasActiveBaseSubscription(
-        user,
-      ))
+      !(await this.paymentsService.hasActiveBaseSubscription(user))
     ) {
       throw new ForbiddenException(
         'An active base subscription is required to create a location.',
@@ -214,9 +209,7 @@ export class LocationsService {
     return data;
   }
 
-  async findAllLocationGroups(
-    user: AuthenticatedUser,
-  ): Promise<string[]> {
+  async findAllLocationGroups(user: AuthenticatedUser): Promise<string[]> {
     const userId = user.sub;
     const client = this.supabaseService.getClient();
     const isGlobalUser = user.isStaff;

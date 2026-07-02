@@ -115,9 +115,11 @@ describe('RulesNewService', () => {
     );
 
     await expect(
-      serviceWithClient.findAll(
-        { sub: 'user-1', email: 'user@example.com', isStaff: false },
-      ),
+      serviceWithClient.findAll({
+        sub: 'user-1',
+        email: 'user@example.com',
+        isStaff: false,
+      }),
     ).resolves.toEqual([]);
 
     expect(client.from).toHaveBeenCalledWith('cw_devices');
@@ -223,10 +225,11 @@ describe('RulesNewService', () => {
     );
 
     await expect(
-      serviceWithClient.findOne(
-        1,
-        { sub: 'user-1', email: 'user@example.com', isStaff: false },
-      ),
+      serviceWithClient.findOne(1, {
+        sub: 'user-1',
+        email: 'user@example.com',
+        isStaff: false,
+      }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -296,9 +299,11 @@ describe('RulesNewService', () => {
           buildRule(2, [{ devEui: 'BB', isTriggered: false }]),
         ]);
 
-      await expect(
-        service.findTriggeredCount(jwt),
-      ).resolves.toEqual({ count: 1, triggered_count: 1, total_count: 2 });
+      await expect(service.findTriggeredCount(jwt)).resolves.toEqual({
+        count: 1,
+        triggered_count: 1,
+        total_count: 2,
+      });
     });
   });
 });

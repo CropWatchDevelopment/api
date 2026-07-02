@@ -44,7 +44,10 @@ export class ReportsNewController {
     required: false,
   })
   @Get()
-  findAll(@CurrentUser() user: AuthenticatedUser, @Query('search') search?: string) {
+  findAll(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('search') search?: string,
+  ) {
     return this.reportsNewService.findAll(user, search);
   }
   @ApiOkResponse({
@@ -70,7 +73,10 @@ export class ReportsNewController {
     type: Number,
   })
   @Get('form-context')
-  getFormContext(@CurrentUser() user: AuthenticatedUser, @Query('templateId') templateId?: string) {
+  getFormContext(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('templateId') templateId?: string,
+  ) {
     const parsed = templateId !== undefined ? Number(templateId) : NaN;
     const id = Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
     return this.reportsNewService.getFormContext(user, id);
@@ -89,11 +95,7 @@ export class ReportsNewController {
     @Param('reportName') reportName: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.reportsNewService.getDownloadUrl(
-      devEui,
-      reportName,
-      user,
-    );
+    return this.reportsNewService.getDownloadUrl(devEui, reportName, user);
   }
   @ApiOkResponse({
     description:
@@ -102,7 +104,10 @@ export class ReportsNewController {
     isArray: true,
   })
   @Get(':id/history')
-  findHistory(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findHistory(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.reportsNewService.getHistory(id, user);
   }
   @ApiOkResponse({
@@ -111,7 +116,10 @@ export class ReportsNewController {
     isArray: false,
   })
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.reportsNewService.findOne(id, user);
   }
   @ApiOkResponse({
@@ -122,7 +130,10 @@ export class ReportsNewController {
   })
   @ApiBody({ type: SaveReportTemplateDto })
   @Post()
-  create(@Body() body: SaveReportTemplateDto, @CurrentUser() user: AuthenticatedUser) {
+  create(
+    @Body() body: SaveReportTemplateDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.reportsNewService.create(body, user);
   }
   @ApiOkResponse({
@@ -147,7 +158,10 @@ export class ReportsNewController {
     },
   })
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthenticatedUser) {
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.reportsNewService.remove(id, user);
   }
 }

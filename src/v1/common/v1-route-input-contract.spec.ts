@@ -504,14 +504,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [
-          MOCK_USER,
-          5,
-          1000,
-          'Field Group',
-          'North Node',
-          'Greenhouse',
-        ],
+        args: [MOCK_USER, 5, 1000, 'Field Group', 'North Node', 'Greenhouse'],
         method: 'findAll',
         service: 'devices',
       },
@@ -663,13 +656,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [
-          MOCK_USER,
-          'DEV-001',
-          'Renamed Device',
-          'Zone A',
-          54,
-        ],
+        args: [MOCK_USER, 'DEV-001', 'Renamed Device', 'Zone A', 54],
         method: 'updateDevice',
         service: 'devices',
       },

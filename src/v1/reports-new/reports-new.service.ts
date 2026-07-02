@@ -272,10 +272,7 @@ export class ReportsNewService {
     }
 
     try {
-      await this.replaceTemplateChildren(
-        templateData.id,
-        normalized,
-      );
+      await this.replaceTemplateChildren(templateData.id, normalized);
     } catch (error) {
       await this.deleteTemplateBestEffort(templateData.id);
       throw error;
@@ -325,10 +322,7 @@ export class ReportsNewService {
     return this.findOne(id, user);
   }
 
-  async remove(
-    id: number,
-    user: AuthenticatedUser,
-  ): Promise<{ id: number }> {
+  async remove(id: number, user: AuthenticatedUser): Promise<{ id: number }> {
     const userId = user.sub;
     const isStaff = user.isStaff;
 
@@ -494,8 +488,7 @@ export class ReportsNewService {
     }
 
     const storageClient =
-      this.supabaseService.getAdminClient() ??
-      this.supabaseService.getClient();
+      this.supabaseService.getAdminClient() ?? this.supabaseService.getClient();
     const { data, error } = await storageClient.storage
       .from(STORAGE_BUCKET)
       .createSignedUrl(`${normalizedDevEui}/${resolvedName}`, 60, {
@@ -513,7 +506,7 @@ export class ReportsNewService {
 
   private async listManagedDevices(
     userId: string,
-        isStaff: boolean,
+    isStaff: boolean,
   ): Promise<ManagedDevice[]> {
     const client = this.supabaseService.getClient();
     const { data, error } = await client
@@ -562,7 +555,7 @@ export class ReportsNewService {
   }
 
   private async loadTemplatesByIds(
-        templateIds: number[],
+    templateIds: number[],
   ): Promise<TemplateRow[]> {
     if (templateIds.length === 0) return [];
 
@@ -582,7 +575,7 @@ export class ReportsNewService {
   }
 
   private async loadScheduleByTemplateIds(
-        templateIds: number[],
+    templateIds: number[],
   ): Promise<ScheduleRow[]> {
     if (templateIds.length === 0) return [];
 
@@ -602,7 +595,7 @@ export class ReportsNewService {
   }
 
   private async loadRecipientsByTemplateIds(
-        templateIds: number[],
+    templateIds: number[],
   ): Promise<RecipientRow[]> {
     if (templateIds.length === 0) return [];
 
@@ -622,7 +615,7 @@ export class ReportsNewService {
   }
 
   private async loadAlertPointsByTemplateIds(
-        templateIds: number[],
+    templateIds: number[],
   ): Promise<AlertPointRow[]> {
     if (templateIds.length === 0) return [];
 
@@ -644,7 +637,7 @@ export class ReportsNewService {
   }
 
   private async loadDataProcessingSchedulesByTemplateIds(
-        templateIds: number[],
+    templateIds: number[],
   ): Promise<DataProcessingScheduleRow[]> {
     if (templateIds.length === 0) return [];
 
@@ -666,7 +659,7 @@ export class ReportsNewService {
   }
 
   private async replaceTemplateChildren(
-        templateId: number,
+    templateId: number,
     payload: NormalizedSaveRequest,
   ): Promise<void> {
     await this.deleteTemplateChildren(templateId);
@@ -768,9 +761,7 @@ export class ReportsNewService {
     }
   }
 
-  private async deleteTemplateChildren(
-        templateId: number,
-  ): Promise<void> {
+  private async deleteTemplateChildren(templateId: number): Promise<void> {
     const client = this.supabaseService.getClient();
     const [assignments, schedule, recipients, alertPoints, dpSchedules] =
       await Promise.all([
@@ -823,9 +814,7 @@ export class ReportsNewService {
     }
   }
 
-  private async deleteTemplateBestEffort(
-        templateId: number,
-  ): Promise<void> {
+  private async deleteTemplateBestEffort(templateId: number): Promise<void> {
     try {
       await this.deleteTemplateChildren(templateId);
       await this.supabaseService

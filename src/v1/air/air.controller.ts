@@ -53,7 +53,10 @@ export class AirController {
   }
 
   @Delete('notes/:note_id')
-  async deleteNote(@Param('note_id') noteId: number, @CurrentUser() user: AuthenticatedUser) {
+  async deleteNote(
+    @Param('note_id') noteId: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     return this.airService.deleteNote(noteId, user);
   }
 
@@ -141,12 +144,6 @@ export class AirController {
       throw new BadRequestException('start must be before end');
     }
 
-    return this.airService.findOne(
-      devEui,
-      startDate,
-      endDate,
-      user,
-      timezone,
-    );
+    return this.airService.findOne(devEui, startDate, endDate, user, timezone);
   }
 }
