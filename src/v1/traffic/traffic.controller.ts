@@ -11,6 +11,7 @@ import { TrafficDataDto } from './dto/traffic-data.dto';
 import { TrafficReportDto } from './dto/traffic-report.dto';
 import { TrafficMonthlyReportDto } from './dto/traffic-monthly-report.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
+import { parseTimeseriesRange } from '../common/timeseries-range.helper';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -101,20 +102,7 @@ export class TrafficController {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const endDate = end ? new Date(end) : new Date();
-    if (Number.isNaN(endDate.getTime())) {
-      throw new BadRequestException('end must be a valid date/time');
-    }
-
-    const startDate = start
-      ? new Date(start)
-      : new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
-    if (Number.isNaN(startDate.getTime())) {
-      throw new BadRequestException('start must be a valid date/time');
-    }
-    if (startDate > endDate) {
-      throw new BadRequestException('start must be before end');
-    }
+    const { startDate, endDate } = parseTimeseriesRange(start, end);
 
     return this.trafficService.findOne(
       devEui,

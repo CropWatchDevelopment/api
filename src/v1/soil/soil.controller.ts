@@ -9,6 +9,7 @@ import {
 import { SoilService } from './soil.service';
 import { SoilDataDto } from './dto/soil-data.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
+import { parseTimeseriesRange } from '../common/timeseries-range.helper';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -99,20 +100,7 @@ export class SoilController {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const endDate = end ? new Date(end) : new Date();
-    if (Number.isNaN(endDate.getTime())) {
-      throw new BadRequestException('end must be a valid date/time');
-    }
-
-    const startDate = start
-      ? new Date(start)
-      : new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
-    if (Number.isNaN(startDate.getTime())) {
-      throw new BadRequestException('start must be a valid date/time');
-    }
-    if (startDate > endDate) {
-      throw new BadRequestException('start must be before end');
-    }
+    const { startDate, endDate } = parseTimeseriesRange(start, end);
 
     return this.soilService.findOne(devEui, startDate, endDate, user, timezone);
   }

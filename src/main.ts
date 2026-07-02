@@ -9,6 +9,7 @@ import { getCommit } from './utils/gitCommit';
 import helmet from 'helmet';
 import { join } from 'path';
 import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
+import { AllExceptionsFilter } from './v1/common/filters/all-exceptions.filter';
 import { STATUS_CODES } from 'http';
 import type { Express, NextFunction, Request, Response } from 'express';
 
@@ -74,6 +75,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.useGlobalFilters(new AllExceptionsFilter());
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: '1',
