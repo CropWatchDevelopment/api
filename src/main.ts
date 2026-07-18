@@ -29,7 +29,7 @@ function getRequesterIp(req: Request): string {
 
 async function bootstrap() {
   // rawBody: true keeps req.rawBody (a Buffer) alongside the parsed JSON body so
-  // the Polar webhook route can verify the signature over the unmodified payload.
+  // the Stripe webhook route can verify the signature over the unmodified payload.
   const app = await NestFactory.create(AppModule, { rawBody: true });
   const logger = new Logger('NestApplication');
   // The Express adapter's getInstance() is typed `any`; pin it once here.
@@ -90,7 +90,7 @@ Business scope:
 - Monitor field and greenhouse devices with time-series telemetry (air, soil, water, traffic).
 - Manage device inventory, online/offline status, and latest sensor values for operations dashboards.
 - Configure automation with threshold-based rules and scheduled reports with recipients/alert points.
-- Manage subscription billing with Polar checkout, customer portal, subscription state, and product catalog.
+- Manage subscription billing with Stripe checkout, customer portal, subscription state, and product catalog.
 
 Developer notes:
 - URI versioning is enabled (current default routes are under /v1).

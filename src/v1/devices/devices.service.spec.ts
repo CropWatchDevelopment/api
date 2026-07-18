@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DevicesService } from './devices.service';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { LocationsService } from '../locations/locations.service';
+import { PaymentsService } from '../payments/payments.service';
 
 describe('DevicesService', () => {
   let service: DevicesService;
@@ -20,6 +21,13 @@ describe('DevicesService', () => {
         {
           provide: LocationsService,
           useValue: {},
+        },
+        {
+          provide: PaymentsService,
+          useValue: {
+            assertLicenseAvailable: jest.fn(),
+            assignLicense: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -443,6 +451,163 @@ describe('DevicesService', () => {
           { dev_eui: 'DEV-001', user_id: 'mover-1', permission_level: 1 },
           { dev_eui: 'DEV-001', user_id: 'member-a', permission_level: 5 },
         ]),
+      );
+    });
+  });
+
+  describe('createDevice license gate', () => {
+    const DEV_EUI = 'AAAA000000000001';
+    const staffUser = {
+      sub: 'staff-1',
+      email: 'staff@cropwatch.io',
+      isStaff: true,
+    };
+    const customer = {
+      sub: 'user-1',
+      email: 'customer@example.com',
+      isStaff: false,
+    };
+
+    const buildClient = () => {
+      const devicesBuilder = {
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest
+          .fn()
+          .mockResolvedValue({ data: { dev_eui: DEV_EUI }, error: null }),
+      };
+      const ownersBuilder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+      const client = {
+        from: jest.fn((table: string) =>
+          table === 'cw_devices' ? devicesBuilder : ownersBuilder,
+        ),
+      };
+      return { client, devicesBuilder };
+    };
+
+    const buildService = async (
+      payments: {
+        assertLicenseAvailable: jest.Mock;
+        assignLicense: jest.Mock;
+      },
+      client: unknown,
+    ) => {
+      const module = await Test.createTestingModule({
+        providers: [
+          DevicesService,
+          {
+            provide: SupabaseService,
+            useValue: {
+              getClient: () => client,
+              getAdminClient: () => client,
+            },
+          },
+          {
+            provide: LocationsService,
+            useValue: {
+              findOne: jest
+                .fn()
+                .mockResolvedValue({ id: 2, owner_id: 'user-1' }),
+            },
+          },
+          { provide: PaymentsService, useValue: payments },
+        ],
+      }).compile();
+      return module.get<DevicesService>(DevicesService);
+    };
+
+    it('rejects a non-staff create without license_id before touching the database', async () => {
+      const payments = {
+        assertLicenseAvailable: jest.fn(),
+        assignLicense: jest.fn(),
+      };
+      const { client, devicesBuilder } = buildClient();
+      const deviceService = await buildService(payments, client);
+
+      await expect(
+        deviceService.createDevice(customer, DEV_EUI, {
+          dev_eui: DEV_EUI,
+          location_id: 2,
+        } as never),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(devicesBuilder.insert).not.toHaveBeenCalled();
+      expect(payments.assignLicense).not.toHaveBeenCalled();
+    });
+
+    it('validates the seat before insert and consumes it after creation', async () => {
+      const payments = {
+        assertLicenseAvailable: jest.fn().mockResolvedValue(undefined),
+        assignLicense: jest.fn().mockResolvedValue({}),
+      };
+      const { client, devicesBuilder } = buildClient();
+      const deviceService = await buildService(payments, client);
+
+      await deviceService.createDevice(customer, DEV_EUI, {
+        dev_eui: DEV_EUI,
+        location_id: 2,
+        license_id: 6,
+      } as never);
+
+      expect(payments.assertLicenseAvailable).toHaveBeenCalledWith(
+        customer,
+        6,
+      );
+      expect(devicesBuilder.insert).toHaveBeenCalled();
+      expect(payments.assignLicense).toHaveBeenCalledWith(customer, 6, DEV_EUI);
+    });
+
+    it('does not create the device when the seat is unavailable', async () => {
+      const payments = {
+        assertLicenseAvailable: jest
+          .fn()
+          .mockRejectedValue(new Error('License is already assigned')),
+        assignLicense: jest.fn(),
+      };
+      const { client, devicesBuilder } = buildClient();
+      const deviceService = await buildService(payments, client);
+
+      await expect(
+        deviceService.createDevice(customer, DEV_EUI, {
+          dev_eui: DEV_EUI,
+          location_id: 2,
+          license_id: 6,
+        } as never),
+      ).rejects.toThrow('License is already assigned');
+      expect(devicesBuilder.insert).not.toHaveBeenCalled();
+      expect(payments.assignLicense).not.toHaveBeenCalled();
+    });
+
+    it('exempts staff from the license requirement but consumes a supplied seat', async () => {
+      const payments = {
+        assertLicenseAvailable: jest.fn().mockResolvedValue(undefined),
+        assignLicense: jest.fn().mockResolvedValue({}),
+      };
+      const { client } = buildClient();
+      const deviceService = await buildService(payments, client);
+
+      await deviceService.createDevice(staffUser, DEV_EUI, {
+        dev_eui: DEV_EUI,
+        location_id: 2,
+      } as never);
+      expect(payments.assertLicenseAvailable).not.toHaveBeenCalled();
+      expect(payments.assignLicense).not.toHaveBeenCalled();
+
+      await deviceService.createDevice(staffUser, DEV_EUI, {
+        dev_eui: DEV_EUI,
+        location_id: 2,
+        license_id: 7,
+      } as never);
+      expect(payments.assertLicenseAvailable).toHaveBeenCalledWith(
+        staffUser,
+        7,
+      );
+      expect(payments.assignLicense).toHaveBeenCalledWith(
+        staffUser,
+        7,
+        DEV_EUI,
       );
     });
   });

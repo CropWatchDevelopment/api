@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -10,6 +11,7 @@ import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
 import { LocationsService } from '../locations/locations.service';
+import { PaymentsService } from '../payments/payments.service';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import {
@@ -86,6 +88,7 @@ export class DevicesService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly locationsService: LocationsService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   async findAll(
@@ -829,6 +832,19 @@ export class DevicesService {
       );
     }
 
+    // Creating a device consumes an unassigned license seat (the TTI device
+    // quota paywall). CropWatch staff are exempt, mirroring the location gate,
+    // but a staff-supplied license_id is still validated and consumed.
+    const licenseId = device.license_id ?? null;
+    if (!isGlobalUser && !licenseId) {
+      throw new ForbiddenException(
+        'An available device license is required to create a device.',
+      );
+    }
+    if (licenseId) {
+      await this.paymentsService.assertLicenseAvailable(user, licenseId);
+    }
+
     // create the device
     const { data: createdDeviceData, error: createDeviceError } = (await client
       .from('cw_devices')
@@ -890,6 +906,11 @@ export class DevicesService {
           'Failed to add device permissions for location users',
         );
       }
+    }
+
+    // Consume the seat immediately so the new device cannot exist unlicensed.
+    if (licenseId) {
+      await this.paymentsService.assignLicense(user, licenseId, normalizedDevEui);
     }
 
     return createdDeviceData;

@@ -151,7 +151,7 @@ export class PaymentsController {
 
   @Post('portal')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Open the Polar customer billing portal' })
+  @ApiOperation({ summary: 'Open the Stripe customer billing portal' })
   openPortal(@CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.openPortal(user);
   }
@@ -172,7 +172,7 @@ export class PaymentsController {
   @Post('webhook')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
-    summary: 'Receive Polar webhook events (signature-verified)',
+    summary: 'Receive Stripe webhook events (signature-verified)',
   })
   handleWebhook(@Req() req: RawBodyRequest<Request>) {
     const rawBody: Buffer | undefined = req.rawBody;

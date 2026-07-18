@@ -4,7 +4,6 @@ import {
   Controller,
   Get,
   InternalServerErrorException,
-  NotImplementedException,
   Param,
   Patch,
   Post,
@@ -30,6 +29,7 @@ import { DeviceDto } from './dto/device.dto';
 import { UpdateDevicePermissionDto } from './dto/update-device-permission.dto';
 import { UpdateDeviceNameGroupLocalDto } from './dto/update-device-name-group-local.dto';
 import { ReplaceDeviceDto } from './dto/replace-device.dto';
+import { CreateDeviceDto } from './dto/create-device.dto';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
@@ -429,15 +429,26 @@ export class DevicesController {
   @ApiOperation({
     summary: 'Create a new device for the authenticated user',
     description: `
-    Creates a new device for the authenticated user.
-    This endpoint is not yet implemented and will return a 501 Not Implemented response until it is implemented.
-    Please contact support if you would like this feature to be prioritized.
+    Creates a new device in one of the caller's locations.
+    Creating a device consumes an unassigned device license: pass its id as
+    license_id in the body. CropWatch staff may omit license_id.
     `,
   })
-  create(@Param('dev_eui') _devEui: string) {
-    throw new NotImplementedException(
-      'Device creation is not yet implemented. Please contact support if you would like this feature to be prioritized.',
-    );
+  create(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('dev_eui') devEui: string,
+    @Body() body: CreateDeviceDto,
+  ) {
+    const normalizedDevEui = devEui?.trim();
+    if (!normalizedDevEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    if (body.dev_eui?.trim() && body.dev_eui.trim() !== normalizedDevEui) {
+      throw new BadRequestException(
+        'dev_eui in body must match route parameter',
+      );
+    }
+    return this.devicesService.createDevice(user, normalizedDevEui, body);
   }
 
   @Post(':dev_eui/replace')
