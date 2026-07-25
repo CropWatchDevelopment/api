@@ -114,7 +114,7 @@ export class ReportsController {
   }
   @ApiOkResponse({
     description:
-      "Lists queued (pending/processing) regenerations for the template, newest first. Used by the history dialog to badge reports slated for regeneration.",
+      'Lists queued (pending/processing) regenerations for the template, newest first. Used by the history dialog to badge reports slated for regeneration.',
     type: ReportRegenerationItemDto,
     isArray: true,
   })
