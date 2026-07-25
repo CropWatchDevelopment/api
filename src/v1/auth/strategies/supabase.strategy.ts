@@ -1,23 +1,42 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { isStaffEmail } from '../../common/owner-filter.helper';
+import type { AuthenticatedUser } from '../authenticated-user';
 
 @Injectable()
 export class SupabaseStrategy extends PassportStrategy(Strategy) {
-  public constructor(private readonly configService: ConfigService) {
+  public constructor(configService: ConfigService) {
+    const secret = configService.get<string>('PRIVATE_SUPABASE_JWT_SECRET');
+    if (!secret) {
+      throw new Error('PRIVATE_SUPABASE_JWT_SECRET is not configured');
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('PRIVATE_SUPABASE_JWT_SECRET'),
+      secretOrKey: secret,
     });
   }
 
-  async validate(payload: any): Promise<any> {
-    return payload;
-  }
+  /**
+   * Maps the verified Supabase JWT payload to the AuthenticatedUser shape
+   * attached to `request.user`. This is the single place raw JWT claims
+   * are read — everything downstream consumes AuthenticatedUser.
+   */
+  validate(payload: unknown): AuthenticatedUser {
+    const claims = (payload ?? {}) as Record<string, unknown>;
 
-  authenticate(req) {
-    super.authenticate(req);
+    const sub = typeof claims.sub === 'string' ? claims.sub.trim() : '';
+    if (!sub) {
+      throw new UnauthorizedException('Invalid bearer token');
+    }
+
+    const email =
+      typeof claims.email === 'string' && claims.email.trim()
+        ? claims.email.trim().toLowerCase()
+        : null;
+
+    return { sub, email, isStaff: isStaffEmail(email) };
   }
 }

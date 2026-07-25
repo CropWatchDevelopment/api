@@ -55,6 +55,18 @@ export class CreateDeviceDto implements DeviceInsert {
   @Min(1)
   upload_interval?: number | null;
 
+  @ApiProperty({
+    required: false,
+    description:
+      'Unassigned device license (device_licenses.id) to consume for this device. Required unless the caller is CropWatch staff.',
+    example: 12,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  license_id?: number;
+
   @ApiProperty({ required: false, nullable: true, example: 35.6895 })
   @IsOptional()
   @Type(() => Number)

@@ -51,10 +51,11 @@ describe('RelayService', () => {
       } as unknown as ConfigService,
       new RelayCommandLockService(),
       {
-        getClient: jest.fn(() =>
-          clientOverride ?? {
-            from: jest.fn(),
-          },
+        getClient: jest.fn(
+          () =>
+            clientOverride ?? {
+              from: jest.fn(),
+            },
         ),
       } as unknown as SupabaseService,
     );
@@ -78,8 +79,7 @@ describe('RelayService', () => {
 
     await expect(
       service.updateRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'a8404194635a05fb',
         { relay: 1, targetState: 'on' },
       ),
@@ -92,20 +92,17 @@ describe('RelayService', () => {
   it('returns the latest relay row for users who can read the device', async () => {
     const service = createService();
 
-    jest
-      .spyOn(service as any, 'loadRelayDeviceContext')
-      .mockResolvedValue({
-        ...deviceContext,
-        permissionLevel: 3,
-      });
+    jest.spyOn(service as any, 'loadRelayDeviceContext').mockResolvedValue({
+      ...deviceContext,
+      permissionLevel: 3,
+    });
     jest
       .spyOn(service as any, 'findLatestRelayRow')
       .mockResolvedValue(relayRow);
 
     await expect(
       service.getLatestRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'a8404194635a05fb',
       ),
     ).resolves.toEqual(relayRow);
@@ -114,20 +111,17 @@ describe('RelayService', () => {
   it('returns the latest relay row for viewer-level users', async () => {
     const service = createService();
 
-    jest
-      .spyOn(service as any, 'loadRelayDeviceContext')
-      .mockResolvedValue({
-        ...deviceContext,
-        permissionLevel: 4,
-      });
+    jest.spyOn(service as any, 'loadRelayDeviceContext').mockResolvedValue({
+      ...deviceContext,
+      permissionLevel: 4,
+    });
     jest
       .spyOn(service as any, 'findLatestRelayRow')
       .mockResolvedValue(relayRow);
 
     await expect(
       service.getLatestRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'a8404194635a05fb',
       ),
     ).resolves.toEqual(relayRow);
@@ -136,17 +130,14 @@ describe('RelayService', () => {
   it('rejects latest relay reads when the user has no access to the device', async () => {
     const service = createService();
 
-    jest
-      .spyOn(service as any, 'loadRelayDeviceContext')
-      .mockResolvedValue({
-        ...deviceContext,
-        permissionLevel: 5,
-      });
+    jest.spyOn(service as any, 'loadRelayDeviceContext').mockResolvedValue({
+      ...deviceContext,
+      permissionLevel: 5,
+    });
 
     await expect(
       service.getLatestRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'A8404194635A05FB',
       ),
     ).rejects.toMatchObject({
@@ -163,8 +154,6 @@ describe('RelayService', () => {
     const service = createService({
       PRIVATE_TTI_API_KEY: 'tti-secret',
       PRIVATE_TTI_BASE_URL: 'https://tti.example.com',
-      PRIVATE_TTI_RELAY_CONFIRMATION_POLL_MS: '250',
-      PRIVATE_TTI_RELAY_CONFIRMATION_TIMEOUT_MS: '1000',
     });
 
     jest
@@ -175,18 +164,20 @@ describe('RelayService', () => {
       .mockResolvedValue(relayRow);
 
     const originalFetch = global.fetch;
-    global.fetch = jest.fn(async () =>
-      new Response(JSON.stringify({}), {
-        headers: {
-          'content-type': 'application/json',
-        },
-        status: 200,
-      })) as typeof fetch;
+    global.fetch = jest.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({}), {
+          headers: {
+            'content-type': 'application/json',
+          },
+          status: 200,
+        }),
+      ),
+    ) as typeof fetch;
 
     await expect(
       service.updateRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'A8404194635A05FB',
         { relay: 1, targetState: 'on' },
       ),
@@ -218,9 +209,9 @@ describe('RelayService', () => {
     });
 
     const originalFetch = global.fetch;
-    global.fetch = jest.fn(async (_input, init) => {
+    global.fetch = jest.fn((_input: RequestInfo | URL, init?: RequestInit) => {
       expect(init?.method).toBe('POST');
-      expect(JSON.parse(String(init?.body))).toEqual({
+      expect(JSON.parse(init?.body as string)).toEqual({
         downlinks: [
           {
             confirmed: false,
@@ -229,7 +220,7 @@ describe('RelayService', () => {
               'cropwatch:kind:pulse',
               'cropwatch:target:on',
               'cropwatch:duration_ms:1000',
-            ]),
+            ]) as string[],
             f_port: 2,
             frm_payload: 'BQERA+g=',
             priority: 'NORMAL',
@@ -237,18 +228,19 @@ describe('RelayService', () => {
         ],
       });
 
-      return new Response(JSON.stringify({}), {
-        headers: {
-          'content-type': 'application/json',
-        },
-        status: 200,
-      });
+      return Promise.resolve(
+        new Response(JSON.stringify({}), {
+          headers: {
+            'content-type': 'application/json',
+          },
+          status: 200,
+        }),
+      );
     }) as typeof fetch;
 
     await expect(
       service.pulseRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'A8404194635A05FB',
         { durationSeconds: 1, relay: 1 },
       ),
@@ -280,15 +272,16 @@ describe('RelayService', () => {
 
     await expect(
       service.pulseRelay(
-        { sub: 'user-1', email: 'user@example.com' },
-        'Bearer token-1',
+        { sub: 'user-1', email: 'user@example.com', isStaff: false },
         'A8404194635A05FB',
         { durationSeconds: 60, relay: 1 },
       ),
     ).rejects.toMatchObject({
-      message: 'Timed relay pulse requires the target relay to currently be off',
+      message:
+        'Timed relay pulse requires the target relay to currently be off',
       response: {
-        message: 'Timed relay pulse requires the target relay to currently be off',
+        message:
+          'Timed relay pulse requires the target relay to currently be off',
         statusCode: 409,
       },
       status: 409,
@@ -396,8 +389,19 @@ describe('RelayService', () => {
       .spyOn(service as any, 'findLatestRelayRow')
       .mockResolvedValue(relayRow);
 
+    const persistRelayConfirmation = (
+      service as unknown as {
+        persistRelayConfirmation: (confirmation: {
+          devEui: string;
+          receivedAt: string;
+          relay1?: boolean;
+          relay2?: boolean;
+        }) => Promise<unknown>;
+      }
+    ).persistRelayConfirmation.bind(service);
+
     await expect(
-      (service as any).persistRelayConfirmation({
+      persistRelayConfirmation({
         devEui: 'A8404194635A05FB',
         receivedAt: '2026-04-05T04:23:55.360223162Z',
         relay1: true,

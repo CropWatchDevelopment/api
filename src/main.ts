@@ -1,13 +1,17 @@
 import { NestFactory } from '@nestjs/core';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import {
+  SwaggerModule,
+  DocumentBuilder,
+  type OpenAPIObject,
+} from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { getCommit } from './utils/gitCommit';
 import helmet from 'helmet';
 import { join } from 'path';
 import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
+import { AllExceptionsFilter } from './v1/common/filters/all-exceptions.filter';
 import { STATUS_CODES } from 'http';
-import { doubleCsrf } from 'csrf-csrf';
-import type { NextFunction, Request, Response } from 'express';
+import type { Express, NextFunction, Request, Response } from 'express';
 
 function getRequesterIp(req: Request): string {
   const forwardedFor = req.headers['x-forwarded-for'];
@@ -25,10 +29,11 @@ function getRequesterIp(req: Request): string {
 
 async function bootstrap() {
   // rawBody: true keeps req.rawBody (a Buffer) alongside the parsed JSON body so
-  // the Polar webhook route can verify the signature over the unmodified payload.
+  // the Stripe webhook route can verify the signature over the unmodified payload.
   const app = await NestFactory.create(AppModule, { rawBody: true });
   const logger = new Logger('NestApplication');
-  const expressApp = app.getHttpAdapter().getInstance() as any;
+  // The Express adapter's getInstance() is typed `any`; pin it once here.
+  const expressApp = app.getHttpAdapter().getInstance() as Express;
 
   expressApp.set('trust proxy', true);
   app.enableCors();
@@ -63,11 +68,14 @@ async function bootstrap() {
     next();
   });
 
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+  app.useGlobalFilters(new AllExceptionsFilter());
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: '1',
@@ -82,7 +90,7 @@ Business scope:
 - Monitor field and greenhouse devices with time-series telemetry (air, soil, water, traffic).
 - Manage device inventory, online/offline status, and latest sensor values for operations dashboards.
 - Configure automation with threshold-based rules and scheduled reports with recipients/alert points.
-- Manage subscription billing with Polar checkout, customer portal, subscription state, and product catalog.
+- Manage subscription billing with Stripe checkout, customer portal, subscription state, and product catalog.
 
 Developer notes:
 - URI versioning is enabled (current default routes are under /v1).
@@ -99,9 +107,15 @@ Developer notes:
       'bearerAuth',
     )
     .addApiKey({ type: 'apiKey', in: 'header', name: 'x-api-key' }, 'apiKey')
-    .setLicense('License & Distribution', 'https://www.cropwatch.io/legal/license')
+    .setLicense(
+      'License & Distribution',
+      'https://www.cropwatch.io/legal/license',
+    )
     .setTermsOfService('https://www.cropwatch.io/legal/terms-of-service')
-    .setExternalDoc('GitHub Repository', 'https://github.com/CropWatchDevelopment/api')
+    .setExternalDoc(
+      'GitHub Repository',
+      'https://github.com/CropWatchDevelopment/api',
+    )
     .setContact(
       'CropWatch Support',
       'https://github.com/CropWatchDevelopment/api/issues',
@@ -111,11 +125,11 @@ Developer notes:
   const documentFactory = () => SwaggerModule.createDocument(app, config);
 
   const fullDoc = SwaggerModule.createDocument(app, config);
-  function filterByPrefix(doc: any, prefix: string) {
+  function filterByPrefix(doc: OpenAPIObject, prefix: string): OpenAPIObject {
     return {
       ...doc,
       paths: Object.fromEntries(
-        Object.entries(doc.paths).filter(([path]) => path.startsWith(prefix))
+        Object.entries(doc.paths).filter(([path]) => path.startsWith(prefix)),
       ),
     };
   }
@@ -124,8 +138,12 @@ Developer notes:
   const v2Doc = filterByPrefix(fullDoc, '/v2');
 
   // register raw JSON endpoints on the underlying Express instance
-  expressApp.get('/docs-json-v1', (_req: any, res: any) => res.json(v1Doc));
-  expressApp.get('/docs-json-v2', (_req: any, res: any) => res.json(v2Doc));
+  expressApp.get('/docs-json-v1', (_req: Request, res: Response) =>
+    res.json(v1Doc),
+  );
+  expressApp.get('/docs-json-v2', (_req: Request, res: Response) =>
+    res.json(v2Doc),
+  );
 
   SwaggerModule.setup('docs', app, documentFactory, {
     explorer: true,
@@ -163,4 +181,4 @@ Developer notes:
   );
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Database } from '../../../../database.types';
 
-type DeviceOwnerInsert = Database['public']['Tables']['cw_device_owners']['Insert'];
+type DeviceOwnerInsert =
+  Database['public']['Tables']['cw_device_owners']['Insert'];
 
 export class CreateDeviceOwnerDto implements DeviceOwnerInsert {
   @ApiProperty()

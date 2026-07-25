@@ -2,20 +2,14 @@ import {
   BadRequestException,
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
   Query,
   UseGuards,
-  Req,
 } from '@nestjs/common';
 import { WaterService } from './water.service';
 import { WaterDataDto } from './dto/water-data.dto';
-import type { CreateWaterDto } from './dto/create-water.dto';
-import type { UpdateWaterDto } from './dto/update-water.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
+import { parseTimeseriesRange } from '../common/timeseries-range.helper';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -27,20 +21,17 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Controller({ path: 'water', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
+@UseGuards(JwtAuthGuard)
 export class WaterController {
   constructor(private readonly waterService: WaterService) {}
 
-  // @Post()
-  // create(@Body() createWaterDto: CreateWaterDto) {
-  //   return this.waterService.create(createWaterDto);
-  // }
-
   @Get(':dev_eui')
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Water data returned successfully.',
     type: WaterDataDto,
@@ -100,7 +91,7 @@ export class WaterController {
   })
   findOne(
     @Param('dev_eui') devEui: string,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('timezone') timezone?: string,
@@ -109,26 +100,13 @@ export class WaterController {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const endDate = end ? new Date(end) : new Date();
-    if (Number.isNaN(endDate.getTime())) {
-      throw new BadRequestException('end must be a valid date/time');
-    }
-
-    const startDate = start
-      ? new Date(start)
-      : new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
-    if (Number.isNaN(startDate.getTime())) {
-      throw new BadRequestException('start must be a valid date/time');
-    }
-    if (startDate > endDate) {
-      throw new BadRequestException('start must be before end');
-    }
+    const { startDate, endDate } = parseTimeseriesRange(start, end);
 
     return this.waterService.findOne(
       devEui,
       startDate,
       endDate,
-      req.user,
+      user,
       timezone,
     );
   }

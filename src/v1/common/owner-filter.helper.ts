@@ -1,19 +1,19 @@
 const STAFF_EMAIL_SUFFIX = '@cropwatch.io';
 
 interface OwnerRowWithProfile {
-    profiles?: { email?: string | null } | { email?: string | null }[] | null;
+  profiles?: { email?: string | null } | { email?: string | null }[] | null;
 }
 
 export function isStaffEmail(email: string | null | undefined): boolean {
-    return (
-        typeof email === 'string' &&
-        email.trim().toLowerCase().endsWith(STAFF_EMAIL_SUFFIX)
-    );
+  return (
+    typeof email === 'string' &&
+    email.trim().toLowerCase().endsWith(STAFF_EMAIL_SUFFIX)
+  );
 }
 
 function rowHasStaffProfile(row: OwnerRowWithProfile): boolean {
-    const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-    return isStaffEmail(profile?.email);
+  const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+  return isStaffEmail(profile?.email);
 }
 
 /**
@@ -25,12 +25,12 @@ function rowHasStaffProfile(row: OwnerRowWithProfile): boolean {
  * the API response.
  */
 export function filterStaffOwnerRows<T extends OwnerRowWithProfile>(
-    rows: T[] | null | undefined,
-    requesterIsStaff: boolean,
+  rows: T[] | null | undefined,
+  requesterIsStaff: boolean,
 ): T[] {
-    const safeRows = rows ?? [];
-    if (requesterIsStaff) {
-        return safeRows;
-    }
-    return safeRows.filter((row) => !rowHasStaffProfile(row));
+  const safeRows = rows ?? [];
+  if (requesterIsStaff) {
+    return safeRows;
+  }
+  return safeRows.filter((row) => !rowHasStaffProfile(row));
 }

@@ -1,4 +1,4 @@
-import { PolarProductInfo } from './polar.service';
+import { BillingProductInfo } from './stripe.service';
 
 /** A single device license (one paid seat) and its current device assignment. */
 export interface BillingLicense {
@@ -32,6 +32,6 @@ export interface SubscriptionStateResponse {
 }
 
 export interface BillingProductsResponse {
-  base: PolarProductInfo | null;
-  device: PolarProductInfo | null;
+  base: BillingProductInfo | null;
+  device: BillingProductInfo | null;
 }

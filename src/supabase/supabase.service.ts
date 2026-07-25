@@ -12,7 +12,7 @@ export class SupabaseService {
 
   // Data operations run through the service-role client so API authorization
   // is enforced in Nest instead of via Supabase RLS.
-  getClient(_accessToken?: string): SupabaseClient {
+  getClient(): SupabaseClient {
     return this.adminClient;
   }
 

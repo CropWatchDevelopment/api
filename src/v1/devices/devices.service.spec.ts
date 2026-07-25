@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DevicesService } from './devices.service';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { LocationsService } from '../locations/locations.service';
+import { PaymentsService } from '../payments/payments.service';
 
 describe('DevicesService', () => {
   let service: DevicesService;
@@ -20,6 +21,13 @@ describe('DevicesService', () => {
         {
           provide: LocationsService,
           useValue: {},
+        },
+        {
+          provide: PaymentsService,
+          useValue: {
+            assertLicenseAvailable: jest.fn(),
+            assignLicense: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -131,7 +139,7 @@ describe('DevicesService', () => {
     );
 
     const result = await latestDataService.findAllLatestData(
-      { sub: 'user-1' },
+      { sub: 'user-1', email: null, isStaff: false },
       0,
       25,
       'Bearer test-token',
@@ -187,7 +195,7 @@ describe('DevicesService', () => {
 
     await expect(
       deviceService.findOne(
-        { sub: 'staff-1', email: 'staff@cropwatch.io' },
+        { sub: 'staff-1', email: 'staff@cropwatch.io', isStaff: true },
         'DEV-001',
         'Bearer test-token',
       ),
@@ -201,7 +209,7 @@ describe('DevicesService', () => {
   });
 
   describe('updateDevice location moves', () => {
-    const jwt = { sub: 'mover-1', email: 'mover@example.com' };
+    const jwt = { sub: 'mover-1', email: 'mover@example.com', isStaff: false };
 
     function createPermissionCheckBuilder(deviceRow: unknown) {
       return {
@@ -219,7 +227,9 @@ describe('DevicesService', () => {
         eq: jest.fn().mockReturnThis(),
         lte: jest.fn().mockReturnThis(),
         or: jest.fn().mockReturnThis(),
-        maybeSingle: jest.fn().mockResolvedValue({ data: locationRow, error: null }),
+        maybeSingle: jest
+          .fn()
+          .mockResolvedValue({ data: locationRow, error: null }),
       };
     }
 
@@ -227,7 +237,9 @@ describe('DevicesService', () => {
       return {
         update: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
-        select: jest.fn().mockResolvedValue({ data: [{ dev_eui: 'DEV-001' }], error: null }),
+        select: jest
+          .fn()
+          .mockResolvedValue({ data: [{ dev_eui: 'DEV-001' }], error: null }),
       };
     }
 
@@ -238,9 +250,17 @@ describe('DevicesService', () => {
       };
     }
 
+    type DeviceOwnerInsert = {
+      dev_eui: string;
+      user_id: string;
+      permission_level: number;
+    };
+
     function createInsertBuilder() {
       return {
-        insert: jest.fn().mockResolvedValue({ error: null }),
+        insert: jest
+          .fn<Promise<{ error: null }>, [rows: DeviceOwnerInsert[]]>()
+          .mockResolvedValue({ error: null }),
       };
     }
 
@@ -254,7 +274,10 @@ describe('DevicesService', () => {
         getAdminClient: jest.fn(),
       };
       return {
-        service: new DevicesService(supabaseService as unknown as SupabaseService, {} as any),
+        service: new DevicesService(
+          supabaseService as unknown as SupabaseService,
+          {} as any,
+        ),
         fromMock,
       };
     }
@@ -286,11 +309,21 @@ describe('DevicesService', () => {
         insertBuilder,
       ]);
 
-      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 'Bearer token-1');
+      await service.updateDevice(
+        jwt,
+        'DEV-001',
+        'Sensor',
+        null,
+        2,
+        'Bearer token-1',
+      );
 
       // Mover needed manage scope on the destination location.
       expect(destinationBuilder.eq).toHaveBeenCalledWith('location_id', 2);
-      expect(destinationBuilder.lte).toHaveBeenCalledWith('owner_match.permission_level', 2);
+      expect(destinationBuilder.lte).toHaveBeenCalledWith(
+        'owner_match.permission_level',
+        2,
+      );
 
       // Device ownership follows the destination location owner.
       expect(updateBuilder.update).toHaveBeenCalledWith({
@@ -323,12 +356,23 @@ describe('DevicesService', () => {
         user_id: 'old-owner',
       });
       const destinationBuilder = createDestinationBuilder(null);
-      const { service, fromMock } = createService([permissionBuilder, destinationBuilder]);
+      const { service, fromMock } = createService([
+        permissionBuilder,
+        destinationBuilder,
+      ]);
 
       await expect(
-        service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 'Bearer token-1'),
+        service.updateDevice(
+          jwt,
+          'DEV-001',
+          'Sensor',
+          null,
+          2,
+          'Bearer token-1',
+        ),
       ).rejects.toMatchObject({
-        message: 'You do not have permission to move this device to that location',
+        message:
+          'You do not have permission to move this device to that location',
       });
 
       // The device update must never run.
@@ -342,9 +386,19 @@ describe('DevicesService', () => {
         user_id: 'old-owner',
       });
       const updateBuilder = createUpdateBuilder();
-      const { service, fromMock } = createService([permissionBuilder, updateBuilder]);
+      const { service, fromMock } = createService([
+        permissionBuilder,
+        updateBuilder,
+      ]);
 
-      await service.updateDevice(jwt, 'DEV-001', 'Renamed', 'greenhouse', 2, 'Bearer token-1');
+      await service.updateDevice(
+        jwt,
+        'DEV-001',
+        'Renamed',
+        'greenhouse',
+        2,
+        'Bearer token-1',
+      );
 
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Renamed',
@@ -377,7 +431,14 @@ describe('DevicesService', () => {
         insertBuilder,
       ]);
 
-      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 'Bearer token-1');
+      await service.updateDevice(
+        jwt,
+        'DEV-001',
+        'Sensor',
+        null,
+        2,
+        'Bearer token-1',
+      );
 
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Sensor',
@@ -390,6 +451,160 @@ describe('DevicesService', () => {
           { dev_eui: 'DEV-001', user_id: 'mover-1', permission_level: 1 },
           { dev_eui: 'DEV-001', user_id: 'member-a', permission_level: 5 },
         ]),
+      );
+    });
+  });
+
+  describe('createDevice license gate', () => {
+    const DEV_EUI = 'AAAA000000000001';
+    const staffUser = {
+      sub: 'staff-1',
+      email: 'staff@cropwatch.io',
+      isStaff: true,
+    };
+    const customer = {
+      sub: 'user-1',
+      email: 'customer@example.com',
+      isStaff: false,
+    };
+
+    const buildClient = () => {
+      const devicesBuilder = {
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest
+          .fn()
+          .mockResolvedValue({ data: { dev_eui: DEV_EUI }, error: null }),
+      };
+      const ownersBuilder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockResolvedValue({ data: [], error: null }),
+      };
+      const client = {
+        from: jest.fn((table: string) =>
+          table === 'cw_devices' ? devicesBuilder : ownersBuilder,
+        ),
+      };
+      return { client, devicesBuilder };
+    };
+
+    const buildService = async (
+      payments: {
+        assertLicenseAvailable: jest.Mock;
+        assignLicense: jest.Mock;
+      },
+      client: unknown,
+    ) => {
+      const module = await Test.createTestingModule({
+        providers: [
+          DevicesService,
+          {
+            provide: SupabaseService,
+            useValue: {
+              getClient: () => client,
+              getAdminClient: () => client,
+            },
+          },
+          {
+            provide: LocationsService,
+            useValue: {
+              findOne: jest
+                .fn()
+                .mockResolvedValue({ id: 2, owner_id: 'user-1' }),
+            },
+          },
+          { provide: PaymentsService, useValue: payments },
+        ],
+      }).compile();
+      return module.get<DevicesService>(DevicesService);
+    };
+
+    it('rejects a non-staff create without license_id before touching the database', async () => {
+      const payments = {
+        assertLicenseAvailable: jest.fn(),
+        assignLicense: jest.fn(),
+      };
+      const { client, devicesBuilder } = buildClient();
+      const deviceService = await buildService(payments, client);
+
+      await expect(
+        deviceService.createDevice(customer, DEV_EUI, {
+          dev_eui: DEV_EUI,
+          location_id: 2,
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(devicesBuilder.insert).not.toHaveBeenCalled();
+      expect(payments.assignLicense).not.toHaveBeenCalled();
+    });
+
+    it('validates the seat before insert and consumes it after creation', async () => {
+      const payments = {
+        assertLicenseAvailable: jest.fn().mockResolvedValue(undefined),
+        assignLicense: jest.fn().mockResolvedValue({}),
+      };
+      const { client, devicesBuilder } = buildClient();
+      const deviceService = await buildService(payments, client);
+
+      await deviceService.createDevice(customer, DEV_EUI, {
+        dev_eui: DEV_EUI,
+        location_id: 2,
+        license_id: 6,
+      });
+
+      expect(payments.assertLicenseAvailable).toHaveBeenCalledWith(customer, 6);
+      expect(devicesBuilder.insert).toHaveBeenCalled();
+      expect(payments.assignLicense).toHaveBeenCalledWith(customer, 6, DEV_EUI);
+    });
+
+    it('does not create the device when the seat is unavailable', async () => {
+      const payments = {
+        assertLicenseAvailable: jest
+          .fn()
+          .mockRejectedValue(new Error('License is already assigned')),
+        assignLicense: jest.fn(),
+      };
+      const { client, devicesBuilder } = buildClient();
+      const deviceService = await buildService(payments, client);
+
+      await expect(
+        deviceService.createDevice(customer, DEV_EUI, {
+          dev_eui: DEV_EUI,
+          location_id: 2,
+          license_id: 6,
+        }),
+      ).rejects.toThrow('License is already assigned');
+      expect(devicesBuilder.insert).not.toHaveBeenCalled();
+      expect(payments.assignLicense).not.toHaveBeenCalled();
+    });
+
+    it('exempts staff from the license requirement but consumes a supplied seat', async () => {
+      const payments = {
+        assertLicenseAvailable: jest.fn().mockResolvedValue(undefined),
+        assignLicense: jest.fn().mockResolvedValue({}),
+      };
+      const { client } = buildClient();
+      const deviceService = await buildService(payments, client);
+
+      await deviceService.createDevice(staffUser, DEV_EUI, {
+        dev_eui: DEV_EUI,
+        location_id: 2,
+      });
+      expect(payments.assertLicenseAvailable).not.toHaveBeenCalled();
+      expect(payments.assignLicense).not.toHaveBeenCalled();
+
+      await deviceService.createDevice(staffUser, DEV_EUI, {
+        dev_eui: DEV_EUI,
+        location_id: 2,
+        license_id: 7,
+      });
+      expect(payments.assertLicenseAvailable).toHaveBeenCalledWith(
+        staffUser,
+        7,
+      );
+      expect(payments.assignLicense).toHaveBeenCalledWith(
+        staffUser,
+        7,
+        DEV_EUI,
       );
     });
   });

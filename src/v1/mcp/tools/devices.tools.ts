@@ -3,12 +3,13 @@ import { Injectable } from '@nestjs/common';
 import { Tool, type Context } from '@rekog/mcp-nest';
 import { z } from 'zod';
 import { DevicesService } from '../../devices/devices.service';
+import type { AuthenticatedUser } from '../../auth/authenticated-user';
 
-// The MCP module applies JwtAuthGuard, which puts the Supabase JWT payload on
-// `request.user`. The domain services also need the raw Authorization header so
-// their Supabase client stays RLS-scoped to the caller — same contract the REST
-// controllers use (`devicesService.findAll(req.user, req.headers.authorization, ...)`).
-type AuthedRequest = Request & { user: any };
+// The MCP module applies JwtAuthGuard, which puts the AuthenticatedUser on
+// `request.user`. Note: the Supabase client is the service-role client and
+// bypasses RLS — authorization is enforced in the domain services (the same
+// owner/staff scoping the REST controllers rely on).
+type AuthedRequest = Request & { user: AuthenticatedUser };
 
 /**
  * Read-only MCP tools over device data.
@@ -39,11 +40,15 @@ export class DeviceMcpTools {
         .min(1)
         .max(1000)
         .optional()
-        .describe('Maximum number of devices to return (default 100, max 1000).'),
+        .describe(
+          'Maximum number of devices to return (default 100, max 1000).',
+        ),
       name: z
         .string()
         .optional()
-        .describe('Filter by device name or dev_eui (case-insensitive contains).'),
+        .describe(
+          'Filter by device name or dev_eui (case-insensitive contains).',
+        ),
       group: z
         .string()
         .optional()
@@ -62,14 +67,24 @@ export class DeviceMcpTools {
     },
   })
   async listDevices(
-    { skip, take, name, group, location },
+    {
+      skip,
+      take,
+      name,
+      group,
+      location,
+    }: {
+      skip?: number;
+      take?: number;
+      name?: string;
+      group?: string;
+      location?: string;
+    },
     _context: Context,
     request: AuthedRequest,
   ) {
-    const authHeader = request.headers.authorization ?? '';
     const result = await this.devicesService.findAll(
       request.user,
-      authHeader,
       skip ?? 0,
       take ?? 100,
       group,
@@ -98,23 +113,20 @@ export class DeviceMcpTools {
     },
   })
   async getDevice(
-    { dev_eui },
+    { dev_eui }: { dev_eui: string },
     _context: Context,
     request: AuthedRequest,
   ) {
-    const authHeader = request.headers.authorization ?? '';
-    const device = await this.devicesService.findOne(
-      request.user,
-      dev_eui,
-      authHeader,
-    );
+    const device = await this.devicesService.findOne(request.user, dev_eui);
     return this.json(device);
   }
 
   /** Wrap any serializable value as an MCP text-content result. */
   private json(value: unknown) {
     return {
-      content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
+      content: [
+        { type: 'text' as const, text: JSON.stringify(value, null, 2) },
+      ],
     };
   }
 }

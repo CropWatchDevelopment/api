@@ -144,7 +144,7 @@ export const resourceGroups: ResourceGroup[] = [
   },
   {
     id: 'payments',
-    name: 'Billing (Polar)',
+    name: 'Billing (Stripe)',
     blurb: 'Subscriptions, device licenses, checkout and the customer portal.',
     endpoints: [
       { method: 'GET', path: '/v1/payments/products', summary: 'Product catalog.' },
@@ -169,7 +169,7 @@ export const capabilities: Capability[] = [
   { title: 'Unified telemetry', body: 'Air, soil, water, power and traffic readings under one schema — query by dev_eui with precise time windows and optional timezone alignment.' },
   { title: 'Devices & locations', body: 'Inventory, online/offline status, latest values and per-user sharing for every device and the sites they belong to.' },
   { title: 'Automation', body: 'Threshold rules that fire actions, plus scheduled reports with recipients and delivery channels.' },
-  { title: 'Billing', body: 'Polar-backed subscriptions and device licenses: checkout, seat management and a self-serve customer portal.' },
+  { title: 'Billing', body: 'Stripe-backed subscriptions and device licenses: checkout, seat management and a self-serve customer portal.' },
   { title: 'MCP for AI clients', body: 'A Model Context Protocol server lets Claude, Cursor and other MCP clients call the API as tools — scoped to the caller.' },
   { title: 'Interactive docs', body: 'A full Swagger UI at /docs with live schemas, example responses and tagged operations for every module.' },
 ];

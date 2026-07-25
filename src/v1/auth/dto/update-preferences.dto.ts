@@ -6,10 +6,22 @@ const THEMES = ['light', 'dark', 'system'] as const;
 const TEMPERATURE_UNITS = ['celsius', 'fahrenheit', 'kelvin'] as const;
 const WEIGHT_UNITS = ['kg', 'lb'] as const;
 const EC_UNITS = ['ms_cm', 'ds_cm', 'us_cm'] as const;
-const WATER_LEVEL_UNITS = ['cm', 'mm', 'inch', 'foot', 'meter', 'yard'] as const;
+const WATER_LEVEL_UNITS = [
+  'cm',
+  'mm',
+  'inch',
+  'foot',
+  'meter',
+  'yard',
+] as const;
 const DISTANCE_UNITS = ['km', 'mi'] as const;
 const AREA_UNITS = ['hectares', 'acres', 'square_meters'] as const;
-const SOIL_MOISTURE_UNITS = ['vwc_percent', 'relative_percent', 'kpa', 'centibar'] as const;
+const SOIL_MOISTURE_UNITS = [
+  'vwc_percent',
+  'relative_percent',
+  'kpa',
+  'centibar',
+] as const;
 const PRESSURE_UNITS = ['hpa', 'kpa', 'bar', 'psi'] as const;
 const RAINFALL_UNITS = ['mm', 'cm', 'in'] as const;
 const WIND_SPEED_UNITS = ['m_s', 'km_h', 'mph', 'kt'] as const;
