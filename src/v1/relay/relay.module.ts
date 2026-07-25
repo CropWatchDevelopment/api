@@ -10,4 +10,4 @@ import { RelayService } from './relay.service';
   controllers: [RelayController],
   providers: [RelayCommandLockService, RelayService, ConfigService],
 })
-export class RelayModule { }
+export class RelayModule {}

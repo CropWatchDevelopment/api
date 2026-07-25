@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Database } from '../../../../database.types';
 
-type LocationOwnerRow = Database['public']['Tables']['cw_location_owners']['Row'];
+type LocationOwnerRow =
+  Database['public']['Tables']['cw_location_owners']['Row'];
 
 export class LocationOwnerDto implements LocationOwnerRow {
   @ApiProperty()

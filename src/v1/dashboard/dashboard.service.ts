@@ -5,14 +5,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
-import {
-  getAccessToken,
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import { READ_EXCLUSIVE_CEILING } from '../common/permission-levels';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
+import type { TableRow } from '../types/supabase';
 import {
   DashboardLocationGroup,
   DashboardLocationPage,
@@ -21,6 +18,41 @@ import {
   DashboardRow,
   isDashboardDataTable,
 } from './dashboard.types';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
+
+type DeviceRow = TableRow<'cw_devices'>;
+type DeviceTypeRow = TableRow<'cw_device_type'>;
+type LocationRow = TableRow<'cw_locations'>;
+
+type LocationJoin = Pick<LocationRow, 'location_id' | 'name' | 'group'>;
+type DeviceTypeJoin = Pick<
+  DeviceTypeRow,
+  | 'id'
+  | 'name'
+  | 'data_table_v2'
+  | 'primary_data_v2'
+  | 'secondary_data_v2'
+  | 'default_upload_interval'
+>;
+
+/** Columns selected by the device queries in getDevices/getLocations. */
+type DashboardDeviceRecord = Pick<
+  DeviceRow,
+  | 'dev_eui'
+  | 'name'
+  | 'group'
+  | 'upload_interval'
+  | 'last_data_updated_at'
+  | 'error_status'
+> & {
+  cw_device_type: DeviceTypeJoin | DeviceTypeJoin[] | null;
+  cw_locations: LocationJoin | LocationJoin[] | null;
+};
+
+/** Columns selected by the location-listing query in getLocations. */
+type DeviceLocationRecord = Pick<DeviceRow, 'location_id'> & {
+  cw_locations: LocationJoin | LocationJoin[] | null;
+};
 
 @Injectable()
 export class DashboardService {
@@ -29,14 +61,12 @@ export class DashboardService {
   constructor(private readonly supabaseService: SupabaseService) {}
 
   async getDevices(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     query: DashboardQuery,
   ): Promise<DashboardPage> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
 
     const skip = Math.max(0, query.skip ?? 0);
     const take = Math.min(Math.max(1, query.take ?? 50), 200);
@@ -57,17 +87,19 @@ export class DashboardService {
         ? 'cw_locations!inner(location_id, name, group)'
         : 'cw_locations(location_id, name, group)';
 
-    let devicesQuery = client
-      .from('cw_devices')
-      .select(
-        `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
+    let devicesQuery = client.from('cw_devices').select(
+      `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
          cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
          ${locationSelect},
          owner_match:cw_device_owners()`,
-        { count: 'exact' },
-      );
+      { count: 'exact' },
+    );
 
-    devicesQuery = this.applyDeviceReadScope(devicesQuery, userId, isGlobalUser);
+    devicesQuery = this.applyDeviceReadScope(
+      devicesQuery,
+      userId,
+      isGlobalUser,
+    );
 
     if (query.group) {
       devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
@@ -93,10 +125,12 @@ export class DashboardService {
 
     if (error) {
       this.logger.error(`Failed to fetch dashboard devices: ${error.message}`);
-      throw new InternalServerErrorException('Failed to fetch dashboard devices');
+      throw new InternalServerErrorException(
+        'Failed to fetch dashboard devices',
+      );
     }
 
-    const devices = data ?? [];
+    const devices = (data ?? []) as DashboardDeviceRecord[];
 
     const rows = await Promise.all(
       devices.map((d) => this.buildRow(client, d)),
@@ -111,14 +145,12 @@ export class DashboardService {
   }
 
   async getLocations(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     query: DashboardQuery,
   ): Promise<DashboardLocationPage> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
 
     const skip = Math.max(0, query.skip ?? 0);
     const take = Math.min(Math.max(1, query.take ?? 20), 100);
@@ -138,9 +170,7 @@ export class DashboardService {
       : 'cw_locations(location_id, name, "group")';
     let locsQuery = client
       .from('cw_devices')
-      .select(
-        `location_id, ${locationSelect}, owner_match:cw_device_owners()`,
-      );
+      .select(`location_id, ${locationSelect}, owner_match:cw_device_owners()`);
     locsQuery = this.applyDeviceReadScope(locsQuery, userId, isGlobalUser);
     if (query.group) locsQuery = locsQuery.ilike('group', `%${query.group}%`);
     if (query.name) {
@@ -161,8 +191,12 @@ export class DashboardService {
 
     const { data: locData, error: locError } = await locsQuery;
     if (locError) {
-      this.logger.error(`Failed to list dashboard locations: ${locError.message}`);
-      throw new InternalServerErrorException('Failed to list dashboard locations');
+      this.logger.error(
+        `Failed to list dashboard locations: ${locError.message}`,
+      );
+      throw new InternalServerErrorException(
+        'Failed to list dashboard locations',
+      );
     }
 
     // Dedupe by location_id; null becomes the special 'none' bucket.
@@ -173,15 +207,15 @@ export class DashboardService {
     } | null;
     const uniqueLocs = new Map<string, LocInfo>();
     let hasNoLocationBucket = false;
-    for (const d of locData ?? []) {
-      const locId = (d as any).location_id;
+    for (const d of (locData ?? []) as DeviceLocationRecord[]) {
+      const locId = d.location_id;
       if (locId == null) {
         hasNoLocationBucket = true;
         continue;
       }
       const key = String(locId);
       if (uniqueLocs.has(key)) continue;
-      const rawLoc = (d as any).cw_locations;
+      const rawLoc = d.cw_locations;
       const loc = Array.isArray(rawLoc) ? rawLoc[0] : rawLoc;
       uniqueLocs.set(key, {
         location_id: locId,
@@ -210,15 +244,17 @@ export class DashboardService {
       .map(([, v]) => (v as { location_id: number }).location_id);
     const includeNoLoc = pagedLocs.some(([k]) => k === 'none');
 
-    let devicesQuery = client
-      .from('cw_devices')
-      .select(
-        `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
+    let devicesQuery = client.from('cw_devices').select(
+      `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
          cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
          cw_locations(location_id, name, "group"),
          owner_match:cw_device_owners()`,
-      );
-    devicesQuery = this.applyDeviceReadScope(devicesQuery, userId, isGlobalUser);
+    );
+    devicesQuery = this.applyDeviceReadScope(
+      devicesQuery,
+      userId,
+      isGlobalUser,
+    );
 
     if (includeNoLoc && locIds.length > 0) {
       devicesQuery = devicesQuery.or(
@@ -230,7 +266,8 @@ export class DashboardService {
       devicesQuery = devicesQuery.in('location_id', locIds);
     }
 
-    if (query.group) devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
+    if (query.group)
+      devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
     if (query.name) {
       devicesQuery = devicesQuery.or(
         this.buildNameOrFilter(query.name, nameLocationIds),
@@ -245,11 +282,17 @@ export class DashboardService {
       this.logger.error(
         `Failed to fetch devices for dashboard locations: ${devicesError.message}`,
       );
-      throw new InternalServerErrorException('Failed to fetch dashboard devices');
+      throw new InternalServerErrorException(
+        'Failed to fetch dashboard devices',
+      );
     }
 
     const rows = (
-      await Promise.all((devices ?? []).map((d) => this.buildRow(client, d)))
+      await Promise.all(
+        ((devices ?? []) as DashboardDeviceRecord[]).map((d) =>
+          this.buildRow(client, d),
+        ),
+      )
     ).filter((r): r is DashboardRow => r !== null);
 
     // Bucket devices into the page's location slots, preserving page order.
@@ -259,26 +302,28 @@ export class DashboardService {
     }
     for (const row of rows) {
       const key =
-        row.location?.location_id != null ? String(row.location.location_id) : 'none';
+        row.location?.location_id != null
+          ? String(row.location.location_id)
+          : 'none';
       const bucket = groupsByKey.get(key);
       if (bucket) bucket.devices.push(row);
     }
 
     // Drop empty buckets (can happen when name filter excludes all devices in a slot).
-    const groups = [...groupsByKey.values()].filter((g) => g.devices.length > 0);
+    const groups = [...groupsByKey.values()].filter(
+      (g) => g.devices.length > 0,
+    );
 
     return { groups, total, skip, take };
   }
 
   async getLatest(
-    jwtPayload: any,
+    user: AuthenticatedUser,
     devEui: string,
-    authHeader: string,
   ): Promise<Record<string, unknown> | null> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     const normalized = devEui?.trim();
 
     if (!normalized) {
@@ -294,7 +339,8 @@ export class DashboardService {
 
     deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
 
-    const { data: device, error: deviceError } = await deviceQuery.maybeSingle();
+    const { data: device, error: deviceError } =
+      await deviceQuery.maybeSingle();
 
     if (deviceError) {
       this.logger.error(
@@ -306,9 +352,15 @@ export class DashboardService {
       throw new NotFoundException('Device not found');
     }
 
-    const deviceType = Array.isArray(device.cw_device_type)
-      ? device.cw_device_type[0]
-      : device.cw_device_type;
+    const deviceRecord = device as Pick<DeviceRow, 'dev_eui'> & {
+      cw_device_type:
+        | Pick<DeviceTypeRow, 'data_table_v2'>
+        | Pick<DeviceTypeRow, 'data_table_v2'>[]
+        | null;
+    };
+    const deviceType = Array.isArray(deviceRecord.cw_device_type)
+      ? deviceRecord.cw_device_type[0]
+      : deviceRecord.cw_device_type;
     const table = deviceType?.data_table_v2;
 
     if (!isDashboardDataTable(table)) {
@@ -317,13 +369,16 @@ export class DashboardService {
       );
     }
 
-    const { data: latest, error: latestError } = await client
+    const { data: latest, error: latestError } = (await client
       .from(table)
       .select('*')
       .eq('dev_eui', normalized)
       .order('created_at', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle()) as {
+      data: Record<string, unknown> | null;
+      error: PostgrestError | null;
+    };
 
     if (latestError) {
       this.logger.error(
@@ -332,12 +387,12 @@ export class DashboardService {
       throw new InternalServerErrorException('Failed to fetch latest data');
     }
 
-    return (latest as Record<string, unknown> | null) ?? null;
+    return latest ?? null;
   }
 
   private async buildRow(
     client: ReturnType<SupabaseService['getClient']>,
-    d: any,
+    d: DashboardDeviceRecord,
   ): Promise<DashboardRow | null> {
     const deviceType = Array.isArray(d.cw_device_type)
       ? d.cw_device_type[0]
@@ -418,7 +473,8 @@ export class DashboardService {
       Boolean(secondaryCol) && secondaryCol !== '-' && secondaryCol !== '';
     return {
       created_at: (row.created_at as string | null) ?? null,
-      primary: primaryCol && primaryCol !== '-' ? (row[primaryCol] ?? null) : null,
+      primary:
+        primaryCol && primaryCol !== '-' ? (row[primaryCol] ?? null) : null,
       secondary: hasSecondary ? (row[secondaryCol] ?? null) : null,
     } as DashboardRow['latest'];
   }
@@ -442,8 +498,8 @@ export class DashboardService {
       return [];
     }
 
-    return (data ?? [])
-      .map((l: any) => l.location_id)
+    return ((data ?? []) as Pick<LocationRow, 'location_id'>[])
+      .map((l) => l.location_id)
       .filter((id: unknown): id is number => typeof id === 'number');
   }
 
@@ -460,11 +516,13 @@ export class DashboardService {
     return parts.join(',');
   }
 
-  private applyDeviceReadScope(
-    query: any,
-    userId: string,
-    isGlobalUser: boolean,
-  ) {
+  private applyDeviceReadScope<
+    Q extends {
+      eq(column: string, value: unknown): Q;
+      lt(column: string, value: unknown): Q;
+      or(filters: string): Q;
+    },
+  >(query: Q, userId: string, isGlobalUser: boolean): Q {
     if (isGlobalUser) {
       return query;
     }

@@ -6,7 +6,7 @@ export class TimezoneFormatterService {
   assertValidTimeZone(timeZone: string): void {
     try {
       new Intl.DateTimeFormat('en-US', { timeZone }).format(new Date());
-    } catch (error) {
+    } catch {
       throw new BadRequestException('timezone must be a valid IANA time zone');
     }
   }

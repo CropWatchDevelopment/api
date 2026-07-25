@@ -618,7 +618,7 @@ export type Database = {
           created_at: string
           device_seats: number
           device_subscription_id: string | null
-          polar_customer_id: string | null
+          stripe_customer_id: string | null
           updated_at: string
           user_id: string
         }
@@ -629,7 +629,7 @@ export type Database = {
           created_at?: string
           device_seats?: number
           device_subscription_id?: string | null
-          polar_customer_id?: string | null
+          stripe_customer_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -640,7 +640,7 @@ export type Database = {
           created_at?: string
           device_seats?: number
           device_subscription_id?: string | null
-          polar_customer_id?: string | null
+          stripe_customer_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -659,7 +659,7 @@ export type Database = {
           created_at: string
           dev_eui: string | null
           id: number
-          polar_subscription_id: string
+          stripe_subscription_id: string
           seat_index: number
           status: string
           updated_at: string
@@ -669,7 +669,7 @@ export type Database = {
           created_at?: string
           dev_eui?: string | null
           id?: number
-          polar_subscription_id: string
+          stripe_subscription_id: string
           seat_index: number
           status?: string
           updated_at?: string
@@ -679,7 +679,7 @@ export type Database = {
           created_at?: string
           dev_eui?: string | null
           id?: number
-          polar_subscription_id?: string
+          stripe_subscription_id?: string
           seat_index?: number
           status?: string
           updated_at?: string

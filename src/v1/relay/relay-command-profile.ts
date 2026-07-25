@@ -42,8 +42,14 @@ function encodeTimedRelayState(relayOn: boolean): number {
 }
 
 function encodeTimedDurationMs(durationMs: number): number[] {
-  if (!Number.isInteger(durationMs) || durationMs < 1 || durationMs > 0xffffffff) {
-    throw new RangeError('durationMs must be an integer between 1 and 4294967295');
+  if (
+    !Number.isInteger(durationMs) ||
+    durationMs < 1 ||
+    durationMs > 0xffffffff
+  ) {
+    throw new RangeError(
+      'durationMs must be an integer between 1 and 4294967295',
+    );
   }
 
   if (durationMs <= 0xffff) {

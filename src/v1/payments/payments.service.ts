@@ -8,27 +8,28 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient, type PostgrestError } from '@supabase/supabase-js';
+import Stripe from 'stripe';
 import { SupabaseService } from '../../supabase/supabase.service';
-import {
-  getAccessToken,
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import { MANAGE_CEILING } from '../common/permission-levels';
 import type { TableInsert, TableRow } from '../types/supabase';
-import {
-  PolarService,
-  PolarSubscriptionInfo,
-  WebhookVerificationError,
-} from './polar.service';
+import { StripeService, BillingSubscriptionInfo } from './stripe.service';
 import {
   BillingLicense,
   BillingProductsResponse,
   SubscriptionStateResponse,
 } from './payments.types';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type BillingCustomerRow = TableRow<'billing_customers'>;
+type DeviceLicenseRow = TableRow<'device_licenses'>;
+type LicenseSeatRow = Pick<
+  DeviceLicenseRow,
+  'id' | 'seat_index' | 'status' | 'dev_eui'
+>;
+
+/** Shape of a PostgREST response from the untyped Supabase client. */
+type QueryResult<T> = { data: T | null; error: PostgrestError | null };
 
 const ACTIVE_SUBSCRIPTION_STATUSES = ['active', 'trialing', 'past_due'];
 
@@ -38,7 +39,7 @@ export class PaymentsService {
 
   constructor(
     private readonly supabaseService: SupabaseService,
-    private readonly polarService: PolarService,
+    private readonly stripeService: StripeService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -46,32 +47,31 @@ export class PaymentsService {
   // ---------------------------------------------------------------------------
 
   async getProducts(): Promise<BillingProductsResponse> {
-    const products = await this.polarService.listProducts([
-      this.polarService.baseProductId,
-      this.polarService.deviceProductId,
+    const { basePriceId, devicePriceId } =
+      await this.stripeService.resolvePriceIds();
+    const products = await this.stripeService.listProducts([
+      basePriceId,
+      devicePriceId,
     ]);
     return {
-      base: products.find((p) => p.id === this.polarService.baseProductId) ?? null,
-      device:
-        products.find((p) => p.id === this.polarService.deviceProductId) ?? null,
+      base: products.find((p) => p.id === basePriceId) ?? null,
+      device: products.find((p) => p.id === devicePriceId) ?? null,
     };
   }
 
-  async getState(
-    jwtPayload: any,
-    authHeader: string,
-  ): Promise<SubscriptionStateResponse> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+  async getState(user: AuthenticatedUser): Promise<SubscriptionStateResponse> {
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
-    await this.ensureBillingCustomer(client, userId);
+    const customer = await this.ensureBillingCustomer(client, userId);
 
-    const subscriptions = await this.listSubscriptionsSafe(userId);
-    const baseSub = this.pickSubscription(subscriptions, this.polarService.baseProductId);
-    const deviceSub = this.pickSubscription(
-      subscriptions,
-      this.polarService.deviceProductId,
+    const { basePriceId, devicePriceId } =
+      await this.stripeService.resolvePriceIds();
+    const subscriptions = await this.listSubscriptionsSafe(
+      customer.stripe_customer_id,
     );
+    const baseSub = this.pickSubscription(subscriptions, basePriceId);
+    const deviceSub = this.pickSubscription(subscriptions, devicePriceId);
 
     // Keep the local license rows in sync with the paid seat count. The webhook
     // is the primary driver, but reconciling here makes the page self-healing
@@ -107,36 +107,50 @@ export class PaymentsService {
     };
   }
 
-  async getLicenses(jwtPayload: any, authHeader: string): Promise<BillingLicense[]> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+  async getLicenses(user: AuthenticatedUser): Promise<BillingLicense[]> {
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
     return this.fetchLicenses(client, userId);
   }
 
   /**
    * Whether the user has an active (or trialing / past-due) base subscription.
-   * Polar is the source of truth; if Polar is unreachable we fall back to the
+   * Stripe is the source of truth; if Stripe is unreachable we fall back to the
    * cached `billing_customers.base_status` so a transient outage doesn't block
    * a legitimately-subscribed user.
    */
-  async hasActiveBaseSubscription(jwtPayload: any, authHeader: string): Promise<boolean> {
-    const userId = getUserId(jwtPayload);
+  async hasActiveBaseSubscription(user: AuthenticatedUser): Promise<boolean> {
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+
+    const { data: row } = (await client
+      .from('billing_customers')
+      .select('stripe_customer_id, base_status')
+      .eq('user_id', userId)
+      .maybeSingle()) as QueryResult<
+      Pick<BillingCustomerRow, 'stripe_customer_id' | 'base_status'>
+    >;
+    if (!row?.stripe_customer_id) {
+      return false;
+    }
+
     try {
-      const subscriptions = await this.polarService.listSubscriptions(userId);
-      const baseSub = this.pickSubscription(subscriptions, this.polarService.baseProductId);
+      const { basePriceId } = await this.stripeService.resolvePriceIds();
+      if (!basePriceId) {
+        throw new Error('Stripe base price id could not be resolved');
+      }
+      const subscriptions = await this.stripeService.listSubscriptions(
+        row.stripe_customer_id,
+      );
+      const baseSub = this.pickSubscription(subscriptions, basePriceId);
       return !!baseSub && ACTIVE_SUBSCRIPTION_STATUSES.includes(baseSub.status);
     } catch (error) {
       this.logger.warn(
-        `Base-subscription check fell back to cache for ${userId}: ${error}`,
+        `Base-subscription check fell back to cache for ${userId}: ${String(error)}`,
       );
-      const client = this.supabaseService.getClient(getAccessToken(authHeader));
-      const { data } = await client
-        .from('billing_customers')
-        .select('base_status')
-        .eq('user_id', userId)
-        .maybeSingle();
       return (
-        !!data?.base_status && ACTIVE_SUBSCRIPTION_STATUSES.includes(data.base_status)
+        !!row.base_status &&
+        ACTIVE_SUBSCRIPTION_STATUSES.includes(row.base_status)
       );
     }
   }
@@ -146,70 +160,71 @@ export class PaymentsService {
   // ---------------------------------------------------------------------------
 
   async createBaseCheckout(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     discountId?: string | null,
   ): Promise<{ checkoutUrl: string }> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
-    await this.ensureBillingCustomer(client, userId);
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+    const customerId = await this.ensureStripeCustomer(client, user);
 
-    const subscriptions = await this.listSubscriptionsSafe(userId);
-    const existing = this.pickSubscription(subscriptions, this.polarService.baseProductId);
+    const { basePriceId } = await this.stripeService.resolvePriceIds();
+    const subscriptions = await this.listSubscriptionsSafe(customerId);
+    const existing = this.pickSubscription(subscriptions, basePriceId);
     if (existing && ACTIVE_SUBSCRIPTION_STATUSES.includes(existing.status)) {
       throw new ConflictException('A base subscription is already active.');
     }
 
-    const checkoutUrl = await this.polarService.createCheckout({
-      productId: this.requireProductId(this.polarService.baseProductId, 'base'),
-      externalCustomerId: userId,
-      customerEmail: this.readEmail(jwtPayload),
-      discountId: discountId ?? null,
+    const checkoutUrl = await this.stripeService.createCheckout({
+      priceId: this.requirePriceId(basePriceId, 'base'),
+      customerId,
+      userId,
+      promotionCodeId: discountId ?? null,
     });
     return { checkoutUrl };
   }
 
   async createDeviceCheckout(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     quantity: number,
   ): Promise<{ checkoutUrl: string }> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
-    await this.ensureBillingCustomer(client, userId);
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+    const customerId = await this.ensureStripeCustomer(client, user);
 
-    const subscriptions = await this.listSubscriptionsSafe(userId);
-    const existing = this.pickSubscription(subscriptions, this.polarService.deviceProductId);
+    const { devicePriceId } = await this.stripeService.resolvePriceIds();
+    const subscriptions = await this.listSubscriptionsSafe(customerId);
+    const existing = this.pickSubscription(subscriptions, devicePriceId);
     if (existing && ACTIVE_SUBSCRIPTION_STATUSES.includes(existing.status)) {
       throw new ConflictException(
         'A device subscription already exists. Change the seat count instead.',
       );
     }
 
-    const checkoutUrl = await this.polarService.createCheckout({
-      productId: this.requireProductId(this.polarService.deviceProductId, 'device'),
-      externalCustomerId: userId,
-      customerEmail: this.readEmail(jwtPayload),
-      // Informational: the seat count is confirmed by Polar (webhook / getState
-      // reconcile). Honoured on the hosted checkout's seat selector.
-      metadata: { seats: quantity },
+    const checkoutUrl = await this.stripeService.createCheckout({
+      priceId: this.requirePriceId(devicePriceId, 'device'),
+      customerId,
+      userId,
+      quantity,
+      // Let the customer adjust the seat count on the hosted checkout page;
+      // the final quantity is confirmed by webhook / getState reconcile.
+      adjustableQuantity: true,
     });
     return { checkoutUrl };
   }
 
   async changeDeviceSeats(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     seats: number,
   ): Promise<{ seats: number }> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
-    const subscriptions = await this.listSubscriptionsSafe(userId);
-    const deviceSub = this.pickSubscription(
-      subscriptions,
-      this.polarService.deviceProductId,
+    const customer = await this.ensureBillingCustomer(client, userId);
+    const { devicePriceId } = await this.stripeService.resolvePriceIds();
+    const subscriptions = await this.listSubscriptionsSafe(
+      customer.stripe_customer_id,
     );
+    const deviceSub = this.pickSubscription(subscriptions, devicePriceId);
     if (!deviceSub) {
       throw new BadRequestException(
         'No device subscription yet. Purchase device licenses first.',
@@ -217,7 +232,9 @@ export class PaymentsService {
     }
 
     const licenses = await this.fetchLicenses(client, userId);
-    const assigned = licenses.filter((l) => l.status === 'assigned' && l.devEui);
+    const assigned = licenses.filter(
+      (l) => l.status === 'assigned' && l.devEui,
+    );
     if (seats < assigned.length) {
       const names = assigned
         .map((l) => l.deviceName ?? l.devEui)
@@ -228,23 +245,32 @@ export class PaymentsService {
       );
     }
 
-    await this.polarService.updateSeats(deviceSub.id, seats);
+    await this.stripeService.updateSeats(deviceSub.id, seats);
     // Optimistic local sync; the subscription.updated webhook will confirm.
     await this.reconcileSeats(client, userId, deviceSub.id, seats);
     return { seats };
   }
 
-  async openPortal(
-    jwtPayload: any,
-    authHeader: string,
-  ): Promise<{ portalUrl: string }> {
-    const userId = getUserId(jwtPayload);
-    getAccessToken(authHeader); // validate bearer token shape
+  async openPortal(user: AuthenticatedUser): Promise<{ portalUrl: string }> {
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
+
+    const customer = await this.ensureBillingCustomer(client, userId);
+    if (!customer.stripe_customer_id) {
+      throw new BadRequestException(
+        'No billing account yet. Subscribe before opening the billing portal.',
+      );
+    }
+
     try {
-      const portalUrl = await this.polarService.createPortalSession(userId);
+      const portalUrl = await this.stripeService.createPortalSession(
+        customer.stripe_customer_id,
+      );
       return { portalUrl };
     } catch (error) {
-      this.logger.warn(`Failed to open Polar portal for ${userId}: ${error}`);
+      this.logger.warn(
+        `Failed to open Stripe portal for ${userId}: ${String(error)}`,
+      );
       throw new BadRequestException(
         'No billing account yet. Subscribe before opening the billing portal.',
       );
@@ -252,31 +278,35 @@ export class PaymentsService {
   }
 
   async cancelBaseSubscription(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     atPeriodEnd: boolean,
   ): Promise<{ status: string }> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
-    const subscriptions = await this.listSubscriptionsSafe(userId);
-    const baseSub = this.pickSubscription(subscriptions, this.polarService.baseProductId);
+    const customer = await this.ensureBillingCustomer(client, userId);
+    const { basePriceId, devicePriceId } =
+      await this.stripeService.resolvePriceIds();
+    const subscriptions = await this.listSubscriptionsSafe(
+      customer.stripe_customer_id,
+    );
+    const baseSub = this.pickSubscription(subscriptions, basePriceId);
     if (!baseSub) {
       throw new NotFoundException('No base subscription to cancel.');
     }
 
-    const updated = await this.polarService.cancelSubscription(baseSub.id, atPeriodEnd);
+    const updated = await this.stripeService.cancelSubscription(
+      baseSub.id,
+      atPeriodEnd,
+    );
 
     // The device subscription (all device licenses) cannot exist without the
     // base subscription, so cancel it with the same timing. The license rows are
-    // torn down by the webhook when the subscription is actually revoked
-    // (immediately, or at period end) — see handleSubscriptionEvent.
-    const deviceSub = this.pickSubscription(
-      subscriptions,
-      this.polarService.deviceProductId,
-    );
+    // torn down by the webhook when the subscription actually ends (immediately,
+    // or at period end) — see applySubscriptionState.
+    const deviceSub = this.pickSubscription(subscriptions, devicePriceId);
     if (deviceSub) {
-      await this.polarService.cancelSubscription(deviceSub.id, atPeriodEnd);
+      await this.stripeService.cancelSubscription(deviceSub.id, atPeriodEnd);
     }
 
     await this.patchBillingCustomer(client, userId, {
@@ -286,18 +316,36 @@ export class PaymentsService {
   }
 
   // ---------------------------------------------------------------------------
-  // License assignment (CropWatch-owned; no Polar calls)
+  // License assignment (CropWatch-owned; no Stripe calls)
   // ---------------------------------------------------------------------------
 
+  /**
+   * Pre-flight check for the device-create license gate: the caller must own
+   * license `licenseId` and it must not be assigned to a device. Throws the
+   * same errors assignLicense would, so validating before a create and
+   * assigning after it stay consistent.
+   */
+  async assertLicenseAvailable(
+    user: AuthenticatedUser,
+    licenseId: number,
+  ): Promise<void> {
+    const client = this.supabaseService.getClient();
+    const license = await this.loadOwnedLicense(client, user.sub, licenseId);
+    if (license.status === 'assigned' && license.dev_eui) {
+      throw new ConflictException(
+        'License is already assigned. Move it or unassign it first.',
+      );
+    }
+  }
+
   async assignLicense(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     licenseId: number,
     devEui: string,
   ): Promise<BillingLicense> {
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
+    const client = this.supabaseService.getClient();
 
     const license = await this.loadOwnedLicense(client, userId, licenseId);
     if (license.status === 'assigned' && license.dev_eui) {
@@ -313,14 +361,13 @@ export class PaymentsService {
   }
 
   async moveLicense(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     licenseId: number,
     devEui: string,
   ): Promise<BillingLicense> {
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
+    const client = this.supabaseService.getClient();
 
     await this.loadOwnedLicense(client, userId, licenseId);
     await this.assertDeviceManageable(client, userId, isGlobalUser, devEui);
@@ -330,18 +377,21 @@ export class PaymentsService {
   }
 
   async unassignLicense(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     licenseId: number,
   ): Promise<BillingLicense> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
     await this.loadOwnedLicense(client, userId, licenseId);
 
     const { error } = await client
       .from('device_licenses')
-      .update({ dev_eui: null, status: 'unassigned', updated_at: new Date().toISOString() })
+      .update({
+        dev_eui: null,
+        status: 'unassigned',
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', licenseId)
       .eq('user_id', userId);
     if (error) {
@@ -354,15 +404,14 @@ export class PaymentsService {
   /**
    * Cancel a single UNASSIGNED license: drops the paid seat count by one (or
    * cancels the device subscription outright when it's the last seat, since
-   * Polar's seat minimum is 1). Assigned licenses must be unassigned first.
+   * the seat minimum is 1). Assigned licenses must be unassigned first.
    */
   async cancelLicense(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     licenseId: number,
   ): Promise<{ canceled: boolean }> {
-    const userId = getUserId(jwtPayload);
-    const client = this.supabaseService.getClient(getAccessToken(authHeader));
+    const userId = user.sub;
+    const client = this.supabaseService.getClient();
 
     const license = await this.loadOwnedLicense(client, userId, licenseId);
     if (license.dev_eui || license.status === 'assigned') {
@@ -371,21 +420,22 @@ export class PaymentsService {
       );
     }
 
-    const subscriptions = await this.listSubscriptionsSafe(userId);
-    const deviceSub = this.pickSubscription(
-      subscriptions,
-      this.polarService.deviceProductId,
+    const customer = await this.ensureBillingCustomer(client, userId);
+    const { devicePriceId } = await this.stripeService.resolvePriceIds();
+    const subscriptions = await this.listSubscriptionsSafe(
+      customer.stripe_customer_id,
     );
+    const deviceSub = this.pickSubscription(subscriptions, devicePriceId);
     if (!deviceSub) {
       throw new BadRequestException('No device subscription found.');
     }
 
     const target = (await this.fetchLicenses(client, userId)).length - 1;
     if (target >= 1) {
-      await this.polarService.updateSeats(deviceSub.id, target);
+      await this.stripeService.updateSeats(deviceSub.id, target);
     } else {
-      // Last seat: Polar can't go to 0 seats, so cancel the subscription.
-      await this.polarService.cancelSubscription(deviceSub.id, false);
+      // Last seat: cancel the device subscription instead of going to 0 seats.
+      await this.stripeService.cancelSubscription(deviceSub.id, false);
       await this.patchBillingCustomer(client, userId, {
         device_subscription_id: null,
         device_seats: 0,
@@ -414,19 +464,22 @@ export class PaymentsService {
     rawBody: Buffer | string,
     headers: Record<string, string>,
   ): Promise<{ received: boolean }> {
-    if (!this.polarService.isWebhookConfigured) {
+    if (!this.stripeService.isWebhookConfigured) {
       this.logger.error(
-        'POLAR_WEBHOOK_SECRET is not configured — rejecting Polar webhook',
+        'STRIPE_WEBHOOK_SECRET is not configured — rejecting Stripe webhook',
       );
-      throw new UnauthorizedException('Polar webhook is not configured');
+      throw new UnauthorizedException('Stripe webhook is not configured');
     }
 
-    let event: ReturnType<PolarService['validateWebhook']>;
+    let event: Stripe.Event;
     try {
-      event = this.polarService.validateWebhook(rawBody, headers);
+      event = this.stripeService.constructWebhookEvent(
+        rawBody,
+        headers['stripe-signature'] ?? '',
+      );
     } catch (error) {
-      if (error instanceof WebhookVerificationError) {
-        throw new ForbiddenException('Invalid Polar webhook signature');
+      if (error instanceof Stripe.errors.StripeSignatureVerificationError) {
+        throw new ForbiddenException('Invalid Stripe webhook signature');
       }
       throw error;
     }
@@ -434,36 +487,84 @@ export class PaymentsService {
     const client = this.supabaseService.getAdminClient();
 
     switch (event.type) {
-      case 'subscription.created':
-      case 'subscription.active':
-      case 'subscription.updated':
-      case 'subscription.uncanceled':
-      case 'subscription.canceled':
-      case 'subscription.revoked':
-        await this.handleSubscriptionEvent(client, event.data, event.type);
-        break;
-      case 'order.paid':
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        const customerId = this.readId(session.customer);
         await this.linkCustomer(
           client,
-          event.data.customer?.externalId ?? null,
-          event.data.customerId ?? null,
+          session.client_reference_id ?? null,
+          customerId,
         );
+        // Converge subscription state immediately in case the
+        // customer.subscription.* events arrived first (or are delayed).
+        const subscriptionId = this.readId(session.subscription);
+        if (subscriptionId && session.client_reference_id && customerId) {
+          const info = await this.fetchSubscriptionInfo(subscriptionId, null);
+          if (info) {
+            await this.applySubscriptionState(
+              client,
+              session.client_reference_id,
+              customerId,
+              info,
+              false,
+            );
+          }
+        }
         break;
-      case 'checkout.updated':
-        await this.linkCustomer(
+      }
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const payload = event.data.object;
+        const customerId = this.readId(payload.customer);
+        const userId = await this.resolveWebhookUserId(
           client,
-          event.data.externalCustomerId ?? null,
-          event.data.customerId ?? null,
+          payload,
+          customerId,
         );
+        if (!userId) {
+          this.logger.warn(
+            `Stripe ${event.type} for subscription ${payload.id} could not be resolved to a user — skipping`,
+          );
+          break;
+        }
+        // Re-fetch the live subscription so out-of-order event delivery still
+        // converges on current state (falls back to the event payload).
+        const info = await this.fetchSubscriptionInfo(payload.id, payload);
+        if (info) {
+          await this.applySubscriptionState(
+            client,
+            userId,
+            customerId,
+            info,
+            false,
+          );
+        }
         break;
-      case 'customer.created':
-      case 'customer.updated':
-        await this.linkCustomer(
+      }
+      case 'customer.subscription.deleted': {
+        // Terminal event: the payload is authoritative.
+        const payload = event.data.object;
+        const customerId = this.readId(payload.customer);
+        const userId = await this.resolveWebhookUserId(
           client,
-          event.data.externalId ?? null,
-          event.data.id ?? null,
+          payload,
+          customerId,
+        );
+        if (!userId) {
+          this.logger.warn(
+            `Stripe ${event.type} for subscription ${payload.id} could not be resolved to a user — skipping`,
+          );
+          break;
+        }
+        await this.applySubscriptionState(
+          client,
+          userId,
+          customerId,
+          this.stripeService.toSubscriptionInfo(payload),
+          true,
         );
         break;
+      }
       default:
         // Other events are not relevant to billing state.
         break;
@@ -472,30 +573,27 @@ export class PaymentsService {
     return { received: true };
   }
 
-  private async handleSubscriptionEvent(
+  private async applySubscriptionState(
     client: SupabaseClient,
-    subscription: {
-      id: string;
-      productId: string;
-      status: string;
-      seats?: number | null;
-      discountId: string | null;
-      customerId: string;
-      customer: { externalId?: string | null };
-    },
-    eventType: string,
+    userId: string,
+    customerId: string | null,
+    subscription: BillingSubscriptionInfo,
+    isDeleted: boolean,
   ): Promise<void> {
-    const userId = subscription.customer?.externalId ?? null;
-    if (!userId) {
-      this.logger.warn(
-        `Polar ${eventType} for subscription ${subscription.id} has no customer external id — skipping`,
-      );
-      return;
-    }
+    await this.linkCustomer(client, userId, customerId);
 
-    await this.linkCustomer(client, userId, subscription.customerId ?? null);
+    const { basePriceId, devicePriceId } =
+      await this.stripeService.resolvePriceIds();
 
-    if (subscription.productId === this.polarService.baseProductId) {
+    if (basePriceId && subscription.priceId === basePriceId) {
+      if (isDeleted) {
+        await this.patchBillingCustomer(client, userId, {
+          base_subscription_id: null,
+          base_status: 'canceled',
+          base_discount_id: null,
+        });
+        return;
+      }
       await this.patchBillingCustomer(client, userId, {
         base_subscription_id: subscription.id,
         base_status: subscription.status,
@@ -504,13 +602,13 @@ export class PaymentsService {
       return;
     }
 
-    if (subscription.productId === this.polarService.deviceProductId) {
-      // 'revoked' (or status 'canceled') = access has actually ended — either an
-      // immediate revoke or a scheduled cancel reaching period end. Tear down
+    if (devicePriceId && subscription.priceId === devicePriceId) {
+      // Deleted (or status 'canceled') = access has actually ended — either an
+      // immediate cancel or a scheduled cancel reaching period end. Tear down
       // EVERY license, assigned or not. A still-scheduled cancel
-      // ('subscription.canceled' while status stays 'active') keeps the seats
+      // (cancel_at_period_end=true while status stays 'active') keeps the seats
       // live, so we fall through and reconcile to the current paid seat count.
-      if (eventType === 'subscription.revoked' || subscription.status === 'canceled') {
+      if (isDeleted || subscription.status === 'canceled') {
         await this.deleteAllLicenses(client, userId);
         await this.patchBillingCustomer(client, userId, {
           device_subscription_id: null,
@@ -528,6 +626,59 @@ export class PaymentsService {
     }
   }
 
+  /**
+   * Resolve which CropWatch user a webhook subscription belongs to:
+   * subscription metadata first, then the local customer mapping, then the
+   * Stripe customer's metadata.
+   */
+  private async resolveWebhookUserId(
+    client: SupabaseClient,
+    subscription: Stripe.Subscription,
+    customerId: string | null,
+  ): Promise<string | null> {
+    const fromMetadata = subscription.metadata?.user_id;
+    if (fromMetadata) {
+      return fromMetadata;
+    }
+
+    if (!customerId) {
+      return null;
+    }
+
+    const { data } = (await client
+      .from('billing_customers')
+      .select('user_id')
+      .eq('stripe_customer_id', customerId)
+      .maybeSingle()) as QueryResult<Pick<BillingCustomerRow, 'user_id'>>;
+    if (data?.user_id) {
+      return data.user_id;
+    }
+
+    try {
+      return await this.stripeService.retrieveCustomerUserId(customerId);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to resolve user for Stripe customer ${customerId}: ${String(error)}`,
+      );
+      return null;
+    }
+  }
+
+  /** Fetch live subscription state, falling back to the webhook payload. */
+  private async fetchSubscriptionInfo(
+    subscriptionId: string,
+    fallback: Stripe.Subscription | null,
+  ): Promise<BillingSubscriptionInfo | null> {
+    try {
+      return await this.stripeService.retrieveSubscription(subscriptionId);
+    } catch (error) {
+      this.logger.warn(
+        `Failed to re-fetch Stripe subscription ${subscriptionId}: ${String(error)}`,
+      );
+      return fallback ? this.stripeService.toSubscriptionInfo(fallback) : null;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Seat reconciliation — converge license rows to the paid seat count.
   // Idempotent: only ever inserts unassigned rows or deletes unassigned rows.
@@ -541,11 +692,13 @@ export class PaymentsService {
     subscriptionId: string,
     targetSeats: number,
   ): Promise<void> {
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('device_licenses')
       .select('id, seat_index, status, dev_eui')
       .eq('user_id', userId)
-      .order('seat_index', { ascending: true });
+      .order('seat_index', { ascending: true })) as QueryResult<
+      LicenseSeatRow[]
+    >;
     if (error) {
       throw new InternalServerErrorException('Failed to read device licenses');
     }
@@ -560,7 +713,7 @@ export class PaymentsService {
       for (let i = 0; i < targetSeats - current; i += 1) {
         inserts.push({
           user_id: userId,
-          polar_subscription_id: subscriptionId,
+          stripe_subscription_id: subscriptionId,
           seat_index: startIndex + i,
           dev_eui: null,
           status: 'unassigned',
@@ -579,7 +732,9 @@ export class PaymentsService {
       const removable = rows
         .filter((r) => r.status !== 'assigned' && !r.dev_eui)
         .sort((a, b) => b.seat_index - a.seat_index);
-      const toRemove = removable.slice(0, current - targetSeats).map((r) => r.id);
+      const toRemove = removable
+        .slice(0, current - targetSeats)
+        .map((r) => r.id);
 
       if (toRemove.length < current - targetSeats) {
         this.logger.warn(
@@ -593,7 +748,9 @@ export class PaymentsService {
           .delete()
           .in('id', toRemove);
         if (deleteError) {
-          throw new InternalServerErrorException('Failed to remove device licenses');
+          throw new InternalServerErrorException(
+            'Failed to remove device licenses',
+          );
         }
       }
     }
@@ -607,11 +764,11 @@ export class PaymentsService {
     client: SupabaseClient,
     userId: string,
   ): Promise<BillingCustomerRow> {
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('billing_customers')
       .select('*')
       .eq('user_id', userId)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<BillingCustomerRow>;
     if (error) {
       throw new InternalServerErrorException('Failed to read billing customer');
     }
@@ -619,28 +776,56 @@ export class PaymentsService {
       return data;
     }
 
-    const { data: inserted, error: insertError } = await client
+    const { data: inserted, error: insertError } = (await client
       .from('billing_customers')
-      .upsert({ user_id: userId }, { onConflict: 'user_id', ignoreDuplicates: false })
+      .upsert(
+        { user_id: userId },
+        { onConflict: 'user_id', ignoreDuplicates: false },
+      )
       .select('*')
-      .single();
+      .single()) as QueryResult<BillingCustomerRow>;
     if (insertError || !inserted) {
-      throw new InternalServerErrorException('Failed to create billing customer');
+      throw new InternalServerErrorException(
+        'Failed to create billing customer',
+      );
     }
     return inserted;
+  }
+
+  /**
+   * Ensure the user has a Stripe customer, creating one lazily on the first
+   * billing action. Read paths (state page, portal) never create one.
+   */
+  private async ensureStripeCustomer(
+    client: SupabaseClient,
+    user: AuthenticatedUser,
+  ): Promise<string> {
+    const row = await this.ensureBillingCustomer(client, user.sub);
+    if (row.stripe_customer_id) {
+      return row.stripe_customer_id;
+    }
+
+    const customerId = await this.stripeService.createCustomer(
+      user.sub,
+      this.readEmail(user),
+    );
+    await this.patchBillingCustomer(client, user.sub, {
+      stripe_customer_id: customerId,
+    });
+    return customerId;
   }
 
   private async linkCustomer(
     client: SupabaseClient,
     userId: string | null,
-    polarCustomerId: string | null,
+    stripeCustomerId: string | null,
   ): Promise<void> {
     if (!userId) {
       return;
     }
     const patch: Partial<BillingCustomerRow> = { user_id: userId };
-    if (polarCustomerId) {
-      patch.polar_customer_id = polarCustomerId;
+    if (stripeCustomerId) {
+      patch.stripe_customer_id = stripeCustomerId;
     }
     const { error } = await client
       .from('billing_customers')
@@ -649,7 +834,9 @@ export class PaymentsService {
         { onConflict: 'user_id' },
       );
     if (error) {
-      this.logger.warn(`Failed to link billing customer ${userId}: ${error.message}`);
+      this.logger.warn(
+        `Failed to link billing customer ${userId}: ${error.message}`,
+      );
     }
   }
 
@@ -672,8 +859,8 @@ export class PaymentsService {
   private async patchBillingCustomerCache(
     client: SupabaseClient,
     userId: string,
-    baseSub: PolarSubscriptionInfo | null,
-    deviceSub: PolarSubscriptionInfo | null,
+    baseSub: BillingSubscriptionInfo | null,
+    deviceSub: BillingSubscriptionInfo | null,
   ): Promise<void> {
     await this.patchBillingCustomer(client, userId, {
       base_subscription_id: baseSub?.id ?? null,
@@ -685,24 +872,29 @@ export class PaymentsService {
   }
 
   private async listSubscriptionsSafe(
-    userId: string,
-  ): Promise<PolarSubscriptionInfo[]> {
+    stripeCustomerId: string | null,
+  ): Promise<BillingSubscriptionInfo[]> {
+    if (!stripeCustomerId) {
+      return [];
+    }
     try {
-      return await this.polarService.listSubscriptions(userId);
+      return await this.stripeService.listSubscriptions(stripeCustomerId);
     } catch (error) {
-      this.logger.warn(`Failed to list Polar subscriptions for ${userId}: ${error}`);
+      this.logger.warn(
+        `Failed to list Stripe subscriptions for ${stripeCustomerId}: ${String(error)}`,
+      );
       return [];
     }
   }
 
   private pickSubscription(
-    subscriptions: PolarSubscriptionInfo[],
-    productId: string,
-  ): PolarSubscriptionInfo | null {
-    if (!productId) {
+    subscriptions: BillingSubscriptionInfo[],
+    priceId: string,
+  ): BillingSubscriptionInfo | null {
+    if (!priceId) {
       return null;
     }
-    const matches = subscriptions.filter((s) => s.productId === productId);
+    const matches = subscriptions.filter((s) => s.priceId === priceId);
     return (
       matches.find((s) => ACTIVE_SUBSCRIPTION_STATUSES.includes(s.status)) ??
       matches[0] ??
@@ -710,25 +902,35 @@ export class PaymentsService {
     );
   }
 
-  private effectiveSeats(subscription: PolarSubscriptionInfo): number {
+  private effectiveSeats(subscription: BillingSubscriptionInfo): number {
     if (subscription.status === 'canceled') {
       return 0;
     }
     return subscription.seats ?? 0;
   }
 
-  private requireProductId(productId: string, kind: string): string {
-    if (!productId) {
+  private requirePriceId(priceId: string, kind: string): string {
+    if (!priceId) {
       throw new InternalServerErrorException(
-        `Polar ${kind} product id is not configured`,
+        `Stripe ${kind} price id is not configured`,
       );
     }
-    return productId;
+    return priceId;
   }
 
-  private readEmail(jwtPayload: any): string | null {
-    const email = jwtPayload?.email;
+  private readEmail(user: AuthenticatedUser): string | null {
+    const email = user.email;
     return typeof email === 'string' && email.trim() ? email.trim() : null;
+  }
+
+  /** Unwrap Stripe's `string | object | null` expandable reference fields. */
+  private readId(
+    ref: string | { id: string } | null | undefined,
+  ): string | null {
+    if (!ref) {
+      return null;
+    }
+    return typeof ref === 'string' ? ref : ref.id;
   }
 
   private async loadOwnedLicense(
@@ -736,12 +938,12 @@ export class PaymentsService {
     userId: string,
     licenseId: number,
   ): Promise<TableRow<'device_licenses'>> {
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('device_licenses')
       .select('*')
       .eq('id', licenseId)
       .eq('user_id', userId)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<DeviceLicenseRow>;
     if (error) {
       throw new InternalServerErrorException('Failed to read license');
     }
@@ -822,7 +1024,7 @@ export class PaymentsService {
     return this.fetchLicense(client, userId, licenseId);
   }
 
-  /** Remove every license row for a user (used when the device sub is revoked). */
+  /** Remove every license row for a user (used when the device sub ends). */
   private async deleteAllLicenses(
     client: SupabaseClient,
     userId: string,
@@ -832,7 +1034,9 @@ export class PaymentsService {
       .delete()
       .eq('user_id', userId);
     if (error) {
-      this.logger.warn(`Failed to delete device licenses for ${userId}: ${error.message}`);
+      this.logger.warn(
+        `Failed to delete device licenses for ${userId}: ${error.message}`,
+      );
     }
   }
 
@@ -876,8 +1080,8 @@ export class PaymentsService {
     cw_devices?: { name: string | null } | { name: string | null }[] | null;
   }): BillingLicense {
     const device = Array.isArray(row.cw_devices)
-      ? row.cw_devices[0] ?? null
-      : row.cw_devices ?? null;
+      ? (row.cw_devices[0] ?? null)
+      : (row.cw_devices ?? null);
     return {
       id: row.id,
       seatIndex: row.seat_index,

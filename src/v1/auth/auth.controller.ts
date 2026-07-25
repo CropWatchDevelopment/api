@@ -1,6 +1,16 @@
-import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from './guards/jwt.auth.guard';
+import { CurrentUser } from './current-user.decorator';
+import type { AuthenticatedUser } from './authenticated-user';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -24,7 +34,7 @@ import { UpdatePreferencesDto } from './dto/update-preferences.dto';
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -41,8 +51,8 @@ export class AuthController {
       message: 'Unauthorized',
     },
   })
-  async protected(@Req() req) {
-    return req.user;
+  protected(@CurrentUser() user: AuthenticatedUser) {
+    return user;
   }
 
   @Get('user-profile')
@@ -60,8 +70,8 @@ export class AuthController {
       message: 'Unauthorized',
     },
   })
-  async getUserProfile(@Req() req) {
-    return this.authService.getUserProfile(req.user, req.headers?.authorization, req.user);
+  async getUserProfile(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getUserProfile(user);
   }
 
   @Patch('user-profile')
@@ -92,13 +102,18 @@ export class AuthController {
     description: 'Failed to update user profile.',
     type: ErrorResponseDto,
   })
-  async updateUserProfile(@Body() body: UpdateUserProfileDto, @Req() req) {
-    return this.authService.updateUserProfile(body, req.headers?.authorization, req.user);
+  async updateUserProfile(
+    @Body() body: UpdateUserProfileDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.authService.updateUserProfile(body, user);
   }
 
   @Patch('email')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Start a verified email change for the authenticated user' })
+  @ApiOperation({
+    summary: 'Start a verified email change for the authenticated user',
+  })
   @ApiOkResponse({
     description: 'Confirmation email sent; the change applies once confirmed.',
     schema: { type: 'object', additionalProperties: true },
@@ -112,20 +127,27 @@ export class AuthController {
     type: ErrorResponseDto,
   })
   @ApiForbiddenResponse({
-    description: 'CropWatch (cropwatch.io / cropwatch.co.jp) accounts cannot change their email.',
+    description:
+      'CropWatch (cropwatch.io / cropwatch.co.jp) accounts cannot change their email.',
     type: ErrorResponseDto,
   })
   @ApiInternalServerErrorResponse({
     description: 'Failed to start email change.',
     type: ErrorResponseDto,
   })
-  async updateEmail(@Body() body: UpdateEmailDto, @Req() req) {
-    return this.authService.updateEmail(req.headers?.authorization, body.email, req.user);
+  async updateEmail(
+    @Body() body: UpdateEmailDto,
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    return this.authService.updateEmail(authHeader, body.email, user);
   }
 
   @Get('preferences')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Get the authenticated user preferences (creates on first access)' })
+  @ApiOperation({
+    summary: 'Get the authenticated user preferences (creates on first access)',
+  })
   @ApiOkResponse({
     description: 'User preferences returned successfully.',
     schema: { type: 'object', additionalProperties: true },
@@ -138,8 +160,8 @@ export class AuthController {
     description: 'Failed to read preferences.',
     type: ErrorResponseDto,
   })
-  async getPreferences(@Req() req) {
-    return this.authService.getPreferences(req.user, req.headers?.authorization);
+  async getPreferences(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getPreferences(user);
   }
 
   @Patch('preferences')
@@ -161,8 +183,11 @@ export class AuthController {
     description: 'Failed to update preferences.',
     type: ErrorResponseDto,
   })
-  async updatePreferences(@Body() body: UpdatePreferencesDto, @Req() req) {
-    return this.authService.updatePreferences(body, req.headers?.authorization, req.user);
+  async updatePreferences(
+    @Body() body: UpdatePreferencesDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.authService.updatePreferences(body, user);
   }
 
   @Throttle({ default: { limit: 2, ttl: 60000 } })

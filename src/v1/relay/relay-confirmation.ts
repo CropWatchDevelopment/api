@@ -1,9 +1,4 @@
-import type {
-  RelayConfirmation,
-  RelayDataRow,
-  RelayNumber,
-  RelayTargetState,
-} from './relay.types';
+import type { RelayConfirmation, RelayDataRow } from './relay.types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -50,19 +45,26 @@ function readRelayStatus(value: unknown): boolean | null {
   return null;
 }
 
-function readDecodedPayload(payload: Record<string, unknown>): Record<string, unknown> {
+function readDecodedPayload(
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
   const data = readApplicationUp(payload);
-  const uplinkMessage = isRecord(data.uplink_message) ? data.uplink_message : null;
-  const decodedPayload = uplinkMessage && isRecord(uplinkMessage.decoded_payload)
-    ? uplinkMessage.decoded_payload
+  const uplinkMessage = isRecord(data.uplink_message)
+    ? data.uplink_message
     : null;
+  const decodedPayload =
+    uplinkMessage && isRecord(uplinkMessage.decoded_payload)
+      ? uplinkMessage.decoded_payload
+      : null;
 
   return decodedPayload ?? {};
 }
 
 function readConfirmationTime(payload: Record<string, unknown>): string {
   const data = readApplicationUp(payload);
-  const uplinkMessage = isRecord(data.uplink_message) ? data.uplink_message : null;
+  const uplinkMessage = isRecord(data.uplink_message)
+    ? data.uplink_message
+    : null;
 
   return (
     readString(data?.received_at) ||
@@ -73,8 +75,12 @@ function readConfirmationTime(payload: Record<string, unknown>): string {
 
 function readConfirmationDevEui(payload: Record<string, unknown>): string {
   const data = readApplicationUp(payload);
-  const endDeviceIds = isRecord(data.end_device_ids) ? data.end_device_ids : null;
-  const identifiers = Array.isArray(payload.identifiers) ? payload.identifiers : [];
+  const endDeviceIds = isRecord(data.end_device_ids)
+    ? data.end_device_ids
+    : null;
+  const identifiers = Array.isArray(payload.identifiers)
+    ? payload.identifiers
+    : [];
 
   for (const entry of identifiers) {
     if (!isRecord(entry)) {
@@ -136,34 +142,4 @@ export function readRelayRowTimestamp(
   }
 
   return row.created_at || row.last_update || '';
-}
-
-export function compareIsoTimestamps(left: string, right: string): number {
-  const leftTime = Date.parse(left);
-  const rightTime = Date.parse(right);
-
-  if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime)) {
-    return leftTime - rightTime;
-  }
-
-  return left.localeCompare(right);
-}
-
-export function doesRelayRowConfirmTarget(
-  row: RelayDataRow,
-  relay: RelayNumber,
-  targetState: RelayTargetState,
-  baselineTime: string,
-): boolean {
-  const rowTime = readRelayRowTimestamp(row);
-  if (!rowTime || compareIsoTimestamps(rowTime, baselineTime) <= 0) {
-    return false;
-  }
-
-  const relayValue = relay === 1 ? row.relay_1 : row.relay_2;
-  if (relayValue === null) {
-    return false;
-  }
-
-  return targetState === 'on' ? relayValue : !relayValue;
 }

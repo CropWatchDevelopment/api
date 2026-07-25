@@ -1,13 +1,33 @@
-import { InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { LocationsService } from './locations.service';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { PaymentsService } from '../payments/payments.service';
 
 describe('LocationsService', () => {
-  type QueryResult = { data: any; error: any };
+  type QueryResult = { data: unknown; error: unknown };
 
-  const createBuilder = (result: QueryResult) => {
-    const builder: any = {
+  type QueryBuilder = {
+    data: unknown;
+    error: unknown;
+    select: jest.Mock;
+    eq: jest.Mock;
+    gt: jest.Mock;
+    lt: jest.Mock;
+    lte: jest.Mock;
+    or: jest.Mock;
+    order: jest.Mock;
+    maybeSingle: jest.Mock;
+    single: jest.Mock;
+    upsert: jest.Mock;
+    insert: jest.Mock;
+    delete: jest.Mock;
+  };
+
+  const createBuilder = (result: QueryResult): QueryBuilder => {
+    const builder: QueryBuilder = {
       data: result.data,
       error: result.error,
       select: jest.fn(() => builder),
@@ -17,8 +37,8 @@ describe('LocationsService', () => {
       lte: jest.fn(() => builder),
       or: jest.fn(() => builder),
       order: jest.fn(() => builder),
-      maybeSingle: jest.fn(async () => result),
-      single: jest.fn(async () => result),
+      maybeSingle: jest.fn(() => Promise.resolve(result)),
+      single: jest.fn(() => Promise.resolve(result)),
       upsert: jest.fn(() => builder),
       insert: jest.fn(() => builder),
       delete: jest.fn(() => builder),
@@ -26,24 +46,24 @@ describe('LocationsService', () => {
     return builder;
   };
 
-  const createClient = (queues: Record<string, any[]>) => ({
-    from: jest.fn((table: string) => {
+  const createClient = (queues: Record<string, QueryBuilder[]>) => ({
+    from: jest.fn((table: string): QueryBuilder => {
       const tableQueue = queues[table];
       if (!tableQueue || tableQueue.length === 0) {
         throw new Error(`No mock builder available for table: ${table}`);
       }
-      return tableQueue.shift();
+      return tableQueue.shift() as QueryBuilder;
     }),
   });
 
-  const createService = (client: any) =>
+  const createService = (client: ReturnType<typeof createClient>) =>
     new LocationsService(
       {
         getClient: jest.fn(() => client),
         getAdminClient: jest.fn(),
       } as unknown as SupabaseService,
       {
-        hasActiveBaseSubscription: jest.fn(async () => true),
+        hasActiveBaseSubscription: jest.fn(() => Promise.resolve(true)),
       } as unknown as PaymentsService,
     );
 
@@ -60,7 +80,9 @@ describe('LocationsService', () => {
     });
     const service = createService(client);
 
-    await expect(service.findOne(123, { sub: 'user-1' }, 'Bearer token-1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.findOne(123, { sub: 'user-1', email: null, isStaff: false }),
+    ).rejects.toBeInstanceOf(NotFoundException);
     expect(locationQuery.maybeSingle).toHaveBeenCalledTimes(1);
   });
 
@@ -85,7 +107,7 @@ describe('LocationsService', () => {
     await expect(
       service.findOne(
         83,
-        { sub: 'staff-1', email: 'staff@cropwatch.io' },
+        { sub: 'staff-1', email: 'staff@cropwatch.io', isStaff: true },
         'Bearer token-1',
       ),
     ).resolves.toEqual({
@@ -123,7 +145,11 @@ describe('LocationsService', () => {
     const service = createService(client);
 
     await expect(
-      service.findOne(84, { sub: 'user-1', email: 'farmer@example.com' }, 'Bearer token-1'),
+      service.findOne(
+        84,
+        { sub: 'user-1', email: 'farmer@example.com', isStaff: false },
+        'Bearer token-1',
+      ),
     ).resolves.toEqual({
       location_id: 84,
       name: 'Customer Location',
@@ -132,8 +158,14 @@ describe('LocationsService', () => {
   });
 
   it('updateLocationPermission should not clean up when a device permission upsert fails', async () => {
-    const permissionCheckQuery = createBuilder({ data: { location_id: 77 }, error: null });
-    const locationOwnerUpsertQuery = createBuilder({ data: { id: 1 }, error: null });
+    const permissionCheckQuery = createBuilder({
+      data: { location_id: 77 },
+      error: null,
+    });
+    const locationOwnerUpsertQuery = createBuilder({
+      data: { id: 1 },
+      error: null,
+    });
     const locationDevicesQuery = createBuilder({
       data: [{ dev_eui: 'ABC123' }, { dev_eui: 'XYZ789' }],
       error: null,
@@ -160,14 +192,21 @@ describe('LocationsService', () => {
           is_active: true,
         },
         true,
-        { sub: 'admin-1' },
+        { sub: 'admin-1', email: null, isStaff: false },
         'Bearer token-1',
       ),
     ).rejects.toBeInstanceOf(InternalServerErrorException);
 
     // Assert we made no rollback/cleanup attempts.
-    const calledTables = client.from.mock.calls.map(([table]: [string]) => table);
-    expect(calledTables).toEqual(['cw_locations', 'cw_location_owners', 'cw_devices', 'cw_device_owners']);
+    const calledTables = client.from.mock.calls.map(
+      ([table]: [string]) => table,
+    );
+    expect(calledTables).toEqual([
+      'cw_locations',
+      'cw_location_owners',
+      'cw_devices',
+      'cw_device_owners',
+    ]);
     expect(locationOwnerUpsertQuery.delete).not.toHaveBeenCalled();
     expect(failingDeviceOwnerUpsertQuery.delete).not.toHaveBeenCalled();
   });

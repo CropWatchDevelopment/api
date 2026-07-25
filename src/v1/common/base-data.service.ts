@@ -7,8 +7,8 @@ import {
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from './timezone-formatter.service';
 import { TableRow, TableName } from '../types/supabase';
-import { getUserId, isCropwatchStaff } from '../../supabase/supabase-token.helper';
 import { READ_EXCLUSIVE_CEILING } from './permission-levels';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 /**
  * Base service class for common data fetching operations across different data types
@@ -33,7 +33,7 @@ export abstract class BaseDataService<T extends TableName> {
     devEui: string,
     startDate: Date,
     endDate: Date,
-    jwtPayload: any,
+    user: AuthenticatedUser,
     timezone?: string,
   ): Promise<TableRow<T>[]> {
     const normalizedDevEui = devEui?.trim();
@@ -45,7 +45,7 @@ export abstract class BaseDataService<T extends TableName> {
       this.timezoneFormatter.assertValidTimeZone(normalizedTimeZone);
     }
 
-    await this.assertDeviceAccess(normalizedDevEui, jwtPayload);
+    await this.assertDeviceAccess(normalizedDevEui, user);
 
     const { data, error } = await this.supabaseService
       .getClient()
@@ -62,11 +62,11 @@ export abstract class BaseDataService<T extends TableName> {
       );
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return (data ?? []).map((row) => ({
+    const rows = (data ?? []) as (TableRow<T> & { created_at: string })[];
+
+    return rows.map((row) => ({
       ...row,
       created_at: this.timezoneFormatter.formatTimestamp(
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
         row.created_at,
         normalizedTimeZone,
       ),
@@ -75,10 +75,10 @@ export abstract class BaseDataService<T extends TableName> {
 
   protected async assertDeviceAccess(
     devEui: string,
-    jwtPayload: any,
+    user: AuthenticatedUser,
   ): Promise<void> {
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
     let query = this.supabaseService
       .getClient()
       .from('cw_devices')
@@ -95,7 +95,9 @@ export abstract class BaseDataService<T extends TableName> {
     const { data, error } = await query.maybeSingle();
 
     if (error) {
-      throw new InternalServerErrorException('Failed to validate device access');
+      throw new InternalServerErrorException(
+        'Failed to validate device access',
+      );
     }
 
     if (!data) {

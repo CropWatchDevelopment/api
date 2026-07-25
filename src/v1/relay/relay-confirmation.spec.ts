@@ -1,7 +1,4 @@
-import {
-  doesRelayRowConfirmTarget,
-  parseRelayConfirmation,
-} from './relay-confirmation';
+import { parseRelayConfirmation } from './relay-confirmation';
 
 describe('parseRelayConfirmation', () => {
   it('extracts relay states and confirmation metadata from a TTI uplink', () => {
@@ -83,43 +80,5 @@ describe('parseRelayConfirmation', () => {
         },
       }),
     ).toBeNull();
-  });
-});
-
-describe('doesRelayRowConfirmTarget', () => {
-  it('matches newer relay rows that confirm the requested state', () => {
-    expect(
-      doesRelayRowConfirmTarget(
-        {
-          created_at: '2026-04-05T02:35:00.834081749Z',
-          dev_eui: 'A8404194635A05FB',
-          id: 42,
-          last_update: '2026-04-05T02:35:00.834081749Z',
-          relay_1: true,
-          relay_2: false,
-        },
-        1,
-        'on',
-        '2026-04-05T02:34:58.000000000Z',
-      ),
-    ).toBe(true);
-  });
-
-  it('rejects rows that are not newer than the command request', () => {
-    expect(
-      doesRelayRowConfirmTarget(
-        {
-          created_at: '2026-04-05T02:34:58.000000000Z',
-          dev_eui: 'A8404194635A05FB',
-          id: 42,
-          last_update: '2026-04-05T02:34:58.000000000Z',
-          relay_1: true,
-          relay_2: false,
-        },
-        1,
-        'on',
-        '2026-04-05T02:34:58.000000000Z',
-      ),
-    ).toBe(false);
   });
 });

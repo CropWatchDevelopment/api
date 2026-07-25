@@ -14,7 +14,9 @@ export function getCommit(): string {
     });
     const sha = out.toString().trim();
     if (sha) return sha;
-  } catch (_) {}
+  } catch {
+    /* git binary unavailable; fall through to reading .git directly */
+  }
 
   try {
     const gitDir = join(process.cwd(), '.git');
@@ -43,7 +45,9 @@ export function getCommit(): string {
     } else if (/^[0-9a-f]{40}$/.test(head)) {
       return head.substring(0, 7);
     }
-  } catch (_) {}
+  } catch {
+    /* optional .git lookup failed; fall through to 'unknown' */
+  }
 
   return 'unknown';
 }

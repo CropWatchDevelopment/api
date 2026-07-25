@@ -6,15 +6,14 @@ import { ConfigModule } from '@nestjs/config';
 import { AirModule } from './v1/air/air.module';
 import { SoilModule } from './v1/soil/soil.module';
 import { WaterModule } from './v1/water/water.module';
-import { PowerModule } from './v1/power/power.module';
 import { TrafficModule } from './v1/traffic/traffic.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { DevicesModule } from './v1/devices/devices.module';
-import { RulesNewModule } from './v1/rules-new/rules-new.module';
-import { ReportsNewModule } from './v1/reports-new/reports-new.module';
+import { RulesModule } from './v1/rules/rules.module';
+import { ReportsModule } from './v1/reports/reports.module';
 import { LocationsModule } from './v1/locations/locations.module';
 import { RelayModule } from './v1/relay/relay.module';
 import { GatewayModule } from './v1/gateway/gateway.module';
@@ -29,7 +28,6 @@ import { CropwatchMcpModule } from './v1/mcp/mcp.module';
     AirModule,
     SoilModule,
     WaterModule,
-    PowerModule,
     TrafficModule,
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'static'),
@@ -51,8 +49,8 @@ import { CropwatchMcpModule } from './v1/mcp/mcp.module';
       },
     ]),
     DevicesModule,
-    RulesNewModule,
-    ReportsNewModule,
+    RulesModule,
+    ReportsModule,
     LocationsModule,
     RelayModule,
     GatewayModule,

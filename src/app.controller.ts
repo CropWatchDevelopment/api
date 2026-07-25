@@ -5,7 +5,6 @@ import type { Response } from 'express';
 
 @Controller()
 export class AppController {
-
   @Get()
   @ApiExcludeEndpoint()
   @ApiOkResponse({

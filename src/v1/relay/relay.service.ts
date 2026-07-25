@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  GatewayTimeoutException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -10,14 +9,14 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
-import {
-  getAccessToken,
-  getUserId,
-  isCropwatchStaff,
-} from '../../supabase/supabase-token.helper';
 import type { TableInsert, TableRow } from '../../v1/types/supabase';
-import { canManage, canRead, PermissionLevel } from '../common/permission-levels';
+import {
+  canManage,
+  canRead,
+  PermissionLevel,
+} from '../common/permission-levels';
 import { PulseRelayDto } from './dto/pulse-relay.dto';
 import { UpdateRelayDto } from './dto/update-relay.dto';
 import {
@@ -26,7 +25,6 @@ import {
 } from './relay-command-profile';
 import { RelayCommandLockService } from './relay-command-lock.service';
 import {
-  doesRelayRowConfirmTarget,
   parseRelayConfirmation,
   readRelayRowTimestamp,
 } from './relay-confirmation';
@@ -40,10 +38,8 @@ import {
   mapTtiClientError,
   resolveTtiApplicationId,
 } from './tti-client';
-import {
-  isValidTtiDeviceId,
-  normalizeTtiDeviceId,
-} from './tti-device-id';
+import { isValidTtiDeviceId, normalizeTtiDeviceId } from './tti-device-id';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type DeviceOwnerRow = TableRow<'cw_device_owners'>;
 type DeviceTypeRow = TableRow<'cw_device_type'>;
@@ -51,6 +47,9 @@ type LocationOwnerRow = TableRow<'cw_location_owners'>;
 type DeviceRow = TableRow<'cw_devices'>;
 type RelayRow = TableRow<'cw_relay_data'>;
 type RelayInsert = TableInsert<'cw_relay_data'>;
+
+/** Shape of a PostgREST response from the untyped Supabase client. */
+type QueryResult<T> = { data: T | null; error: PostgrestError | null };
 
 type RelayDeviceContext = {
   applicationId: string;
@@ -63,12 +62,6 @@ type DeviceRecord = DeviceRow & {
   cw_device_owners?: DeviceOwnerRow[];
   cw_device_type?: DeviceTypeRow | DeviceTypeRow[] | null;
 };
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -144,24 +137,22 @@ export class RelayService {
     private readonly relayCommandLockService: RelayCommandLockService,
     private readonly supabaseService: SupabaseService,
   ) {
-    if (!readString(this.configService.get<string>('PRIVATE_TTI_WEBHOOK_TOKEN'))) {
+    if (
+      !readString(this.configService.get<string>('PRIVATE_TTI_WEBHOOK_TOKEN'))
+    ) {
       this.logger.warn(
         'PRIVATE_TTI_WEBHOOK_TOKEN is not set — the TTI relay webhook will reject all uplinks until it is configured',
       );
     }
   }
 
-  async getLatestRelay(jwtPayload: any, authHeader: string, devEui: string) {
+  async getLatestRelay(user: AuthenticatedUser, devEui: string) {
     const normalizedDevEui = normalizeDevEui(devEui);
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const context = await this.loadRelayDeviceContext(
-      jwtPayload,
-      authHeader,
-      normalizedDevEui,
-    );
+    const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
     if (!canRead(context.permissionLevel)) {
       throw new NotFoundException('Device not found');
     }
@@ -175,8 +166,7 @@ export class RelayService {
   }
 
   async updateRelay(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     devEui: string,
     updateRelayDto: UpdateRelayDto,
   ) {
@@ -186,11 +176,7 @@ export class RelayService {
     }
 
     const { relay, targetState } = updateRelayDto;
-    const context = await this.loadRelayDeviceContext(
-      jwtPayload,
-      authHeader,
-      normalizedDevEui,
-    );
+    const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
     if (!canManage(context.permissionLevel)) {
       throw new ForbiddenException(
         'You do not have permission to control this relay',
@@ -236,13 +222,6 @@ export class RelayService {
         downlinks: [buildRelayDownlink(relay, targetState, correlationIds)],
       });
 
-      // const confirmedRow = await this.waitForRelayConfirmation(
-      //   normalizedDevEui,
-      //   relay,
-      //   targetState,
-      //   requestedAt,
-      // );
-
       return {
         confirmed: true,
         dev_eui: normalizedDevEui,
@@ -252,10 +231,6 @@ export class RelayService {
         targetState,
       };
     } catch (error) {
-      if (error instanceof GatewayTimeoutException) {
-        throw error;
-      }
-
       if (
         error instanceof BadRequestException ||
         error instanceof ForbiddenException ||
@@ -273,8 +248,7 @@ export class RelayService {
   }
 
   async pulseRelay(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     devEui: string,
     pulseRelayDto: PulseRelayDto,
   ) {
@@ -284,11 +258,7 @@ export class RelayService {
     }
 
     const { durationSeconds, relay } = pulseRelayDto;
-    const context = await this.loadRelayDeviceContext(
-      jwtPayload,
-      authHeader,
-      normalizedDevEui,
-    );
+    const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
     if (!canManage(context.permissionLevel)) {
       throw new ForbiddenException(
         'You do not have permission to control this relay',
@@ -352,10 +322,6 @@ export class RelayService {
         targetState: 'on',
       };
     } catch (error) {
-      if (error instanceof GatewayTimeoutException) {
-        throw error;
-      }
-
       if (
         error instanceof BadRequestException ||
         error instanceof ConflictException ||
@@ -378,10 +344,7 @@ export class RelayService {
     authorizationHeader?: string,
     downlinkApiKeyHeader?: string,
   ) {
-    this.assertWebhookAuthorization(
-      authorizationHeader,
-      downlinkApiKeyHeader,
-    );
+    this.assertWebhookAuthorization(authorizationHeader, downlinkApiKeyHeader);
 
     const confirmation = parseRelayConfirmation(payload);
     if (!confirmation) {
@@ -425,20 +388,18 @@ export class RelayService {
   }
 
   private async loadRelayDeviceContext(
-    jwtPayload: any,
-    authHeader: string,
+    user: AuthenticatedUser,
     devEui: string,
   ): Promise<RelayDeviceContext> {
-    const accessToken = getAccessToken(authHeader);
-    const client = this.supabaseService.getClient(accessToken);
-    const userId = getUserId(jwtPayload);
-    const isGlobalUser = isCropwatchStaff(jwtPayload);
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const isGlobalUser = user.isStaff;
 
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('cw_devices')
       .select('*, cw_device_owners(*), cw_device_type(*)')
       .eq('dev_eui', devEui)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<DeviceRecord>;
 
     if (error) {
       this.logger.error(
@@ -452,7 +413,7 @@ export class RelayService {
       throw new NotFoundException('Device not found');
     }
 
-    const device = data as DeviceRecord;
+    const device = data;
     const deviceId = normalizeTtiDeviceId(device.tti_name);
     if (!deviceId || !isValidTtiDeviceId(deviceId)) {
       throw new BadRequestException('Device is missing a valid TTI device id');
@@ -500,11 +461,11 @@ export class RelayService {
     }
 
     if (device.location_id) {
-      const { data, error } = await client
+      const { data, error } = (await client
         .from('cw_location_owners')
         .select('*')
         .eq('location_id', device.location_id)
-        .eq('user_id', userId);
+        .eq('user_id', userId)) as QueryResult<LocationOwnerRow[]>;
 
       if (error) {
         this.logger.error(
@@ -516,7 +477,7 @@ export class RelayService {
         );
       }
 
-      for (const owner of (data ?? []) as LocationOwnerRow[]) {
+      for (const owner of data ?? []) {
         permissionLevels.push(readPermissionLevel(owner.permission_level));
       }
     }
@@ -528,14 +489,14 @@ export class RelayService {
 
   private async findLatestRelayRow(devEui: string): Promise<RelayRow | null> {
     const client = this.supabaseService.getClient();
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('cw_relay_data')
       .select('*')
       .eq('dev_eui', devEui)
       .order('created_at', { ascending: false })
       .order('id', { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle()) as QueryResult<RelayRow>;
 
     if (error) {
       this.logger.error(
@@ -545,63 +506,7 @@ export class RelayService {
       throw new InternalServerErrorException('Failed to fetch relay data');
     }
 
-    return (data as RelayRow | null) ?? null;
-  }
-
-  private async waitForRelayConfirmation(
-    devEui: string,
-    relay: 1 | 2,
-    targetState: 'off' | 'on',
-    requestedAt: string,
-  ): Promise<RelayRow> {
-    const timeoutMs = this.readConfirmationTimeoutMs();
-    const pollIntervalMs = this.readConfirmationPollIntervalMs();
-    const deadline = Date.now() + timeoutMs;
-
-    while (Date.now() <= deadline) {
-      const latestRow = await this.findLatestRelayRow(devEui);
-      if (
-        latestRow &&
-        doesRelayRowConfirmTarget(latestRow, relay, targetState, requestedAt)
-      ) {
-        return latestRow;
-      }
-
-      const remainingMs = deadline - Date.now();
-      if (remainingMs <= 0) {
-        break;
-      }
-
-      await sleep(Math.min(pollIntervalMs, remainingMs));
-    }
-
-    throw new GatewayTimeoutException(
-      `Timed out waiting for relay ${relay} confirmation from TTI`,
-    );
-  }
-
-  private readConfirmationTimeoutMs(): number {
-    const parsed = Number(
-      this.configService.get<string>('PRIVATE_TTI_RELAY_CONFIRMATION_TIMEOUT_MS'),
-    );
-
-    if (Number.isFinite(parsed) && parsed >= 1000) {
-      return parsed;
-    }
-
-    return 35_000;
-  }
-
-  private readConfirmationPollIntervalMs(): number {
-    const parsed = Number(
-      this.configService.get<string>('PRIVATE_TTI_RELAY_CONFIRMATION_POLL_MS'),
-    );
-
-    if (Number.isFinite(parsed) && parsed >= 250) {
-      return parsed;
-    }
-
-    return 1000;
+    return data ?? null;
   }
 
   private async persistRelayConfirmation(
@@ -618,13 +523,13 @@ export class RelayService {
       relay_2: confirmation.relay2 ?? latestRow?.relay_2 ?? null,
     };
 
-    const { data, error } = await client
+    const { data, error } = (await client
       .from('cw_relay_data')
       .upsert(mergedRow, {
         onConflict: 'dev_eui',
       })
       .select('*')
-      .single();
+      .single()) as QueryResult<RelayRow>;
 
     if (error || !data) {
       this.logger.error(
@@ -636,6 +541,6 @@ export class RelayService {
       );
     }
 
-    return data as RelayRow;
+    return data;
   }
 }

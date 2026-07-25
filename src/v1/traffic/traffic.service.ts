@@ -1,10 +1,21 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { CreateTrafficDto } from './dto/create-traffic.dto';
-import { UpdateTrafficDto } from './dto/update-traffic.dto';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { BaseDataService } from '../common/base-data.service';
+import type { TableRow } from '../types/supabase';
 import { TrafficMonthlyReportDto } from './dto/traffic-monthly-report.dto';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
+
+type TrafficHourRow = Pick<
+  TableRow<'cw_traffic2'>,
+  | 'traffic_hour'
+  | 'people_count'
+  | 'bicycle_count'
+  | 'car_count'
+  | 'truck_count'
+  | 'bus_count'
+>;
 
 @Injectable()
 export class TrafficService extends BaseDataService<'cw_traffic2'> {
@@ -15,32 +26,16 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
     super(supabaseService, timezoneFormatter, 'cw_traffic2');
   }
 
-  create(createTrafficDto: CreateTrafficDto) {
-    return 'This action adds a new traffic';
-  }
-
-  findAll() {
-    return `This action returns all traffic`;
-  }
-
-  update(id: number, updateTrafficDto: UpdateTrafficDto) {
-    return `This action updates a #${id} traffic`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} traffic`;
-  }
-
   async getMonthlyReport(
     devEui: string,
     year: number,
     month: number,
-    jwtPayload: any,
+    user: AuthenticatedUser,
     timezone: string = 'Asia/Tokyo',
   ): Promise<TrafficMonthlyReportDto[]> {
     const tz = timezone || 'Asia/Tokyo';
     this.timezoneFormatter.assertValidTimeZone(tz);
-    await this.assertDeviceAccess(devEui, jwtPayload);
+    await this.assertDeviceAccess(devEui, user);
 
     // Compute month boundaries as UTC timestamps corresponding to local midnight
     const startUtc = this.localMidnightToUtc(year, month, 1, tz);
@@ -48,17 +43,24 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
     const nextYear = month === 12 ? year + 1 : year;
     const endUtc = this.localMidnightToUtc(nextYear, nextMonth, 1, tz);
 
-    const { data, error } = await this.supabaseService
+    const { data, error } = (await this.supabaseService
       .getClient()
       .from(this.tableName)
-      .select('traffic_hour, people_count, bicycle_count, car_count, truck_count, bus_count')
+      .select(
+        'traffic_hour, people_count, bicycle_count, car_count, truck_count, bus_count',
+      )
       .eq('dev_eui', devEui)
       .gte('traffic_hour', startUtc.toISOString())
       .lt('traffic_hour', endUtc.toISOString())
-      .order('traffic_hour', { ascending: true });
+      .order('traffic_hour', { ascending: true })) as {
+      data: TrafficHourRow[] | null;
+      error: PostgrestError | null;
+    };
 
     if (error) {
-      throw new InternalServerErrorException('Failed to fetch monthly traffic report');
+      throw new InternalServerErrorException(
+        'Failed to fetch monthly traffic report',
+      );
     }
 
     // Build a map of all days in the month initialised to zero
@@ -76,12 +78,16 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
 
     // Aggregate each row into its local date bucket
     for (const row of data ?? []) {
+      // traffic_hour is nullable in the schema, but the gte/lt filters above
+      // exclude null rows; skip defensively to keep the types honest.
+      if (!row.traffic_hour) continue;
       const localDate = this.toLocalDateString(row.traffic_hour, tz);
       const bucket = dayMap.get(localDate);
       if (bucket) {
         bucket.total_people += row.people_count ?? 0;
         bucket.total_bicycles += row.bicycle_count ?? 0;
-        bucket.total_vehicles += (row.car_count ?? 0) + (row.truck_count ?? 0) + (row.bus_count ?? 0);
+        bucket.total_vehicles +=
+          (row.car_count ?? 0) + (row.truck_count ?? 0) + (row.bus_count ?? 0);
       }
     }
 
@@ -92,7 +98,12 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
    * Converts a local midnight (year/month/day 00:00:00 in the given timezone)
    * to a UTC Date.
    */
-  private localMidnightToUtc(year: number, month: number, day: number, timezone: string): Date {
+  private localMidnightToUtc(
+    year: number,
+    month: number,
+    day: number,
+    timezone: string,
+  ): Date {
     const guess = new Date(Date.UTC(year, month - 1, day));
     const offsetMs = this.getTimezoneOffsetMs(guess, timezone);
     return new Date(Date.UTC(year, month - 1, day) - offsetMs);

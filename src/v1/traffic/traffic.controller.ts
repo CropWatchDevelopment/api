@@ -2,22 +2,16 @@ import {
   BadRequestException,
   Controller,
   Get,
-  Post,
-  Body,
-  Patch,
   Param,
-  Delete,
   Query,
   UseGuards,
-  Req,
 } from '@nestjs/common';
 import { TrafficService } from './traffic.service';
 import { TrafficDataDto } from './dto/traffic-data.dto';
 import { TrafficReportDto } from './dto/traffic-report.dto';
 import { TrafficMonthlyReportDto } from './dto/traffic-monthly-report.dto';
-import type { CreateTrafficDto } from './dto/create-traffic.dto';
-import type { UpdateTrafficDto } from './dto/update-traffic.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
+import { parseTimeseriesRange } from '../common/timeseries-range.helper';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -29,15 +23,17 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @Controller({ path: 'traffic', version: '1' })
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
+@UseGuards(JwtAuthGuard)
 export class TrafficController {
   constructor(private readonly trafficService: TrafficService) {}
 
   @Get(':dev_eui')
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Traffic data returned successfully.',
     type: TrafficDataDto,
@@ -97,7 +93,7 @@ export class TrafficController {
   })
   findOne(
     @Param('dev_eui') devEui: string,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
     @Query('start') start?: string,
     @Query('end') end?: string,
     @Query('timezone') timezone?: string,
@@ -106,32 +102,18 @@ export class TrafficController {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const endDate = end ? new Date(end) : new Date();
-    if (Number.isNaN(endDate.getTime())) {
-      throw new BadRequestException('end must be a valid date/time');
-    }
-
-    const startDate = start
-      ? new Date(start)
-      : new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
-    if (Number.isNaN(startDate.getTime())) {
-      throw new BadRequestException('start must be a valid date/time');
-    }
-    if (startDate > endDate) {
-      throw new BadRequestException('start must be before end');
-    }
+    const { startDate, endDate } = parseTimeseriesRange(start, end);
 
     return this.trafficService.findOne(
       devEui,
       startDate,
       endDate,
-      req.user,
+      user,
       timezone,
     );
   }
 
   @Get(':dev_eui/monthly')
-  @UseGuards(JwtAuthGuard)
   @ApiOkResponse({
     description: 'Monthly traffic report returned successfully.',
     type: TrafficMonthlyReportDto,
@@ -150,8 +132,18 @@ export class TrafficController {
     type: ErrorResponseDto,
   })
   @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
-  @ApiQuery({ name: 'year', description: 'Report year (e.g. 2026)', type: Number, example: 2026 })
-  @ApiQuery({ name: 'month', description: 'Report month (1-12)', type: Number, example: 3 })
+  @ApiQuery({
+    name: 'year',
+    description: 'Report year (e.g. 2026)',
+    type: Number,
+    example: 2026,
+  })
+  @ApiQuery({
+    name: 'month',
+    description: 'Report month (1-12)',
+    type: Number,
+    example: 3,
+  })
   @ApiQuery({
     name: 'timezone',
     required: false,
@@ -162,7 +154,7 @@ export class TrafficController {
   getMonthlyReport(
     @Param('dev_eui') devEui: string,
     @Query() query: TrafficReportDto,
-    @Req() req,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
     if (!devEui) {
       throw new BadRequestException('dev_eui is required');
@@ -171,7 +163,7 @@ export class TrafficController {
       devEui,
       query.year,
       query.month,
-      req.user,
+      user,
       query.timezone,
     );
   }

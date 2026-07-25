@@ -9,14 +9,15 @@
  * keep the two files in sync. Full spec: docs/permission-model.md.
  */
 export const PermissionLevel = {
-    ADMIN: 1,
-    MANAGER: 2,
-    USER: 3,
-    VIEWER: 4,
-    DISABLED: 5,
+  ADMIN: 1,
+  MANAGER: 2,
+  USER: 3,
+  VIEWER: 4,
+  DISABLED: 5,
 } as const;
 
-export type PermissionLevel = (typeof PermissionLevel)[keyof typeof PermissionLevel];
+export type PermissionLevel =
+  (typeof PermissionLevel)[keyof typeof PermissionLevel];
 
 export const MIN_PERMISSION_LEVEL: PermissionLevel = PermissionLevel.ADMIN;
 export const MAX_PERMISSION_LEVEL: PermissionLevel = PermissionLevel.DISABLED;
@@ -34,17 +35,17 @@ export const READ_EXCLUSIVE_CEILING: PermissionLevel = PermissionLevel.DISABLED;
 export const MANAGE_CEILING: PermissionLevel = PermissionLevel.MANAGER;
 
 export function canRead(level: number | null | undefined): boolean {
-    return level != null && level < PermissionLevel.DISABLED;
+  return level != null && level < PermissionLevel.DISABLED;
 }
 
 export function canManage(level: number | null | undefined): boolean {
-    return level != null && level <= PermissionLevel.MANAGER;
+  return level != null && level <= PermissionLevel.MANAGER;
 }
 
 export function isValidPermissionLevel(level: number): boolean {
-    return (
-        Number.isInteger(level) &&
-        level >= MIN_PERMISSION_LEVEL &&
-        level <= MAX_PERMISSION_LEVEL
-    );
+  return (
+    Number.isInteger(level) &&
+    level >= MIN_PERMISSION_LEVEL &&
+    level <= MAX_PERMISSION_LEVEL
+  );
 }

@@ -1,18 +1,11 @@
 import {
   BadRequestException,
-  Body,
   Controller,
-  Delete,
   Get,
   Param,
-  Patch,
-  Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import { GatewayService } from './gateway.service';
-import { CreateGatewayDto } from './dto/create-gateway.dto';
-import { UpdateGatewayDto } from './dto/update-gateway.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
   ApiBearerAuth,
@@ -25,20 +18,17 @@ import {
 } from '@nestjs/swagger';
 import { GatewayDto } from './dto/gateway.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
 @Controller({ path: 'gateway', version: '1' })
+@UseGuards(JwtAuthGuard)
 export class GatewayController {
   constructor(private readonly gatewayService: GatewayService) {}
 
-  // @Post()
-  // create(@Body() createGatewayDto: CreateGatewayDto) {
-  //   return this.gatewayService.create(createGatewayDto);
-  // }
-
   @Get()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get gateways for the authenticated user',
     description:
@@ -53,12 +43,11 @@ export class GatewayController {
     description: 'Missing or invalid bearer token.',
     type: ErrorResponseDto,
   })
-  findAll(@Req() req) {
-    return this.gatewayService.findAll(req.user);
+  findAll(@CurrentUser() user: AuthenticatedUser) {
+    return this.gatewayService.findAll(user);
   }
 
   @Get(':gatewayId')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Get a gateway for the authenticated user',
     description:
@@ -81,21 +70,14 @@ export class GatewayController {
       'Gateway not found or not accessible to the authenticated user.',
     type: ErrorResponseDto,
   })
-  findOne(@Param('gatewayId') gatewayId: string, @Req() req) {
+  findOne(
+    @Param('gatewayId') gatewayId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
     if (!gatewayId?.trim()) {
       throw new BadRequestException('gateway_id is required');
     }
 
-    return this.gatewayService.findOne(gatewayId, req.user);
+    return this.gatewayService.findOne(gatewayId, user);
   }
-
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateGatewayDto: UpdateGatewayDto) {
-  //   return this.gatewayService.update(+id, updateGatewayDto);
-  // }
-
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.gatewayService.remove(+id);
-  // }
 }
