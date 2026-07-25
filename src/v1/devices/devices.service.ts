@@ -498,9 +498,16 @@ export class DevicesService {
     const startDate = new Date(start).toISOString();
     const endDate = new Date(end).toISOString();
 
+    // Air rows carry their annotations/alerts, same as findData: the report
+    // note-editing page reads notes from this endpoint's rows.
+    const withAnnotations =
+      deviceType.data_table_v2 === 'cw_air_data'
+        ? '*, cw_air_annotations(*), cw_air_alerts(*)'
+        : '*';
+
     const { data: latestData, error: dataError } = (await client
       .from(deviceType.data_table_v2)
-      .select('*')
+      .select(withAnnotations)
       .eq('dev_eui', normalizedDevEui)
       .gte('created_at', startDate)
       .lte('created_at', endDate)

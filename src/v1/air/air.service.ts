@@ -8,6 +8,7 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { BaseDataService } from '../common/base-data.service';
 import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
+import { UpdateAirAnnotationDto } from './dto/update-air-annotation.dto';
 import type { TableRow } from '../types/supabase';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
@@ -97,6 +98,64 @@ export class AirService extends BaseDataService<'cw_air_data'> {
 
     if (error) {
       throw new BadRequestException('Failed to create air annotation');
+    }
+
+    return data;
+  }
+
+  async updateNote(
+    noteId: number,
+    updateAirNoteDto: UpdateAirAnnotationDto,
+    user: AuthenticatedUser,
+  ) {
+    const client = this.supabaseService.getClient();
+    const { data: existingNote, error: fetchError } = (await client
+      .from('cw_air_annotations')
+      .select('*')
+      .eq('id', noteId)
+      .maybeSingle()) as QueryResult<AirAnnotationRow>;
+
+    if (fetchError) {
+      throw new InternalServerErrorException('Failed to fetch air annotation');
+    }
+
+    if (!existingNote) {
+      throw new BadRequestException('Air annotation not found');
+    }
+
+    await this.assertDeviceAccess(existingNote.dev_eui, user);
+
+    // Whitelist: UpdateAirAnnotationDto (PartialType of the create DTO) also
+    // admits dev_eui/created_at — never let an update re-point a note at a
+    // different device or reading.
+    const updates: Partial<
+      Pick<AirAnnotationRow, 'title' | 'note' | 'include_in_report'>
+    > = {};
+    if (updateAirNoteDto.title !== undefined) {
+      updates.title = updateAirNoteDto.title;
+    }
+    if (updateAirNoteDto.note !== undefined) {
+      updates.note = updateAirNoteDto.note;
+    }
+    if (updateAirNoteDto.include_in_report !== undefined) {
+      updates.include_in_report = updateAirNoteDto.include_in_report;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      throw new BadRequestException(
+        'At least one of title, note, or include_in_report is required',
+      );
+    }
+
+    const { data, error: updateError } = (await client
+      .from('cw_air_annotations')
+      .update(updates)
+      .eq('id', noteId)
+      .select('*')
+      .single()) as QueryResult<AirAnnotationRow>;
+
+    if (updateError) {
+      throw new BadRequestException('Failed to update air annotation');
     }
 
     return data;

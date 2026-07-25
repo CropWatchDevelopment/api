@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Patch,
   Post,
   Body,
   Param,
@@ -12,6 +13,7 @@ import {
 import { AirService } from './air.service';
 import { AirDataDto } from './dto/air-data.dto';
 import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
+import { UpdateAirAnnotationDto } from './dto/update-air-annotation.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { parseTimeseriesRange } from '../common/timeseries-range.helper';
 import {
@@ -51,6 +53,15 @@ export class AirController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.airService.findAllNotes(devEui, month, year, user);
+  }
+
+  @Patch('notes/:note_id')
+  async updateNote(
+    @Param('note_id') noteId: number,
+    @Body() updateAirNoteDto: UpdateAirAnnotationDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.airService.updateNote(noteId, updateAirNoteDto, user);
   }
 
   @Delete('notes/:note_id')

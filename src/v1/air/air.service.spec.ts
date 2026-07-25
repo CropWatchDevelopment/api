@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { AirService } from './air.service';
 import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
+import { UpdateAirAnnotationDto } from './dto/update-air-annotation.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 
@@ -223,6 +224,126 @@ describe('AirService', () => {
         ),
       );
       expect(insertBuilder.insert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateNote', () => {
+    const existingNote = {
+      created_at: '2026-03-13T14:30:01.232544+00:00',
+      created_by: 'owner@example.com',
+      dev_eui: '2CF7F1C073800102',
+      id: 7,
+      include_in_report: true,
+      note: 'original note',
+      title: 'Original title',
+    };
+
+    function createUpdateBuilder(fetchResponse: {
+      data: typeof existingNote | null;
+      error: { message: string } | null;
+    }) {
+      const single = jest.fn();
+      const updateSelect = jest.fn().mockReturnValue({ single });
+      const updateEq = jest.fn().mockReturnValue({ select: updateSelect });
+      const update = jest.fn().mockReturnValue({ eq: updateEq });
+      const maybeSingle = jest.fn().mockResolvedValue(fetchResponse);
+      const fetchEq = jest.fn().mockReturnValue({ maybeSingle });
+      const select = jest.fn().mockReturnValue({ eq: fetchEq });
+
+      return { fetchEq, maybeSingle, select, single, update, updateEq };
+    }
+
+    it('updates only whitelisted fields, ignoring dev_eui/created_at in the body', async () => {
+      const user = { email: 'user@example.com', isStaff: false, sub: 'user-1' };
+      const builder = createUpdateBuilder({ data: existingNote, error: null });
+      const updatedNote = {
+        ...existingNote,
+        include_in_report: false,
+        note: 'corrected note',
+        title: 'New title',
+      };
+      builder.single.mockResolvedValue({ data: updatedNote, error: null });
+      client.from.mockReturnValue(builder);
+
+      const dto = {
+        created_at: '2020-01-01T00:00:00Z',
+        dev_eui: 'FFFFFFFFFFFFFFFF',
+        include_in_report: false,
+        note: 'corrected note',
+        title: 'New title',
+      } as UpdateAirAnnotationDto;
+
+      await expect(service.updateNote(7, dto, user)).resolves.toEqual(
+        updatedNote,
+      );
+
+      // Access is asserted against the STORED dev_eui, not the body's.
+      expect(
+        (service as unknown as { assertDeviceAccess: jest.Mock })
+          .assertDeviceAccess,
+      ).toHaveBeenCalledWith('2CF7F1C073800102', user);
+      // The update payload must never contain dev_eui or created_at.
+      expect(builder.update).toHaveBeenCalledWith({
+        include_in_report: false,
+        note: 'corrected note',
+        title: 'New title',
+      });
+      expect(builder.updateEq).toHaveBeenCalledWith('id', 7);
+    });
+
+    it('rejects when the note does not exist', async () => {
+      const builder = createUpdateBuilder({ data: null, error: null });
+      client.from.mockReturnValue(builder);
+
+      await expect(
+        service.updateNote(
+          999,
+          { title: 'x' },
+          {
+            sub: 'user-1',
+          },
+        ),
+      ).rejects.toThrow(new BadRequestException('Air annotation not found'));
+      expect(builder.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects an update with no editable fields', async () => {
+      const builder = createUpdateBuilder({ data: existingNote, error: null });
+      client.from.mockReturnValue(builder);
+
+      await expect(
+        service.updateNote(
+          7,
+          { dev_eui: 'FFFFFFFFFFFFFFFF' },
+          { sub: 'user-1' },
+        ),
+      ).rejects.toThrow(
+        new BadRequestException(
+          'At least one of title, note, or include_in_report is required',
+        ),
+      );
+      expect(builder.update).not.toHaveBeenCalled();
+    });
+
+    it('propagates access denial before updating', async () => {
+      const builder = createUpdateBuilder({ data: existingNote, error: null });
+      client.from.mockReturnValue(builder);
+      (
+        service as unknown as { assertDeviceAccess: jest.Mock }
+      ).assertDeviceAccess.mockRejectedValue(
+        new BadRequestException('Device not found'),
+      );
+
+      await expect(
+        service.updateNote(
+          7,
+          { title: 'x' },
+          {
+            sub: 'intruder',
+          },
+        ),
+      ).rejects.toThrow('Device not found');
+      expect(builder.update).not.toHaveBeenCalled();
     });
   });
 });

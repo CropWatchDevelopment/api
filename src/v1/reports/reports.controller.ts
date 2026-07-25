@@ -22,6 +22,8 @@ import { CommunicationMethodDto } from './dto/communication-method.dto';
 import { ReportFormContextDto } from './dto/report-form-context.dto';
 import { ReportTemplateDto } from './dto/report-template.dto';
 import { ReportTemplateHistoryItemDto } from './dto/report-template-history-item.dto';
+import { ReportRegenerationItemDto } from './dto/report-regeneration-item.dto';
+import { RequestReportRegenerationDto } from './dto/request-report-regeneration.dto';
 import { SaveReportTemplateDto } from './dto/save-report-template.dto';
 import { ReportsService } from './reports.service';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -109,6 +111,34 @@ export class ReportsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.reportsService.getHistory(id, user);
+  }
+  @ApiOkResponse({
+    description:
+      'Lists queued (pending/processing) regenerations for the template, newest first. Used by the history dialog to badge reports slated for regeneration.',
+    type: ReportRegenerationItemDto,
+    isArray: true,
+  })
+  @Get(':id/regenerations')
+  findRegenerations(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reportsService.getRegenerations(id, user);
+  }
+  @ApiOkResponse({
+    description:
+      'Queues regeneration of a generated report PDF after note edits. The CW-Reports cron picks the row up on its next scheduled run; the regenerated PDF is stored next to the original and never emailed.',
+    type: ReportRegenerationItemDto,
+    isArray: false,
+  })
+  @ApiBody({ type: RequestReportRegenerationDto })
+  @Post(':id/regenerate')
+  requestRegeneration(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: RequestReportRegenerationDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.reportsService.requestRegeneration(id, body, user);
   }
   @ApiOkResponse({
     description: 'Returns a single report template the user can view.',

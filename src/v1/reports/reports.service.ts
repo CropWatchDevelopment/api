@@ -26,6 +26,8 @@ import { ReportTemplateAlertPointDto } from './dto/report-template-alert-point.d
 import { ReportTemplateAssignmentDto } from './dto/report-template-assignment.dto';
 import { ReportTemplateDataProcessingScheduleDto } from './dto/report-template-data-processing-schedule.dto';
 import { ReportTemplateHistoryItemDto } from './dto/report-template-history-item.dto';
+import { ReportRegenerationItemDto } from './dto/report-regeneration-item.dto';
+import { RequestReportRegenerationDto } from './dto/request-report-regeneration.dto';
 import { ReportTemplateRecipientDto } from './dto/report-template-recipient.dto';
 import { ReportTemplateScheduleDto } from './dto/report-template-schedule.dto';
 import { ReportTemplateDto } from './dto/report-template.dto';
@@ -48,6 +50,36 @@ type DataProcessingScheduleRow =
 type CommunicationMethodRow = TableRow<'communication_methods'>;
 
 const STORAGE_BUCKET = 'Reports';
+
+// Storage object names/dev_euis are interpolated into service-role storage
+// paths (which bypass RLS) and echoed to the report generator — reject path
+// separators / traversal wherever either is accepted from a client.
+const UNSAFE_PATH_SEGMENT = /[\\/]|\.\./;
+
+// Sensor data is retained for 24 months and a queued regeneration can wait up
+// to a month for the next scheduled cron run — so note edits (and therefore
+// regeneration requests) are only allowed while the report period ends within
+// the last 23 months. The frontend enforces the same cutoff in the history
+// dialog and the edit page; CW-Reports re-checks defensively when consuming.
+const REPORT_EDIT_RETENTION_MONTHS = 23;
+
+// Guard against nonsense period ranges: the longest real report window is one
+// month; anything beyond ~2 months is a malformed request.
+const MAX_REGENERATION_PERIOD_DAYS = 62;
+
+interface RegenerationQueueRow {
+  id: number;
+  template_id: number;
+  dev_eui: string;
+  period_start: string;
+  period_end: string;
+  timezone: string;
+  source_object_name: string;
+  status: string;
+  requested_by: string;
+  requested_at: string;
+  edit_count: number;
+}
 
 interface NormalizedScheduleRow {
   endOfDay: boolean;
@@ -496,10 +528,7 @@ export class ReportsService {
     }
     // Both values are interpolated into the storage object path
     // (`${devEui}/${reportName}`) and signed with the service-role client, which
-    // bypasses storage RLS. Reject path separators / traversal so a crafted
-    // reportName (e.g. `../<otherDevEui>/report`) can't reach another tenant's
-    // folder.
-    const UNSAFE_PATH_SEGMENT = /[\\/]|\.\./;
+    // bypasses storage RLS — see UNSAFE_PATH_SEGMENT above.
     if (
       UNSAFE_PATH_SEGMENT.test(normalizedDevEui) ||
       UNSAFE_PATH_SEGMENT.test(normalizedName)
@@ -537,6 +566,206 @@ export class ReportsService {
     }
 
     return { url: data.signedUrl };
+  }
+
+  async requestRegeneration(
+    id: number,
+    dto: RequestReportRegenerationDto,
+    user: AuthenticatedUser,
+  ): Promise<ReportRegenerationItemDto> {
+    // 404-gates the template exactly like getHistory: a template the user
+    // cannot view does not exist as far as they are concerned.
+    const template = await this.findOne(id, user);
+
+    const normalizedDevEui = dto.devEui?.trim();
+    if (!normalizedDevEui || UNSAFE_PATH_SEGMENT.test(normalizedDevEui)) {
+      throw new BadRequestException('Invalid devEui');
+    }
+    const isAssigned = template.assignments.some(
+      (assignment) => assignment.devEui === normalizedDevEui,
+    );
+    if (!isAssigned) {
+      throw new BadRequestException(
+        'Device is not assigned to this report template',
+      );
+    }
+
+    // Regenerating a customer-facing PDF is a manage action (same tier as
+    // template create/update/remove), not a view action.
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      user.sub,
+      user.isStaff,
+    );
+    assertDevicesCanBeManaged(devices, [normalizedDevEui]);
+
+    const periodStart = new Date(dto.periodStart);
+    const periodEnd = new Date(dto.periodEnd);
+    if (
+      Number.isNaN(periodStart.getTime()) ||
+      Number.isNaN(periodEnd.getTime()) ||
+      periodEnd <= periodStart
+    ) {
+      throw new BadRequestException('periodEnd must be after periodStart');
+    }
+    const periodDays =
+      (periodEnd.getTime() - periodStart.getTime()) / (24 * 60 * 60 * 1000);
+    if (periodDays > MAX_REGENERATION_PERIOD_DAYS) {
+      throw new BadRequestException(
+        `Report period cannot exceed ${MAX_REGENERATION_PERIOD_DAYS} days`,
+      );
+    }
+    const retentionCutoff = new Date();
+    retentionCutoff.setMonth(
+      retentionCutoff.getMonth() - REPORT_EDIT_RETENTION_MONTHS,
+    );
+    if (periodEnd < retentionCutoff) {
+      throw new BadRequestException(
+        `Reports older than ${REPORT_EDIT_RETENTION_MONTHS} months can no longer be regenerated (sensor data is retained for 24 months)`,
+      );
+    }
+
+    const normalizedObjectName = dto.sourceObjectName?.trim();
+    if (
+      !normalizedObjectName ||
+      UNSAFE_PATH_SEGMENT.test(normalizedObjectName)
+    ) {
+      throw new BadRequestException('Invalid sourceObjectName');
+    }
+
+    const timezone = dto.timezone?.trim() || 'Asia/Tokyo';
+    const requestedBy = user.email?.trim() || user.sub;
+    const editCount = dto.editCount ?? 1;
+    const client = this.supabaseService.getClient();
+    const matchKeys = {
+      dev_eui: normalizedDevEui,
+      period_end: periodEnd.toISOString(),
+      period_start: periodStart.toISOString(),
+      template_id: id,
+    };
+
+    // Dedupe: at most one pending row per (template, device, period) — enforced
+    // by a partial unique index. PostgREST upserts can't target a partial
+    // index, so select-then-insert and treat the 23505 race as success.
+    const existing = await this.findPendingRegeneration(client, matchKeys);
+    if (existing) {
+      const { data: touched, error: touchError } = (await client
+        .from('cw_report_regeneration_queue')
+        .update({
+          requested_at: new Date().toISOString(),
+          requested_by: requestedBy,
+          edit_count: (existing.edit_count ?? 1) + editCount,
+        })
+        .eq('id', existing.id)
+        .eq('status', 'pending')
+        .select('*')
+        .maybeSingle()) as {
+        data: RegenerationQueueRow | null;
+        error: PostgrestError | null;
+      };
+      if (touchError) {
+        throw new InternalServerErrorException(
+          'Failed to update regeneration request',
+        );
+      }
+      // Row may have been claimed between select and update — fall through to
+      // insert a fresh pending row in that case.
+      if (touched) {
+        return toRegenerationItemDto(touched);
+      }
+    }
+
+    const { data: inserted, error: insertError } = (await client
+      .from('cw_report_regeneration_queue')
+      .insert({
+        ...matchKeys,
+        requested_by: requestedBy,
+        source_object_name: normalizedObjectName,
+        timezone,
+        edit_count: editCount,
+      })
+      .select('*')
+      .single()) as {
+      data: RegenerationQueueRow | null;
+      error: PostgrestError | null;
+    };
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        // Concurrent request won the insert race; the pending row it created
+        // covers this request too.
+        const winner = await this.findPendingRegeneration(client, matchKeys);
+        if (winner) {
+          return toRegenerationItemDto(winner);
+        }
+      }
+      throw new InternalServerErrorException(
+        'Failed to queue report regeneration',
+      );
+    }
+    if (!inserted) {
+      throw new InternalServerErrorException(
+        'Failed to queue report regeneration',
+      );
+    }
+
+    return toRegenerationItemDto(inserted);
+  }
+
+  async getRegenerations(
+    id: number,
+    user: AuthenticatedUser,
+  ): Promise<ReportRegenerationItemDto[]> {
+    // Same 404 gate as getHistory: an invisible template has no queue either.
+    await this.findOne(id, user);
+
+    const { data, error } = (await this.supabaseService
+      .getClient()
+      .from('cw_report_regeneration_queue')
+      .select('*')
+      .eq('template_id', id)
+      .in('status', ['pending', 'processing'])
+      .order('requested_at', { ascending: false })) as {
+      data: RegenerationQueueRow[] | null;
+      error: PostgrestError | null;
+    };
+
+    if (error) {
+      throw new InternalServerErrorException(
+        'Failed to load regeneration queue',
+      );
+    }
+
+    return (data ?? []).map(toRegenerationItemDto);
+  }
+
+  private async findPendingRegeneration(
+    client: ReturnType<SupabaseService['getClient']>,
+    matchKeys: {
+      dev_eui: string;
+      period_end: string;
+      period_start: string;
+      template_id: number;
+    },
+  ): Promise<RegenerationQueueRow | null> {
+    const { data, error } = (await client
+      .from('cw_report_regeneration_queue')
+      .select('*')
+      .eq('template_id', matchKeys.template_id)
+      .eq('dev_eui', matchKeys.dev_eui)
+      .eq('period_start', matchKeys.period_start)
+      .eq('period_end', matchKeys.period_end)
+      .eq('status', 'pending')
+      .maybeSingle()) as {
+      data: RegenerationQueueRow | null;
+      error: PostgrestError | null;
+    };
+    if (error) {
+      throw new InternalServerErrorException(
+        'Failed to check for existing regeneration request',
+      );
+    }
+    return data;
   }
 
   private async loadTemplatesByIds(
@@ -1085,6 +1314,21 @@ function normalizeSaveRequest(
     recipients,
     alertPoints,
     dataProcessingSchedules,
+  };
+}
+
+function toRegenerationItemDto(
+  row: RegenerationQueueRow,
+): ReportRegenerationItemDto {
+  return {
+    id: row.id,
+    templateId: row.template_id,
+    devEui: row.dev_eui,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+    status: row.status,
+    requestedAt: row.requested_at,
+    editCount: row.edit_count ?? 1,
   };
 }
 
