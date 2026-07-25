@@ -228,6 +228,28 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         ],
         "type": "object",
       },
+      "UpdateAirAnnotationDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string",
+          },
+          "dev_eui": {
+            "type": "string",
+          },
+          "include_in_report": {
+            "type": "boolean",
+          },
+          "note": {
+            "nullable": true,
+            "type": "string",
+          },
+          "title": {
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
       "UpdateDeviceNameGroupLocalDto": {
         "properties": {
           "group": {
@@ -578,6 +600,28 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             },
           },
         ],
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "note_id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAirAnnotationDto",
+              },
+            },
+          },
+          "required": true,
+        },
       },
     },
     "/v1/air/{dev_eui}": {

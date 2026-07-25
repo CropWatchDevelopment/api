@@ -3,11 +3,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AirController } from './air.controller';
 import { AirService } from './air.service';
 import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
+import { UpdateAirAnnotationDto } from './dto/update-air-annotation.dto';
 
 describe('AirController', () => {
   let controller: AirController;
   const mockAirService = {
     createNote: jest.fn(),
+    updateNote: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -75,6 +77,47 @@ describe('AirController', () => {
       });
 
       expect(result).toBeInstanceOf(CreateAirAnnotationDto);
+      expect(result).toMatchObject(payload);
+    });
+  });
+
+  describe('updateNote', () => {
+    it('passes the note id, body, and authenticated user to the service', async () => {
+      const dto = {
+        include_in_report: false,
+        note: 'corrected reading',
+        title: 'Amended review',
+      } as UpdateAirAnnotationDto;
+      const user = {
+        sub: 'user-123',
+        email: 'user@example.com',
+        isStaff: false,
+      };
+      const expected = { ...dto, dev_eui: 'ABC123', id: 7 };
+
+      mockAirService.updateNote.mockResolvedValue(expected);
+
+      await expect(controller.updateNote(7, dto, user)).resolves.toEqual(
+        expected,
+      );
+      expect(mockAirService.updateNote).toHaveBeenCalledWith(7, dto, user);
+    });
+
+    it('accepts a partial payload under the global validation pipe settings', async () => {
+      const pipe = new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      });
+      const payload = { note: 'corrected reading' };
+
+      const result: unknown = await pipe.transform(payload, {
+        type: 'body',
+        metatype: UpdateAirAnnotationDto,
+        data: '',
+      });
+
+      expect(result).toBeInstanceOf(UpdateAirAnnotationDto);
       expect(result).toMatchObject(payload);
     });
   });
