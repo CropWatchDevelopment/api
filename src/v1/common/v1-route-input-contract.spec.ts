@@ -903,9 +903,10 @@ describe('V1 Route Input Contracts', () => {
     },
     {
       auth: true,
-      expectedStatus: 501,
+      expectedMessage: ['dev_eui should not be empty'],
+      expectedStatus: 400,
       method: 'post',
-      name: 'POST /v1/devices/:dev_eui remains not implemented',
+      name: 'POST /v1/devices/:dev_eui rejects a body without dev_eui',
       url: '/v1/devices/DEV-001',
     },
     {

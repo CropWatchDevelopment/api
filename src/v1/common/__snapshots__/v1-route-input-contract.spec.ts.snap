@@ -32,6 +32,108 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         ],
         "type": "object",
       },
+      "CreateDeviceDto": {
+        "properties": {
+          "battery_changed_at": {
+            "example": "2026-03-16",
+            "nullable": true,
+            "type": "object",
+          },
+          "dev_eui": {
+            "example": "A1B2C3D4E5F60708",
+            "type": "string",
+          },
+          "group": {
+            "example": "Greenhouse A",
+            "nullable": true,
+            "type": "object",
+          },
+          "installed_at": {
+            "example": "2026-03-16",
+            "nullable": true,
+            "type": "object",
+          },
+          "last_data_updated_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "object",
+          },
+          "lat": {
+            "example": 35.6895,
+            "nullable": true,
+            "type": "object",
+          },
+          "license_id": {
+            "example": 12,
+            "type": "number",
+          },
+          "location_id": {
+            "example": 54,
+            "nullable": true,
+            "type": "object",
+          },
+          "long": {
+            "example": 139.6917,
+            "nullable": true,
+            "type": "object",
+          },
+          "name": {
+            "example": "Greenhouse Sensor 1",
+            "type": "string",
+          },
+          "primary_data": {
+            "nullable": true,
+            "type": "object",
+          },
+          "report_endpoint": {
+            "nullable": true,
+            "type": "object",
+          },
+          "secondary_data": {
+            "nullable": true,
+            "type": "object",
+          },
+          "sensor1_serial": {
+            "nullable": true,
+            "type": "object",
+          },
+          "sensor2_serial": {
+            "nullable": true,
+            "type": "object",
+          },
+          "sensor_serial": {
+            "nullable": true,
+            "type": "object",
+          },
+          "tti_name": {
+            "nullable": true,
+            "type": "object",
+          },
+          "type": {
+            "example": 1,
+            "nullable": true,
+            "type": "object",
+          },
+          "upload_interval": {
+            "example": 60,
+            "nullable": true,
+            "type": "object",
+          },
+          "user_id": {
+            "nullable": true,
+            "type": "object",
+          },
+          "warranty_start_date": {
+            "example": "2026-03-16",
+            "nullable": true,
+            "type": "object",
+          },
+        },
+        "required": [
+          "dev_eui",
+        ],
+        "type": "object",
+      },
       "CreateLocationDto": {
         "properties": {
           "created_at": {
@@ -770,6 +872,16 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             },
           },
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDeviceDto",
+              },
+            },
+          },
+          "required": true,
+        },
       },
     },
     "/v1/devices/{dev_eui}/data": {

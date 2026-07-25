@@ -910,7 +910,11 @@ export class DevicesService {
 
     // Consume the seat immediately so the new device cannot exist unlicensed.
     if (licenseId) {
-      await this.paymentsService.assignLicense(user, licenseId, normalizedDevEui);
+      await this.paymentsService.assignLicense(
+        user,
+        licenseId,
+        normalizedDevEui,
+      );
     }
 
     return createdDeviceData;

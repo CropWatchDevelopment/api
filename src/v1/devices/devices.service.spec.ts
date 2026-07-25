@@ -531,7 +531,7 @@ describe('DevicesService', () => {
         deviceService.createDevice(customer, DEV_EUI, {
           dev_eui: DEV_EUI,
           location_id: 2,
-        } as never),
+        }),
       ).rejects.toMatchObject({ status: 403 });
       expect(devicesBuilder.insert).not.toHaveBeenCalled();
       expect(payments.assignLicense).not.toHaveBeenCalled();
@@ -549,12 +549,9 @@ describe('DevicesService', () => {
         dev_eui: DEV_EUI,
         location_id: 2,
         license_id: 6,
-      } as never);
+      });
 
-      expect(payments.assertLicenseAvailable).toHaveBeenCalledWith(
-        customer,
-        6,
-      );
+      expect(payments.assertLicenseAvailable).toHaveBeenCalledWith(customer, 6);
       expect(devicesBuilder.insert).toHaveBeenCalled();
       expect(payments.assignLicense).toHaveBeenCalledWith(customer, 6, DEV_EUI);
     });
@@ -574,7 +571,7 @@ describe('DevicesService', () => {
           dev_eui: DEV_EUI,
           location_id: 2,
           license_id: 6,
-        } as never),
+        }),
       ).rejects.toThrow('License is already assigned');
       expect(devicesBuilder.insert).not.toHaveBeenCalled();
       expect(payments.assignLicense).not.toHaveBeenCalled();
@@ -591,7 +588,7 @@ describe('DevicesService', () => {
       await deviceService.createDevice(staffUser, DEV_EUI, {
         dev_eui: DEV_EUI,
         location_id: 2,
-      } as never);
+      });
       expect(payments.assertLicenseAvailable).not.toHaveBeenCalled();
       expect(payments.assignLicense).not.toHaveBeenCalled();
 
@@ -599,7 +596,7 @@ describe('DevicesService', () => {
         dev_eui: DEV_EUI,
         location_id: 2,
         license_id: 7,
-      } as never);
+      });
       expect(payments.assertLicenseAvailable).toHaveBeenCalledWith(
         staffUser,
         7,
