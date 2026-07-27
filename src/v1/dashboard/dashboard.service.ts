@@ -8,6 +8,7 @@ import {
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { READ_EXCLUSIVE_CEILING } from '../common/permission-levels';
+import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
 import type { TableRow } from '../types/supabase';
 import {
@@ -54,11 +55,42 @@ type DeviceLocationRecord = Pick<DeviceRow, 'location_id'> & {
   cw_locations: LocationJoin | LocationJoin[] | null;
 };
 
+/**
+ * cw_traffic2 is an hourly accumulator: one row per (dev_eui, traffic_hour,
+ * line_number), upserted by an increment RPC that never bumps created_at. A
+ * plain ORDER BY created_at DESC LIMIT 1 therefore returns one arbitrary
+ * line's bucket — usually the freshly created (near-empty) current-hour one.
+ * Dashboard values for traffic devices are instead today's running totals,
+ * summed across all hours and detection lines.
+ */
+const TRAFFIC_COUNT_COLUMNS = [
+  'people_count',
+  'bicycle_count',
+  'motorcycle_count',
+  'car_count',
+  'bus_count',
+  'truck_count',
+  'train_count',
+] as const;
+
+const TRAFFIC_TIMEZONE = 'Asia/Tokyo';
+
+type TrafficCountColumn = (typeof TRAFFIC_COUNT_COLUMNS)[number];
+
+interface TrafficTodayAggregate {
+  sums: Record<TrafficCountColumn, number>;
+  latestCreatedAt: string | null;
+  latestTrafficHour: string | null;
+}
+
 @Injectable()
 export class DashboardService {
   private readonly logger = new Logger(DashboardService.name);
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly timezoneFormatter: TimezoneFormatterService,
+  ) {}
 
   async getDevices(
     user: AuthenticatedUser,
@@ -369,6 +401,18 @@ export class DashboardService {
       );
     }
 
+    if (table === 'cw_traffic2') {
+      const aggregate = await this.fetchTrafficToday(client, normalized);
+      if (!aggregate) return null;
+
+      return {
+        dev_eui: normalized,
+        created_at: aggregate.latestCreatedAt,
+        traffic_hour: aggregate.latestTrafficHour,
+        ...aggregate.sums,
+      };
+    }
+
     const { data: latest, error: latestError } = (await client
       .from(table)
       .select('*')
@@ -450,6 +494,24 @@ export class DashboardService {
     primaryCol: string,
     secondaryCol: string,
   ): Promise<DashboardRow['latest']> {
+    if (table === 'cw_traffic2') {
+      const aggregate = await this.fetchTrafficToday(client, devEui);
+      if (!aggregate) return null;
+
+      const hasSecondary =
+        Boolean(secondaryCol) && secondaryCol !== '-' && secondaryCol !== '';
+      const readSum = (col: string): number | null =>
+        (TRAFFIC_COUNT_COLUMNS as readonly string[]).includes(col)
+          ? aggregate.sums[col as TrafficCountColumn]
+          : null;
+
+      return {
+        created_at: aggregate.latestCreatedAt,
+        primary: primaryCol && primaryCol !== '-' ? readSum(primaryCol) : null,
+        secondary: hasSecondary ? readSum(secondaryCol) : null,
+      };
+    }
+
     const cols = new Set<string>(['created_at']);
     if (primaryCol && primaryCol !== '-') cols.add(primaryCol);
     if (secondaryCol && secondaryCol !== '-' && secondaryCol !== '') {
@@ -477,6 +539,104 @@ export class DashboardService {
         primaryCol && primaryCol !== '-' ? (row[primaryCol] ?? null) : null,
       secondary: hasSecondary ? (row[secondaryCol] ?? null) : null,
     } as DashboardRow['latest'];
+  }
+
+  /**
+   * Today's traffic totals for one device: every cw_traffic2 count column
+   * summed across all of today's hour buckets and detection lines. "Today" is
+   * the local day in Asia/Tokyo (matching TrafficService's default). Returns
+   * zero totals when the device has history but no rows today — a quiet day
+   * is legitimately 0 — and null only when the device has no data at all.
+   */
+  private async fetchTrafficToday(
+    client: ReturnType<SupabaseService['getClient']>,
+    devEui: string,
+  ): Promise<TrafficTodayAggregate | null> {
+    const now = new Date();
+    const [year, month, day] = this.timezoneFormatter
+      .toLocalDateString(now.toISOString(), TRAFFIC_TIMEZONE)
+      .split('-')
+      .map(Number);
+    const startUtc = this.timezoneFormatter.localMidnightToUtc(
+      year,
+      month,
+      day,
+      TRAFFIC_TIMEZONE,
+    );
+    const endUtc = this.timezoneFormatter.localMidnightToUtc(
+      year,
+      month,
+      day + 1,
+      TRAFFIC_TIMEZONE,
+    );
+
+    const selectColumns = `created_at, traffic_hour, ${TRAFFIC_COUNT_COLUMNS.join(', ')}`;
+    const { data, error } = await client
+      .from('cw_traffic2')
+      .select(selectColumns)
+      .eq('dev_eui', devEui)
+      .gte('traffic_hour', startUtc.toISOString())
+      .lt('traffic_hour', endUtc.toISOString());
+
+    if (error) {
+      this.logger.warn(
+        `Failed to aggregate today's traffic for ${devEui}: ${error.message}`,
+      );
+      return null;
+    }
+
+    const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+    const sums = Object.fromEntries(
+      TRAFFIC_COUNT_COLUMNS.map((col) => [col, 0]),
+    ) as Record<TrafficCountColumn, number>;
+    let latestCreatedAt: string | null = null;
+    let latestTrafficHour: string | null = null;
+
+    for (const row of rows) {
+      for (const col of TRAFFIC_COUNT_COLUMNS) {
+        const value = row[col];
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          sums[col] += value;
+        }
+      }
+      const createdAt = row.created_at;
+      if (
+        typeof createdAt === 'string' &&
+        (!latestCreatedAt || createdAt > latestCreatedAt)
+      ) {
+        latestCreatedAt = createdAt;
+      }
+      const trafficHour = row.traffic_hour;
+      if (
+        typeof trafficHour === 'string' &&
+        (!latestTrafficHour || trafficHour > latestTrafficHour)
+      ) {
+        latestTrafficHour = trafficHour;
+      }
+    }
+
+    if (rows.length === 0) {
+      // No buckets today: report zero totals, but keep the freshness stamp of
+      // the most recent bucket so "last seen" stays truthful.
+      const { data: lastRow, error: lastError } = (await client
+        .from('cw_traffic2')
+        .select('created_at, traffic_hour')
+        .eq('dev_eui', devEui)
+        .order('traffic_hour', { ascending: false })
+        .limit(1)
+        .maybeSingle()) as {
+        data: { created_at: string | null; traffic_hour: string | null } | null;
+        error: PostgrestError | null;
+      };
+
+      if (lastError || !lastRow) {
+        return null;
+      }
+      latestCreatedAt = lastRow.created_at ?? null;
+      latestTrafficHour = lastRow.traffic_hour ?? null;
+    }
+
+    return { sums, latestCreatedAt, latestTrafficHour };
   }
 
   /**
