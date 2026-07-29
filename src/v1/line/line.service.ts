@@ -5,26 +5,30 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { LineApiClient, type LineMessage } from './line-api.client';
 
 const APP_BASE_URL = 'https://app.cropwatch.io';
 const NONCE_TTL_MS = 10 * 60 * 1000;
 const UNIQUE_VIOLATION = '23505';
+const LINK_CODE_PATTERN = /^\d{6}$/;
+const LINK_CODE_INSERT_ATTEMPTS = 5;
 
 export interface LineWebhookEvent {
   type: string;
   source?: { type?: string; userId?: string };
   link?: { result?: string; nonce?: string };
+  message?: { type?: string; text?: unknown };
   [key: string]: unknown;
 }
 
 // Bilingual DM texts (ja first, matching the alert-email convention).
 const DM = {
   linkButtonAlt: 'CropWatchアカウント連携 / Link your CropWatch account',
+  // Buttons-template text is capped at 160 chars — keep this tight.
   linkButtonText:
-    'CropWatchアカウントと連携すると、アラートをLINEで受け取れます。\nLink your CropWatch account to receive alerts on LINE.',
+    'アプリの6桁コードをこのトークに送るか、下のボタンで連携できます。\nSend the 6-digit code from the app here, or tap the button.',
   linkButtonLabel: '連携する / Link',
   alreadyLinked:
     'このLINEアカウントは連携済みです。\nThis LINE account is already linked.',
@@ -34,6 +38,8 @@ const DM = {
     '連携に失敗しました。このトークにメッセージを送ると、新しい連携ボタンをお送りします。\nLink failed — send this chat any message to get a new link button.',
   linkedElsewhere:
     'このLINEアカウントは別のCropWatchアカウントに連携されています。\nThis LINE account is already linked to a different CropWatch user.',
+  codeInvalid:
+    'この連携コードは無効か期限切れです。アプリのプロフィールページで新しいコードを取得して、もう一度お送りください。\nThat linking code is invalid or expired. Get a new code from your profile page in the app and send it again.',
 } as const;
 
 @Injectable()
@@ -99,10 +105,8 @@ export class LineService {
         if (lineUserId) await this.handleAccountLink(lineUserId, event);
         return;
       case 'message':
-        // Recovery path: an unbound user's message re-issues the link button
-        // (the link token in the original DM expires after 10 minutes).
         if (lineUserId && !(await this.isLinked(lineUserId))) {
-          await this.sendLinkButton(lineUserId);
+          await this.handleUnboundMessage(lineUserId, event);
         }
         return;
       default:
@@ -116,6 +120,70 @@ export class LineService {
       return;
     }
     await this.sendLinkButton(lineUserId);
+  }
+
+  // Primary linking path: the profile page shows a 6-digit code, the user
+  // sends it in chat. Works on every device/browser combination because the
+  // browser and LINE never have to share a session (the official
+  // account-link dialog breaks whenever the link escapes LINE's in-app
+  // browser). Non-code messages fall back to the account-link button.
+  private async handleUnboundMessage(
+    lineUserId: string,
+    event: LineWebhookEvent,
+  ): Promise<void> {
+    const text =
+      typeof event.message?.text === 'string' ? event.message.text.trim() : '';
+
+    if (!LINK_CODE_PATTERN.test(text)) {
+      await this.sendLinkButton(lineUserId);
+      return;
+    }
+
+    const client = this.supabaseService.getAdminClient();
+    const nowIso = new Date().toISOString();
+
+    const { data: codeRow, error: codeError } = await client
+      .from('cw_line_link_nonces')
+      .select('nonce, user_id, expires_at')
+      .eq('nonce', text)
+      .gt('expires_at', nowIso)
+      .maybeSingle();
+
+    if (codeError) {
+      throw new Error(`Failed to look up link code: ${codeError.message}`);
+    }
+    if (!codeRow) {
+      await this.pushText(lineUserId, DM.codeInvalid);
+      return;
+    }
+
+    const row = codeRow as { nonce: string; user_id: string };
+    await this.bindProfile(lineUserId, row.user_id, row.nonce);
+  }
+
+  private async bindProfile(
+    lineUserId: string,
+    userId: string,
+    nonce: string,
+  ): Promise<void> {
+    const client = this.supabaseService.getAdminClient();
+
+    const { error: updateError } = await client
+      .from('profiles')
+      .update({ line_id: lineUserId })
+      .eq('id', userId);
+
+    if (updateError) {
+      if (updateError.code === UNIQUE_VIOLATION) {
+        await this.pushText(lineUserId, DM.linkedElsewhere);
+        return;
+      }
+      throw new Error(`Failed to bind LINE account: ${updateError.message}`);
+    }
+
+    await client.from('cw_line_link_nonces').delete().eq('nonce', nonce);
+    await this.pushText(lineUserId, DM.linked);
+    this.logger.log(`Linked LINE account for user ${userId}`);
   }
 
   private async handleAccountLink(
@@ -146,25 +214,8 @@ export class LineService {
       return;
     }
 
-    const { error: updateError } = await client
-      .from('profiles')
-      .update({ line_id: lineUserId })
-      .eq('id', nonceRow.user_id);
-
-    if (updateError) {
-      if (updateError.code === UNIQUE_VIOLATION) {
-        await this.pushText(lineUserId, DM.linkedElsewhere);
-        return;
-      }
-      throw new Error(`Failed to bind LINE account: ${updateError.message}`);
-    }
-
-    await client
-      .from('cw_line_link_nonces')
-      .delete()
-      .eq('nonce', nonceRow.nonce);
-    await this.pushText(lineUserId, DM.linked);
-    this.logger.log(`Linked LINE account for user ${nonceRow.user_id}`);
+    const row = nonceRow as { nonce: string; user_id: string };
+    await this.bindProfile(lineUserId, row.user_id, row.nonce);
   }
 
   private async sendLinkButton(lineUserId: string): Promise<void> {
@@ -210,6 +261,40 @@ export class LineService {
     }
 
     return { nonce };
+  }
+
+  // 6-digit code for the chat-based linking path. Shares the nonce table:
+  // codes and account-link nonces never collide (different shapes), and both
+  // are single-use rows with a 10-minute expiry.
+  async createLinkCode(
+    userId: string,
+  ): Promise<{ code: string; expiresAt: string }> {
+    const client = this.supabaseService.getAdminClient();
+    const nowIso = new Date().toISOString();
+
+    await client.from('cw_line_link_nonces').delete().lt('expires_at', nowIso);
+    // A user re-requesting a code invalidates their previous one.
+    await client.from('cw_line_link_nonces').delete().eq('user_id', userId);
+
+    const expiresAt = new Date(Date.now() + NONCE_TTL_MS).toISOString();
+    for (let attempt = 1; attempt <= LINK_CODE_INSERT_ATTEMPTS; attempt += 1) {
+      const code = randomInt(100000, 1000000).toString();
+      const { error } = await client.from('cw_line_link_nonces').insert({
+        nonce: code,
+        user_id: userId,
+        expires_at: expiresAt,
+      });
+
+      if (!error) {
+        return { code, expiresAt };
+      }
+      if (error.code !== UNIQUE_VIOLATION) {
+        throw new Error(`Failed to store link code: ${error.message}`);
+      }
+      // Collision with another user's live code — regenerate.
+    }
+
+    throw new Error('Failed to allocate a unique link code');
   }
 
   async unlink(userId: string): Promise<void> {
