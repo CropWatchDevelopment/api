@@ -21,6 +21,8 @@ import { TrafficController } from '../traffic/traffic.controller';
 import { TrafficService } from '../traffic/traffic.service';
 import { WaterController } from '../water/water.controller';
 import { WaterService } from '../water/water.service';
+import { LineController } from '../line/line.controller';
+import { LineService } from '../line/line.service';
 
 type MockedMethods = Record<string, jest.Mock>;
 type ServiceRegistry = Record<string, MockedMethods>;
@@ -363,6 +365,12 @@ describe('V1 Route Input Contracts', () => {
       soil: createMockedMethods(['findOne']),
       traffic: createMockedMethods(['findOne']),
       water: createMockedMethods(['findOne']),
+      line: createMockedMethods([
+        'verifyWebhookSignature',
+        'handleEvents',
+        'createLinkNonce',
+        'unlink',
+      ]),
     };
 
     const moduleBuilder = Test.createTestingModule({
@@ -374,6 +382,7 @@ describe('V1 Route Input Contracts', () => {
         SoilController,
         TrafficController,
         WaterController,
+        LineController,
       ],
       providers: [
         { provide: AirService, useValue: serviceRegistry.air },
@@ -383,6 +392,7 @@ describe('V1 Route Input Contracts', () => {
         { provide: SoilService, useValue: serviceRegistry.soil },
         { provide: TrafficService, useValue: serviceRegistry.traffic },
         { provide: WaterService, useValue: serviceRegistry.water },
+        { provide: LineService, useValue: serviceRegistry.line },
       ],
     });
 
@@ -866,9 +876,40 @@ describe('V1 Route Input Contracts', () => {
       name: 'GET /v1/water/:dev_eui preserves start, end, and timezone query inputs',
       url: '/v1/water/DEV-001?start=2026-01-01T00:00:00.000Z&end=2026-01-02T00:00:00.000Z&timezone=America%2FDenver',
     },
+    {
+      auth: true,
+      expectedCall: {
+        args: [MOCK_USER.sub],
+        method: 'createLinkNonce',
+        service: 'line',
+      },
+      expectedStatus: 201,
+      method: 'post',
+      name: 'POST /v1/line/link-start mints a nonce for the current user',
+      url: '/v1/line/link-start',
+    },
+    {
+      auth: true,
+      expectedCall: {
+        args: [MOCK_USER.sub],
+        method: 'unlink',
+        service: 'line',
+      },
+      expectedStatus: 204,
+      method: 'delete',
+      name: 'DELETE /v1/line/link unlinks the current user',
+      url: '/v1/line/link',
+    },
   ];
 
   const rejectionCases: RejectionCase[] = [
+    {
+      expectedMessage: 'Missing webhook body',
+      expectedStatus: 400,
+      method: 'post',
+      name: 'POST /v1/line/webhook rejects requests without a raw body',
+      url: '/v1/line/webhook',
+    },
     {
       auth: true,
       body: {
