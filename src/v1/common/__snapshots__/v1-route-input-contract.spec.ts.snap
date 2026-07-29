@@ -1121,6 +1121,20 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
     "/v1/line/link-start": {
       "post": {},
     },
+    "/v1/line/recipients": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "devEuis",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+    },
     "/v1/line/webhook": {
       "post": {},
     },

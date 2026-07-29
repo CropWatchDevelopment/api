@@ -2,20 +2,31 @@ import {
   BadRequestException,
   Controller,
   Delete,
+  Get,
   Headers,
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
-import { LineService, type LineWebhookEvent } from './line.service';
+import {
+  LineService,
+  type LineRecipientCandidate,
+  type LineWebhookEvent,
+} from './line.service';
 
 @ApiTags('line')
 @Controller({ path: 'line', version: '1' })
@@ -64,6 +75,32 @@ export class LineController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ nonce: string }> {
     return this.lineService.createLinkNonce(user.sub);
+  }
+
+  @Get('recipients')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'List users eligible as LINE recipients for the given devices',
+  })
+  @ApiQuery({
+    name: 'devEuis',
+    required: true,
+    type: String,
+    description: 'Comma-separated device EUIs',
+  })
+  listRecipients(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('devEuis') devEuis?: string,
+  ): Promise<LineRecipientCandidate[]> {
+    const parsed = (devEuis ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+    if (parsed.length === 0) {
+      throw new BadRequestException('devEuis is required');
+    }
+    return this.lineService.listEligibleRecipients(user, parsed);
   }
 
   @Post('link-code')

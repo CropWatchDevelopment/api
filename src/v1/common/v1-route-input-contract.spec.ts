@@ -370,6 +370,7 @@ describe('V1 Route Input Contracts', () => {
         'handleEvents',
         'createLinkNonce',
         'createLinkCode',
+        'listEligibleRecipients',
         'unlink',
       ]),
     };
@@ -904,6 +905,18 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
+        args: [MOCK_USER, ['AA', 'BB']],
+        method: 'listEligibleRecipients',
+        service: 'line',
+      },
+      expectedStatus: 200,
+      method: 'get',
+      name: 'GET /v1/line/recipients parses comma-separated devEuis',
+      url: '/v1/line/recipients?devEuis=AA,%20BB',
+    },
+    {
+      auth: true,
+      expectedCall: {
         args: [MOCK_USER.sub],
         method: 'unlink',
         service: 'line',
@@ -922,6 +935,14 @@ describe('V1 Route Input Contracts', () => {
       method: 'post',
       name: 'POST /v1/line/webhook rejects requests without a raw body',
       url: '/v1/line/webhook',
+    },
+    {
+      auth: true,
+      expectedMessage: 'devEuis is required',
+      expectedStatus: 400,
+      method: 'get',
+      name: 'GET /v1/line/recipients rejects a missing devEuis param',
+      url: '/v1/line/recipients',
     },
     {
       auth: true,

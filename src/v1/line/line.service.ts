@@ -7,7 +7,16 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { listManagedDevices } from '../common/managed-devices.helper';
+import { canRead } from '../common/permission-levels';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { LineApiClient, type LineMessage } from './line-api.client';
+
+export interface LineRecipientCandidate {
+  userId: string;
+  displayName: string;
+  lineLinked: boolean;
+}
 
 const APP_BASE_URL = 'https://app.cropwatch.io';
 const NONCE_TTL_MS = 10 * 60 * 1000;
@@ -323,6 +332,76 @@ export class LineService {
     }
 
     throw new Error('Failed to allocate a unique link code');
+  }
+
+  // Users eligible as LINE recipients for a rule: everyone with view access
+  // to any of the given devices, scoped to devices the CALLER can view.
+  // Unlinked users are included (flagged) — they start receiving alerts the
+  // moment they link.
+  async listEligibleRecipients(
+    user: AuthenticatedUser,
+    devEuis: string[],
+  ): Promise<LineRecipientCandidate[]> {
+    const client = this.supabaseService.getAdminClient();
+
+    const managed = await listManagedDevices(client, user.sub, user.isStaff);
+    const viewable = new Set(
+      managed.filter((device) => device.canView).map((device) => device.devEui),
+    );
+    const scoped = devEuis.filter((devEui) => viewable.has(devEui));
+    if (scoped.length === 0) return [];
+
+    const { data: devices, error: devicesError } = await client
+      .from('cw_devices')
+      .select('user_id, cw_device_owners(user_id, permission_level)')
+      .in('dev_eui', scoped);
+
+    if (devicesError) {
+      throw new Error(`Failed to load device viewers: ${devicesError.message}`);
+    }
+
+    const viewerIds = new Set<string>();
+    for (const device of (devices ?? []) as Array<{
+      user_id: string | null;
+      cw_device_owners?: Array<{
+        user_id: string | null;
+        permission_level: number | null;
+      }> | null;
+    }>) {
+      if (device.user_id) viewerIds.add(device.user_id);
+      for (const owner of device.cw_device_owners ?? []) {
+        if (owner.user_id && canRead(owner.permission_level)) {
+          viewerIds.add(owner.user_id);
+        }
+      }
+    }
+    if (viewerIds.size === 0) return [];
+
+    const { data: profiles, error: profilesError } = await client
+      .from('profiles')
+      .select('id, full_name, username, email, line_id')
+      .in('id', [...viewerIds]);
+
+    if (profilesError) {
+      throw new Error(`Failed to load profiles: ${profilesError.message}`);
+    }
+
+    return (
+      (profiles ?? []) as Array<{
+        id: string;
+        full_name: string | null;
+        username: string | null;
+        email: string | null;
+        line_id: string | null;
+      }>
+    )
+      .map((profile) => ({
+        userId: profile.id,
+        displayName:
+          profile.full_name ?? profile.username ?? profile.email ?? profile.id,
+        lineLinked: profile.line_id != null,
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }
 
   async unlink(userId: string): Promise<void> {
