@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { DevicesService } from '../devices/devices.service';
@@ -6,6 +10,16 @@ import { LocationsService } from '../locations/locations.service';
 import { RulesService } from './rules.service';
 
 type StubResult = { data: unknown; error: unknown };
+
+interface FilterCall {
+  method: string;
+  args: unknown[];
+}
+
+interface WriteCall {
+  payload?: unknown;
+  filters: FilterCall[];
+}
 
 interface QueryStub {
   select: jest.Mock;
@@ -17,6 +31,22 @@ interface QueryStub {
   single: jest.Mock;
   maybeSingle: jest.Mock;
   then: (resolve: (value: StubResult) => unknown) => unknown;
+  updateCalls: WriteCall[];
+  deleteCalls: WriteCall[];
+}
+
+// update()/delete() return a chainable thenable that records its filters, so
+// tests can assert the exact WHERE clause a write was issued with.
+function buildWriteChain(result: StubResult, call: WriteCall) {
+  const chain: Record<string, unknown> = {};
+  for (const method of ['eq', 'in', 'is', 'not']) {
+    chain[method] = jest.fn((...args: unknown[]) => {
+      call.filters.push({ method, args });
+      return chain;
+    });
+  }
+  chain.then = (resolve: (value: StubResult) => unknown) => resolve(result);
+  return chain;
 }
 
 function buildQueryStub(handlers: {
@@ -41,15 +71,23 @@ function buildQueryStub(handlers: {
     then: (resolve: (value: StubResult) => unknown) =>
       resolve(handlers.insertReturn ?? { data: null, error: null }),
   });
-  stub.update = jest.fn().mockReturnValue({
-    eq: jest
-      .fn()
-      .mockResolvedValue(handlers.updateReturn ?? { data: null, error: null }),
+  stub.updateCalls = [];
+  stub.update = jest.fn((payload: unknown) => {
+    const call: WriteCall = { payload, filters: [] };
+    stub.updateCalls!.push(call);
+    return buildWriteChain(
+      handlers.updateReturn ?? { data: null, error: null },
+      call,
+    );
   });
-  stub.delete = jest.fn().mockReturnValue({
-    eq: jest
-      .fn()
-      .mockResolvedValue(handlers.deleteReturn ?? { data: null, error: null }),
+  stub.deleteCalls = [];
+  stub.delete = jest.fn(() => {
+    const call: WriteCall = { filters: [] };
+    stub.deleteCalls!.push(call);
+    return buildWriteChain(
+      handlers.deleteReturn ?? { data: null, error: null },
+      call,
+    );
   });
   stub.eq = jest.fn().mockReturnValue(stub);
   stub.in = jest.fn().mockReturnValue(stub);
@@ -63,6 +101,35 @@ function buildQueryStub(handlers: {
     );
   stub.then = (resolve) => resolve(handlers.list ?? { data: [], error: null });
   return stub as QueryStub;
+}
+
+// Routes from(table) to per-table stubs so tests only depend on same-table
+// call order, not the service's global .from() sequence. A single stub for a
+// table serves every call; an array is consumed in order, last stub repeating.
+function buildClient(stubsByTable: Record<string, QueryStub | QueryStub[]>) {
+  const queues = new Map<string, QueryStub[]>();
+  for (const [table, stubs] of Object.entries(stubsByTable)) {
+    queues.set(table, Array.isArray(stubs) ? [...stubs] : [stubs]);
+  }
+  const from = jest.fn((table: string) => {
+    const queue = queues.get(table);
+    if (!queue || queue.length === 0) {
+      throw new Error(`Unexpected from('${table}') call in test`);
+    }
+    return queue.length > 1 ? queue.shift()! : queue[0];
+  });
+  return { from };
+}
+
+function serviceWith(client: { from: jest.Mock }): RulesService {
+  return new RulesService(
+    {
+      getClient: jest.fn(() => client),
+      getAdminClient: jest.fn(),
+    } as unknown as SupabaseService,
+    {} as unknown as DevicesService,
+    {} as unknown as LocationsService,
+  );
 }
 
 describe('RulesService', () => {
@@ -311,6 +378,180 @@ describe('RulesService', () => {
         count: 1,
         triggered_count: 1,
         total_count: 2,
+      });
+    });
+  });
+
+  describe('update and remove state handling', () => {
+    const jwt = { sub: 'user-1', email: 'user@example.com', isStaff: false };
+
+    const deviceRows = (devEuis: string[]) =>
+      devEuis.map((devEui) => ({
+        dev_eui: devEui,
+        name: `Device ${devEui}`,
+        user_id: 'user-1',
+        cw_device_owners: [],
+      }));
+
+    const templateRow = {
+      id: 1,
+      name: 'Freezer temp',
+      description: null,
+      device_type_id: null,
+      is_active: true,
+      created_at: null,
+    };
+
+    const assignmentRows = (devEuis: string[]) =>
+      devEuis.map((devEui, index) => ({
+        id: index + 1,
+        dev_eui: devEui,
+        template_id: 1,
+        is_active: true,
+        created_at: null,
+      }));
+
+    const savePayload = (devEuis: string[]) => ({
+      name: 'Freezer temp',
+      devEuis,
+      criteria: [
+        {
+          subject: 'temperature_c',
+          operator: '>=',
+          triggerValue: -15,
+          resetValue: -18,
+        },
+      ],
+      actions: [{ actionType: 1, config: { recipient: 'me@example.com' } }],
+    });
+
+    interface UpdateStubs {
+      state: QueryStub;
+      triggerLog: QueryStub;
+      templates: QueryStub;
+    }
+
+    const buildUpdateClient = (
+      existingDevEuis: string[],
+      overrides?: Partial<
+        Record<'stateHandlers', { deleteReturn: StubResult }>
+      >,
+    ): { client: { from: jest.Mock }; stubs: UpdateStubs } => {
+      const state = buildQueryStub({
+        list: { data: [], error: null },
+        ...(overrides?.stateHandlers ?? {}),
+      });
+      const triggerLog = buildQueryStub({});
+      const templates = buildQueryStub({
+        maybeSingle: { data: templateRow, error: null },
+      });
+      const client = buildClient({
+        cw_devices: buildQueryStub({
+          list: { data: deviceRows(existingDevEuis), error: null },
+        }),
+        cw_rule_templates: templates,
+        cw_device_rule_assignments: buildQueryStub({
+          list: { data: assignmentRows(existingDevEuis), error: null },
+        }),
+        cw_rule_template_criteria: buildQueryStub({}),
+        cw_rule_template_actions: buildQueryStub({}),
+        cw_rule_state: state,
+        cw_rule_trigger_log: triggerLog,
+      });
+      return { client, stubs: { state, triggerLog, templates } };
+    };
+
+    it('update preserves state for still-assigned devices (never a template-wide wipe)', async () => {
+      const { client, stubs } = buildUpdateClient(['AA', 'BB']);
+      const service = serviceWith(client);
+
+      await service.update(1, savePayload(['AA']), jwt);
+
+      expect(stubs.state.deleteCalls).toHaveLength(1);
+      const filters = stubs.state.deleteCalls[0].filters;
+      expect(filters).toContainEqual({
+        method: 'eq',
+        args: ['template_id', 1],
+      });
+      expect(filters).toContainEqual({
+        method: 'not',
+        args: ['dev_eui', 'in', '("AA")'],
+      });
+    });
+
+    it('update closes open trigger-log rows only for removed devices', async () => {
+      const { client, stubs } = buildUpdateClient(['AA', 'BB']);
+      const service = serviceWith(client);
+
+      await service.update(1, savePayload(['AA']), jwt);
+
+      expect(stubs.triggerLog.updateCalls).toHaveLength(1);
+      const call = stubs.triggerLog.updateCalls[0];
+      const payload = call.payload as { reset_at: unknown };
+      expect(Object.keys(payload)).toEqual(['reset_at']);
+      expect(typeof payload.reset_at).toBe('string');
+      expect(call.filters).toContainEqual({
+        method: 'eq',
+        args: ['template_id', 1],
+      });
+      expect(call.filters).toContainEqual({
+        method: 'is',
+        args: ['reset_at', null],
+      });
+      expect(call.filters).toContainEqual({
+        method: 'not',
+        args: ['dev_eui', 'in', '("AA")'],
+      });
+    });
+
+    it('update happy path returns the re-fetched template', async () => {
+      const { client } = buildUpdateClient(['AA']);
+      const service = serviceWith(client);
+
+      const result = await service.update(1, savePayload(['AA']), jwt);
+
+      expect(result.id).toBe(1);
+      expect(result.name).toBe('Freezer temp');
+    });
+
+    it('update surfaces InternalServerErrorException when state cleanup fails', async () => {
+      const { client } = buildUpdateClient(['AA'], {
+        stateHandlers: {
+          deleteReturn: { data: null, error: { message: 'boom' } },
+        },
+      });
+      const service = serviceWith(client);
+
+      await expect(
+        service.update(1, savePayload(['AA']), jwt),
+      ).rejects.toBeInstanceOf(InternalServerErrorException);
+    });
+
+    it('remove closes all open trigger-log rows and deletes state, children, template', async () => {
+      const { client, stubs } = buildUpdateClient(['AA']);
+      const service = serviceWith(client);
+
+      await service.remove(1, jwt);
+
+      expect(stubs.state.deleteCalls).toHaveLength(1);
+      expect(stubs.state.deleteCalls[0].filters).toEqual([
+        { method: 'eq', args: ['template_id', 1] },
+      ]);
+
+      expect(stubs.triggerLog.updateCalls).toHaveLength(1);
+      const logCall = stubs.triggerLog.updateCalls[0];
+      const logPayload = logCall.payload as { reset_at: unknown };
+      expect(Object.keys(logPayload)).toEqual(['reset_at']);
+      expect(typeof logPayload.reset_at).toBe('string');
+      expect(logCall.filters).toEqual([
+        { method: 'eq', args: ['template_id', 1] },
+        { method: 'is', args: ['reset_at', null] },
+      ]);
+
+      expect(stubs.templates.deleteCalls).toHaveLength(1);
+      expect(stubs.templates.deleteCalls[0].filters).toContainEqual({
+        method: 'eq',
+        args: ['id', 1],
       });
     });
   });

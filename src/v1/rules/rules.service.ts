@@ -367,7 +367,7 @@ export class RulesService {
     }
 
     await this.replaceTemplateChildren(id, normalized);
-    await this.deleteTemplateState(id);
+    await this.cleanupStateForUnassignedDevices(id, normalized.devEuis);
 
     return this.findOne(id, user);
   }
@@ -388,6 +388,7 @@ export class RulesService {
     );
 
     await this.deleteTemplateState(id);
+    await this.closeOpenTriggerLogs(id);
     await this.deleteTemplateChildren(id);
 
     const client = this.supabaseService.getClient();
@@ -609,6 +610,55 @@ export class RulesService {
     }
   }
 
+  // State rows for devices that remain assigned must survive a template edit:
+  // deleting them would erase is_triggered mid-alert, so the reset action and
+  // trigger-log closure for that alert would never run.
+  private async cleanupStateForUnassignedDevices(
+    templateId: number,
+    keepDevEuis: string[],
+  ): Promise<void> {
+    const { error } = await this.supabaseService
+      .getClient()
+      .from('cw_rule_state')
+      .delete()
+      .eq('template_id', templateId)
+      .not('dev_eui', 'in', toPostgrestList(keepDevEuis));
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to clean up rule state');
+    }
+
+    await this.closeOpenTriggerLogs(templateId, {
+      excludeDevEuis: keepDevEuis,
+    });
+  }
+
+  private async closeOpenTriggerLogs(
+    templateId: number,
+    opts?: { excludeDevEuis?: string[] },
+  ): Promise<void> {
+    // reset_value stays null: these rows are closed administratively, not by a
+    // device reading that satisfied the reset criterion.
+    let query = this.supabaseService
+      .getClient()
+      .from('cw_rule_trigger_log')
+      .update({ reset_at: new Date().toISOString() })
+      .eq('template_id', templateId)
+      .is('reset_at', null);
+
+    if (opts?.excludeDevEuis?.length) {
+      query = query.not('dev_eui', 'in', toPostgrestList(opts.excludeDevEuis));
+    }
+
+    const { error } = await query;
+
+    if (error) {
+      throw new InternalServerErrorException(
+        'Failed to close rule trigger logs',
+      );
+    }
+  }
+
   private async deleteTemplateBestEffort(templateId: number): Promise<void> {
     try {
       await this.deleteTemplateChildren(templateId);
@@ -816,6 +866,12 @@ function normalizeSaveRequest(
     criteria,
     actions,
   };
+}
+
+// PostgREST `not ... in` filters take a parenthesized, comma-separated list;
+// values are quoted so EUIs survive as literals.
+function toPostgrestList(values: string[]): string {
+  return `(${values.map((value) => `"${value}"`).join(',')})`;
 }
 
 function assertDevicesCanBeManaged(
