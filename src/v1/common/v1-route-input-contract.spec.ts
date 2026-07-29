@@ -369,6 +369,7 @@ describe('V1 Route Input Contracts', () => {
         'verifyWebhookSignature',
         'handleEvents',
         'createLinkNonce',
+        'createLinkCode',
         'unlink',
       ]),
     };
@@ -887,6 +888,18 @@ describe('V1 Route Input Contracts', () => {
       method: 'post',
       name: 'POST /v1/line/link-start mints a nonce for the current user',
       url: '/v1/line/link-start',
+    },
+    {
+      auth: true,
+      expectedCall: {
+        args: [MOCK_USER.sub],
+        method: 'createLinkCode',
+        service: 'line',
+      },
+      expectedStatus: 201,
+      method: 'post',
+      name: 'POST /v1/line/link-code mints a chat-linking code for the current user',
+      url: '/v1/line/link-code',
     },
     {
       auth: true,

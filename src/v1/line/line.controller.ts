@@ -66,6 +66,18 @@ export class LineController {
     return this.lineService.createLinkNonce(user.sub);
   }
 
+  @Post('link-code')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Mint a 6-digit code the user sends to the LINE bot to link',
+  })
+  linkCode(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<{ code: string; expiresAt: string }> {
+    return this.lineService.createLinkCode(user.sub);
+  }
+
   @Delete('link')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

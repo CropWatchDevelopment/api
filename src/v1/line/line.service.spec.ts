@@ -290,6 +290,61 @@ describe('LineService', () => {
       expect(apiClient.issueLinkToken).toHaveBeenCalledWith(LINE_USER);
     });
 
+    it('links the sender when an unbound user sends a valid 6-digit code', async () => {
+      const isLinkedLookup = chain({ data: null, error: null });
+      const profileUpdate = chain({ data: null, error: null });
+      const codeLookup = chain({
+        data: { nonce: '123456', user_id: 'user-1', expires_at: 'later' },
+        error: null,
+      });
+      const codeDelete = chain({ data: null, error: null });
+      const adminClient = buildAdminClient({
+        profiles: [isLinkedLookup, profileUpdate],
+        cw_line_link_nonces: [codeLookup, codeDelete],
+      });
+      const { service, apiClient } = createService({ adminClient });
+
+      await service.handleEvents([
+        {
+          type: 'message',
+          source: { userId: LINE_USER },
+          message: { type: 'text', text: ' 123456 ' },
+        },
+      ]);
+
+      expect(profileUpdate.calls).toContainEqual({
+        method: 'update',
+        args: [{ line_id: LINE_USER }],
+      });
+      expect(profileUpdate.calls).toContainEqual({
+        method: 'eq',
+        args: ['id', 'user-1'],
+      });
+      expect(apiClient.issueLinkToken).not.toHaveBeenCalled();
+      const [, messages] = apiClient.pushMessage.mock.calls[0];
+      expect(String(messages[0].text)).toContain('連携が完了');
+    });
+
+    it('replies invalid-code when the 6-digit code is unknown or expired', async () => {
+      const adminClient = buildAdminClient({
+        profiles: [chain({ data: null, error: null })],
+        cw_line_link_nonces: [chain({ data: null, error: null })],
+      });
+      const { service, apiClient } = createService({ adminClient });
+
+      await service.handleEvents([
+        {
+          type: 'message',
+          source: { userId: LINE_USER },
+          message: { type: 'text', text: '999999' },
+        },
+      ]);
+
+      expect(apiClient.issueLinkToken).not.toHaveBeenCalled();
+      const [, messages] = apiClient.pushMessage.mock.calls[0];
+      expect(String(messages[0].text)).toContain('無効か期限切れ');
+    });
+
     it('ignores messages from bound users', async () => {
       const adminClient = buildAdminClient({
         profiles: [chain({ data: { id: 'user-1' }, error: null })],
@@ -354,6 +409,29 @@ describe('LineService', () => {
       const row = (insertCall!.args[0] ?? {}) as Record<string, unknown>;
       expect(row.user_id).toBe('user-1');
       expect(row.nonce).toBe(nonce);
+    });
+
+    it('createLinkCode invalidates prior codes and mints a 6-digit code', async () => {
+      const purgeExpired = chain({ data: null, error: null });
+      const purgeUser = chain({ data: null, error: null });
+      const insert = chain({ data: null, error: null });
+      const adminClient = buildAdminClient({
+        cw_line_link_nonces: [purgeExpired, purgeUser, insert],
+      });
+      const { service } = createService({ adminClient });
+
+      const { code, expiresAt } = await service.createLinkCode('user-1');
+
+      expect(code).toMatch(/^\d{6}$/);
+      expect(new Date(expiresAt).getTime()).toBeGreaterThan(Date.now());
+      expect(purgeUser.calls).toContainEqual({
+        method: 'eq',
+        args: ['user_id', 'user-1'],
+      });
+      const insertCall = insert.calls.find((c) => c.method === 'insert');
+      const row = (insertCall!.args[0] ?? {}) as Record<string, unknown>;
+      expect(row.nonce).toBe(code);
+      expect(row.user_id).toBe('user-1');
     });
 
     it('unlink clears line_id for the current user', async () => {
