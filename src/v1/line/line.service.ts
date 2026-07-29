@@ -82,6 +82,9 @@ export class LineService {
   async handleEvents(events: LineWebhookEvent[]): Promise<void> {
     for (const event of events) {
       try {
+        this.logger.log(
+          `LINE webhook event: ${event?.type ?? 'unknown'} from ${maskId(event?.source?.userId ?? 'unknown')}`,
+        );
         await this.handleEvent(event);
       } catch (error) {
         // One bad event must not fail the batch — LINE would redeliver all.
@@ -131,10 +134,14 @@ export class LineService {
     lineUserId: string,
     event: LineWebhookEvent,
   ): Promise<void> {
-    const text =
-      typeof event.message?.text === 'string' ? event.message.text.trim() : '';
+    const raw =
+      typeof event.message?.text === 'string' ? event.message.text : '';
+    const text = normalizeLinkCode(raw);
 
     if (!LINK_CODE_PATTERN.test(text)) {
+      this.logger.log(
+        `LINE message from unbound ${maskId(lineUserId)} is not code-shaped (len=${raw.length}) — sending link button`,
+      );
       await this.sendLinkButton(lineUserId);
       return;
     }
@@ -153,11 +160,17 @@ export class LineService {
       throw new Error(`Failed to look up link code: ${codeError.message}`);
     }
     if (!codeRow) {
+      this.logger.warn(
+        `LINE link code from ${maskId(lineUserId)} not found or expired`,
+      );
       await this.pushText(lineUserId, DM.codeInvalid);
       return;
     }
 
     const row = codeRow as { nonce: string; user_id: string };
+    this.logger.log(
+      `LINE link code accepted for user ${row.user_id} from ${maskId(lineUserId)}`,
+    );
     await this.bindProfile(lineUserId, row.user_id, row.nonce);
   }
 
@@ -168,17 +181,32 @@ export class LineService {
   ): Promise<void> {
     const client = this.supabaseService.getAdminClient();
 
-    const { error: updateError } = await client
+    // .select() makes PostgREST return the updated rows, so a silently
+    // missing profiles row (0 rows updated) is detected instead of sending a
+    // false "linked" confirmation.
+    const { data: updated, error: updateError } = await client
       .from('profiles')
       .update({ line_id: lineUserId })
-      .eq('id', userId);
+      .eq('id', userId)
+      .select('id');
 
     if (updateError) {
       if (updateError.code === UNIQUE_VIOLATION) {
+        this.logger.warn(
+          `LINE bind rejected for user ${userId}: LINE account ${maskId(lineUserId)} already linked elsewhere`,
+        );
         await this.pushText(lineUserId, DM.linkedElsewhere);
         return;
       }
       throw new Error(`Failed to bind LINE account: ${updateError.message}`);
+    }
+
+    if (!updated || (updated as unknown[]).length === 0) {
+      this.logger.error(
+        `LINE bind failed for user ${userId}: no profiles row was updated`,
+      );
+      await this.pushText(lineUserId, DM.linkFailed);
+      return;
     }
 
     await client.from('cw_line_link_nonces').delete().eq('nonce', nonce);
@@ -344,4 +372,20 @@ export class LineService {
   private async pushText(lineUserId: string, text: string): Promise<void> {
     await this.lineApiClient.pushMessage(lineUserId, [{ type: 'text', text }]);
   }
+}
+
+/**
+ * Japanese keyboards commonly produce full-width digits (１２３４５６), and
+ * users paste codes with stray whitespace. Normalize to ASCII digits before
+ * matching — this is why the code flow "worked for some users only".
+ */
+function normalizeLinkCode(text: string): string {
+  return text
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    .replace(/\s+/g, '');
+}
+
+// LINE user ids in logs: enough to correlate, not enough to push to.
+function maskId(lineUserId: string): string {
+  return `${lineUserId.slice(0, 6)}…`;
 }

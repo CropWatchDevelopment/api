@@ -185,7 +185,7 @@ describe('LineService', () => {
         data: { nonce: 'nonce-1', user_id: 'user-1', expires_at: 'later' },
         error: null,
       });
-      const profileUpdate = chain({ data: null, error: null });
+      const profileUpdate = chain({ data: [{ id: 'user-1' }], error: null });
       const nonceDelete = chain({ data: null, error: null });
       const adminClient = buildAdminClient({
         cw_line_link_nonces: [nonceLookup, nonceDelete],
@@ -292,7 +292,7 @@ describe('LineService', () => {
 
     it('links the sender when an unbound user sends a valid 6-digit code', async () => {
       const isLinkedLookup = chain({ data: null, error: null });
-      const profileUpdate = chain({ data: null, error: null });
+      const profileUpdate = chain({ data: [{ id: 'user-1' }], error: null });
       const codeLookup = chain({
         data: { nonce: '123456', user_id: 'user-1', expires_at: 'later' },
         error: null,
@@ -323,6 +323,65 @@ describe('LineService', () => {
       expect(apiClient.issueLinkToken).not.toHaveBeenCalled();
       const [, messages] = apiClient.pushMessage.mock.calls[0];
       expect(String(messages[0].text)).toContain('連携が完了');
+    });
+
+    it('accepts full-width digits and surrounding whitespace in codes', async () => {
+      const isLinkedLookup = chain({ data: null, error: null });
+      const profileUpdate = chain({ data: [{ id: 'user-1' }], error: null });
+      const codeLookup = chain({
+        data: { nonce: '123456', user_id: 'user-1', expires_at: 'later' },
+        error: null,
+      });
+      const codeDelete = chain({ data: null, error: null });
+      const adminClient = buildAdminClient({
+        profiles: [isLinkedLookup, profileUpdate],
+        cw_line_link_nonces: [codeLookup, codeDelete],
+      });
+      const { service, apiClient } = createService({ adminClient });
+
+      await service.handleEvents([
+        {
+          type: 'message',
+          source: { userId: LINE_USER },
+          message: { type: 'text', text: '　１２３４５６　' },
+        },
+      ]);
+
+      // Lookup must use the normalized ASCII code.
+      expect(codeLookup.calls).toContainEqual({
+        method: 'eq',
+        args: ['nonce', '123456'],
+      });
+      expect(profileUpdate.calls).toContainEqual({
+        method: 'update',
+        args: [{ line_id: LINE_USER }],
+      });
+      expect(apiClient.issueLinkToken).not.toHaveBeenCalled();
+    });
+
+    it('replies link-failed when no profiles row matches the code owner', async () => {
+      const isLinkedLookup = chain({ data: null, error: null });
+      const profileUpdate = chain({ data: [], error: null });
+      const codeLookup = chain({
+        data: { nonce: '123456', user_id: 'ghost-user', expires_at: 'later' },
+        error: null,
+      });
+      const adminClient = buildAdminClient({
+        profiles: [isLinkedLookup, profileUpdate],
+        cw_line_link_nonces: [codeLookup],
+      });
+      const { service, apiClient } = createService({ adminClient });
+
+      await service.handleEvents([
+        {
+          type: 'message',
+          source: { userId: LINE_USER },
+          message: { type: 'text', text: '123456' },
+        },
+      ]);
+
+      const [, messages] = apiClient.pushMessage.mock.calls[0];
+      expect(String(messages[0].text)).toContain('連携に失敗');
     });
 
     it('replies invalid-code when the 6-digit code is unknown or expired', async () => {
