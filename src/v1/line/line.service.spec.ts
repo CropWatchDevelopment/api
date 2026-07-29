@@ -26,6 +26,7 @@ function chain(result: StubResult) {
     'eq',
     'gt',
     'lt',
+    'in',
   ]) {
     stub[method] = jest.fn((...args: unknown[]) => {
       calls.push({ method, args });
@@ -185,7 +186,7 @@ describe('LineService', () => {
         data: { nonce: 'nonce-1', user_id: 'user-1', expires_at: 'later' },
         error: null,
       });
-      const profileUpdate = chain({ data: null, error: null });
+      const profileUpdate = chain({ data: [{ id: 'user-1' }], error: null });
       const nonceDelete = chain({ data: null, error: null });
       const adminClient = buildAdminClient({
         cw_line_link_nonces: [nonceLookup, nonceDelete],
@@ -292,7 +293,7 @@ describe('LineService', () => {
 
     it('links the sender when an unbound user sends a valid 6-digit code', async () => {
       const isLinkedLookup = chain({ data: null, error: null });
-      const profileUpdate = chain({ data: null, error: null });
+      const profileUpdate = chain({ data: [{ id: 'user-1' }], error: null });
       const codeLookup = chain({
         data: { nonce: '123456', user_id: 'user-1', expires_at: 'later' },
         error: null,
@@ -323,6 +324,65 @@ describe('LineService', () => {
       expect(apiClient.issueLinkToken).not.toHaveBeenCalled();
       const [, messages] = apiClient.pushMessage.mock.calls[0];
       expect(String(messages[0].text)).toContain('連携が完了');
+    });
+
+    it('accepts full-width digits and surrounding whitespace in codes', async () => {
+      const isLinkedLookup = chain({ data: null, error: null });
+      const profileUpdate = chain({ data: [{ id: 'user-1' }], error: null });
+      const codeLookup = chain({
+        data: { nonce: '123456', user_id: 'user-1', expires_at: 'later' },
+        error: null,
+      });
+      const codeDelete = chain({ data: null, error: null });
+      const adminClient = buildAdminClient({
+        profiles: [isLinkedLookup, profileUpdate],
+        cw_line_link_nonces: [codeLookup, codeDelete],
+      });
+      const { service, apiClient } = createService({ adminClient });
+
+      await service.handleEvents([
+        {
+          type: 'message',
+          source: { userId: LINE_USER },
+          message: { type: 'text', text: '　１２３４５６　' },
+        },
+      ]);
+
+      // Lookup must use the normalized ASCII code.
+      expect(codeLookup.calls).toContainEqual({
+        method: 'eq',
+        args: ['nonce', '123456'],
+      });
+      expect(profileUpdate.calls).toContainEqual({
+        method: 'update',
+        args: [{ line_id: LINE_USER }],
+      });
+      expect(apiClient.issueLinkToken).not.toHaveBeenCalled();
+    });
+
+    it('replies link-failed when no profiles row matches the code owner', async () => {
+      const isLinkedLookup = chain({ data: null, error: null });
+      const profileUpdate = chain({ data: [], error: null });
+      const codeLookup = chain({
+        data: { nonce: '123456', user_id: 'ghost-user', expires_at: 'later' },
+        error: null,
+      });
+      const adminClient = buildAdminClient({
+        profiles: [isLinkedLookup, profileUpdate],
+        cw_line_link_nonces: [codeLookup],
+      });
+      const { service, apiClient } = createService({ adminClient });
+
+      await service.handleEvents([
+        {
+          type: 'message',
+          source: { userId: LINE_USER },
+          message: { type: 'text', text: '123456' },
+        },
+      ]);
+
+      const [, messages] = apiClient.pushMessage.mock.calls[0];
+      expect(String(messages[0].text)).toContain('連携に失敗');
     });
 
     it('replies invalid-code when the 6-digit code is unknown or expired', async () => {
@@ -388,6 +448,150 @@ describe('LineService', () => {
         {} as never,
       ]);
       expect(apiClient.pushMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listEligibleRecipients', () => {
+    const caller = {
+      sub: 'user-1',
+      email: 'kevin@example.com',
+      isStaff: false,
+    };
+
+    it('scopes to caller-viewable devices, includes the owner, excludes DISABLED', async () => {
+      const managedLookup = chain({
+        data: [
+          {
+            dev_eui: 'DEV-A',
+            name: 'A',
+            user_id: 'user-1',
+            cw_device_owners: [],
+          },
+        ],
+        error: null,
+      });
+      const viewersLookup = chain({
+        data: [
+          {
+            user_id: 'owner-9',
+            cw_device_owners: [
+              { user_id: 'viewer-4', permission_level: 4 },
+              { user_id: 'disabled-5', permission_level: 5 },
+            ],
+          },
+        ],
+        error: null,
+      });
+      const profilesLookup = chain({
+        data: [
+          {
+            id: 'owner-9',
+            full_name: 'Zoe Owner',
+            username: null,
+            email: null,
+            line_id: 'U9',
+          },
+          {
+            id: 'viewer-4',
+            full_name: null,
+            username: null,
+            email: 'v4@example.com',
+            line_id: null,
+          },
+        ],
+        error: null,
+      });
+      const adminClient = buildAdminClient({
+        cw_devices: [managedLookup, viewersLookup],
+        profiles: [profilesLookup],
+      });
+      const { service } = createService({ adminClient });
+
+      const result = await service.listEligibleRecipients(caller, [
+        'DEV-A',
+        'DEV-NOT-VISIBLE',
+      ]);
+
+      // Scoped viewers query only includes the viewable device.
+      expect(viewersLookup.calls).toContainEqual({
+        method: 'in',
+        args: ['dev_eui', ['DEV-A']],
+      });
+      // Sorted by display name; owner included; DISABLED excluded; fallback
+      // chain and lineLinked flags applied.
+      expect(result).toEqual([
+        {
+          userId: 'viewer-4',
+          displayName: 'v4@example.com',
+          lineLinked: false,
+        },
+        { userId: 'owner-9', displayName: 'Zoe Owner', lineLinked: true },
+      ]);
+    });
+
+    it('returns empty without further queries when the caller can view none', async () => {
+      const managedLookup = chain({ data: [], error: null });
+      const adminClient = buildAdminClient({ cw_devices: [managedLookup] });
+      const { service } = createService({ adminClient });
+
+      await expect(
+        service.listEligibleRecipients(caller, ['DEV-X']),
+      ).resolves.toEqual([]);
+    });
+
+    it('dedupes a user appearing on multiple devices', async () => {
+      const managedLookup = chain({
+        data: [
+          {
+            dev_eui: 'DEV-A',
+            name: 'A',
+            user_id: 'user-1',
+            cw_device_owners: [],
+          },
+          {
+            dev_eui: 'DEV-B',
+            name: 'B',
+            user_id: 'user-1',
+            cw_device_owners: [],
+          },
+        ],
+        error: null,
+      });
+      const viewersLookup = chain({
+        data: [
+          { user_id: 'shared-user', cw_device_owners: [] },
+          { user_id: 'shared-user', cw_device_owners: [] },
+        ],
+        error: null,
+      });
+      const profilesLookup = chain({
+        data: [
+          {
+            id: 'shared-user',
+            full_name: 'Shared',
+            username: null,
+            email: null,
+            line_id: null,
+          },
+        ],
+        error: null,
+      });
+      const adminClient = buildAdminClient({
+        cw_devices: [managedLookup, viewersLookup],
+        profiles: [profilesLookup],
+      });
+      const { service } = createService({ adminClient });
+
+      const result = await service.listEligibleRecipients(caller, [
+        'DEV-A',
+        'DEV-B',
+      ]);
+
+      expect(result).toHaveLength(1);
+      expect(profilesLookup.calls).toContainEqual({
+        method: 'in',
+        args: ['id', ['shared-user']],
+      });
     });
   });
 

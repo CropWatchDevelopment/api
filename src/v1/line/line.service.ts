@@ -7,7 +7,16 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { listManagedDevices } from '../common/managed-devices.helper';
+import { canRead } from '../common/permission-levels';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { LineApiClient, type LineMessage } from './line-api.client';
+
+export interface LineRecipientCandidate {
+  userId: string;
+  displayName: string;
+  lineLinked: boolean;
+}
 
 const APP_BASE_URL = 'https://app.cropwatch.io';
 const NONCE_TTL_MS = 10 * 60 * 1000;
@@ -82,6 +91,9 @@ export class LineService {
   async handleEvents(events: LineWebhookEvent[]): Promise<void> {
     for (const event of events) {
       try {
+        this.logger.log(
+          `LINE webhook event: ${event?.type ?? 'unknown'} from ${maskId(event?.source?.userId ?? 'unknown')}`,
+        );
         await this.handleEvent(event);
       } catch (error) {
         // One bad event must not fail the batch — LINE would redeliver all.
@@ -131,10 +143,14 @@ export class LineService {
     lineUserId: string,
     event: LineWebhookEvent,
   ): Promise<void> {
-    const text =
-      typeof event.message?.text === 'string' ? event.message.text.trim() : '';
+    const raw =
+      typeof event.message?.text === 'string' ? event.message.text : '';
+    const text = normalizeLinkCode(raw);
 
     if (!LINK_CODE_PATTERN.test(text)) {
+      this.logger.log(
+        `LINE message from unbound ${maskId(lineUserId)} is not code-shaped (len=${raw.length}) — sending link button`,
+      );
       await this.sendLinkButton(lineUserId);
       return;
     }
@@ -153,11 +169,17 @@ export class LineService {
       throw new Error(`Failed to look up link code: ${codeError.message}`);
     }
     if (!codeRow) {
+      this.logger.warn(
+        `LINE link code from ${maskId(lineUserId)} not found or expired`,
+      );
       await this.pushText(lineUserId, DM.codeInvalid);
       return;
     }
 
     const row = codeRow as { nonce: string; user_id: string };
+    this.logger.log(
+      `LINE link code accepted for user ${row.user_id} from ${maskId(lineUserId)}`,
+    );
     await this.bindProfile(lineUserId, row.user_id, row.nonce);
   }
 
@@ -168,17 +190,32 @@ export class LineService {
   ): Promise<void> {
     const client = this.supabaseService.getAdminClient();
 
-    const { error: updateError } = await client
+    // .select() makes PostgREST return the updated rows, so a silently
+    // missing profiles row (0 rows updated) is detected instead of sending a
+    // false "linked" confirmation.
+    const { data: updated, error: updateError } = await client
       .from('profiles')
       .update({ line_id: lineUserId })
-      .eq('id', userId);
+      .eq('id', userId)
+      .select('id');
 
     if (updateError) {
       if (updateError.code === UNIQUE_VIOLATION) {
+        this.logger.warn(
+          `LINE bind rejected for user ${userId}: LINE account ${maskId(lineUserId)} already linked elsewhere`,
+        );
         await this.pushText(lineUserId, DM.linkedElsewhere);
         return;
       }
       throw new Error(`Failed to bind LINE account: ${updateError.message}`);
+    }
+
+    if (!updated || (updated as unknown[]).length === 0) {
+      this.logger.error(
+        `LINE bind failed for user ${userId}: no profiles row was updated`,
+      );
+      await this.pushText(lineUserId, DM.linkFailed);
+      return;
     }
 
     await client.from('cw_line_link_nonces').delete().eq('nonce', nonce);
@@ -297,6 +334,76 @@ export class LineService {
     throw new Error('Failed to allocate a unique link code');
   }
 
+  // Users eligible as LINE recipients for a rule: everyone with view access
+  // to any of the given devices, scoped to devices the CALLER can view.
+  // Unlinked users are included (flagged) — they start receiving alerts the
+  // moment they link.
+  async listEligibleRecipients(
+    user: AuthenticatedUser,
+    devEuis: string[],
+  ): Promise<LineRecipientCandidate[]> {
+    const client = this.supabaseService.getAdminClient();
+
+    const managed = await listManagedDevices(client, user.sub, user.isStaff);
+    const viewable = new Set(
+      managed.filter((device) => device.canView).map((device) => device.devEui),
+    );
+    const scoped = devEuis.filter((devEui) => viewable.has(devEui));
+    if (scoped.length === 0) return [];
+
+    const { data: devices, error: devicesError } = await client
+      .from('cw_devices')
+      .select('user_id, cw_device_owners(user_id, permission_level)')
+      .in('dev_eui', scoped);
+
+    if (devicesError) {
+      throw new Error(`Failed to load device viewers: ${devicesError.message}`);
+    }
+
+    const viewerIds = new Set<string>();
+    for (const device of (devices ?? []) as Array<{
+      user_id: string | null;
+      cw_device_owners?: Array<{
+        user_id: string | null;
+        permission_level: number | null;
+      }> | null;
+    }>) {
+      if (device.user_id) viewerIds.add(device.user_id);
+      for (const owner of device.cw_device_owners ?? []) {
+        if (owner.user_id && canRead(owner.permission_level)) {
+          viewerIds.add(owner.user_id);
+        }
+      }
+    }
+    if (viewerIds.size === 0) return [];
+
+    const { data: profiles, error: profilesError } = await client
+      .from('profiles')
+      .select('id, full_name, username, email, line_id')
+      .in('id', [...viewerIds]);
+
+    if (profilesError) {
+      throw new Error(`Failed to load profiles: ${profilesError.message}`);
+    }
+
+    return (
+      (profiles ?? []) as Array<{
+        id: string;
+        full_name: string | null;
+        username: string | null;
+        email: string | null;
+        line_id: string | null;
+      }>
+    )
+      .map((profile) => ({
+        userId: profile.id,
+        displayName:
+          profile.full_name ?? profile.username ?? profile.email ?? profile.id,
+        lineLinked: profile.line_id != null,
+      }))
+      .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  }
+
   async unlink(userId: string): Promise<void> {
     // line_id is deliberately excluded from the PATCH-profile whitelist;
     // this service method is the only authenticated write path for it.
@@ -344,4 +451,20 @@ export class LineService {
   private async pushText(lineUserId: string, text: string): Promise<void> {
     await this.lineApiClient.pushMessage(lineUserId, [{ type: 'text', text }]);
   }
+}
+
+/**
+ * Japanese keyboards commonly produce full-width digits (１２３４５６), and
+ * users paste codes with stray whitespace. Normalize to ASCII digits before
+ * matching — this is why the code flow "worked for some users only".
+ */
+function normalizeLinkCode(text: string): string {
+  return text
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    .replace(/\s+/g, '');
+}
+
+// LINE user ids in logs: enough to correlate, not enough to push to.
+function maskId(lineUserId: string): string {
+  return `${lineUserId.slice(0, 6)}…`;
 }
