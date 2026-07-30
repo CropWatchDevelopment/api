@@ -337,7 +337,7 @@ describe('V1 Route Input Contracts', () => {
   beforeAll(async () => {
     serviceRegistry = {
       air: createMockedMethods(['createNote', 'findOne']),
-      auth: createMockedMethods(['loginWithPassword']),
+      auth: createMockedMethods(['loginWithPassword', 'acceptLegal']),
       devices: createMockedMethods([
         'findAll',
         'findAllStatus',
@@ -465,6 +465,21 @@ describe('V1 Route Input Contracts', () => {
         email: 'user@example.com',
         password: 'super-secret',
         rememberMe: true,
+      },
+    },
+    {
+      auth: true,
+      expectedCall: {
+        args: [{ kinds: ['terms_of_service', 'eula'] }, MOCK_USER],
+        method: 'acceptLegal',
+        service: 'auth',
+      },
+      expectedStatus: 201,
+      method: 'post',
+      name: 'POST /v1/auth/legal-acceptance accepts the current body shape',
+      url: '/v1/auth/legal-acceptance',
+      body: {
+        kinds: ['terms_of_service', 'eula'],
       },
     },
     {

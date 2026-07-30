@@ -4,6 +4,25 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
 {
   "components": {
     "schemas": {
+      "AcceptLegalDto": {
+        "properties": {
+          "kinds": {
+            "items": {
+              "enum": [
+                "privacy_policy",
+                "terms_of_service",
+                "eula",
+              ],
+              "type": "string",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "kinds",
+        ],
+        "type": "object",
+      },
       "CreateAirAnnotationDto": {
         "properties": {
           "created_at": {
@@ -688,6 +707,23 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           "required": true,
         },
       },
+    },
+    "/v1/auth/legal-acceptance": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptLegalDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/auth/legal-status": {
+      "get": {},
     },
     "/v1/auth/login": {
       "post": {

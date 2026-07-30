@@ -29,6 +29,7 @@ import { LoginResponseDto } from './dto/login-response.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UpdateEmailDto } from './dto/update-email.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
+import { AcceptLegalDto } from './dto/accept-legal.dto';
 
 @Controller({ path: 'auth', version: '1' })
 @ApiBearerAuth('bearerAuth')
@@ -188,6 +189,57 @@ export class AuthController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.authService.updatePreferences(body, user);
+  }
+
+  @Get('legal-status')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Which legal documents (ToS/EULA/privacy) the user still has to accept',
+  })
+  @ApiOkResponse({
+    description: 'Per-document acceptance status returned successfully.',
+    schema: { type: 'object', additionalProperties: true },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to read legal status.',
+    type: ErrorResponseDto,
+  })
+  async getLegalStatus(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getLegalStatus(user);
+  }
+
+  @Post('legal-acceptance')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Record acceptance of the current version of the given legal documents',
+  })
+  @ApiOkResponse({
+    description: 'Acceptance recorded; fresh legal status returned.',
+    schema: { type: 'object', additionalProperties: true },
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid or unknown document kind.',
+    type: ErrorResponseDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to record legal acceptance.',
+    type: ErrorResponseDto,
+  })
+  async acceptLegal(
+    @Body() body: AcceptLegalDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.authService.acceptLegal(body, user);
   }
 
   @Throttle({ default: { limit: 2, ttl: 60000 } })
