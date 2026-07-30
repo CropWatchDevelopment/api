@@ -242,6 +242,48 @@ export class AuthController {
     return this.authService.acceptLegal(body, user);
   }
 
+  @Get('whats-new')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Whether the user should see the "What\'s New" dialog',
+  })
+  @ApiOkResponse({
+    description: 'Announcement release status returned successfully.',
+    schema: { type: 'object', additionalProperties: true },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to read whats-new status.',
+    type: ErrorResponseDto,
+  })
+  async getWhatsNewStatus(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.getWhatsNewStatus(user);
+  }
+
+  @Post('whats-new/seen')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Mark the current "What\'s New" release as seen by the user',
+  })
+  @ApiOkResponse({
+    description: 'Seen state recorded; fresh status returned.',
+    schema: { type: 'object', additionalProperties: true },
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+  })
+  @ApiInternalServerErrorResponse({
+    description: 'Failed to record whats-new seen state.',
+    type: ErrorResponseDto,
+  })
+  async markWhatsNewSeen(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.markWhatsNewSeen(user);
+  }
+
   @Throttle({ default: { limit: 2, ttl: 60000 } })
   @Post('login')
   @ApiOperation({ summary: 'Login with email and password' })
