@@ -783,6 +783,12 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         },
       },
     },
+    "/v1/auth/whats-new": {
+      "get": {},
+    },
+    "/v1/auth/whats-new/seen": {
+      "post": {},
+    },
     "/v1/devices": {
       "get": {
         "parameters": [

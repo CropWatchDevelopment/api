@@ -23,6 +23,14 @@ type ProfileRow = TableRow<'profiles'>;
 type PreferencesRow = TableRow<'profile_preferences'>;
 type LegalDocumentRow = TableRow<'legal_documents'>;
 type LegalAcceptanceRow = TableRow<'profile_legal_acceptances'>;
+type WhatsNewRow = TableRow<'whats_new'>;
+type WhatsNewSeenRow = TableRow<'profile_whats_new_seen'>;
+
+export interface WhatsNewStatus {
+  current_release: number;
+  seen_release: number | null;
+  show: boolean;
+}
 
 export interface LegalDocumentStatus {
   kind: string;
@@ -450,6 +458,85 @@ export class AuthService {
     }
 
     return this.getLegalStatus(user);
+  }
+
+  /**
+   * Whether the caller should see the "What's New" dialog: the currently
+   * published announcement release (whats_new flag row) vs. the release the
+   * user last dismissed. The release-note content ships inside the app; this
+   * only decides activation.
+   */
+  async getWhatsNewStatus(user: AuthenticatedUser): Promise<WhatsNewStatus> {
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+
+    const { data: flag, error: flagError } = (await client
+      .from('whats_new')
+      .select('current_release')
+      .eq('key', 'app')
+      .maybeSingle()) as QueryResult<Pick<WhatsNewRow, 'current_release'>>;
+    if (flagError) {
+      throw new InternalServerErrorException(
+        'Failed to read whats-new release',
+      );
+    }
+
+    const { data: seen, error: seenError } = (await client
+      .from('profile_whats_new_seen')
+      .select('release')
+      .eq('user_id', userId)
+      .maybeSingle()) as QueryResult<Pick<WhatsNewSeenRow, 'release'>>;
+    if (seenError) {
+      throw new InternalServerErrorException(
+        'Failed to read whats-new seen state',
+      );
+    }
+
+    const currentRelease = flag?.current_release ?? 0;
+    const seenRelease = seen?.release ?? null;
+    return {
+      current_release: currentRelease,
+      seen_release: seenRelease,
+      show: currentRelease > (seenRelease ?? 0),
+    };
+  }
+
+  /**
+   * Record that the caller has seen the CURRENT announcement release. The
+   * release is stamped server-side; the client sends nothing.
+   */
+  async markWhatsNewSeen(user: AuthenticatedUser): Promise<WhatsNewStatus> {
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+
+    const { data: flag, error: flagError } = (await client
+      .from('whats_new')
+      .select('current_release')
+      .eq('key', 'app')
+      .maybeSingle()) as QueryResult<Pick<WhatsNewRow, 'current_release'>>;
+    if (flagError) {
+      throw new InternalServerErrorException(
+        'Failed to read whats-new release',
+      );
+    }
+
+    const { error: upsertError } = await client
+      .from('profile_whats_new_seen')
+      .upsert(
+        {
+          user_id: userId,
+          release: flag?.current_release ?? 0,
+          seen_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' },
+      );
+    if (upsertError) {
+      throw new InternalServerErrorException(
+        'Failed to record whats-new seen state',
+      );
+    }
+
+    return this.getWhatsNewStatus(user);
   }
 
   private readBearerToken(authHeader: string | undefined): string {
