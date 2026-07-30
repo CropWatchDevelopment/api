@@ -2136,6 +2136,38 @@ export type Database = {
           },
         ]
       }
+      legal_document_versions: {
+        Row: {
+          created_at: string
+          effective_at: string
+          kind: string
+          url: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          effective_at?: string
+          kind: string
+          url: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          effective_at?: string
+          kind?: string
+          url?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_document_versions_kind_fkey"
+            columns: ["kind"]
+            isOneToOne: false
+            referencedRelation: "legal_documents"
+            referencedColumns: ["kind"]
+          },
+        ]
+      }
       legal_documents: {
         Row: {
           current_version: number

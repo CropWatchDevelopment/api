@@ -21,7 +21,7 @@ const RESTRICTED_EMAIL_CHANGE_DOMAINS = ['@cropwatch.io', '@cropwatch.co.jp'];
 
 type ProfileRow = TableRow<'profiles'>;
 type PreferencesRow = TableRow<'profile_preferences'>;
-type LegalDocumentRow = TableRow<'legal_documents'>;
+type LegalVersionRow = TableRow<'legal_document_versions'>;
 type LegalAcceptanceRow = TableRow<'profile_legal_acceptances'>;
 type WhatsNewRow = TableRow<'whats_new'>;
 type WhatsNewSeenRow = TableRow<'profile_whats_new_seen'>;
@@ -350,24 +350,51 @@ export class AuthService {
   }
 
   /**
+   * The currently effective version row per document kind: the highest
+   * version in legal_document_versions whose effective_at has passed. Rows
+   * with a future effective_at are scheduled updates — invisible here until
+   * their moment arrives, at which point the re-accept gate activates on its
+   * own (several kinds sharing one effective_at gate together).
+   */
+  private async getEffectiveLegalDocuments(): Promise<LegalVersionRow[]> {
+    const client = this.supabaseService.getClient();
+
+    const { data: versions, error } = (await client
+      .from('legal_document_versions')
+      .select('*')
+      .lte('effective_at', new Date().toISOString())
+      .order('kind')
+      .order('version', { ascending: false })) as {
+      data: LegalVersionRow[] | null;
+      error: PostgrestError | null;
+    };
+    if (error || !versions) {
+      throw new InternalServerErrorException('Failed to read legal documents');
+    }
+
+    // Sorted kind ASC, version DESC — the first row of each kind is current.
+    const current: LegalVersionRow[] = [];
+    for (const row of versions) {
+      if (
+        current.length === 0 ||
+        current[current.length - 1].kind !== row.kind
+      ) {
+        current.push(row);
+      }
+    }
+    return current;
+  }
+
+  /**
    * Which legal documents (ToS / EULA / privacy) the caller still has to
    * accept: their latest recorded acceptance per document vs. the currently
-   * published version in legal_documents.
+   * effective version in legal_document_versions.
    */
   async getLegalStatus(user: AuthenticatedUser): Promise<LegalStatus> {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
 
-    const { data: documents, error: documentsError } = (await client
-      .from('legal_documents')
-      .select('*')
-      .order('kind')) as {
-      data: LegalDocumentRow[] | null;
-      error: PostgrestError | null;
-    };
-    if (documentsError || !documents) {
-      throw new InternalServerErrorException('Failed to read legal documents');
-    }
+    const documents = await this.getEffectiveLegalDocuments();
 
     const { data: acceptances, error: acceptancesError } = (await client
       .from('profile_legal_acceptances')
@@ -398,13 +425,13 @@ export class AuthService {
       }
       return {
         kind: doc.kind,
-        current_version: doc.current_version,
+        current_version: doc.version,
         url: doc.url,
         effective_at: doc.effective_at,
         accepted_version: acceptedVersion,
         accepted_at: acceptedAt,
         needs_acceptance:
-          acceptedVersion === null || acceptedVersion < doc.current_version,
+          acceptedVersion === null || acceptedVersion < doc.version,
       };
     });
 
@@ -425,18 +452,11 @@ export class AuthService {
   ): Promise<LegalStatus> {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
-    const kinds = [...new Set(dto.kinds)];
+    const kinds: string[] = [...new Set(dto.kinds)];
 
-    const { data: documents, error: documentsError } = (await client
-      .from('legal_documents')
-      .select('kind, current_version')
-      .in('kind', kinds)) as {
-      data: Pick<LegalDocumentRow, 'kind' | 'current_version'>[] | null;
-      error: PostgrestError | null;
-    };
-    if (documentsError || !documents) {
-      throw new InternalServerErrorException('Failed to read legal documents');
-    }
+    const documents = (await this.getEffectiveLegalDocuments()).filter((doc) =>
+      kinds.includes(doc.kind),
+    );
     if (documents.length !== kinds.length) {
       throw new BadRequestException('Unknown legal document kind');
     }
@@ -447,7 +467,7 @@ export class AuthService {
         documents.map((doc) => ({
           user_id: userId,
           kind: doc.kind,
-          version: doc.current_version,
+          version: doc.version,
         })),
         { onConflict: 'user_id,kind,version', ignoreDuplicates: true },
       );
