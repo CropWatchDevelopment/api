@@ -26,6 +26,9 @@ Full background: [`docs/security-review.md`](../../docs/security-review.md),
 | `014_profile_preferences.sql` | Creates `profile_preferences` (1-to-1 with `profiles`) and an `auth.users.email` → `profiles.email` sync trigger for the account preferences + verified email-change feature | Before deploying the profile/preferences API release; regenerate `database.types.ts` after |
 | `015_stripe_billing.sql` | Polar → Stripe billing migration: renames `polar_customer_id`/`polar_subscription_id` to `stripe_customer_id`/`stripe_subscription_id` and clears Polar-era cached rows (zero production customers at migration time) | Before deploying the Stripe API release; regenerate `database.types.ts` after |
 | `016_report_regeneration_queue.sql` | Creates `cw_report_regeneration_queue` — queue for regenerating report PDFs after note edits (produced by the API, consumed by CW-Reports during its cron runs) | Before deploying the report-notes-edit API release; regenerate `database.types.ts` (api + CropWatch) after |
+| `017_line_notifications.sql` | Creates `cw_line_link_nonces` (LINE account-link handshake nonces) + unique partial index on `profiles.line_id` | Before deploying the LINE-linking API release |
+| `018_line_action_type.sql` | Seeds `cw_rule_action_types` with the LINE action (id 4) — data-driven rules-UI option | **Last** — only after the alert service with `LineAlertActionHandler` is deployed |
+| `019_legal_documents.sql` | Creates `legal_documents` (versioned ToS/EULA/privacy) + `profile_legal_acceptances` (append-only audit), extends `handle_new_user()` to record signup consent (and fixes the first_name/last_name/company metadata mismatch), backfills existing users at v1 | Before deploying the legal re-acceptance API release; regenerate `database.types.ts` (api + CropWatch) after. Publish an update later via the OPS `UPDATE` in the script footer |
 
 ## Deploy/run interleaving (critical)
 

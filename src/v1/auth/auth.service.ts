@@ -13,6 +13,7 @@ import type { TableRow } from '../types/supabase';
 import type { AuthenticatedUser } from './authenticated-user';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UpdatePreferencesDto } from './dto/update-preferences.dto';
+import { AcceptLegalDto } from './dto/accept-legal.dto';
 
 // Accounts on these domains are locked to their corporate identity and may not
 // change their email address (checked against the caller's current email).
@@ -20,6 +21,23 @@ const RESTRICTED_EMAIL_CHANGE_DOMAINS = ['@cropwatch.io', '@cropwatch.co.jp'];
 
 type ProfileRow = TableRow<'profiles'>;
 type PreferencesRow = TableRow<'profile_preferences'>;
+type LegalDocumentRow = TableRow<'legal_documents'>;
+type LegalAcceptanceRow = TableRow<'profile_legal_acceptances'>;
+
+export interface LegalDocumentStatus {
+  kind: string;
+  current_version: number;
+  url: string;
+  effective_at: string;
+  accepted_version: number | null;
+  accepted_at: string | null;
+  needs_acceptance: boolean;
+}
+
+export interface LegalStatus {
+  needs_acceptance: boolean;
+  documents: LegalDocumentStatus[];
+}
 
 /** Shape of a PostgREST single/maybeSingle response from the untyped client. */
 type QueryResult<T> = { data: T | null; error: PostgrestError | null };
@@ -321,6 +339,117 @@ export class AuthService {
     }
 
     return data;
+  }
+
+  /**
+   * Which legal documents (ToS / EULA / privacy) the caller still has to
+   * accept: their latest recorded acceptance per document vs. the currently
+   * published version in legal_documents.
+   */
+  async getLegalStatus(user: AuthenticatedUser): Promise<LegalStatus> {
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+
+    const { data: documents, error: documentsError } = (await client
+      .from('legal_documents')
+      .select('*')
+      .order('kind')) as {
+      data: LegalDocumentRow[] | null;
+      error: PostgrestError | null;
+    };
+    if (documentsError || !documents) {
+      throw new InternalServerErrorException('Failed to read legal documents');
+    }
+
+    const { data: acceptances, error: acceptancesError } = (await client
+      .from('profile_legal_acceptances')
+      .select('kind, version, accepted_at')
+      .eq('user_id', userId)) as {
+      data:
+        | Pick<LegalAcceptanceRow, 'kind' | 'version' | 'accepted_at'>[]
+        | null;
+      error: PostgrestError | null;
+    };
+    if (acceptancesError) {
+      throw new InternalServerErrorException(
+        'Failed to read legal acceptances',
+      );
+    }
+
+    const documentStatuses: LegalDocumentStatus[] = documents.map((doc) => {
+      let acceptedVersion: number | null = null;
+      let acceptedAt: string | null = null;
+      for (const acceptance of acceptances ?? []) {
+        if (
+          acceptance.kind === doc.kind &&
+          (acceptedVersion === null || acceptance.version > acceptedVersion)
+        ) {
+          acceptedVersion = acceptance.version;
+          acceptedAt = acceptance.accepted_at;
+        }
+      }
+      return {
+        kind: doc.kind,
+        current_version: doc.current_version,
+        url: doc.url,
+        effective_at: doc.effective_at,
+        accepted_version: acceptedVersion,
+        accepted_at: acceptedAt,
+        needs_acceptance:
+          acceptedVersion === null || acceptedVersion < doc.current_version,
+      };
+    });
+
+    return {
+      needs_acceptance: documentStatuses.some((doc) => doc.needs_acceptance),
+      documents: documentStatuses,
+    };
+  }
+
+  /**
+   * Record the caller's acceptance of the CURRENT version of each requested
+   * document. Versions are stamped server-side; re-accepting an already
+   * accepted version is a no-op that preserves the original accepted_at.
+   */
+  async acceptLegal(
+    dto: AcceptLegalDto,
+    user: AuthenticatedUser,
+  ): Promise<LegalStatus> {
+    const client = this.supabaseService.getClient();
+    const userId = user.sub;
+    const kinds = [...new Set(dto.kinds)];
+
+    const { data: documents, error: documentsError } = (await client
+      .from('legal_documents')
+      .select('kind, current_version')
+      .in('kind', kinds)) as {
+      data: Pick<LegalDocumentRow, 'kind' | 'current_version'>[] | null;
+      error: PostgrestError | null;
+    };
+    if (documentsError || !documents) {
+      throw new InternalServerErrorException('Failed to read legal documents');
+    }
+    if (documents.length !== kinds.length) {
+      throw new BadRequestException('Unknown legal document kind');
+    }
+
+    const { error: upsertError } = await client
+      .from('profile_legal_acceptances')
+      .upsert(
+        documents.map((doc) => ({
+          user_id: userId,
+          kind: doc.kind,
+          version: doc.current_version,
+        })),
+        { onConflict: 'user_id,kind,version', ignoreDuplicates: true },
+      );
+    if (upsertError) {
+      throw new InternalServerErrorException(
+        'Failed to record legal acceptance',
+      );
+    }
+
+    return this.getLegalStatus(user);
   }
 
   private readBearerToken(authHeader: string | undefined): string {
