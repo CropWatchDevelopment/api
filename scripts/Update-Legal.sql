@@ -15,9 +15,9 @@ SELECT u.kind,
        u.url,
        u.effective_at
 FROM (VALUES   -- keep only the rows for the documents that changed
-  ('eula',             'https://www.cropwatch.io/legal/EULA',             timestamptz '2026-09-01 00:00:00+09'),
-  ('terms_of_service', 'https://www.cropwatch.io/legal/terms-of-service', timestamptz '2026-09-01 00:00:00+09'),
-  ('privacy_policy',   'https://www.cropwatch.io/legal/privacy-policy',   timestamptz '2026-09-01 00:00:00+09')
+  ('eula',             'https://www.cropwatch.co.jp/legal/EULA',             timestamptz '2026-08-01 00:00:00+09'),
+  -- ('terms_of_service', 'https://www.cropwatch.co.jp/legal/terms-of-service', timestamptz '2026-08-01 00:00:00+09'),
+  -- ('privacy_policy',   'https://www.cropwatch.co.jp/legal/privacy-policy',   timestamptz '2026-08-01 00:00:00+09')
 ) AS u(kind, url, effective_at);
 
 -- Review scheduled-but-not-yet-effective updates:
