@@ -22,6 +22,7 @@ import { DashboardModule } from './v1/dashboard/dashboard.module';
 import { PaymentsModule } from './v1/payments/payments.module';
 import { LineModule } from './v1/line/line.module';
 import { PushModule } from './v1/push/push.module';
+import { AccountRemovalModule } from './v1/account-removal/account-removal.module';
 import { CropwatchMcpModule } from './v1/mcp/mcp.module';
 
 @Module({
@@ -72,6 +73,7 @@ import { CropwatchMcpModule } from './v1/mcp/mcp.module';
     PaymentsModule,
     LineModule,
     PushModule,
+    AccountRemovalModule,
     CropwatchMcpModule,
   ],
   controllers: [AppController],
