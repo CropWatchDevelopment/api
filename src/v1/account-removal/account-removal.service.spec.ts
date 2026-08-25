@@ -5,7 +5,7 @@ import {
 import type { ConfigService } from '@nestjs/config';
 import { AccountRemovalService } from './account-removal.service';
 
-const sendMailMock = jest.fn();
+const sendMailMock = jest.fn((_mail: unknown) => Promise.resolve());
 
 jest.mock('nodemailer', () => ({
   createTransport: jest.fn(() => ({ sendMail: sendMailMock })),
@@ -43,7 +43,9 @@ describe('AccountRemovalService', () => {
       expect(Number.isInteger(a)).toBe(true);
       expect(Number.isInteger(b)).toBe(true);
 
-      expect(() => service.verifyChallenge(a + b, challenge.token)).not.toThrow();
+      expect(() =>
+        service.verifyChallenge(a + b, challenge.token),
+      ).not.toThrow();
     });
 
     it('rejects a wrong answer', () => {

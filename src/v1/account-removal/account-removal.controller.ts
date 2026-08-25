@@ -21,9 +21,7 @@ import { RequestAccountRemovalDto } from './dto/request-account-removal.dto';
 @ApiTags('account-removal')
 @Controller({ path: 'account-removal', version: '1' })
 export class AccountRemovalController {
-  constructor(
-    private readonly accountRemovalService: AccountRemovalService,
-  ) {}
+  constructor(private readonly accountRemovalService: AccountRemovalService) {}
 
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Get('challenge')
@@ -38,8 +36,7 @@ export class AccountRemovalController {
   @Post('request')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
-    summary:
-      'Submit an account removal request (public; emails the operators)',
+    summary: 'Submit an account removal request (public; emails the operators)',
   })
   async submitRequest(
     @Body() body: RequestAccountRemovalDto,
