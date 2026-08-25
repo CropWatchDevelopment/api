@@ -20,6 +20,7 @@ import {
   ApiParam,
   ApiSecurity,
 } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
@@ -169,6 +170,10 @@ export class PaymentsController {
     );
   }
 
+  // Signature-verified in the service and driven by Stripe's own retrying
+  // delivery from a small set of provider IPs — exempt from the per-user/IP
+  // throttler so a retry burst can't get billing events dropped with a 429.
+  @SkipThrottle()
   @Post('webhook')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({

@@ -3,7 +3,7 @@ import {
   Body,
   Controller,
   Get,
-  InternalServerErrorException,
+  NotImplementedException,
   Param,
   Patch,
   Post,
@@ -462,31 +462,20 @@ export class DevicesController {
     Please contact support if you would like this feature to be prioritized.
     `,
   })
-  async replace(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param('dev_eui') devEui: string,
-    @Body() body: ReplaceDeviceDto,
-  ) {
-    const normalizedDevEui = devEui?.trim();
-    if (body.dev_eui?.trim() && body.dev_eui.trim() !== normalizedDevEui) {
-      throw new BadRequestException(
-        'dev_eui in body must match route parameter',
-      );
-    }
-
-    const replacementDevice: ReplaceDeviceDto = body;
-
-    const insertResult = await this.devicesService.replaceDevice(
-      user,
-      normalizedDevEui,
-      replacementDevice,
+  replace(
+    @CurrentUser() _user: AuthenticatedUser,
+    @Param('dev_eui') _devEui: string,
+    @Body() _body: ReplaceDeviceDto,
+  ): never {
+    // Device replacement is intentionally disabled. Re-keying a device's dev_eui
+    // requires atomically re-pointing 16 child tables whose FKs lack
+    // ON UPDATE CASCADE, plus a corrected authorization + uniqueness design
+    // (tracked as a separate implementation pass). Until that lands, fail closed
+    // with 501 rather than run the previous unauthorized / FK-violating path.
+    // Params are kept (with `_` prefix) so the OpenAPI contract is unchanged.
+    throw new NotImplementedException(
+      'Device replacement is not yet implemented. Please contact support if you would like this feature to be prioritized.',
     );
-    if (!insertResult) {
-      throw new InternalServerErrorException(
-        'Device replacement is not yet implemented. Please contact support if you would like this feature to be prioritized.',
-      );
-    }
-    return insertResult;
   }
 
   @Patch(':dev_eui/permission-level')

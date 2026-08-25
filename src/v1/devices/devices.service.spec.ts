@@ -608,4 +608,111 @@ describe('DevicesService', () => {
       );
     });
   });
+
+  describe('replaceDevice', () => {
+    const admin = {
+      sub: 'admin-1',
+      email: 'admin@example.com',
+      isStaff: false,
+    };
+
+    // ADMIN-scope device lookup: .select().eq().eq().lte().or().single().
+    function createDeviceScopeBuilder(deviceRow: unknown) {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: deviceRow, error: null }),
+      };
+    }
+
+    // Update path: .update().eq().select('*').single().
+    function createUpdateBuilder(row: unknown) {
+      return {
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({ data: row, error: null }),
+      };
+    }
+
+    function createService(builders: unknown[]) {
+      const fromMock = jest.fn();
+      for (const builder of builders) {
+        fromMock.mockImplementationOnce(() => builder);
+      }
+      const supabaseService = {
+        getClient: jest.fn(() => ({ from: fromMock })),
+        getAdminClient: jest.fn(),
+      };
+      return {
+        service: new DevicesService(
+          supabaseService as unknown as SupabaseService,
+          {} as any,
+        ),
+        fromMock,
+      };
+    }
+
+    it('authorizes against the replacement dev_eui, not the old one', async () => {
+      const existingBuilder = createDeviceScopeBuilder({ dev_eui: 'OLD-EUI' });
+      const newDeviceBuilder = createDeviceScopeBuilder({ dev_eui: 'NEW-EUI' });
+      const updateBuilder = createUpdateBuilder({ dev_eui: 'NEW-EUI' });
+      const { service, fromMock } = createService([
+        existingBuilder,
+        newDeviceBuilder,
+        updateBuilder,
+      ]);
+
+      await service.replaceDevice(admin, 'OLD-EUI', { dev_eui: 'NEW-EUI' });
+
+      // The old-device check still runs against the route eui...
+      expect(existingBuilder.eq).toHaveBeenCalledWith('dev_eui', 'OLD-EUI');
+      // ...and the replacement check must target the NEW eui. The bug was that
+      // it re-checked the old eui, so no authz ever ran against the target.
+      expect(newDeviceBuilder.eq).toHaveBeenCalledWith('dev_eui', 'NEW-EUI');
+      expect(newDeviceBuilder.eq).not.toHaveBeenCalledWith(
+        'dev_eui',
+        'OLD-EUI',
+      );
+      expect(fromMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not update when the caller lacks access to the replacement device', async () => {
+      const existingBuilder = createDeviceScopeBuilder({ dev_eui: 'OLD-EUI' });
+      const newDeviceBuilder = createDeviceScopeBuilder(null); // no access to NEW
+      const updateBuilder = createUpdateBuilder({ dev_eui: 'NEW-EUI' });
+      const { service, fromMock } = createService([
+        existingBuilder,
+        newDeviceBuilder,
+        updateBuilder,
+      ]);
+
+      await expect(
+        service.replaceDevice(admin, 'OLD-EUI', { dev_eui: 'NEW-EUI' }),
+      ).rejects.toMatchObject({ status: 404 });
+
+      expect(newDeviceBuilder.eq).toHaveBeenCalledWith('dev_eui', 'NEW-EUI');
+      // The device update must never run.
+      expect(updateBuilder.update).not.toHaveBeenCalled();
+      expect(fromMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects a blank replacement dev_eui before any replacement lookup', async () => {
+      const existingBuilder = createDeviceScopeBuilder({ dev_eui: 'OLD-EUI' });
+      const updateBuilder = createUpdateBuilder({ dev_eui: 'NEW-EUI' });
+      const { service, fromMock } = createService([
+        existingBuilder,
+        updateBuilder,
+      ]);
+
+      await expect(
+        service.replaceDevice(admin, 'OLD-EUI', { dev_eui: '  ' }),
+      ).rejects.toMatchObject({ status: 400 });
+
+      // Only the existing-device lookup ran; no replacement lookup, no update.
+      expect(fromMock).toHaveBeenCalledTimes(1);
+    });
+  });
 });

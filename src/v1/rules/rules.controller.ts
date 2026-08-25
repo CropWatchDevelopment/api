@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   ParseIntPipe,
   Patch,
@@ -19,6 +20,8 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { RuleActionTypeDto } from './dto/rule-action-type.dto';
+import { RuleCatalogDto } from './dto/rule-catalog.dto';
+import { RuleDeviceStateDto } from './dto/rule-device-state.dto';
 import { RuleFormContextDto } from './dto/rule-form-context.dto';
 import { RuleTemplateDto } from './dto/rule-template.dto';
 import { RuleTriggerLogDto } from './dto/rule-trigger-log.dto';
@@ -106,6 +109,41 @@ export class RulesController {
   @Get('triggered/count')
   findTriggeredCount(@CurrentUser() user: AuthenticatedUser) {
     return this.rulesService.findTriggeredCount(user);
+  }
+  @ApiOkResponse({
+    description:
+      'Active rule templates the caller can see, each with its assigned devices only. Trimmed for low-power provisioning clients (ESP32 bridge portal).',
+    type: RuleCatalogDto,
+  })
+  @Header('Cache-Control', 'no-store')
+  @Get('catalog')
+  getCatalog(@CurrentUser() user: AuthenticatedUser) {
+    return this.rulesService.getCatalog(user);
+  }
+  @ApiOkResponse({
+    description:
+      'Current rule state for the requested devices, shaped for low-power polling clients. Pairs without a state row have never triggered and are omitted; treat absence as not triggered.',
+    type: RuleDeviceStateDto,
+  })
+  @ApiQuery({
+    name: 'dev_eui',
+    description:
+      'Device EUI to include. Repeatable, or a single comma-separated list.',
+    required: true,
+    type: String,
+    isArray: true,
+  })
+  @Header('Cache-Control', 'no-store')
+  @Get('state')
+  getStateForDevices(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('dev_eui') devEui?: string | string[],
+  ) {
+    const devEuis = (Array.isArray(devEui) ? devEui : devEui ? [devEui] : [])
+      .flatMap((entry) => entry.split(','))
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+    return this.rulesService.getStateForDevices(user, devEuis);
   }
   @ApiOkResponse({
     description:
