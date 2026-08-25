@@ -1,8 +1,4 @@
-import {
-  createHmac,
-  randomInt,
-  timingSafeEqual,
-} from 'crypto';
+import { createHmac, randomInt, timingSafeEqual } from 'crypto';
 import {
   BadRequestException,
   Injectable,
@@ -137,9 +133,7 @@ export class AccountRemovalService {
     const user = this.configService.get<string>('SMTP_USER');
     const pass = this.configService.get<string>('SMTP_PASS');
     if (!host || !user || !pass) {
-      throw new ServiceUnavailableException(
-        'Email delivery is not configured',
-      );
+      throw new ServiceUnavailableException('Email delivery is not configured');
     }
     const port = Number(this.configService.get<string>('SMTP_PORT') ?? '465');
 
