@@ -1,0 +1,117 @@
+================================================================================
+ CropWatch "What's New" — publishing a release announcement
+ (and how to get an LLM to write the messages for you)
+================================================================================
+
+WHAT THIS IS
+------------
+Users see a one-time "What's New" dialog after login whenever a new release is
+flagged. The mechanism has two halves:
+
+  1. CONTENT lives in the CropWatch app repo (NOT the database):
+       - messages/en.json + messages/ja.json  → whats_new_r{N}_item{X}_title/_body keys
+       - src/lib/components/whats-new/WhatsNewDialog.svelte
+           → RELEASE_ITEMS array (which keys to show)
+           → WHATS_NEW_CONTENT_RELEASE constant (which release this build describes)
+
+  2. ACTIVATION is a single DB row (public.whats_new). The dialog only shows
+     when the DB's current_release is BOTH greater than what the user has seen
+     AND exactly equal to the app's WHATS_NEW_CONTENT_RELEASE. So flagging a
+     release before (or after) the matching app deploy is always safe — the
+     dialog just stays silent until both match.
+
+ACTIVATION SQL (run in Supabase SQL editor AFTER the app deploy for release N):
+
+    UPDATE public.whats_new SET current_release = 1, published_at = now() WHERE key = 'app';
+
+    -- change "1" to the release number that matches WHATS_NEW_CONTENT_RELEASE
+    -- in the deployed app.
+
+
+================================================================================
+ HOW TO GET AN LLM (ChatGPT, Claude, etc.) TO WRITE THE MESSAGES
+================================================================================
+
+You write rough notes about what shipped; the LLM turns them into polished,
+translated, correctly-keyed message entries. Copy the prompt below, fill in the
+two placeholders, and paste it into the LLM.
+
+--------------------------- COPY FROM HERE -------------------------------------
+
+You are writing user-facing release notes for CropWatch, a LoRaWAN
+agricultural / environmental sensor monitoring web app used by farmers and
+site managers in English and Japanese.
+
+Here are my rough notes on what shipped (may be terse or unordered):
+
+<<< PASTE YOUR ROUGH NOTES HERE, e.g.:
+- can update email on profile page now
+- dew point shown on temp/humidity devices
+>>>
+
+The release number is: <<< N >>>
+
+Produce EXACTLY three outputs:
+
+1. JSON lines for messages/en.json — one _title/_body pair per item, keys
+   numbered whats_new_r<N>_item1 ... itemX in the order given:
+
+   "whats_new_r<N>_item1_title": "...",
+   "whats_new_r<N>_item1_body": "...",
+
+2. The same keys for messages/ja.json with natural Japanese translations
+   (polite です/ます register, keep product terms like LINE / CropWatch as-is).
+
+3. The RELEASE_ITEMS array literal for WhatsNewDialog.svelte listing every
+   item, in this exact shape:
+
+   const RELEASE_ITEMS = [
+     { title: m.whats_new_r<N>_item1_title, body: m.whats_new_r<N>_item1_body },
+     ...
+   ];
+
+Writing rules:
+- Title: 2–5 words, plain language, names the feature (no trailing period).
+- Body: ONE sentence, states the user benefit and where to find it
+  (e.g. "from your account page"), no jargon, no marketing fluff, no
+  exclamation marks.
+- Do not invent features I did not list. Ask me if a note is unclear.
+- Output only the three blocks above, nothing else.
+
+--------------------------- COPY TO HERE ---------------------------------------
+
+
+================================================================================
+ WHAT TO DO WITH THE LLM'S OUTPUT (CropWatch app repo)
+================================================================================
+
+1. Paste block 1 into messages/en.json and block 2 into messages/ja.json,
+   next to the existing whats_new_* keys (keep both files' key lists identical).
+
+2. In src/lib/components/whats-new/WhatsNewDialog.svelte:
+     - replace the RELEASE_ITEMS array with block 3
+     - bump:  const WHATS_NEW_CONTENT_RELEASE = <N>;
+
+3. Regenerate + verify (repo root):
+     pnpm run paraglide      (or just `pnpm run check`, which includes it)
+     pnpm run check
+     pnpm run lint
+
+4. Test locally before deploying:
+     UPDATE public.whats_new SET current_release = <N>, published_at = now() WHERE key = 'app';
+     -- reload the app: dialog appears once; dismiss; reload: gone.
+     -- to see it again:
+     DELETE FROM public.profile_whats_new_seen WHERE user_id = '<your-user-id>';
+
+5. Deploy the app. THEN run the activation SQL against prod (step order
+   matters only for timing — a mismatch is silent, never broken).
+
+NOTES
+-----
+- Old releases' keys (whats_new_r1_*, ...) can stay in the json files forever;
+  only the keys referenced by RELEASE_ITEMS are shown.
+- Aim for 3–6 items; the dialog body scrolls but shorter is better.
+- Per-user seen state is in public.profile_whats_new_seen (one row per user,
+  release they last dismissed). public.whats_new is the single-row flag.
+- Full mechanism + tables: api/supabase/updates/020_whats_new.sql
+================================================================================

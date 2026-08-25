@@ -13,17 +13,10 @@ import { AllExceptionsFilter } from './v1/common/filters/all-exceptions.filter';
 import { STATUS_CODES } from 'http';
 import type { Express, NextFunction, Request, Response } from 'express';
 
+// With `trust proxy` pinned to a single hop (Vercel), Express resolves req.ip to
+// the authentic client address (the right-most X-Forwarded-For entry Vercel
+// appends), so we no longer hand-parse the spoofable left-most XFF entry.
 function getRequesterIp(req: Request): string {
-  const forwardedFor = req.headers['x-forwarded-for'];
-
-  if (typeof forwardedFor === 'string' && forwardedFor.trim().length > 0) {
-    return forwardedFor.split(',')[0].trim();
-  }
-
-  if (Array.isArray(forwardedFor) && forwardedFor.length > 0) {
-    return forwardedFor[0].split(',')[0].trim();
-  }
-
   return req.ip || req.socket.remoteAddress || 'unknown';
 }
 
@@ -35,8 +28,35 @@ async function bootstrap() {
   // The Express adapter's getInstance() is typed `any`; pin it once here.
   const expressApp = app.getHttpAdapter().getInstance() as Express;
 
-  expressApp.set('trust proxy', true);
+  // Vercel puts exactly one proxy hop in front of the function, so trust only
+  // that single hop. Express then resolves req.ip to the address Vercel appended
+  // (the right-most XFF entry) rather than a client-spoofable left-most one — the
+  // rate-limit tracker and request logs both depend on this being authentic.
+  expressApp.set('trust proxy', 1);
   app.enableCors();
+
+  // Register Helmet BEFORE the routes and Swagger below, so every response —
+  // including the Swagger UI and the /docs-json-* handlers — carries the security
+  // headers. (It was previously added after Swagger, leaving those routes bare.)
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          connectSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            'https://fonts.googleapis.com',
+          ],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+          imgSrc: ["'self'", 'data:'],
+          scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+        },
+      },
+    }),
+  );
+
   app.use((req: Request, res: Response, next: NextFunction) => {
     const endpoint = req.originalUrl || req.url || 'unknown';
     const method = req.method || 'UNKNOWN';
@@ -161,24 +181,6 @@ Developer notes:
       'urls.primaryName': 'v1',
     },
   });
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          connectSrc: ["'self'", 'https://cdn.jsdelivr.net'],
-          styleSrc: [
-            "'self'",
-            "'unsafe-inline'",
-            'https://fonts.googleapis.com',
-          ],
-          fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-          imgSrc: ["'self'", 'data:'],
-          scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
-        },
-      },
-    }),
-  );
   await app.listen(process.env.PORT ?? 3000);
 }
 void bootstrap();

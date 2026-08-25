@@ -25,6 +25,47 @@ describe('RulesController', () => {
     expect(controller).toBeDefined();
   });
 
+  it('getStateForDevices accepts repeated and comma-separated dev_eui params', async () => {
+    const getStateForDevices = jest.fn().mockResolvedValue({
+      ts: '2026-08-11T00:00:00Z',
+      states: [],
+    });
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [RulesController],
+      providers: [{ provide: RulesService, useValue: { getStateForDevices } }],
+    }).compile();
+    const user = { sub: 'user-1', email: 'user@example.com', isStaff: false };
+
+    await module
+      .get<RulesController>(RulesController)
+      .getStateForDevices(user, ['AA', 'BB,CC', ' DD ', '']);
+
+    expect(getStateForDevices).toHaveBeenCalledWith(user, [
+      'AA',
+      'BB',
+      'CC',
+      'DD',
+    ]);
+  });
+
+  it('getStateForDevices tolerates a missing dev_eui param', async () => {
+    const getStateForDevices = jest.fn().mockResolvedValue({
+      ts: '2026-08-11T00:00:00Z',
+      states: [],
+    });
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [RulesController],
+      providers: [{ provide: RulesService, useValue: { getStateForDevices } }],
+    }).compile();
+    const user = { sub: 'user-1', email: 'user@example.com', isStaff: false };
+
+    await module
+      .get<RulesController>(RulesController)
+      .getStateForDevices(user, undefined);
+
+    expect(getStateForDevices).toHaveBeenCalledWith(user, []);
+  });
+
   it('accepts action config under whitelist validation', async () => {
     const pipe = new ValidationPipe({
       forbidNonWhitelisted: true,
