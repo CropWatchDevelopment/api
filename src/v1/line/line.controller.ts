@@ -19,6 +19,7 @@ import {
 } from '@nestjs/swagger';
 import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
+import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
@@ -33,6 +34,10 @@ import {
 export class LineController {
   constructor(private readonly lineService: LineService) {}
 
+  // Signature-verified in the service and delivered by LINE's own retrying
+  // webhook from a small set of provider IPs — exempt from the per-user/IP
+  // throttler so a redelivery burst can't be dropped with a 429.
+  @SkipThrottle()
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

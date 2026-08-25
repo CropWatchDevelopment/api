@@ -964,11 +964,18 @@ export class DevicesService {
       throw new NotFoundException('Device not found');
     }
 
-    // We have access to the existing device, lets ensure we have access to the new device.
+    // We have access to the existing device; verify access to the REPLACEMENT
+    // device by its own dev_eui. Previously this re-checked the old eui (a
+    // copy-paste of the block above), so no authorization was ever performed
+    // against the target device.
+    const normalizedNewDevEui = newDevice.dev_eui?.trim();
+    if (!normalizedNewDevEui) {
+      throw new BadRequestException('Replacement dev_eui is required');
+    }
     let newDeviceQuery = client
       .from('cw_devices')
       .select(`*, owner_match:cw_device_owners()`)
-      .eq('dev_eui', normalizedDevEui);
+      .eq('dev_eui', normalizedNewDevEui);
 
     newDeviceQuery = this.applyDeviceManageScope(
       newDeviceQuery,

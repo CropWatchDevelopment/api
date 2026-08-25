@@ -300,6 +300,96 @@ describe('RulesService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  describe('getStateForDevices', () => {
+    const jwt = { sub: 'user-1', email: 'user@example.com', isStaff: false };
+
+    const deviceRows = [
+      { dev_eui: 'AA', name: 'Mine', user_id: 'user-1', cw_device_owners: [] },
+      {
+        dev_eui: 'BB',
+        name: 'Not mine',
+        user_id: 'someone-else',
+        cw_device_owners: [],
+      },
+    ];
+
+    it('returns state rows only for visible requested devices', async () => {
+      const stateQuery = buildQueryStub({
+        list: {
+          data: [
+            {
+              dev_eui: 'AA',
+              template_id: 5,
+              is_triggered: true,
+              last_triggered_at: '2026-08-11T01:00:00Z',
+              last_reset_at: '2026-08-10T01:00:00Z',
+            },
+          ],
+          error: null,
+        },
+      });
+      const client = buildClient({
+        cw_devices: buildQueryStub({ list: { data: deviceRows, error: null } }),
+        cw_rule_state: stateQuery,
+      });
+      const service = serviceWith(client);
+
+      const result = await service.getStateForDevices(jwt, ['AA', 'BB']);
+
+      // BB belongs to someone else and must not reach the state query.
+      expect(stateQuery.in).toHaveBeenCalledWith('dev_eui', ['AA']);
+      expect(result.states).toEqual([
+        {
+          devEui: 'AA',
+          templateId: 5,
+          isTriggered: true,
+          lastChange: '2026-08-11T01:00:00Z',
+        },
+      ]);
+      expect(typeof result.ts).toBe('string');
+    });
+
+    it('lastChange is the reset time when the reset is newer', async () => {
+      const client = buildClient({
+        cw_devices: buildQueryStub({ list: { data: deviceRows, error: null } }),
+        cw_rule_state: buildQueryStub({
+          list: {
+            data: [
+              {
+                dev_eui: 'AA',
+                template_id: 5,
+                is_triggered: false,
+                last_triggered_at: '2026-08-10T01:00:00Z',
+                last_reset_at: '2026-08-11T02:00:00Z',
+              },
+            ],
+            error: null,
+          },
+        }),
+      });
+
+      const result = await serviceWith(client).getStateForDevices(jwt, ['AA']);
+      expect(result.states[0].lastChange).toBe('2026-08-11T02:00:00Z');
+    });
+
+    it('skips the state query entirely when nothing requested is visible', async () => {
+      const client = buildClient({
+        cw_devices: buildQueryStub({ list: { data: deviceRows, error: null } }),
+        // No cw_rule_state stub: from('cw_rule_state') would throw.
+      });
+
+      const result = await serviceWith(client).getStateForDevices(jwt, ['BB']);
+      expect(result.states).toEqual([]);
+    });
+
+    it('returns empty without any queries for an empty request', async () => {
+      const client = buildClient({});
+      const result = await serviceWith(client).getStateForDevices(jwt, []);
+      expect(result.states).toEqual([]);
+      expect(client.from).not.toHaveBeenCalled();
+    });
+  });
+
   describe('triggered rules', () => {
     const jwt = { sub: 'user-1', email: 'user@example.com', isStaff: false };
 

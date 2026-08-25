@@ -20,6 +20,8 @@ import {
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
 import { RuleActionTypeDto } from './dto/rule-action-type.dto';
+import { RuleCatalogDto } from './dto/rule-catalog.dto';
+import { RuleDeviceStateDto } from './dto/rule-device-state.dto';
 import { RuleFormContextDto } from './dto/rule-form-context.dto';
 import { RuleTemplateActionDto } from './dto/rule-template-action.dto';
 import { RuleTemplateAssignmentDto } from './dto/rule-template-assignment.dto';
@@ -132,6 +134,131 @@ export class RulesService {
         ),
       }))
       .filter((rule) => rule.assignments.length > 0);
+  }
+
+  /**
+   * Lean rule catalog for field devices (ESP32 provisioning portal): each
+   * visible template with its assigned devices, and nothing else — no
+   * criteria, actions, or state. The full findAll() payload is tens of KB and
+   * will not fit a microcontroller's buffers; this is a few hundred bytes.
+   */
+  async getCatalog(user: AuthenticatedUser): Promise<RuleCatalogDto> {
+    const client = this.supabaseService.getClient();
+    const devices = await listManagedDevices(client, user.sub, user.isStaff);
+    const nameByDevEui = new Map(
+      devices.filter((d) => d.canView).map((d) => [d.devEui, d.name]),
+    );
+    if (nameByDevEui.size === 0) return { rules: [] };
+
+    const { data, error } = await client
+      .from('cw_device_rule_assignments')
+      .select('dev_eui, template_id, is_active, cw_rule_templates(id, name, is_active)')
+      .in('dev_eui', [...nameByDevEui.keys()])
+      .eq('is_active', true);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule catalog');
+    }
+
+    type Row = {
+      dev_eui: string;
+      template_id: number;
+      cw_rule_templates?:
+        | { id: number; name: string | null; is_active: boolean | null }
+        | { id: number; name: string | null; is_active: boolean | null }[]
+        | null;
+    };
+
+    const byTemplate = new Map<
+      number,
+      { templateId: number; name: string; devices: { devEui: string; name: string | null }[] }
+    >();
+    for (const row of (data ?? []) as Row[]) {
+      const template = Array.isArray(row.cw_rule_templates)
+        ? row.cw_rule_templates[0]
+        : row.cw_rule_templates;
+      if (!template || template.is_active === false) continue;
+      let entry = byTemplate.get(row.template_id);
+      if (!entry) {
+        entry = {
+          templateId: row.template_id,
+          name: template.name ?? `Rule ${row.template_id}`,
+          devices: [],
+        };
+        byTemplate.set(row.template_id, entry);
+      }
+      entry.devices.push({
+        devEui: row.dev_eui,
+        name: nameByDevEui.get(row.dev_eui) ?? null,
+      });
+    }
+
+    return { rules: [...byTemplate.values()] };
+  }
+
+  /**
+   * Lean polling endpoint for field devices (ECHONET bridges, ESP32 units):
+   * current rule state for the requested devices only, flat and small.
+   *
+   * cw_rule_state rows are created lazily on first trigger, so only existing
+   * rows are returned — a requested device with no row has never triggered and
+   * callers must treat absence as isTriggered = false.
+   */
+  async getStateForDevices(
+    user: AuthenticatedUser,
+    devEuis: string[],
+  ): Promise<RuleDeviceStateDto> {
+    const ts = new Date().toISOString();
+    const requested = uniqueValues(devEuis);
+    if (requested.length === 0) return { ts, states: [] };
+
+    const devices = await listManagedDevices(
+      this.supabaseService.getClient(),
+      user.sub,
+      user.isStaff,
+    );
+    const viewable = new Set(
+      devices.filter((device) => device.canView).map((d) => d.devEui),
+    );
+    // Non-visible devices are dropped silently rather than erroring, matching
+    // how the rest of this service scopes reads.
+    const visibleRequested = requested.filter((devEui) =>
+      viewable.has(devEui),
+    );
+    if (visibleRequested.length === 0) return { ts, states: [] };
+
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('cw_rule_state')
+      .select(
+        'dev_eui, template_id, is_triggered, last_triggered_at, last_reset_at',
+      )
+      .in('dev_eui', visibleRequested);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule state');
+    }
+
+    const states = (data ?? []).map((row) => {
+      const triggeredAt = row.last_triggered_at
+        ? Date.parse(row.last_triggered_at)
+        : null;
+      const resetAt = row.last_reset_at ? Date.parse(row.last_reset_at) : null;
+      const lastChange =
+        triggeredAt === null && resetAt === null
+          ? null
+          : (triggeredAt ?? 0) >= (resetAt ?? 0)
+            ? row.last_triggered_at
+            : row.last_reset_at;
+      return {
+        devEui: row.dev_eui,
+        templateId: row.template_id,
+        isTriggered: row.is_triggered,
+        lastChange,
+      };
+    });
+
+    return { ts, states };
   }
 
   async findTriggeredCount(
