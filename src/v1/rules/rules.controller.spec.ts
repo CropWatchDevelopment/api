@@ -32,9 +32,7 @@ describe('RulesController', () => {
     });
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RulesController],
-      providers: [
-        { provide: RulesService, useValue: { getStateForDevices } },
-      ],
+      providers: [{ provide: RulesService, useValue: { getStateForDevices } }],
     }).compile();
     const user = { sub: 'user-1', email: 'user@example.com', isStaff: false };
 
@@ -57,9 +55,7 @@ describe('RulesController', () => {
     });
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RulesController],
-      providers: [
-        { provide: RulesService, useValue: { getStateForDevices } },
-      ],
+      providers: [{ provide: RulesService, useValue: { getStateForDevices } }],
     }).compile();
     const user = { sub: 'user-1', email: 'user@example.com', isStaff: false };
 

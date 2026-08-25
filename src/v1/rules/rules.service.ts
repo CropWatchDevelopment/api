@@ -152,7 +152,9 @@ export class RulesService {
 
     const { data, error } = await client
       .from('cw_device_rule_assignments')
-      .select('dev_eui, template_id, is_active, cw_rule_templates(id, name, is_active)')
+      .select(
+        'dev_eui, template_id, is_active, cw_rule_templates(id, name, is_active)',
+      )
       .in('dev_eui', [...nameByDevEui.keys()])
       .eq('is_active', true);
 
@@ -171,7 +173,11 @@ export class RulesService {
 
     const byTemplate = new Map<
       number,
-      { templateId: number; name: string; devices: { devEui: string; name: string | null }[] }
+      {
+        templateId: number;
+        name: string;
+        devices: { devEui: string; name: string | null }[];
+      }
     >();
     for (const row of (data ?? []) as Row[]) {
       const template = Array.isArray(row.cw_rule_templates)
@@ -222,9 +228,7 @@ export class RulesService {
     );
     // Non-visible devices are dropped silently rather than erroring, matching
     // how the rest of this service scopes reads.
-    const visibleRequested = requested.filter((devEui) =>
-      viewable.has(devEui),
-    );
+    const visibleRequested = requested.filter((devEui) => viewable.has(devEui));
     if (visibleRequested.length === 0) return { ts, states: [] };
 
     const { data, error } = await this.supabaseService
@@ -239,7 +243,15 @@ export class RulesService {
       throw new InternalServerErrorException('Failed to load rule state');
     }
 
-    const states = (data ?? []).map((row) => {
+    type Row = {
+      dev_eui: string;
+      template_id: number;
+      is_triggered: boolean;
+      last_triggered_at: string | null;
+      last_reset_at: string | null;
+    };
+
+    const states = ((data ?? []) as Row[]).map((row) => {
       const triggeredAt = row.last_triggered_at
         ? Date.parse(row.last_triggered_at)
         : null;

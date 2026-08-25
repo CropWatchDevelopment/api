@@ -41,7 +41,11 @@ export class PushController {
     @CurrentUser() user: AuthenticatedUser,
     @Body() body: RegisterPushTokenDto,
   ): Promise<{ registered: boolean }> {
-    await this.pushService.registerToken(user.sub, body.token, body.deviceLabel);
+    await this.pushService.registerToken(
+      user.sub,
+      body.token,
+      body.deviceLabel,
+    );
     return { registered: true };
   }
 
@@ -71,9 +75,9 @@ export class PushController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: "List the current user's registered push tokens" })
-  listTokens(@CurrentUser() user: AuthenticatedUser): Promise<
-    PushTokenSummary[]
-  > {
+  listTokens(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<PushTokenSummary[]> {
     return this.pushService.listTokens(user.sub);
   }
 

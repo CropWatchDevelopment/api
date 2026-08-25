@@ -139,7 +139,7 @@ export class RulesController {
     @CurrentUser() user: AuthenticatedUser,
     @Query('dev_eui') devEui?: string | string[],
   ) {
-    const devEuis = (Array.isArray(devEui) ? devEui : (devEui ? [devEui] : []))
+    const devEuis = (Array.isArray(devEui) ? devEui : devEui ? [devEui] : [])
       .flatMap((entry) => entry.split(','))
       .map((entry) => entry.trim())
       .filter((entry) => entry.length > 0);
