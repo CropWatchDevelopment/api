@@ -20,6 +20,7 @@ import {
 } from '../common/collection.helpers';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
+import { PaymentsService } from '../payments/payments.service';
 import { CommunicationMethodDto } from './dto/communication-method.dto';
 import { ReportFormContextDto } from './dto/report-form-context.dto';
 import { ReportTemplateAlertPointDto } from './dto/report-template-alert-point.dto';
@@ -136,7 +137,23 @@ export class ReportsService {
     private readonly supabaseService: SupabaseService,
     private readonly devicesService: DevicesService,
     private readonly locationsService: LocationsService,
+    private readonly paymentsService: PaymentsService,
   ) {}
+
+  /**
+   * Creating, editing, and regenerating reports requires the reporting
+   * add-on (or a staff-granted entitlement). Viewing/downloading existing
+   * reports is not gated. Staff are always entitled.
+   */
+  private async assertReportingEntitled(
+    user: AuthenticatedUser,
+  ): Promise<void> {
+    if (!(await this.paymentsService.hasReportingEntitlement(user))) {
+      throw new ForbiddenException(
+        'A reporting subscription is required to create or edit reports.',
+      );
+    }
+  }
 
   async findAll(
     user: AuthenticatedUser,
@@ -281,6 +298,7 @@ export class ReportsService {
     payload: SaveReportTemplateDto,
     user: AuthenticatedUser,
   ): Promise<ReportTemplateDto> {
+    await this.assertReportingEntitled(user);
     const userId = user.sub;
     const isStaff = user.isStaff;
 
@@ -341,6 +359,7 @@ export class ReportsService {
     payload: SaveReportTemplateDto,
     user: AuthenticatedUser,
   ): Promise<ReportTemplateDto> {
+    await this.assertReportingEntitled(user);
     const userId = user.sub;
     const isStaff = user.isStaff;
 
@@ -573,6 +592,7 @@ export class ReportsService {
     dto: RequestReportRegenerationDto,
     user: AuthenticatedUser,
   ): Promise<ReportRegenerationItemDto> {
+    await this.assertReportingEntitled(user);
     // 404-gates the template exactly like getHistory: a template the user
     // cannot view does not exist as far as they are concerned.
     const template = await this.findOne(id, user);

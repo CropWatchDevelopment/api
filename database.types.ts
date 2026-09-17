@@ -615,9 +615,13 @@ export type Database = {
           base_discount_id: string | null
           base_status: string | null
           base_subscription_id: string | null
+          billing_mode: string
           created_at: string
           device_seats: number
           device_subscription_id: string | null
+          reporting_manual: boolean
+          reporting_status: string | null
+          reporting_subscription_id: string | null
           stripe_customer_id: string | null
           updated_at: string
           user_id: string
@@ -626,9 +630,13 @@ export type Database = {
           base_discount_id?: string | null
           base_status?: string | null
           base_subscription_id?: string | null
+          billing_mode?: string
           created_at?: string
           device_seats?: number
           device_subscription_id?: string | null
+          reporting_manual?: boolean
+          reporting_status?: string | null
+          reporting_subscription_id?: string | null
           stripe_customer_id?: string | null
           updated_at?: string
           user_id: string
@@ -637,9 +645,13 @@ export type Database = {
           base_discount_id?: string | null
           base_status?: string | null
           base_subscription_id?: string | null
+          billing_mode?: string
           created_at?: string
           device_seats?: number
           device_subscription_id?: string | null
+          reporting_manual?: boolean
+          reporting_status?: string | null
+          reporting_subscription_id?: string | null
           stripe_customer_id?: string | null
           updated_at?: string
           user_id?: string
@@ -659,7 +671,7 @@ export type Database = {
           created_at: string
           dev_eui: string | null
           id: number
-          stripe_subscription_id: string
+          stripe_subscription_id: string | null
           seat_index: number
           status: string
           updated_at: string
@@ -669,7 +681,7 @@ export type Database = {
           created_at?: string
           dev_eui?: string | null
           id?: number
-          stripe_subscription_id: string
+          stripe_subscription_id?: string | null
           seat_index: number
           status?: string
           updated_at?: string
@@ -679,7 +691,7 @@ export type Database = {
           created_at?: string
           dev_eui?: string | null
           id?: number
-          stripe_subscription_id?: string
+          stripe_subscription_id?: string | null
           seat_index?: number
           status?: string
           updated_at?: string

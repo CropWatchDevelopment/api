@@ -40,7 +40,7 @@ Deploy the `api` repo. The relevant code (all already committed in Phase 0):
 | Realtime module deleted | `src/v1/realtime/` (removed), [`app.module.ts`](../src/app.module.ts) | Unauthenticated WebSocket scaffold with no consumers |
 | TTI webhook fail-closed | [`relay.service.ts`](../src/v1/relay/relay.service.ts) | Previously accepted any caller when the token env was unset |
 | Server-side staff filtering | [`common/owner-filter.helper.ts`](../src/v1/common/owner-filter.helper.ts), [`locations.service.ts`](../src/v1/locations/locations.service.ts) | @cropwatch.io owner rows must never reach non-staff clients (was client-side hiding only) |
-| Stripe/payments module deleted | `src/v1/payments/` (removed), [`app.module.ts`](../src/app.module.ts) | Stripe is no longer used |
+| Stripe/payments module deleted | `src/v1/payments/` (removed), [`app.module.ts`](../src/app.module.ts) | Stripe (v1, FDW-based) was no longer used at the time. **Superseded:** billing returned via Stripe Checkout in `010`/`015`/`024` — see `supabase/updates/README.md` |
 | Device-move hand-over | [`devices.service.ts`](../src/v1/devices/devices.service.ts) (`updateDevice`, `resetDevicePermissionsForMove`) | Moving a device now transfers ownership to the destination location owner, wipes old permission rows, seeds members as Disabled, mover as Admin |
 
 > Note: this same deploy also contains the 5-level threshold code
@@ -72,7 +72,7 @@ live, the old UI's "Disabled" dropdown writes `4`, which now means Viewer.
 | Alert badge → new endpoints | [`+layout.server.ts`](../../CropWatch/src/routes/+layout.server.ts), [`lib/api/api.service.ts`](../../CropWatch/src/lib/api/api.service.ts), [`OverviewDrawer.svelte`](../../CropWatch/src/routes/OverviewDrawer.svelte) | Consumes `/v1/rules-new/triggered(+/count)` from Phase 2 |
 | Device refresh scheduler wiring | [`DashboardCards.svelte`](../../CropWatch/src/lib/components/dashboard/DashboardCards.svelte), [`devices/[dev_eui]/+page.svelte`](../../CropWatch/src/routes/locations/%5Blocation_id%5D/devices/%5Bdev_eui%5D/+page.svelte), [`locations/[location_id]/+page.svelte`](../../CropWatch/src/routes/locations/%5Blocation_id%5D/+page.svelte) | Replaces fixed polling with refetch-on-expiry + backoff; location page gains a live Status column |
 | Client-side staff filters removed | [`DeviceOwnerPermissionsCard.svelte`](../../CropWatch/src/routes/locations/%5Blocation_id%5D/devices/%5Bdev_eui%5D/DeviceOwnerPermissionsCard.svelte), [`LocationEditPermissions.svelte`](../../CropWatch/src/routes/locations/%5Blocation_id%5D/settings/LocationEditPermissions.svelte) | Filtering moved into the API (Phase 2) |
-| Billing/Stripe UI removed | `src/routes/account/billing/` (deleted), [`Header.svelte`](../../CropWatch/src/routes/Header.svelte), [`api.service.ts`](../../CropWatch/src/lib/api/api.service.ts), `.env` | Stripe is no longer used |
+| Billing/Stripe UI removed | `src/routes/account/billing/` (deleted), [`Header.svelte`](../../CropWatch/src/routes/Header.svelte), [`api.service.ts`](../../CropWatch/src/lib/api/api.service.ts), `.env` | Stripe (v1) was no longer used at the time. **Superseded:** `/account/billing` returned with the Stripe Checkout integration |
 | Discord options removed | [`lib/i18n/options.ts`](../../CropWatch/src/lib/i18n/options.ts), [`reports/ReportTemplateForm.svelte`](../../CropWatch/src/routes/reports/ReportTemplateForm.svelte) | Discord delivery no longer offered |
 
 ## Phase 5 — API release B (removal)

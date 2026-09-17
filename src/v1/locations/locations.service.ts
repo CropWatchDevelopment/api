@@ -1,5 +1,4 @@
 import {
-  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -10,7 +9,6 @@ import { CreateLocationDto } from './dto/create-location.dto';
 import { CreateLocationOwnerDto } from './dto/create-location-owner.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { PaymentsService } from '../payments/payments.service';
 import { LocationDto } from './dto/location.dto';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
 import {
@@ -46,25 +44,11 @@ interface LocationScopeQuery<Q> {
 
 @Injectable()
 export class LocationsService {
-  constructor(
-    private readonly supabaseService: SupabaseService,
-    private readonly paymentsService: PaymentsService,
-  ) {}
+  constructor(private readonly supabaseService: SupabaseService) {}
 
   async create(createLocationDto: CreateLocationDto, user: AuthenticatedUser) {
     const userId = user.sub;
     const client = this.supabaseService.getClient();
-
-    // Creating a location requires an active base subscription. CropWatch staff
-    // are exempt, mirroring the rest of the permission model.
-    if (
-      !user.isStaff &&
-      !(await this.paymentsService.hasActiveBaseSubscription(user))
-    ) {
-      throw new ForbiddenException(
-        'An active base subscription is required to create a location.',
-      );
-    }
 
     createLocationDto.owner_id = userId; // Ensure the owner_id is set to the authenticated user
 

@@ -9,13 +9,13 @@ import Stripe from 'stripe';
  * needed; transfer a lookup key to a new price in Stripe to change pricing
  * without touching code or config.
  */
-export const BASE_PRICE_LOOKUP_KEY = 'cropwatch_base_monthly';
 export const DEVICE_PRICE_LOOKUP_KEY = 'cropwatch_device_seat_monthly';
+export const REPORTING_PRICE_LOOKUP_KEY = 'cropwatch_reporting_monthly';
 
 /** The resolved Stripe price ids for the two subscription products. */
 export interface BillingPriceIds {
-  basePriceId: string;
   devicePriceId: string;
+  reportingPriceId: string;
 }
 
 /** Plain price descriptor decoupled from the SDK's price type. */
@@ -80,50 +80,56 @@ export class StripeService {
   private priceIds: BillingPriceIds | null = null;
 
   /**
-   * Resolve the base/device price ids: env override first, else look them up
-   * by lookup key. Cached for the process lifetime once fully resolved.
-   * Never throws — unresolved ids come back as '' (callers treat that as
-   * "not configured"), so read paths keep degrading gracefully on an outage.
+   * Resolve the device/reporting price ids: env override first, else look
+   * them up by lookup key. Cached for the process lifetime once fully
+   * resolved. Never throws — unresolved ids come back as '' (callers treat
+   * that as "not configured"), so read paths keep degrading gracefully on an
+   * outage.
    */
   async resolvePriceIds(): Promise<BillingPriceIds> {
     if (this.priceIds) {
       return this.priceIds;
     }
 
-    const envBase = this.configService.get<string>('STRIPE_BASE_PRICE_ID');
     const envDevice = this.configService.get<string>('STRIPE_DEVICE_PRICE_ID');
-    if (envBase && envDevice) {
-      this.priceIds = { basePriceId: envBase, devicePriceId: envDevice };
+    const envReporting = this.configService.get<string>(
+      'STRIPE_REPORTING_PRICE_ID',
+    );
+    if (envDevice && envReporting) {
+      this.priceIds = {
+        devicePriceId: envDevice,
+        reportingPriceId: envReporting,
+      };
       return this.priceIds;
     }
 
-    let basePriceId = envBase ?? '';
     let devicePriceId = envDevice ?? '';
+    let reportingPriceId = envReporting ?? '';
     try {
       const prices = await this.stripe.prices.list({
-        lookup_keys: [BASE_PRICE_LOOKUP_KEY, DEVICE_PRICE_LOOKUP_KEY],
+        lookup_keys: [DEVICE_PRICE_LOOKUP_KEY, REPORTING_PRICE_LOOKUP_KEY],
         active: true,
       });
       for (const price of prices.data) {
-        if (price.lookup_key === BASE_PRICE_LOOKUP_KEY) {
-          basePriceId ||= price.id;
-        } else if (price.lookup_key === DEVICE_PRICE_LOOKUP_KEY) {
+        if (price.lookup_key === DEVICE_PRICE_LOOKUP_KEY) {
           devicePriceId ||= price.id;
+        } else if (price.lookup_key === REPORTING_PRICE_LOOKUP_KEY) {
+          reportingPriceId ||= price.id;
         }
       }
     } catch (error) {
       this.logger.warn(`Failed to resolve Stripe price ids: ${String(error)}`);
     }
 
-    if (!basePriceId || !devicePriceId) {
+    if (!devicePriceId || !reportingPriceId) {
       this.logger.error(
-        `Stripe prices not found for lookup keys ${BASE_PRICE_LOOKUP_KEY} / ${DEVICE_PRICE_LOOKUP_KEY} — run scripts/stripe-bootstrap.mjs or set STRIPE_BASE_PRICE_ID / STRIPE_DEVICE_PRICE_ID`,
+        `Stripe prices not found for lookup keys ${DEVICE_PRICE_LOOKUP_KEY} / ${REPORTING_PRICE_LOOKUP_KEY} — run scripts/stripe-bootstrap.mjs or set STRIPE_DEVICE_PRICE_ID / STRIPE_REPORTING_PRICE_ID`,
       );
       // Don't cache a partial result; retry on the next call.
-      return { basePriceId, devicePriceId };
+      return { devicePriceId, reportingPriceId };
     }
 
-    this.priceIds = { basePriceId, devicePriceId };
+    this.priceIds = { devicePriceId, reportingPriceId };
     return this.priceIds;
   }
 
@@ -133,6 +139,18 @@ export class StripeService {
 
   private get checkoutSuccessUrl(): string {
     return this.configService.get<string>('STRIPE_CHECKOUT_SUCCESS_URL') ?? '';
+  }
+
+  /**
+   * Where Stripe sends the customer when they abandon a checkout. Separate
+   * from the portal return URL so the app can tell the two apart
+   * (`?checkout=cancel`); falls back to the billing return URL.
+   */
+  private get checkoutCancelUrl(): string {
+    return (
+      this.configService.get<string>('STRIPE_CHECKOUT_CANCEL_URL') ||
+      this.billingReturnUrl
+    );
   }
 
   private get billingReturnUrl(): string {
@@ -188,8 +206,8 @@ export class StripeService {
     customerId: string;
     userId: string;
     quantity?: number;
-    adjustableQuantity?: boolean;
-    promotionCodeId?: string | null;
+    /** Let the customer change the quantity on the hosted page, never below `minimum`. */
+    adjustableQuantity?: { minimum: number };
   }): Promise<string> {
     const session = await this.stripe.checkout.sessions.create({
       mode: 'subscription',
@@ -200,16 +218,19 @@ export class StripeService {
           price: input.priceId,
           quantity: input.quantity ?? 1,
           ...(input.adjustableQuantity
-            ? { adjustable_quantity: { enabled: true, minimum: 1 } }
+            ? {
+                adjustable_quantity: {
+                  enabled: true,
+                  minimum: input.adjustableQuantity.minimum,
+                },
+              }
             : {}),
         },
       ],
       subscription_data: { metadata: { user_id: input.userId } },
-      ...(input.promotionCodeId
-        ? { discounts: [{ promotion_code: input.promotionCodeId }] }
-        : { allow_promotion_codes: true }),
+      allow_promotion_codes: true,
       success_url: this.checkoutSuccessUrl || undefined,
-      cancel_url: this.billingReturnUrl || undefined,
+      cancel_url: this.checkoutCancelUrl || undefined,
     });
     if (!session.url) {
       throw new Error('Stripe checkout session has no redirect URL');
