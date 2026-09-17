@@ -4,6 +4,7 @@ import { RequestReportRegenerationDto } from './dto/request-report-regeneration.
 import { SupabaseService } from '../../supabase/supabase.service';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
+import { PaymentsService } from '../payments/payments.service';
 import * as managedDevicesHelper from '../common/managed-devices.helper';
 
 jest.mock('../common/managed-devices.helper', () => ({
@@ -58,6 +59,7 @@ function createQueueTableMock() {
 describe('ReportsService.requestRegeneration', () => {
   let service: ReportsService;
   let queueTable: ReturnType<typeof createQueueTableMock>;
+  let hasReportingEntitlement: jest.Mock;
   const listManagedDevices =
     managedDevicesHelper.listManagedDevices as jest.Mock;
 
@@ -74,10 +76,12 @@ describe('ReportsService.requestRegeneration', () => {
       getClient: jest.fn(() => client),
     } as unknown as SupabaseService;
 
+    hasReportingEntitlement = jest.fn().mockResolvedValue(true);
     service = new ReportsService(
       supabaseService,
       {} as DevicesService,
       {} as LocationsService,
+      { hasReportingEntitlement } as unknown as PaymentsService,
     );
 
     // findOne is exercised by its own integration paths; here it gates the
@@ -90,6 +94,15 @@ describe('ReportsService.requestRegeneration', () => {
     listManagedDevices.mockResolvedValue([
       { canManage: true, canView: true, devEui: DEV_EUI },
     ]);
+  });
+
+  it('requestRegeneration rejects with 403 when the user has no reporting entitlement', async () => {
+    hasReportingEntitlement.mockResolvedValue(false);
+
+    await expect(
+      service.requestRegeneration(42, baseDto(), USER),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(queueTable.insert).not.toHaveBeenCalled();
   });
 
   afterEach(() => {

@@ -15,13 +15,13 @@ describe('StripeService', () => {
   it('resolvePriceIds prefers env overrides without calling Stripe', async () => {
     const service = createService({
       STRIPE_SECRET_KEY: 'sk_test_dummy',
-      STRIPE_BASE_PRICE_ID: 'price_base_env',
       STRIPE_DEVICE_PRICE_ID: 'price_device_env',
+      STRIPE_REPORTING_PRICE_ID: 'price_reporting_env',
     });
 
     await expect(service.resolvePriceIds()).resolves.toEqual({
-      basePriceId: 'price_base_env',
       devicePriceId: 'price_device_env',
+      reportingPriceId: 'price_reporting_env',
     });
   });
 

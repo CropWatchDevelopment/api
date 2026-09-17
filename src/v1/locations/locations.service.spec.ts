@@ -4,7 +4,6 @@ import {
 } from '@nestjs/common';
 import { LocationsService } from './locations.service';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { PaymentsService } from '../payments/payments.service';
 
 describe('LocationsService', () => {
   type QueryResult = { data: unknown; error: unknown };
@@ -57,15 +56,10 @@ describe('LocationsService', () => {
   });
 
   const createService = (client: ReturnType<typeof createClient>) =>
-    new LocationsService(
-      {
-        getClient: jest.fn(() => client),
-        getAdminClient: jest.fn(),
-      } as unknown as SupabaseService,
-      {
-        hasActiveBaseSubscription: jest.fn(() => Promise.resolve(true)),
-      } as unknown as PaymentsService,
-    );
+    new LocationsService({
+      getClient: jest.fn(() => client),
+      getAdminClient: jest.fn(),
+    } as unknown as SupabaseService);
 
   it('should be defined', () => {
     const client = createClient({});

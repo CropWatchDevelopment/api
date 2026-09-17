@@ -108,7 +108,8 @@ export class DevicesService {
     *,
     owner_match:cw_device_owners(),
     cw_device_owners(*),
-    cw_locations(name, location_id)
+    cw_locations(name, location_id),
+    device_licenses(id)
   `,
       { count: 'exact' },
     );
