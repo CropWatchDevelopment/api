@@ -1,6 +1,6 @@
 # CropWatch API
 
-> CropWatch's REST + WebSocket API for authenticated agricultural device monitoring, automation, and subscription billing. Built with NestJS, backed by Supabase (Postgres + Auth), and integrated with Polar for payments and TTI (The Things Industries) for LoRaWAN device messaging.
+> CropWatch's REST + WebSocket API for authenticated agricultural device monitoring, automation, and subscription billing. Built with NestJS, backed by Supabase (Postgres + Auth), and integrated with Stripe for subscription billing and TTI (The Things Industries) for LoRaWAN device messaging.
 
 This file is the LLM-oriented contract for the API. It is intended to be loaded by tools and agents in other projects (e.g. the CWUI frontend at `../CWUI`) so they can call the API correctly without fetching the Swagger JSON first. When this file and the live OpenAPI spec disagree, the OpenAPI spec is authoritative — see "Authoritative sources" below.
 
@@ -178,15 +178,30 @@ Scheduled reports with recipients, alert points, and data-processing schedules.
 
 `CreateReportDto` required: `dev_eui`, `name`. Optional: `data_pull_interval` (minutes), `report_id` (uuid str), and the four nested arrays `report_user_schedule[]`, `report_alert_points[]`, `report_recipients[]`, `report_data_processing_schedules[]`. Each nested type lives in `src/v1/reports/dto/`.
 
-### Payments — `/v1/payments` (Polar)
+### Payments — `/v1/payments` (Stripe)
+Billing model: one **device subscription** (per-seat, minimum 3 seats; one `device_licenses` row per seat, a seat is attached to at most one device) plus an optional flat **reporting add-on**. Stripe is the source of truth; `billing_customers` caches state. `billing_mode='manual'` customers are invoiced outside Stripe and get seats/reporting granted by staff.
+
 | Method | Path | Auth | Body / Notes |
 |---|---|---|---|
-| POST | `/payments/subscriptions/checkout` | JWT | `CreateCheckoutSessionDto` `{ products: string[], success_url?, return_url?, customer_name?, customer_email?, customer_billing_address?, metadata?, customer_metadata?, allow_discount_codes?, allow_trial? }` — returns Polar checkout URL. |
-| GET | `/payments/subscriptions` | JWT | List subscriptions for the user. |
-| GET | `/payments/products` | JWT | List Polar products. |
-| GET | `/payments/subscriptions/state` | JWT | Customer subscription state (active/past_due/etc.). |
-| POST | `/payments/subscriptions/portal` | JWT | `CreateCustomerPortalSessionDto` `{ return_url? }` — returns Polar customer portal URL. |
-| DELETE | `/payments/subscriptions/:id` | JWT | Cancel/revoke subscription. |
+| GET | `/payments/products` | JWT | Device-seat + reporting products/prices. |
+| GET | `/payments/subscriptions/state` | JWT | Full billing overview `{ billingMode, device, reporting, licenses }`. |
+| GET | `/payments/entitlements` | JWT | Cheap DB-only `{ billingMode, isStaff, seats, reporting }`. |
+| GET | `/payments/licenses` | JWT | The user's licenses (seats). |
+| POST | `/payments/subscriptions/device/checkout` | JWT | `{ quantity >= 3 }` → hosted checkout URL. |
+| PATCH | `/payments/subscriptions/device/seats` | JWT | `{ seats >= 3 }` absolute seat count. |
+| DELETE | `/payments/subscriptions/device` | JWT | `{ atPeriodEnd? }` cancel the device subscription. |
+| POST | `/payments/subscriptions/reporting/checkout` | JWT | Hosted checkout for the reporting add-on. |
+| DELETE | `/payments/subscriptions/reporting` | JWT | `{ atPeriodEnd? }` cancel the reporting add-on. |
+| POST | `/payments/licenses/:id/assign` | JWT | `{ devEui }` |
+| PATCH | `/payments/licenses/:id/move` | JWT | `{ devEui }` |
+| POST | `/payments/licenses/:id/unassign` | JWT | Frees the seat. |
+| POST | `/payments/licenses/:id/cancel` | JWT | Drops one unassigned seat (never below 3). |
+| POST | `/payments/portal` | JWT | Stripe billing portal URL. |
+| GET | `/payments/admin/customers` | JWT + staff | Every owner/customer with device, license, subscription counts. |
+| PATCH | `/payments/admin/customers/:userId/billing-mode` | JWT + staff | `{ billingMode: 'stripe' \| 'manual' }` |
+| PUT | `/payments/admin/customers/:userId/manual-seats` | JWT + staff | `{ seats }` staff-granted seat count. |
+| PATCH | `/payments/admin/customers/:userId/reporting` | JWT + staff | `{ manual: boolean }` staff-granted reporting. |
+| POST | `/payments/webhook` | Stripe signature | `checkout.session.completed`, `customer.subscription.created/updated/deleted`. |
 
 ### Power — `/v1/power`
 | Method | Path | Auth | Notes |
@@ -229,7 +244,7 @@ src/
     gateway/             # LoRaWAN gateways
     rules/               # threshold rules + criteria
     reports/             # scheduled reports + recipients + schedules
-    payments/            # Polar checkout/portal/subscriptions
+    payments/            # Stripe checkout/portal/seats/webhook
     power/               # placeholder
     realtime/            # Socket.IO gateway
     common/              # shared DTOs (ErrorResponseDto), TimezoneFormatterService
