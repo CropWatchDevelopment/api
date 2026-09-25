@@ -24,6 +24,7 @@ import { LineModule } from './v1/line/line.module';
 import { PushModule } from './v1/push/push.module';
 import { AccountRemovalModule } from './v1/account-removal/account-removal.module';
 import { CropwatchMcpModule } from './v1/mcp/mcp.module';
+import { OrganizationsModule } from './v1/organizations/organizations.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { CropwatchMcpModule } from './v1/mcp/mcp.module';
     GatewayModule,
     DashboardModule,
     PaymentsModule,
+    OrganizationsModule,
     LineModule,
     PushModule,
     AccountRemovalModule,

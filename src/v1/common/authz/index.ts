@@ -10,6 +10,14 @@ export {
 } from './policy';
 export { assertCanGrant, type GrantCheck } from './grant-policy';
 export {
+  assertCanEditMember,
+  assertCanInvite,
+  assertCanRemove,
+  assertCanSuspend,
+  inviteableRoles,
+  type OrgRole,
+} from './org-role-policy';
+export {
   emptyOrgContext,
   orgRoleFor,
   parentReadFor,
