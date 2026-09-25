@@ -28,7 +28,12 @@ import { RuleTriggerLogDto } from './dto/rule-trigger-log.dto';
 import { SaveRuleTemplateDto } from './dto/save-rule-template.dto';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
-type TemplateRow = TableRow<'cw_rule_templates'>;
+// Only the columns the template selects fetch (the table also carries
+// legacy_migration_key and org_id, which this service never reads).
+type TemplateRow = Pick<
+  TableRow<'cw_rule_templates'>,
+  'created_at' | 'description' | 'device_type_id' | 'id' | 'is_active' | 'name'
+>;
 type TriggerLogRow = TableRow<'cw_rule_trigger_log'>;
 type AssignmentRow = TableRow<'cw_device_rule_assignments'>;
 type CriterionRow = TableRow<'cw_rule_template_criteria'>;

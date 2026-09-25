@@ -26,6 +26,13 @@ export class LocationDto implements LocationRow {
   @ApiProperty({ nullable: true, required: false })
   map_zoom: number | null;
 
+  @ApiProperty({
+    nullable: true,
+    required: false,
+    description: 'Owning organization (025)',
+  })
+  org_id: string | null;
+
   @ApiProperty()
   name: string;
 
