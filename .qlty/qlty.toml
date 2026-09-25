@@ -2,5 +2,6 @@
 exclude_patterns = [
     "**/database.types.ts",
     "**/swagger-ui-bundle.js",
-    "**/swagger-ui-standalone-preset.js"
+    "**/swagger-ui-standalone-preset.js",
+    "**/static/app/**
 ]
