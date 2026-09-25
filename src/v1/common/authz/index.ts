@@ -40,4 +40,5 @@ export {
   type DeviceAccess,
   type LocationAccess,
 } from './access.service';
+export { OrgOwnerGuard } from './org-owner.guard';
 export { AuthzModule } from './authz.module';

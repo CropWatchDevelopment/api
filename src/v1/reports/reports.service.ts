@@ -144,8 +144,20 @@ export class ReportsService {
    */
   private async assertReportingEntitled(
     user: AuthenticatedUser,
+    devEuis: string[] = [],
   ): Promise<void> {
-    if (!(await this.paymentsService.hasReportingEntitlement(user))) {
+    // The entitlement belongs to the org that owns the report's devices
+    // (plan 6.3) — resolved from the (request-memoized) accessible list.
+    let deviceOrgId: string | null = null;
+    if (devEuis.length > 0) {
+      const devices = await this.accessService.listAccessibleDevices(user);
+      deviceOrgId =
+        devices.find((d) => devEuis.includes(d.devEui) && d.orgId != null)
+          ?.orgId ?? null;
+    }
+    if (
+      !(await this.paymentsService.hasReportingEntitlement(user, deviceOrgId))
+    ) {
       throw new ForbiddenException(
         'A reporting subscription is required to create or edit reports.',
       );
@@ -281,10 +293,10 @@ export class ReportsService {
     payload: SaveReportTemplateDto,
     user: AuthenticatedUser,
   ): Promise<ReportTemplateDto> {
-    await this.assertReportingEntitled(user);
     const userId = user.sub;
 
     const normalized = normalizeSaveRequest(payload);
+    await this.assertReportingEntitled(user, normalized.devEuis);
     await this.accessService.assertDevicesManageable(user, normalized.devEuis);
 
     const client = this.supabaseService.getClient();
@@ -336,8 +348,6 @@ export class ReportsService {
     payload: SaveReportTemplateDto,
     user: AuthenticatedUser,
   ): Promise<ReportTemplateDto> {
-    await this.assertReportingEntitled(user);
-
     const normalized = normalizeSaveRequest(payload);
     const existing = await this.findOne(id, user);
 
@@ -345,6 +355,7 @@ export class ReportsService {
       ...existing.assignments.map((assignment) => assignment.devEui),
       ...normalized.devEuis,
     ]);
+    await this.assertReportingEntitled(user, allDevEuis);
     await this.accessService.assertDevicesManageable(user, allDevEuis);
 
     const client = this.supabaseService.getClient();
@@ -547,7 +558,6 @@ export class ReportsService {
     dto: RequestReportRegenerationDto,
     user: AuthenticatedUser,
   ): Promise<ReportRegenerationItemDto> {
-    await this.assertReportingEntitled(user);
     // 404-gates the template exactly like getHistory: a template the user
     // cannot view does not exist as far as they are concerned.
     const template = await this.findOne(id, user);
@@ -556,6 +566,7 @@ export class ReportsService {
     if (!normalizedDevEui || UNSAFE_PATH_SEGMENT.test(normalizedDevEui)) {
       throw new BadRequestException('Invalid devEui');
     }
+    await this.assertReportingEntitled(user, [normalizedDevEui]);
     const isAssigned = template.assignments.some(
       (assignment) => assignment.devEui === normalizedDevEui,
     );
