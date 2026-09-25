@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { GatewayService } from './gateway.service';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { AccessService } from '../common/authz';
 
 describe('GatewayService', () => {
   let service: GatewayService;
@@ -54,6 +55,10 @@ describe('GatewayService', () => {
       providers: [
         GatewayService,
         { provide: SupabaseService, useValue: supabaseService },
+        {
+          provide: AccessService,
+          useValue: { getManagedOrgIds: jest.fn().mockResolvedValue([]) },
+        },
       ],
     }).compile();
 

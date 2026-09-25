@@ -8,6 +8,7 @@ import {
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import {
+  AccessService,
   DEVICE_OWNER_MATCH_EMBED,
   applyDeviceReadScope,
 } from '../common/authz';
@@ -93,6 +94,7 @@ export class DashboardService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly timezoneFormatter: TimezoneFormatterService,
+    private readonly accessService: AccessService,
   ) {}
 
   async getDevices(
@@ -128,7 +130,11 @@ export class DashboardService {
       { count: 'exact' },
     );
 
-    devicesQuery = applyDeviceReadScope(devicesQuery, user);
+    devicesQuery = applyDeviceReadScope(
+      devicesQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     if (query.group) {
       devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
@@ -198,7 +204,11 @@ export class DashboardService {
     let locsQuery = client
       .from('cw_devices')
       .select(`location_id, ${locationSelect}, ${DEVICE_OWNER_MATCH_EMBED}`);
-    locsQuery = applyDeviceReadScope(locsQuery, user);
+    locsQuery = applyDeviceReadScope(
+      locsQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
     if (query.group) locsQuery = locsQuery.ilike('group', `%${query.group}%`);
     if (query.name) {
       locsQuery = locsQuery.or(
@@ -277,7 +287,11 @@ export class DashboardService {
          cw_locations(location_id, name, "group"),
          ${DEVICE_OWNER_MATCH_EMBED}`,
     );
-    devicesQuery = applyDeviceReadScope(devicesQuery, user);
+    devicesQuery = applyDeviceReadScope(
+      devicesQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     if (includeNoLoc && locIds.length > 0) {
       devicesQuery = devicesQuery.or(
@@ -358,7 +372,11 @@ export class DashboardService {
       )
       .eq('dev_eui', normalized);
 
-    deviceQuery = applyDeviceReadScope(deviceQuery, user);
+    deviceQuery = applyDeviceReadScope(
+      deviceQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: device, error: deviceError } =
       await deviceQuery.maybeSingle();

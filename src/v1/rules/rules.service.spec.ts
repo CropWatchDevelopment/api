@@ -251,6 +251,7 @@ describe('RulesService', () => {
     const accessService = buildAccessService([
       {
         devEui: 'AA',
+        orgId: null,
         name: 'Device A',
         permissionLevel: 1,
         canView: true,
@@ -295,6 +296,7 @@ describe('RulesService', () => {
     const accessibleDevices: AccessibleDevice[] = [
       {
         devEui: 'AA',
+        orgId: null,
         name: 'Mine',
         permissionLevel: 1,
         canView: true,
@@ -302,6 +304,7 @@ describe('RulesService', () => {
       },
       {
         devEui: 'BB',
+        orgId: null,
         name: 'Not mine',
         permissionLevel: 5,
         canView: false,
@@ -486,6 +489,7 @@ describe('RulesService', () => {
     const accessibleDevices = (devEuis: string[]): AccessibleDevice[] =>
       devEuis.map((devEui) => ({
         devEui,
+        orgId: null,
         name: `Device ${devEui}`,
         permissionLevel: 1,
         canView: true,

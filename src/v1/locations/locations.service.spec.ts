@@ -67,6 +67,9 @@ describe('LocationsService', () => {
   ): LocationAccess => ({
     exists: true,
     locationId: 1,
+    orgId: null,
+    orgRole: null,
+    parentRead: false,
     ownerId: 'owner-9',
     isStaff: false,
     isOwner: false,
@@ -79,6 +82,8 @@ describe('LocationsService', () => {
     ({
       assertLocationAccess: jest.fn(),
       getLocationAccess: jest.fn(),
+      getReadableOrgIds: jest.fn().mockResolvedValue([]),
+      getManagedOrgIds: jest.fn().mockResolvedValue([]),
     }) as unknown as AccessService & {
       assertLocationAccess: jest.Mock;
       getLocationAccess: jest.Mock;

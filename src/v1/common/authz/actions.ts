@@ -13,6 +13,10 @@ export const Action = {
   LocationGrant: 'location.grant',
   /** Add a new device to a location (a location-manage action). */
   LocationDeviceCreate: 'location.device-create',
+  /** Create a new location in the org (owner-only). */
+  LocationCreate: 'location.create',
+  /** Delete a location (owner-only). */
+  LocationDelete: 'location.delete',
 
   /** View a device and its metadata. */
   DeviceRead: 'device.read',
@@ -44,6 +48,26 @@ export const Action = {
   ReportManage: 'report.manage',
   /** Download a generated report / CSV for a device. */
   ReportDownload: 'report.download',
+
+  /** See the org's gateways (org owner and managers; public ones for all). */
+  GatewayView: 'gateway.view',
+  /** Edit a gateway's settings. */
+  GatewayEdit: 'gateway.edit',
+  /** Register or delete a gateway (owner-only). */
+  GatewayCreate: 'gateway.create',
+
+  /** See the org's name, type, and your own role. */
+  OrgRead: 'org.read',
+  /** Open the Management area (Users & Permissions). */
+  OrgManageOpen: 'org.manage.open',
+  /** Management Settings: rename, upgrade, sub-org links (owner-only). */
+  OrgSettingsManage: 'org.settings.manage',
+  /** Invite Members and Managers, edit Member access. */
+  MemberInvite: 'org.member.invite',
+  /** Invite Guests and manage Guest access (owner-only). */
+  GuestInvite: 'org.guest.invite',
+  /** Billing page, seats, reporting subscription, portal (owner-only). */
+  BillingManage: 'billing.manage',
 } as const;
 
 export type Action = (typeof Action)[keyof typeof Action];

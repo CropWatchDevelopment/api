@@ -109,7 +109,11 @@ export class DevicesService {
       { count: 'exact' },
     );
 
-    devicesQuery = applyDeviceReadScope(devicesQuery, user);
+    devicesQuery = applyDeviceReadScope(
+      devicesQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     if (searchGroup) {
       devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
@@ -171,7 +175,11 @@ export class DevicesService {
       )
       .eq('dev_eui', normalizedDevEui);
 
-    query = applyDeviceReadScope(query, user);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data, error } = (await query
       .order('name', { ascending: true })
@@ -199,7 +207,11 @@ export class DevicesService {
         `${DEVICE_OWNER_MATCH_EMBED}, last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)`,
       );
 
-    query = applyDeviceReadScope(query, user);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: devices, error: devicesError } = await query.order('name', {
       ascending: true,
@@ -250,7 +262,11 @@ export class DevicesService {
       .select(`${DEVICE_OWNER_MATCH_EMBED}, cw_device_owners(*), group`)
       .not('group', 'is', null);
 
-    query = applyDeviceReadScope(query, user);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: groups, error } = await query;
 
@@ -328,7 +344,11 @@ export class DevicesService {
       )
       .eq('dev_eui', normalizedDevEui);
 
-    deviceQuery = applyDeviceReadScope(deviceQuery, user);
+    deviceQuery = applyDeviceReadScope(
+      deviceQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: device, error: deviceError } =
       (await deviceQuery.single()) as SingleResult<DeviceRecord>;
@@ -447,7 +467,11 @@ export class DevicesService {
       .select(`*, ${DEVICE_OWNER_MATCH_EMBED}, cw_device_owners(*)`)
       .eq('dev_eui', normalizedDevEui);
 
-    deviceQuery = applyDeviceReadScope(deviceQuery, user);
+    deviceQuery = applyDeviceReadScope(
+      deviceQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: device, error: deviceError } =
       (await deviceQuery.single()) as SingleResult<DeviceRecord>;
@@ -538,7 +562,11 @@ export class DevicesService {
         { count: 'exact' },
       );
 
-    devicesQuery = applyDeviceReadScope(devicesQuery, user);
+    devicesQuery = applyDeviceReadScope(
+      devicesQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     if (searchGroup) {
       devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
@@ -681,7 +709,11 @@ export class DevicesService {
       .select(`*, ${DEVICE_OWNER_MATCH_EMBED}`)
       .eq('location_id', locationId);
 
-    query = applyDeviceReadScope(query, user);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: devices, error: devicesError } = await query.order('name', {
       ascending: true,
@@ -714,7 +746,11 @@ export class DevicesService {
       .select(`*, ${DEVICE_OWNER_MATCH_EMBED}`)
       .eq('dev_eui', normalizedDevEui);
 
-    deviceQuery = applyDeviceReadScope(deviceQuery, user);
+    deviceQuery = applyDeviceReadScope(
+      deviceQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: device, error: deviceError } =
       (await deviceQuery.single()) as SingleResult<DeviceRecord>;
@@ -839,50 +875,13 @@ export class DevicesService {
       throw new InternalServerErrorException('Failed to create device');
     }
 
-    /******************************************************************************
-     * After creating a new device in a location, all users in that location must get
-     * permission to that device, as there is no way to assign permission to a device,
-     * only to a location (and the users inside of a location get permission to devices)
-     * This makes sense because you can view locations, and all devices inside of them
-     * there is no point in having permission to a device, but no permission to view the lcoation
-     * as even if you could see a device, you would have no route to get to said device.
-     *
-     * Let's add permissions for all existing location users here!!!
-     *********************************************************************************/
-
-    const { data: locationUsers, error: locationUsersError } = await client
-      .from('cw_location_owners')
-      .select('user_id')
-      .eq('location_id', device.location_id);
-
-    if (locationUsersError) {
-      throw new InternalServerErrorException('Failed to fetch location users');
-    }
-
-    // REmove YOU from the list of location users to add, as you are already the owner of the device and have all permissions
-    if (locationUsers.find((user) => user.user_id === userId)) {
-      locationUsers.splice(
-        locationUsers.findIndex((user) => user.user_id === userId),
-        1,
-      );
-    }
-
-    // Add permissions for all existing location users
-    for (const locationUser of locationUsers) {
-      const { error: addPermissionError } = await client
-        .from('cw_device_owners')
-        .insert({
-          dev_eui: normalizedDevEui,
-          user_id: locationUser.user_id,
-          permission_level: PermissionLevel.DISABLED, // location users opt in per device
-        });
-
-      if (addPermissionError) {
-        throw new InternalServerErrorException(
-          'Failed to add device permissions for location users',
-        );
-      }
-    }
+    /*
+     * Organizations model (PR-B): new devices no longer receive per-user
+     * Disabled fan-out rows. Access now resolves as: device override row,
+     * else the caller's LOCATION grant default — so everyone granted the
+     * location sees a new device at their location default immediately.
+     * (Before, every new device started Disabled for every shared user.)
+     */
 
     // Consume the seat immediately so the new device cannot exist unlicensed.
     if (licenseId) {
@@ -1089,7 +1088,12 @@ export class DevicesService {
         )
         .eq('location_id', location_id);
 
-      destinationQuery = applyLocationManageScope(destinationQuery, user);
+      destinationQuery = applyLocationManageScope(
+        destinationQuery,
+        user,
+        undefined,
+        await this.accessService.getManagedOrgIds(user),
+      );
 
       const { data: destination, error: destinationError } =
         (await destinationQuery.maybeSingle()) as SingleResult<

@@ -36,6 +36,14 @@ describe('AccessService', () => {
     const from = jest.fn((table: string): QueryBuilder => {
       const queue = queues[table];
       if (!queue || queue.length === 0) {
+        // Org context and location grants default to empty unless a test
+        // supplies them explicitly.
+        if (
+          table === 'organization_members' ||
+          table === 'cw_location_owners'
+        ) {
+          return createBuilder({ data: [], error: null });
+        }
         throw new Error(`No mock builder available for table: ${table}`);
       }
       return queue.shift() as QueryBuilder;
@@ -120,7 +128,8 @@ describe('AccessService', () => {
       const caller = user();
       await service.getDeviceAccess(caller, 'DEV-001');
       await service.getDeviceAccess(caller, 'DEV-001');
-      expect(from).toHaveBeenCalledTimes(1);
+      // 1 device fetch + 1 org-context fetch, each memoized.
+      expect(from).toHaveBeenCalledTimes(2);
     });
 
     it('does not share the memo between different request users', async () => {
@@ -139,7 +148,8 @@ describe('AccessService', () => {
 
       await service.getDeviceAccess(user(), 'DEV-001');
       await service.getDeviceAccess(user(), 'DEV-001'); // fresh object = new request
-      expect(from).toHaveBeenCalledTimes(2);
+      // (device + org context) per request user.
+      expect(from).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -302,5 +312,234 @@ describe('AccessService', () => {
       ).resolves.toBeUndefined();
       expect(from).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('AccessService — org overlay', () => {
+  type QueryResult = { data: unknown; error: unknown };
+  type QueryBuilder = {
+    select: jest.Mock;
+    eq: jest.Mock;
+    is: jest.Mock;
+    or: jest.Mock;
+    maybeSingle: jest.Mock;
+    then: (
+      resolve: (value: QueryResult) => unknown,
+      reject?: (reason: unknown) => unknown,
+    ) => Promise<unknown>;
+  };
+  const builder = (result: QueryResult): QueryBuilder => {
+    const b: QueryBuilder = {
+      select: jest.fn(() => b),
+      eq: jest.fn(() => b),
+      is: jest.fn(() => b),
+      or: jest.fn(() => b),
+      maybeSingle: jest.fn(() => Promise.resolve(result)),
+      then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
+    };
+    return b;
+  };
+
+  const ORG = '11111111-1111-4111-8111-111111111111';
+  const CHILD = '22222222-2222-4222-8222-222222222222';
+  const OTHER = '33333333-3333-4333-8333-333333333333';
+
+  const membership = (over: Record<string, unknown> = {}) => ({
+    org_id: ORG,
+    role: 'manager',
+    status: 'active',
+    expires_at: null,
+    organizations: {
+      id: ORG,
+      type: 'company',
+      name: 'Acme Farms',
+      deactivated_at: null,
+    },
+    ...over,
+  });
+
+  const deviceRow = (
+    orgId: string | null,
+    over: Record<string, unknown> = {},
+  ) => ({
+    dev_eui: 'DEV-001',
+    user_id: 'someone-else',
+    location_id: 4,
+    org_id: orgId,
+    cw_device_owners: [],
+    ...over,
+  });
+
+  const make = (queues: Record<string, QueryBuilder[]>) => {
+    const from = jest.fn((table: string): QueryBuilder => {
+      const queue = queues[table];
+      if (queue && queue.length > 0) return queue.shift() as QueryBuilder;
+      if (table === 'organization_members' || table === 'cw_location_owners')
+        return builder({ data: [], error: null });
+      if (table === 'organizations') return builder({ data: [], error: null });
+      throw new Error(`Unexpected table ${table}`);
+    });
+    return new AccessService({
+      getClient: jest.fn(() => ({ from })),
+      getAdminClient: jest.fn(),
+    } as unknown as SupabaseService);
+  };
+  const caller = (): AuthenticatedUser => ({
+    sub: 'user-1',
+    email: 'manager@example.com',
+    isStaff: false,
+  });
+
+  it('an org manager has manage access to an org device without any grant rows', async () => {
+    const service = make({
+      organization_members: [builder({ data: [membership()], error: null })],
+      cw_devices: [builder({ data: deviceRow(ORG), error: null })],
+    });
+    const u = caller();
+    const access = await service.assertDeviceAccess(
+      u,
+      'DEV-001',
+      Action.DeviceEdit,
+    );
+    expect(access.orgRole).toBe('manager');
+    // ...but replacing a device stays owner-only.
+    await expect(
+      service.assertDeviceAccess(u, 'DEV-001', Action.DeviceReplace),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('a parent-org manager can read but not edit a child-org device', async () => {
+    const service = make({
+      organization_members: [builder({ data: [membership()], error: null })],
+      organizations: [builder({ data: [{ id: CHILD }], error: null })],
+      cw_devices: [builder({ data: deviceRow(CHILD), error: null })],
+    });
+    const u = caller();
+    const access = await service.assertDeviceAccess(
+      u,
+      'DEV-001',
+      Action.DeviceRead,
+    );
+    expect(access.parentRead).toBe(true);
+    await expect(
+      service.assertDeviceAccess(u, 'DEV-001', Action.DeviceEdit),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('a device in an unrelated org stays a 404', async () => {
+    const service = make({
+      organization_members: [builder({ data: [membership()], error: null })],
+      cw_devices: [builder({ data: deviceRow(OTHER), error: null })],
+    });
+    await expect(
+      service.assertDeviceAccess(caller(), 'DEV-001', Action.DeviceRead),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('a suspended member gets 404 even with a grant row (dormant, not deleted)', async () => {
+    const service = make({
+      organization_members: [
+        builder({
+          data: [membership({ status: 'suspended', role: 'member' })],
+          error: null,
+        }),
+      ],
+      cw_devices: [
+        builder({
+          data: deviceRow(ORG, {
+            cw_device_owners: [{ user_id: 'user-1', permission_level: 3 }],
+          }),
+          error: null,
+        }),
+      ],
+    });
+    await expect(
+      service.assertDeviceAccess(caller(), 'DEV-001', Action.DeviceRead),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('a guest grant is capped at Viewer even when the row says User', async () => {
+    const service = make({
+      organization_members: [
+        builder({
+          data: [membership({ role: 'guest' })],
+          error: null,
+        }),
+      ],
+      cw_devices: [
+        builder({
+          data: deviceRow(ORG, {
+            cw_device_owners: [{ user_id: 'user-1', permission_level: 3 }],
+          }),
+          error: null,
+        }),
+      ],
+    });
+    const u = caller();
+    const access = await service.getDeviceAccess(u, 'DEV-001');
+    expect(access.level).toBe(4);
+    expect(access.canRead).toBe(true);
+    await expect(
+      service.assertDeviceAccess(u, 'DEV-001', Action.NoteWrite),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('with no device override, the location default applies (member grant)', async () => {
+    const service = make({
+      organization_members: [
+        builder({ data: [membership({ role: 'member' })], error: null }),
+      ],
+      cw_location_owners: [
+        builder({
+          data: [{ location_id: 4, permission_level: 3 }],
+          error: null,
+        }),
+      ],
+      cw_devices: [builder({ data: deviceRow(ORG), error: null })],
+    });
+    const access = await service.getDeviceAccess(caller(), 'DEV-001');
+    expect(access.level).toBe(3); // location default, no fan-out row needed
+    expect(access.canRead).toBe(true);
+  });
+
+  it('a Disabled device override hides the device despite a location default', async () => {
+    const service = make({
+      organization_members: [
+        builder({ data: [membership({ role: 'member' })], error: null }),
+      ],
+      cw_location_owners: [
+        builder({
+          data: [{ location_id: 4, permission_level: 3 }],
+          error: null,
+        }),
+      ],
+      cw_devices: [
+        builder({
+          data: deviceRow(ORG, {
+            cw_device_owners: [{ user_id: 'user-1', permission_level: 5 }],
+          }),
+          error: null,
+        }),
+      ],
+    });
+    await expect(
+      service.assertDeviceAccess(caller(), 'DEV-001', Action.DeviceRead),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('assertOrgAction: manager may open Management but not Settings; outsiders get 404', async () => {
+    const service = make({
+      organization_members: [builder({ data: [membership()], error: null })],
+    });
+    const u = caller();
+    await expect(
+      service.assertOrgAction(u, ORG, Action.OrgManageOpen),
+    ).resolves.toMatchObject({ org: { role: 'manager' } });
+    await expect(
+      service.assertOrgAction(u, ORG, Action.OrgSettingsManage),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(
+      service.assertOrgAction(u, OTHER, Action.OrgRead),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
