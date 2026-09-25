@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsBoolean, IsOptional } from 'class-validator';
 
-export class CancelBaseDto {
+export class CancelSubscriptionDto {
   @ApiProperty({
     required: false,
     default: true,

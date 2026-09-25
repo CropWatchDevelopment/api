@@ -1,9 +1,34 @@
-import { BadRequestException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { AirService } from './air.service';
 import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
 import { UpdateAirAnnotationDto } from './dto/update-air-annotation.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
+import { AccessService, Action, type DeviceAccess } from '../common/authz';
+import type { AuthenticatedUser } from '../auth/authenticated-user';
+
+function createDeviceAccess(
+  overrides: Partial<DeviceAccess> = {},
+): DeviceAccess {
+  return {
+    canRead: true,
+    devEui: '2CF7F1C073800102',
+    exists: true,
+    isOwner: true,
+    isStaff: false,
+    level: 1,
+    locationId: null,
+    orgId: null,
+    orgRole: null,
+    parentRead: false,
+    ownerId: 'user-123',
+    ...overrides,
+  };
+}
 
 function createExactMatchBuilder(response: {
   data: { created_at: string } | null;
@@ -56,6 +81,7 @@ describe('AirService', () => {
   let service: AirService;
   let client: { from: jest.Mock };
   let mockSupabaseService: { getClient: jest.Mock };
+  let accessService: { assertDeviceAccess: jest.Mock };
 
   beforeEach(() => {
     client = {
@@ -64,16 +90,14 @@ describe('AirService', () => {
     mockSupabaseService = {
       getClient: jest.fn(() => client),
     };
+    accessService = {
+      assertDeviceAccess: jest.fn().mockResolvedValue(createDeviceAccess()),
+    };
     service = new AirService(
       mockSupabaseService as unknown as SupabaseService,
       {} as TimezoneFormatterService,
+      accessService as unknown as AccessService,
     );
-    jest
-      .spyOn(
-        service as unknown as { assertDeviceAccess: () => Promise<void> },
-        'assertDeviceAccess',
-      )
-      .mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -86,7 +110,7 @@ describe('AirService', () => {
 
   describe('createNote', () => {
     it('resolves millisecond timestamps to the canonical air reading before insert', async () => {
-      const user = {
+      const user: AuthenticatedUser = {
         email: 'user-123@example.com',
         isStaff: false,
         sub: 'user-123',
@@ -145,10 +169,12 @@ describe('AirService', () => {
         title: 'Shift review',
       });
 
-      expect(
-        (service as unknown as { assertDeviceAccess: jest.Mock })
-          .assertDeviceAccess,
-      ).toHaveBeenCalledWith('2CF7F1C073800102', user);
+      // Note writes are User-tier: the access check must ask for NoteWrite.
+      expect(accessService.assertDeviceAccess).toHaveBeenCalledWith(
+        user,
+        '2CF7F1C073800102',
+        Action.NoteWrite,
+      );
       expect(exactMatchBuilder.eq).toHaveBeenNthCalledWith(
         1,
         'dev_eui',
@@ -178,6 +204,11 @@ describe('AirService', () => {
     });
 
     it('rejects ambiguous created_at values before inserting a note', async () => {
+      const user: AuthenticatedUser = {
+        email: 'user-123@example.com',
+        isStaff: false,
+        sub: 'user-123',
+      };
       const dto: CreateAirAnnotationDto = {
         created_at: '2026-03-13T14:30:01Z',
         dev_eui: '2CF7F1C073800102',
@@ -216,14 +247,46 @@ describe('AirService', () => {
         throw new Error(`Unexpected table ${table}`);
       });
 
-      await expect(
-        service.createNote(dto, { sub: 'user-123' }),
-      ).rejects.toThrow(
+      await expect(service.createNote(dto, user)).rejects.toThrow(
         new BadRequestException(
           'created_at must identify a single air data reading',
         ),
       );
       expect(insertBuilder.insert).not.toHaveBeenCalled();
+    });
+
+    it('rejects a Viewer with ForbiddenException before touching the database', async () => {
+      const user: AuthenticatedUser = {
+        email: 'viewer@example.com',
+        isStaff: false,
+        sub: 'viewer-1',
+      };
+      // A Viewer (level 4) can read data but exceeds NoteWrite's User tier.
+      accessService.assertDeviceAccess.mockRejectedValue(
+        new ForbiddenException(
+          'You do not have permission to perform this action on this device',
+        ),
+      );
+
+      await expect(
+        service.createNote(
+          {
+            created_at: '2026-03-13T14:30:01.232Z',
+            dev_eui: '2CF7F1C073800102',
+            include_in_report: false,
+            note: 'viewer attempt',
+            title: 'Viewer attempt',
+          },
+          user,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(accessService.assertDeviceAccess).toHaveBeenCalledWith(
+        user,
+        '2CF7F1C073800102',
+        Action.NoteWrite,
+      );
+      expect(client.from).not.toHaveBeenCalled();
     });
   });
 
@@ -254,7 +317,11 @@ describe('AirService', () => {
     }
 
     it('updates only whitelisted fields, ignoring dev_eui/created_at in the body', async () => {
-      const user = { email: 'user@example.com', isStaff: false, sub: 'user-1' };
+      const user: AuthenticatedUser = {
+        email: 'user@example.com',
+        isStaff: false,
+        sub: 'user-1',
+      };
       const builder = createUpdateBuilder({ data: existingNote, error: null });
       const updatedNote = {
         ...existingNote,
@@ -277,11 +344,13 @@ describe('AirService', () => {
         updatedNote,
       );
 
-      // Access is asserted against the STORED dev_eui, not the body's.
-      expect(
-        (service as unknown as { assertDeviceAccess: jest.Mock })
-          .assertDeviceAccess,
-      ).toHaveBeenCalledWith('2CF7F1C073800102', user);
+      // Access is asserted against the STORED dev_eui, not the body's,
+      // and note edits require the NoteWrite action.
+      expect(accessService.assertDeviceAccess).toHaveBeenCalledWith(
+        user,
+        '2CF7F1C073800102',
+        Action.NoteWrite,
+      );
       // The update payload must never contain dev_eui or created_at.
       expect(builder.update).toHaveBeenCalledWith({
         include_in_report: false,
@@ -300,6 +369,8 @@ describe('AirService', () => {
           999,
           { title: 'x' },
           {
+            email: 'user@example.com',
+            isStaff: false,
             sub: 'user-1',
           },
         ),
@@ -315,7 +386,11 @@ describe('AirService', () => {
         service.updateNote(
           7,
           { dev_eui: 'FFFFFFFFFFFFFFFF' },
-          { sub: 'user-1' },
+          {
+            email: 'user@example.com',
+            isStaff: false,
+            sub: 'user-1',
+          },
         ),
       ).rejects.toThrow(
         new BadRequestException(
@@ -326,23 +401,26 @@ describe('AirService', () => {
     });
 
     it('propagates access denial before updating', async () => {
+      const user: AuthenticatedUser = {
+        email: 'intruder@example.com',
+        isStaff: false,
+        sub: 'intruder',
+      };
       const builder = createUpdateBuilder({ data: existingNote, error: null });
       client.from.mockReturnValue(builder);
-      (
-        service as unknown as { assertDeviceAccess: jest.Mock }
-      ).assertDeviceAccess.mockRejectedValue(
-        new BadRequestException('Device not found'),
+      // An invisible device is reported as 404, never as 403.
+      accessService.assertDeviceAccess.mockRejectedValue(
+        new NotFoundException('Device not found'),
       );
 
-      await expect(
-        service.updateNote(
-          7,
-          { title: 'x' },
-          {
-            sub: 'intruder',
-          },
-        ),
-      ).rejects.toThrow('Device not found');
+      await expect(service.updateNote(7, { title: 'x' }, user)).rejects.toThrow(
+        'Device not found',
+      );
+      expect(accessService.assertDeviceAccess).toHaveBeenCalledWith(
+        user,
+        '2CF7F1C073800102',
+        Action.NoteWrite,
+      );
       expect(builder.update).not.toHaveBeenCalled();
     });
   });

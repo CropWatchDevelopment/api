@@ -4,12 +4,13 @@ import { DevicesService } from './devices.service';
 import { DevicesController } from './devices.controller';
 import { LocationsService } from '../locations/locations.service';
 import { PaymentsModule } from '../payments/payments.module';
+import { AuthzModule } from '../common/authz';
 
 @Module({
   // DevicesModule declares its own LocationsService instance, so it must also
   // import PaymentsModule (LocationsService depends on PaymentsService for the
   // base-subscription gate on location creation).
-  imports: [SupabaseModule, PaymentsModule],
+  imports: [SupabaseModule, PaymentsModule, AuthzModule],
   controllers: [DevicesController],
   providers: [DevicesService, LocationsService],
   exports: [DevicesService],

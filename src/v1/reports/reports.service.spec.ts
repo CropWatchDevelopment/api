@@ -4,11 +4,8 @@ import { RequestReportRegenerationDto } from './dto/request-report-regeneration.
 import { SupabaseService } from '../../supabase/supabase.service';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
-import * as managedDevicesHelper from '../common/managed-devices.helper';
-
-jest.mock('../common/managed-devices.helper', () => ({
-  listManagedDevices: jest.fn(),
-}));
+import { PaymentsService } from '../payments/payments.service';
+import { AccessService } from '../common/authz';
 
 const DEV_EUI = '2CF7F1C073800102';
 const USER = { email: 'user@example.com', isStaff: false, sub: 'user-1' };
@@ -58,8 +55,9 @@ function createQueueTableMock() {
 describe('ReportsService.requestRegeneration', () => {
   let service: ReportsService;
   let queueTable: ReturnType<typeof createQueueTableMock>;
-  const listManagedDevices =
-    managedDevicesHelper.listManagedDevices as jest.Mock;
+  let hasReportingEntitlement: jest.Mock;
+  let assertDevicesManageable: jest.Mock;
+  let listAccessibleDevices: jest.Mock;
 
   beforeEach(() => {
     queueTable = createQueueTableMock();
@@ -74,10 +72,18 @@ describe('ReportsService.requestRegeneration', () => {
       getClient: jest.fn(() => client),
     } as unknown as SupabaseService;
 
+    hasReportingEntitlement = jest.fn().mockResolvedValue(true);
+    assertDevicesManageable = jest.fn().mockResolvedValue(undefined);
+    listAccessibleDevices = jest.fn().mockResolvedValue([]);
     service = new ReportsService(
       supabaseService,
       {} as DevicesService,
       {} as LocationsService,
+      { hasReportingEntitlement } as unknown as PaymentsService,
+      {
+        assertDevicesManageable,
+        listAccessibleDevices,
+      } as unknown as AccessService,
     );
 
     // findOne is exercised by its own integration paths; here it gates the
@@ -86,10 +92,15 @@ describe('ReportsService.requestRegeneration', () => {
       assignments: [{ devEui: DEV_EUI }],
       id: 42,
     } as never);
+  });
 
-    listManagedDevices.mockResolvedValue([
-      { canManage: true, canView: true, devEui: DEV_EUI },
-    ]);
+  it('requestRegeneration rejects with 403 when the user has no reporting entitlement', async () => {
+    hasReportingEntitlement.mockResolvedValue(false);
+
+    await expect(
+      service.requestRegeneration(42, baseDto(), USER),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(queueTable.insert).not.toHaveBeenCalled();
   });
 
   afterEach(() => {
@@ -132,6 +143,7 @@ describe('ReportsService.requestRegeneration', () => {
         timezone: 'Asia/Tokyo',
       }),
     );
+    expect(assertDevicesManageable).toHaveBeenCalledWith(USER, [DEV_EUI]);
   });
 
   it('re-touches an existing pending row instead of inserting a duplicate', async () => {
@@ -207,9 +219,11 @@ describe('ReportsService.requestRegeneration', () => {
   });
 
   it('rejects when the user cannot manage the device', async () => {
-    listManagedDevices.mockResolvedValue([
-      { canManage: false, canView: true, devEui: DEV_EUI },
-    ]);
+    assertDevicesManageable.mockRejectedValue(
+      new ForbiddenException(
+        'You do not have permission to manage one or more selected devices',
+      ),
+    );
 
     await expect(
       service.requestRegeneration(42, baseDto(), USER),

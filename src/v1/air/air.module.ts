@@ -3,9 +3,10 @@ import { SupabaseModule } from '../../supabase/supabase.module';
 import { CommonModule } from '../common/common.module';
 import { AirService } from './air.service';
 import { AirController } from './air.controller';
+import { AuthzModule } from '../common/authz';
 
 @Module({
-  imports: [SupabaseModule, CommonModule],
+  imports: [SupabaseModule, CommonModule, AuthzModule],
   controllers: [AirController],
   providers: [AirService],
 })

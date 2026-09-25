@@ -3,6 +3,7 @@ import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { BaseDataService } from '../common/base-data.service';
+import { AccessService } from '../common/authz';
 import type { TableRow } from '../types/supabase';
 import { TrafficMonthlyReportDto } from './dto/traffic-monthly-report.dto';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
@@ -22,8 +23,9 @@ export class TrafficService extends BaseDataService<'cw_traffic2'> {
   constructor(
     supabaseService: SupabaseService,
     timezoneFormatter: TimezoneFormatterService,
+    accessService: AccessService,
   ) {
-    super(supabaseService, timezoneFormatter, 'cw_traffic2');
+    super(supabaseService, timezoneFormatter, accessService, 'cw_traffic2');
   }
 
   async getMonthlyReport(

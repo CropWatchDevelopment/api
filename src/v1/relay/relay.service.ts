@@ -12,11 +12,6 @@ import { ConfigService } from '@nestjs/config';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableInsert, TableRow } from '../../v1/types/supabase';
-import {
-  canManage,
-  canRead,
-  PermissionLevel,
-} from '../common/permission-levels';
 import { PulseRelayDto } from './dto/pulse-relay.dto';
 import { UpdateRelayDto } from './dto/update-relay.dto';
 import {
@@ -40,10 +35,15 @@ import {
 } from './tti-client';
 import { isValidTtiDeviceId, normalizeTtiDeviceId } from './tti-device-id';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+import {
+  AccessService,
+  Action,
+  type DeviceAccess,
+  decide,
+} from '../common/authz';
 
 type DeviceOwnerRow = TableRow<'cw_device_owners'>;
 type DeviceTypeRow = TableRow<'cw_device_type'>;
-type LocationOwnerRow = TableRow<'cw_location_owners'>;
 type DeviceRow = TableRow<'cw_devices'>;
 type RelayRow = TableRow<'cw_relay_data'>;
 type RelayInsert = TableInsert<'cw_relay_data'>;
@@ -55,7 +55,7 @@ type RelayDeviceContext = {
   applicationId: string;
   device: DeviceRow;
   deviceId: string;
-  permissionLevel: number;
+  access: DeviceAccess;
 };
 
 type DeviceRecord = DeviceRow & {
@@ -69,15 +69,6 @@ function readString(value: unknown): string {
 
 function normalizeDevEui(value: string): string {
   return value.trim().toUpperCase();
-}
-
-function getDefaultPermissionLevel(): number {
-  return PermissionLevel.DISABLED;
-}
-
-function readPermissionLevel(value: unknown): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : getDefaultPermissionLevel();
 }
 
 function unwrapSingleRelation<T>(value: T | T[] | null | undefined): T | null {
@@ -136,6 +127,7 @@ export class RelayService {
     private readonly configService: ConfigService,
     private readonly relayCommandLockService: RelayCommandLockService,
     private readonly supabaseService: SupabaseService,
+    private readonly accessService: AccessService,
   ) {
     if (
       !readString(this.configService.get<string>('PRIVATE_TTI_WEBHOOK_TOKEN'))
@@ -152,10 +144,8 @@ export class RelayService {
       throw new BadRequestException('dev_eui is required');
     }
 
-    const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
-    if (!canRead(context.permissionLevel)) {
-      throw new NotFoundException('Device not found');
-    }
+    // Loads for the 404/TTI validation side effects; the row is not needed.
+    await this.loadRelayDeviceContext(user, normalizedDevEui);
 
     const latestRow = await this.findLatestRelayRow(normalizedDevEui);
     if (!latestRow) {
@@ -177,7 +167,7 @@ export class RelayService {
 
     const { relay, targetState } = updateRelayDto;
     const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
-    if (!canManage(context.permissionLevel)) {
+    if (!decide(context.access, Action.RelayControl)) {
       throw new ForbiddenException(
         'You do not have permission to control this relay',
       );
@@ -259,7 +249,7 @@ export class RelayService {
 
     const { durationSeconds, relay } = pulseRelayDto;
     const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
-    if (!canManage(context.permissionLevel)) {
+    if (!decide(context.access, Action.RelayControl)) {
       throw new ForbiddenException(
         'You do not have permission to control this relay',
       );
@@ -392,12 +382,10 @@ export class RelayService {
     devEui: string,
   ): Promise<RelayDeviceContext> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
 
     const { data, error } = (await client
       .from('cw_devices')
-      .select('*, cw_device_owners(*), cw_device_type(*)')
+      .select('*, cw_device_type(*)')
       .eq('dev_eui', devEui)
       .maybeSingle()) as QueryResult<DeviceRecord>;
 
@@ -431,60 +419,19 @@ export class RelayService {
       );
     }
 
-    const permissionLevel = isGlobalUser
-      ? 0
-      : await this.resolvePermissionLevel(client, device, userId);
+    // Central resolution: org overlay + device override + location default.
+    // An invisible device is a 404, matching every other device surface.
+    const access = await this.accessService.getDeviceAccess(user, devEui);
+    if (!access.canRead || !decide(access, Action.RelayRead)) {
+      throw new NotFoundException('Device not found');
+    }
 
     return {
       applicationId,
       device,
       deviceId,
-      permissionLevel,
+      access,
     };
-  }
-
-  private async resolvePermissionLevel(
-    client: ReturnType<SupabaseService['getClient']>,
-    device: DeviceRecord,
-    userId: string,
-  ): Promise<number> {
-    const permissionLevels: number[] = [];
-
-    if (device.user_id && device.user_id === userId) {
-      permissionLevels.push(0);
-    }
-
-    for (const owner of device.cw_device_owners ?? []) {
-      if (readString(owner.user_id) === userId) {
-        permissionLevels.push(readPermissionLevel(owner.permission_level));
-      }
-    }
-
-    if (device.location_id) {
-      const { data, error } = (await client
-        .from('cw_location_owners')
-        .select('*')
-        .eq('location_id', device.location_id)
-        .eq('user_id', userId)) as QueryResult<LocationOwnerRow[]>;
-
-      if (error) {
-        this.logger.error(
-          `Failed to fetch location ownership for relay device ${device.dev_eui}`,
-          error.message,
-        );
-        throw new InternalServerErrorException(
-          'Failed to resolve relay permissions',
-        );
-      }
-
-      for (const owner of data ?? []) {
-        permissionLevels.push(readPermissionLevel(owner.permission_level));
-      }
-    }
-
-    return permissionLevels.length > 0
-      ? Math.min(...permissionLevels)
-      : getDefaultPermissionLevel();
   }
 
   private async findLatestRelayRow(devEui: string): Promise<RelayRow | null> {

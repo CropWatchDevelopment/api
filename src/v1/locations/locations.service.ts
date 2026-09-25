@@ -3,22 +3,25 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { CreateLocationOwnerDto } from './dto/create-location-owner.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
+import { UpdateLocationUserPermissionLevelDto } from './dto/update-location-user-permission-level.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { PaymentsService } from '../payments/payments.service';
 import { LocationDto } from './dto/location.dto';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
-import {
-  MANAGE_CEILING,
-  PermissionLevel,
-  READ_EXCLUSIVE_CEILING,
-} from '../common/permission-levels';
+import { PermissionLevel } from '../common/permission-levels';
 import { filterStaffOwnerRows } from '../common/owner-filter.helper';
+import {
+  AccessService,
+  Action,
+  LOCATION_OWNER_MATCH_EMBED,
+  applyLocationReadScope,
+  assertCanGrant,
+  type LocationAccess,
+} from '../common/authz';
 import type { TableRow } from '../types/supabase';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
@@ -33,36 +36,25 @@ type LocationRecord = LocationRow & {
 };
 type QueryResult<T> = { data: T | null; error: PostgrestError | null };
 
-/**
- * Structural constraint for the Supabase query builders the scope helpers
- * accept: the helpers only chain `.eq`, `.lt`/`.lte`, and `.or`.
- */
-interface LocationScopeQuery<Q> {
-  eq(column: string, value: unknown): Q;
-  lt(column: string, value: unknown): Q;
-  lte(column: string, value: unknown): Q;
-  or(filters: string): Q;
-}
-
 @Injectable()
 export class LocationsService {
   constructor(
     private readonly supabaseService: SupabaseService,
-    private readonly paymentsService: PaymentsService,
+    private readonly accessService: AccessService,
   ) {}
 
   async create(createLocationDto: CreateLocationDto, user: AuthenticatedUser) {
     const userId = user.sub;
     const client = this.supabaseService.getClient();
 
-    // Creating a location requires an active base subscription. CropWatch staff
-    // are exempt, mirroring the rest of the permission model.
-    if (
-      !user.isStaff &&
-      !(await this.paymentsService.hasActiveBaseSubscription(user))
-    ) {
+    // Creating a location is an org-structure action: the org's Owner only.
+    // Every pre-organizations account is the owner of its own personal org,
+    // so existing users are unaffected; company managers/members and guests
+    // are rejected.
+    const ctx = await this.accessService.getOrgContext(user);
+    if (!user.isStaff && ctx.org?.role !== 'owner') {
       throw new ForbiddenException(
-        'An active base subscription is required to create a location.',
+        'Only the organization owner can create locations',
       );
     }
 
@@ -73,6 +65,9 @@ export class LocationsService {
       .insert({
         ...createLocationDto,
         owner_id: userId,
+        // Explicit org (the compat trigger only knows home orgs; a
+        // transferred company's owner may not be its home_of user).
+        org_id: ctx.org?.id ?? null,
       })
       .select('*')
       .single()) as QueryResult<LocationRow>;
@@ -108,17 +103,19 @@ export class LocationsService {
   }
 
   async findAll(user: AuthenticatedUser, searchName?: string) {
-    const userId = user.sub;
     const client = this.supabaseService.getClient();
-    const isGlobalUser = user.isStaff;
 
     let query = client.from('cw_locations').select(`
     *,
-    owner_match:cw_location_owners(),
+    ${LOCATION_OWNER_MATCH_EMBED},
     cw_location_owners(*)
   `);
 
-    query = this.applyLocationReadScope(query, userId, isGlobalUser);
+    query = applyLocationReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     if (searchName) {
       query = query.ilike('name', `%${searchName}%`);
@@ -134,18 +131,21 @@ export class LocationsService {
   }
 
   async findOne(id: number, user: AuthenticatedUser) {
-    const userId = user.sub;
     const client = this.supabaseService.getClient();
     const isGlobalUser = user.isStaff;
 
     let query = client
       .from('cw_locations')
       .select(
-        `*,owner_match:cw_location_owners(),cw_location_owners(*, profiles(id, full_name, email))`,
+        `*,${LOCATION_OWNER_MATCH_EMBED},cw_location_owners(*, profiles(id, full_name, email))`,
       )
       .eq('location_id', id);
 
-    query = this.applyLocationReadScope(query, userId, isGlobalUser);
+    query = applyLocationReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data, error } = (await query
       .order('name', { ascending: true })
@@ -173,83 +173,54 @@ export class LocationsService {
     updateLocationDto: UpdateLocationDto,
     user: AuthenticatedUser,
   ) {
-    const userId = user.sub;
     const client = this.supabaseService.getClient();
-    const isGlobalUser = user.isStaff;
 
-    // check if you have permission to update location permissions
-    let permissionQuery = client
-      .from('cw_locations')
-      .select(
-        `
-    *,
-    owner_match:cw_location_owners(),
-    cw_location_owners(*, profiles(id, full_name, email))
-  `,
-      )
-      .eq('location_id', id);
-    permissionQuery = this.applyLocationManageScope(
-      permissionQuery,
-      userId,
-      isGlobalUser,
+    // 404 when invisible, 403 when visible but below Manager.
+    await this.accessService.assertLocationAccess(
+      user,
+      id,
+      Action.LocationEdit,
     );
-    const { data: locationCurrentPermission, error: locationPermissionError } =
-      (await permissionQuery.maybeSingle()) as QueryResult<LocationRecord>;
-    if (locationPermissionError)
-      throw new InternalServerErrorException(
-        'Failed to fetch location permissions',
-      );
-    if (!locationCurrentPermission)
-      throw new UnauthorizedException(
-        'You do not have permission to update this location',
-      );
 
-    let updateQuery = client
+    // The permission gate above is the authorization boundary; the update
+    // itself only filters by primary key. (Previously this re-filtered on
+    // owner_id, which made Managers pass the gate and then 500.)
+    const { data, error } = (await client
       .from('cw_locations')
       .update({
         name: updateLocationDto.name,
         group: updateLocationDto.group,
       })
-      .eq('location_id', id);
-
-    if (!isGlobalUser) {
-      updateQuery = updateQuery.eq('owner_id', userId);
-    }
-
-    const { data, error } = (await updateQuery
+      .eq('location_id', id)
       .select('*')
-      .single()) as QueryResult<LocationRow>;
+      .maybeSingle()) as QueryResult<LocationRow>;
 
     if (error) {
       throw new InternalServerErrorException('Failed to update location');
     }
 
     if (!data) {
-      throw new NotFoundException(
-        'Location not found or you do not have permission to update',
-      );
+      throw new NotFoundException('Location not found');
     }
 
     return data;
   }
 
   async findAllLocationGroups(user: AuthenticatedUser): Promise<string[]> {
-    const userId = user.sub;
     const client = this.supabaseService.getClient();
-    const isGlobalUser = user.isStaff;
 
     let query = client
       .from('cw_locations')
-      .select('owner_match:cw_location_owners(), cw_location_owners(*), group')
+      .select(`${LOCATION_OWNER_MATCH_EMBED}, group`)
       .not('group', 'is', null);
 
-    if (!isGlobalUser) {
-      query = query
-        .eq('owner_id', userId)
-        .eq('owner_match.user_id', userId) // Ensure we only get location groups WE are owners of
-        .or(`owner_id.eq.${userId},owner_match.not.is.null`) // OR locations that we have permission to access
-        .lt('owner_match.permission_level', READ_EXCLUSIVE_CEILING); // AND our permission level is not Disabled
-    }
+    // Shared read scope: owned OR granted below Disabled. (Previously this
+    // had an extra owner_id filter that hid every shared location's group.)
+    query = applyLocationReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data, error } = await query.order('name', { ascending: true });
 
@@ -274,39 +245,14 @@ export class LocationsService {
   ) {
     const userId = user.sub;
     const client = this.supabaseService.getClient();
-    const isGlobalUser = user.isStaff;
 
-    // check if you have permission to update location permissions
-    let permissionQuery = client
-      .from('cw_locations')
-      .select(
-        `
-    *,
-    owner_match:cw_location_owners(),
-    cw_location_owners(*, profiles(id, full_name, email))
-  `,
-      )
-      .eq('location_id', id);
-    permissionQuery = this.applyLocationManageScope(
-      permissionQuery,
-      userId,
-      isGlobalUser,
+    const access = await this.accessService.assertLocationAccess(
+      user,
+      id,
+      Action.LocationGrant,
     );
-    const { data: locationCurrentPermission, error: locationPermissionError } =
-      (await permissionQuery.maybeSingle()) as QueryResult<LocationRecord>;
-    if (locationPermissionError)
-      throw new InternalServerErrorException(
-        'Failed to fetch location permissions',
-      );
-    if (!locationCurrentPermission)
-      throw new UnauthorizedException(
-        'You do not have permission to update this location',
-      );
 
-    // If we got here, then it means we have the necessary permissions to update location permissions, so we can proceed with upserting the location owner and potentially updating device permissions as well.
-
-    //First off, get UID for new user's email
-
+    // Resolve the target user's id from their email.
     const { data: userData, error: userError } = await client
       .from('profiles')
       .select('id')
@@ -317,6 +263,10 @@ export class LocationsService {
       throw new InternalServerErrorException('Failed to fetch user data');
     if (!userData)
       throw new NotFoundException('User with the provided email not found');
+
+    await this.assertLocationGrantAllowed(user, access, userData.id, {
+      newLevel: permissionLevel,
+    });
 
     // upsert user to location
     const { error: locationOwnerError } = await client
@@ -375,45 +325,30 @@ export class LocationsService {
   ) {
     const userId = user.sub;
     const client = this.supabaseService.getClient();
-    const isGlobalUser = user.isStaff;
 
-    // check if you have permission to update location permissions
-    let permissionQuery = client
-      .from('cw_locations')
-      .select(
-        `
-    *,
-    owner_match:cw_location_owners(),
-    cw_location_owners(*)
-  `,
-      )
-      .eq('location_id', id);
-    permissionQuery = this.applyLocationManageScope(
-      permissionQuery,
-      userId,
-      isGlobalUser,
+    const access = await this.accessService.assertLocationAccess(
+      user,
+      id,
+      Action.LocationGrant,
     );
-    const { data: locationCurrentPermission, error: locationPermissionError } =
-      (await permissionQuery.maybeSingle()) as QueryResult<LocationRecord>;
-    if (locationPermissionError)
-      throw new InternalServerErrorException(
-        'Failed to fetch location permissions',
-      );
-    if (!locationCurrentPermission)
-      throw new UnauthorizedException(
-        'You do not have permission to update this location',
-      );
 
-    // If we got here, then it means we have the necessary permissions to update location permissions, so we can proceed with upserting the location owner and potentially updating device permissions as well.
+    const targetUserId = updateLocationOwnerDto.user_id;
+    if (!targetUserId) {
+      throw new NotFoundException('User not found');
+    }
 
-    // upsert user to location
+    await this.assertLocationGrantAllowed(user, access, targetUserId, {
+      newLevel: updateLocationOwnerDto.permission_level ?? undefined,
+    });
+
+    // upsert user to location — always against the route's location id.
     const { error: locationOwnerError } = await client
       .from('cw_location_owners')
       .upsert(
         {
-          user_id: updateLocationOwnerDto.user_id,
+          user_id: targetUserId,
           permission_level: updateLocationOwnerDto.permission_level,
-          location_id: locationCurrentPermission.location_id,
+          location_id: id,
           is_active: updateLocationOwnerDto.is_active, // as we are inserting for the fist time, this should always be true.
           admin_user_id: userId,
         },
@@ -427,7 +362,7 @@ export class LocationsService {
     const { data: locationDevices, error: locationDevicesError } = await client
       .from('cw_devices')
       .select('dev_eui')
-      .eq('location_id', locationCurrentPermission.location_id);
+      .eq('location_id', id);
     if (locationDevicesError)
       throw new InternalServerErrorException(
         'Failed to fetch location devices',
@@ -443,7 +378,7 @@ export class LocationsService {
         .from('cw_device_owners')
         .upsert(
           {
-            user_id: updateLocationOwnerDto.user_id,
+            user_id: targetUserId,
             dev_eui: device.dev_eui,
             permission_level: applyPermissionToAllDevices
               ? locationPermissionLevel
@@ -459,48 +394,20 @@ export class LocationsService {
 
   async updateUserPermissionLevel(
     id: number,
-    updateLocationOwnerDto: unknown,
+    updateLocationOwnerDto: UpdateLocationUserPermissionLevelDto,
     applyPermissionToAllDevices: boolean,
     user: AuthenticatedUser,
   ) {
-    const userId = user.sub;
     const client = this.supabaseService.getClient();
-    const isGlobalUser = user.isStaff;
 
-    const { email, permission_level, location_id } = updateLocationOwnerDto as {
-      email: string;
-      permission_level: number | null;
-      location_id: number;
-    };
+    const { email, permission_level } = updateLocationOwnerDto;
 
-    // check if you have permission to update location permissions
-    let permissionQuery = client
-      .from('cw_locations')
-      .select(
-        `
-    *,
-    owner_match:cw_location_owners(),
-    cw_location_owners(*)
-  `,
-      )
-      .eq('location_id', id);
-    permissionQuery = this.applyLocationManageScope(
-      permissionQuery,
-      userId,
-      isGlobalUser,
+    const access = await this.accessService.assertLocationAccess(
+      user,
+      id,
+      Action.LocationGrant,
     );
-    const { data: locationCurrentPermission, error: locationPermissionError } =
-      (await permissionQuery.maybeSingle()) as QueryResult<LocationRecord>;
-    if (locationPermissionError)
-      throw new InternalServerErrorException(
-        'Failed to fetch location permissions',
-      );
-    if (!locationCurrentPermission)
-      throw new UnauthorizedException(
-        'You do not have permission to update this location',
-      );
 
-    // If we got here, then it means we have the necessary permissions to update location permissions, so we can proceed with upserting the location owner and potentially updating device permissions as well.
     const { data: userData, error: userError } = await client
       .from('profiles')
       .select('id')
@@ -512,16 +419,20 @@ export class LocationsService {
     if (!userData)
       throw new NotFoundException('User with the provided email not found');
 
-    // upsert user to location
+    await this.assertLocationGrantAllowed(user, access, userData.id, {
+      newLevel: permission_level,
+    });
+
+    // Update the existing row — always at the route's location id. (This
+    // previously wrote to a location_id taken from the request body, which
+    // allowed cross-location permission escalation.)
     const { error: locationOwnerError } = await client
       .from('cw_location_owners')
       .update({
-        user_id: userData.id,
         permission_level: permission_level,
-        location_id: location_id,
-        is_active: true, // as we are inserting for the fist time, this should always be true.
+        is_active: true,
       })
-      .eq('location_id', location_id)
+      .eq('location_id', id)
       .eq('user_id', userData.id)
       .single();
     if (locationOwnerError)
@@ -535,39 +446,13 @@ export class LocationsService {
     permissionId: number,
     user: AuthenticatedUser,
   ) {
-    const userId = user.sub;
     const client = this.supabaseService.getClient();
-    const isGlobalUser = user.isStaff;
 
-    // Check if current user has permissions to remove another user's permissions from the location
-    let permissionQuery = client
-      .from('cw_locations')
-      .select(
-        `
-    *,
-    owner_match:cw_location_owners(),
-    cw_location_owners(*)
-  `,
-      )
-      .eq('location_id', location_id);
-    permissionQuery = this.applyLocationManageScope(
-      permissionQuery,
-      userId,
-      isGlobalUser,
+    const access = await this.accessService.assertLocationAccess(
+      user,
+      location_id,
+      Action.LocationGrant,
     );
-    const { data: requestingUser, error } =
-      (await permissionQuery.maybeSingle()) as QueryResult<LocationRecord>;
-
-    if (error) {
-      throw new InternalServerErrorException(
-        'Failed to fetch location permissions',
-      );
-    }
-    if (!requestingUser) {
-      throw new UnauthorizedException(
-        'You do not have permission to update this location',
-      );
-    }
 
     // GET THE ROW WITH THE ACTUAL USER ID THAT WE WILL DELETE EVERYWHERE LATER ON
     const {
@@ -587,6 +472,21 @@ export class LocationsService {
       throw new NotFoundException('Location permission record not found');
 
     const user_id_to_delete = locationPermissionRecord.user_id;
+
+    assertCanGrant({
+      actor: {
+        isStaff: user.isStaff,
+        isOwner: access.isOwner,
+        level: access.level,
+      },
+      target: {
+        isResourceOwner:
+          access.ownerId != null && user_id_to_delete === access.ownerId,
+        isSelf: user_id_to_delete === user.sub,
+        currentLevel: locationPermissionRecord.permission_level,
+      },
+      // no newLevel: removal
+    });
 
     // delete location permission
     const { error: deleteLocationPermissionError } = await client
@@ -628,33 +528,47 @@ export class LocationsService {
     };
   }
 
-  private applyLocationReadScope<Q extends LocationScopeQuery<Q>>(
-    query: Q,
-    userId: string,
-    isGlobalUser: boolean,
-  ): Q {
-    if (isGlobalUser) {
-      return query;
+  /**
+   * Grant-ceiling check for changing `targetUserId`'s access on the
+   * location: fetches the target's current row and delegates to the pure
+   * `assertCanGrant` policy.
+   */
+  private async assertLocationGrantAllowed(
+    user: AuthenticatedUser,
+    access: LocationAccess,
+    targetUserId: string,
+    options: { newLevel?: number },
+  ): Promise<void> {
+    const client = this.supabaseService.getClient();
+
+    const { data: currentRow, error } = (await client
+      .from('cw_location_owners')
+      .select('permission_level')
+      .eq('location_id', access.locationId)
+      .eq('user_id', targetUserId)
+      .maybeSingle()) as QueryResult<
+      Pick<LocationOwnerRow, 'permission_level'>
+    >;
+
+    if (error) {
+      throw new InternalServerErrorException(
+        'Failed to fetch location permissions',
+      );
     }
 
-    return query
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', READ_EXCLUSIVE_CEILING)
-      .or(`owner_id.eq.${userId},owner_match.not.is.null`);
-  }
-
-  private applyLocationManageScope<Q extends LocationScopeQuery<Q>>(
-    query: Q,
-    userId: string,
-    isGlobalUser: boolean,
-  ): Q {
-    if (isGlobalUser) {
-      return query;
-    }
-
-    return query
-      .eq('owner_match.user_id', userId)
-      .lte('owner_match.permission_level', MANAGE_CEILING)
-      .or(`owner_id.eq.${userId},owner_match.not.is.null`);
+    assertCanGrant({
+      actor: {
+        isStaff: user.isStaff,
+        isOwner: access.isOwner,
+        level: access.level,
+      },
+      target: {
+        isResourceOwner:
+          access.ownerId != null && targetUserId === access.ownerId,
+        isSelf: targetUserId === user.sub,
+        currentLevel: currentRow?.permission_level ?? null,
+      },
+      newLevel: options.newLevel,
+    });
   }
 }

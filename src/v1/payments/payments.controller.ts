@@ -7,8 +7,10 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -22,15 +24,19 @@ import {
 } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
+import { StaffGuard } from '../auth/guards/staff.guard';
+import { OrgOwnerGuard } from '../common/authz';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { PaymentsService } from './payments.service';
-import { CreateBaseCheckoutDto } from './dto/create-base-checkout.dto';
 import { CreateDeviceCheckoutDto } from './dto/create-device-checkout.dto';
 import { ChangeSeatsDto } from './dto/change-seats.dto';
 import { AssignLicenseDto } from './dto/assign-license.dto';
 import { MoveLicenseDto } from './dto/move-license.dto';
-import { CancelBaseDto } from './dto/cancel-base.dto';
+import { CancelSubscriptionDto } from './dto/cancel-subscription.dto';
+import { AdminSetBillingModeDto } from './dto/admin-set-billing-mode.dto';
+import { AdminSetManualSeatsDto } from './dto/admin-set-manual-seats.dto';
+import { AdminSetReportingDto } from './dto/admin-set-reporting.dto';
 
 @ApiBearerAuth('bearerAuth')
 @ApiSecurity('apiKey')
@@ -38,48 +44,54 @@ import { CancelBaseDto } from './dto/cancel-base.dto';
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
+  // ---------------------------------------------------------------------------
+  // Reads
+  // ---------------------------------------------------------------------------
+
   @Get('products')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'List the base and device subscription products' })
+  @ApiOperation({
+    summary: 'List the device-seat and reporting subscription products',
+  })
   getProducts() {
     return this.paymentsService.getProducts();
   }
 
   @Get('subscriptions/state')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({
-    summary: 'Get the full billing overview (base sub, device seats, licenses)',
+    summary:
+      'Get the full billing overview (billing mode, device seats, reporting, licenses)',
   })
   getState(@CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.getState(user);
   }
 
-  @Get('licenses')
+  @Get('entitlements')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Cheap entitlement summary (seat count, reporting access) without calling Stripe',
+  })
+  getEntitlements(@CurrentUser() user: AuthenticatedUser) {
+    return this.paymentsService.getEntitlements(user);
+  }
+
+  @Get('licenses')
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({ summary: "List the user's device licenses" })
   getLicenses(@CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.getLicenses(user);
   }
 
-  @Post('subscriptions/base/checkout')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({
-    summary: 'Create a hosted checkout for the base subscription',
-  })
-  createBaseCheckout(
-    @Body() dto: CreateBaseCheckoutDto,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.paymentsService.createBaseCheckout(
-      user,
-      dto.discountId ?? null,
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // Device seats
+  // ---------------------------------------------------------------------------
 
   @Post('subscriptions/device/checkout')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({
-    summary: 'Create a hosted checkout for device licenses (seats)',
+    summary: 'Create a hosted checkout for device licenses (seats, min 3)',
   })
   createDeviceCheckout(
     @Body() dto: CreateDeviceCheckoutDto,
@@ -89,7 +101,7 @@ export class PaymentsController {
   }
 
   @Patch('subscriptions/device/seats')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({ summary: 'Change the number of device licenses (seats)' })
   changeDeviceSeats(
     @Body() dto: ChangeSeatsDto,
@@ -98,8 +110,53 @@ export class PaymentsController {
     return this.paymentsService.changeDeviceSeats(user, dto.seats);
   }
 
+  @Delete('subscriptions/device')
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
+  @ApiOperation({
+    summary: 'Cancel the device subscription (all seats)',
+  })
+  cancelDeviceSubscription(
+    @Body() dto: CancelSubscriptionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.paymentsService.cancelDeviceSubscription(
+      user,
+      dto.atPeriodEnd ?? true,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reporting add-on
+  // ---------------------------------------------------------------------------
+
+  @Post('subscriptions/reporting/checkout')
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
+  @ApiOperation({
+    summary: 'Create a hosted checkout for the reporting add-on',
+  })
+  createReportingCheckout(@CurrentUser() user: AuthenticatedUser) {
+    return this.paymentsService.createReportingCheckout(user);
+  }
+
+  @Delete('subscriptions/reporting')
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
+  @ApiOperation({ summary: 'Cancel the reporting add-on subscription' })
+  cancelReportingSubscription(
+    @Body() dto: CancelSubscriptionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.paymentsService.cancelReportingSubscription(
+      user,
+      dto.atPeriodEnd ?? true,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Licenses
+  // ---------------------------------------------------------------------------
+
   @Post('licenses/:id/assign')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({ summary: 'Assign a license to a device' })
   assignLicense(
@@ -115,7 +172,7 @@ export class PaymentsController {
   }
 
   @Patch('licenses/:id/move')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({ summary: 'Move a license to a different device' })
   moveLicense(
@@ -127,7 +184,7 @@ export class PaymentsController {
   }
 
   @Post('licenses/:id/unassign')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({ summary: 'Unassign a license from its device' })
   unassignLicense(
@@ -138,10 +195,11 @@ export class PaymentsController {
   }
 
   @Post('licenses/:id/cancel')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({
-    summary: 'Cancel an unassigned license (reduce the paid seat count by one)',
+    summary:
+      'Cancel an unassigned license (reduce the paid seat count by one, never below the minimum)',
   })
   cancelLicense(
     @Param('id') id: string,
@@ -151,24 +209,67 @@ export class PaymentsController {
   }
 
   @Post('portal')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({ summary: 'Open the Stripe customer billing portal' })
   openPortal(@CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.openPortal(user);
   }
 
-  @Delete('subscriptions/base')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Cancel the base subscription' })
-  cancelBase(
-    @Body() dto: CancelBaseDto,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.paymentsService.cancelBaseSubscription(
-      user,
-      dto.atPeriodEnd ?? true,
-    );
+  // ---------------------------------------------------------------------------
+  // Staff administration (manual-invoice customers, legacy device visibility)
+  // ---------------------------------------------------------------------------
+
+  @Get('admin/customers')
+  @UseGuards(JwtAuthGuard, StaffGuard)
+  @ApiOperation({
+    summary:
+      'Staff: list every device owner / billing customer with device, license, and subscription counts',
+  })
+  adminListCustomers() {
+    return this.paymentsService.adminListCustomers();
   }
+
+  @Patch('admin/customers/:userId/billing-mode')
+  @UseGuards(JwtAuthGuard, StaffGuard)
+  @ApiParam({ name: 'userId', description: 'Profile id (uuid)' })
+  @ApiOperation({ summary: "Staff: switch a customer's billing mode" })
+  adminSetBillingMode(
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @Body() dto: AdminSetBillingModeDto,
+  ) {
+    return this.paymentsService.adminSetBillingMode(userId, dto.billingMode);
+  }
+
+  @Put('admin/customers/:userId/manual-seats')
+  @UseGuards(JwtAuthGuard, StaffGuard)
+  @ApiParam({ name: 'userId', description: 'Profile id (uuid)' })
+  @ApiOperation({
+    summary:
+      'Staff: set the number of staff-granted device licenses for a manual-invoice customer',
+  })
+  adminSetManualSeats(
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @Body() dto: AdminSetManualSeatsDto,
+  ) {
+    return this.paymentsService.adminSetManualSeats(userId, dto.seats);
+  }
+
+  @Patch('admin/customers/:userId/reporting')
+  @UseGuards(JwtAuthGuard, StaffGuard)
+  @ApiParam({ name: 'userId', description: 'Profile id (uuid)' })
+  @ApiOperation({
+    summary: 'Staff: grant or revoke the reporting entitlement for a customer',
+  })
+  adminSetReportingManual(
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @Body() dto: AdminSetReportingDto,
+  ) {
+    return this.paymentsService.adminSetReportingManual(userId, dto.manual);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Webhook
+  // ---------------------------------------------------------------------------
 
   // Signature-verified in the service and driven by Stripe's own retrying
   // delivery from a small set of provider IPs — exempt from the per-user/IP

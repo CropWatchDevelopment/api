@@ -17,6 +17,11 @@ export class LocationOwnerDto implements LocationOwnerRow {
   @ApiProperty({ nullable: true, required: false })
   is_active: boolean | null;
 
+  @ApiProperty({
+    description: 'Pre-organizations grant kept at its old meaning (025)',
+  })
+  is_legacy: boolean;
+
   @ApiProperty()
   location_id: number;
 

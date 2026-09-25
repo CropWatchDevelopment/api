@@ -13,6 +13,11 @@ export class DeviceOwnerDto implements DeviceOwnerRow {
   @ApiProperty()
   owner_id: number;
 
+  @ApiProperty({
+    description: 'Pre-organizations grant kept at its old meaning (025)',
+  })
+  is_legacy: boolean;
+
   @ApiProperty()
   permission_level: number;
 

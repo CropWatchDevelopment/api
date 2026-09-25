@@ -2,6 +2,8 @@ import { ConfigService } from '@nestjs/config';
 import { RelayCommandLockService } from './relay-command-lock.service';
 import { RelayService } from './relay.service';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { NotFoundException } from '@nestjs/common';
+import { AccessService, type DeviceAccess } from '../common/authz';
 
 describe('RelayService', () => {
   const deviceContext = {
@@ -29,7 +31,19 @@ describe('RelayService', () => {
       warranty_start_date: null,
     },
     deviceId: 'eui-a8404194635a05fb',
-    permissionLevel: 2,
+    access: {
+      exists: true,
+      devEui: 'A8404194635A05FB',
+      locationId: 10,
+      orgId: null,
+      ownerId: 'user-1',
+      isStaff: false,
+      isOwner: false,
+      level: 2,
+      orgRole: null,
+      parentRead: false,
+      canRead: true,
+    } satisfies DeviceAccess,
   };
 
   const relayRow = {
@@ -58,6 +72,7 @@ describe('RelayService', () => {
             },
         ),
       } as unknown as SupabaseService,
+      { getDeviceAccess: jest.fn() } as unknown as AccessService,
     );
   }
 
@@ -94,7 +109,7 @@ describe('RelayService', () => {
 
     jest.spyOn(service as any, 'loadRelayDeviceContext').mockResolvedValue({
       ...deviceContext,
-      permissionLevel: 3,
+      access: { ...deviceContext.access, level: 3 },
     });
     jest
       .spyOn(service as any, 'findLatestRelayRow')
@@ -113,7 +128,7 @@ describe('RelayService', () => {
 
     jest.spyOn(service as any, 'loadRelayDeviceContext').mockResolvedValue({
       ...deviceContext,
-      permissionLevel: 4,
+      access: { ...deviceContext.access, level: 4 },
     });
     jest
       .spyOn(service as any, 'findLatestRelayRow')
@@ -130,10 +145,11 @@ describe('RelayService', () => {
   it('rejects latest relay reads when the user has no access to the device', async () => {
     const service = createService();
 
-    jest.spyOn(service as any, 'loadRelayDeviceContext').mockResolvedValue({
-      ...deviceContext,
-      permissionLevel: 5,
-    });
+    // The 404 for invisible devices now happens inside the context loader
+    // (central AccessService resolution).
+    jest
+      .spyOn(service as any, 'loadRelayDeviceContext')
+      .mockRejectedValue(new NotFoundException('Device not found'));
 
     await expect(
       service.getLatestRelay(

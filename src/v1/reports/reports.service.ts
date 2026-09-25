@@ -4,15 +4,11 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
-import {
-  listManagedDevices,
-  type ManagedDevice,
-} from '../common/managed-devices.helper';
+import { AccessService, type AccessibleDevice } from '../common/authz';
 import {
   groupBy,
   matchesSearch,
@@ -20,6 +16,7 @@ import {
 } from '../common/collection.helpers';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
+import { PaymentsService } from '../payments/payments.service';
 import { CommunicationMethodDto } from './dto/communication-method.dto';
 import { ReportFormContextDto } from './dto/report-form-context.dto';
 import { ReportTemplateAlertPointDto } from './dto/report-template-alert-point.dto';
@@ -136,20 +133,42 @@ export class ReportsService {
     private readonly supabaseService: SupabaseService,
     private readonly devicesService: DevicesService,
     private readonly locationsService: LocationsService,
+    private readonly paymentsService: PaymentsService,
+    private readonly accessService: AccessService,
   ) {}
+
+  /**
+   * Creating, editing, and regenerating reports requires the reporting
+   * add-on (or a staff-granted entitlement). Viewing/downloading existing
+   * reports is not gated. Staff are always entitled.
+   */
+  private async assertReportingEntitled(
+    user: AuthenticatedUser,
+    devEuis: string[] = [],
+  ): Promise<void> {
+    // The entitlement belongs to the org that owns the report's devices
+    // (plan 6.3) — resolved from the (request-memoized) accessible list.
+    let deviceOrgId: string | null = null;
+    if (devEuis.length > 0) {
+      const devices = await this.accessService.listAccessibleDevices(user);
+      deviceOrgId =
+        devices.find((d) => devEuis.includes(d.devEui) && d.orgId != null)
+          ?.orgId ?? null;
+    }
+    if (
+      !(await this.paymentsService.hasReportingEntitlement(user, deviceOrgId))
+    ) {
+      throw new ForbiddenException(
+        'A reporting subscription is required to create or edit reports.',
+      );
+    }
+  }
 
   async findAll(
     user: AuthenticatedUser,
     searchTerm?: string,
   ): Promise<ReportTemplateDto[]> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
+    const devices = await this.accessService.listAccessibleDevices(user);
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) return [];
 
@@ -202,14 +221,7 @@ export class ReportsService {
     id: number,
     user: AuthenticatedUser,
   ): Promise<ReportTemplateDto> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
+    const devices = await this.accessService.listAccessibleDevices(user);
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) {
       throw new NotFoundException('Report template not found');
@@ -282,15 +294,10 @@ export class ReportsService {
     user: AuthenticatedUser,
   ): Promise<ReportTemplateDto> {
     const userId = user.sub;
-    const isStaff = user.isStaff;
 
     const normalized = normalizeSaveRequest(payload);
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
-    assertDevicesCanBeManaged(devices, normalized.devEuis);
+    await this.assertReportingEntitled(user, normalized.devEuis);
+    await this.accessService.assertDevicesManageable(user, normalized.devEuis);
 
     const client = this.supabaseService.getClient();
     const { data: templateData, error: templateError } = (await client
@@ -341,22 +348,15 @@ export class ReportsService {
     payload: SaveReportTemplateDto,
     user: AuthenticatedUser,
   ): Promise<ReportTemplateDto> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
     const normalized = normalizeSaveRequest(payload);
     const existing = await this.findOne(id, user);
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
 
     const allDevEuis = uniqueValues([
       ...existing.assignments.map((assignment) => assignment.devEui),
       ...normalized.devEuis,
     ]);
-    assertDevicesCanBeManaged(devices, allDevEuis);
+    await this.assertReportingEntitled(user, allDevEuis);
+    await this.accessService.assertDevicesManageable(user, allDevEuis);
 
     const client = this.supabaseService.getClient();
     const { error: updateError } = await client
@@ -382,17 +382,9 @@ export class ReportsService {
   }
 
   async remove(id: number, user: AuthenticatedUser): Promise<{ id: number }> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
     const existing = await this.findOne(id, user);
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
-    assertDevicesCanBeManaged(
-      devices,
+    await this.accessService.assertDevicesManageable(
+      user,
       existing.assignments.map((assignment) => assignment.devEui),
     );
 
@@ -518,9 +510,6 @@ export class ReportsService {
     reportName: string,
     user: AuthenticatedUser,
   ): Promise<{ url: string }> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
     const normalizedDevEui = devEui?.trim();
     const normalizedName = reportName?.trim();
     if (!normalizedDevEui || !normalizedName) {
@@ -539,16 +528,12 @@ export class ReportsService {
       ? normalizedName
       : `${normalizedName}.pdf`;
 
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
+    const devices = await this.accessService.listAccessibleDevices(user);
     const device = devices.find((entry) => entry.devEui === normalizedDevEui);
     if (!device || !device.canView) {
-      throw new UnauthorizedException(
-        'You do not have permission to download this report',
-      );
+      // The caller cannot see this device, so its reports do not exist for
+      // them (404, never 401/403 — existence is not revealed).
+      throw new NotFoundException('Report not found');
     }
 
     const storageClient =
@@ -581,6 +566,7 @@ export class ReportsService {
     if (!normalizedDevEui || UNSAFE_PATH_SEGMENT.test(normalizedDevEui)) {
       throw new BadRequestException('Invalid devEui');
     }
+    await this.assertReportingEntitled(user, [normalizedDevEui]);
     const isAssigned = template.assignments.some(
       (assignment) => assignment.devEui === normalizedDevEui,
     );
@@ -592,12 +578,7 @@ export class ReportsService {
 
     // Regenerating a customer-facing PDF is a manage action (same tier as
     // template create/update/remove), not a view action.
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      user.sub,
-      user.isStaff,
-    );
-    assertDevicesCanBeManaged(devices, [normalizedDevEui]);
+    await this.accessService.assertDevicesManageable(user, [normalizedDevEui]);
 
     const periodStart = new Date(dto.periodStart);
     const periodEnd = new Date(dto.periodEnd);
@@ -1062,7 +1043,7 @@ function buildReportTemplates(args: {
   recipients: RecipientRow[];
   alertPoints: AlertPointRow[];
   dpSchedules: DataProcessingScheduleRow[];
-  devices: ManagedDevice[];
+  devices: AccessibleDevice[];
 }): ReportTemplateDto[] {
   const {
     templates,
@@ -1330,21 +1311,6 @@ function toRegenerationItemDto(
     requestedAt: row.requested_at,
     editCount: row.edit_count ?? 1,
   };
-}
-
-function assertDevicesCanBeManaged(
-  devices: ManagedDevice[],
-  devEuis: string[],
-): void {
-  const manageable = new Set(
-    devices.filter((device) => device.canManage).map((device) => device.devEui),
-  );
-  const missing = devEuis.find((devEui) => !manageable.has(devEui));
-  if (missing) {
-    throw new ForbiddenException(
-      'You do not have permission to manage one or more selected devices',
-    );
-  }
 }
 
 function trimOrNull(value: string | null | undefined): string | null {

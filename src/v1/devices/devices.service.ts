@@ -5,7 +5,6 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
@@ -14,11 +13,16 @@ import { LocationsService } from '../locations/locations.service';
 import { PaymentsService } from '../payments/payments.service';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
 import { CreateDeviceDto } from './dto/create-device.dto';
+import { PermissionLevel } from '../common/permission-levels';
 import {
-  MANAGE_CEILING,
-  PermissionLevel,
-  READ_EXCLUSIVE_CEILING,
-} from '../common/permission-levels';
+  AccessService,
+  Action,
+  DEVICE_OWNER_MATCH_EMBED,
+  LOCATION_OWNER_MATCH_EMBED,
+  applyDeviceReadScope,
+  applyLocationManageScope,
+  assertCanGrant,
+} from '../common/authz';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type DeviceRow = TableRow<'cw_devices'>;
@@ -66,14 +70,6 @@ type ListResult<T> = {
   error: PostgrestError | null;
 };
 
-/** Structural shape of the PostgREST filter builder methods the scope helpers use. */
-interface DeviceScopeQuery<Q> {
-  eq(column: string, value: unknown): Q;
-  lt(column: string, value: unknown): Q;
-  lte(column: string, value: unknown): Q;
-  or(filters: string): Q;
-}
-
 export interface PagedDevicesResponse<T> {
   total?: number;
   skip: number;
@@ -89,6 +85,7 @@ export class DevicesService {
     private readonly supabaseService: SupabaseService,
     private readonly locationsService: LocationsService,
     private readonly paymentsService: PaymentsService,
+    private readonly accessService: AccessService,
   ) {}
 
   async findAll(
@@ -100,23 +97,22 @@ export class DevicesService {
     searchLocation?: string,
   ): Promise<PagedDevicesResponse<DeviceRecord>> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
 
     let devicesQuery = client.from('cw_devices').select(
       `
     *,
-    owner_match:cw_device_owners(),
+    ${DEVICE_OWNER_MATCH_EMBED},
     cw_device_owners(*),
-    cw_locations(name, location_id)
+    cw_locations(name, location_id),
+    device_licenses(id)
   `,
       { count: 'exact' },
     );
 
-    devicesQuery = this.applyDeviceReadScope(
+    devicesQuery = applyDeviceReadScope(
       devicesQuery,
-      userId,
-      isGlobalUser,
+      user,
+      await this.accessService.getReadableOrgIds(user),
     );
 
     if (searchGroup) {
@@ -161,8 +157,6 @@ export class DevicesService {
     devEui: string,
   ): Promise<DeviceRecord> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -173,7 +167,7 @@ export class DevicesService {
       .select(
         `
     *,
-    owner_match:cw_device_owners(),
+    ${DEVICE_OWNER_MATCH_EMBED},
     cw_device_owners(*),
     cw_locations(name, location_id),
     cw_device_type(*)
@@ -181,7 +175,11 @@ export class DevicesService {
       )
       .eq('dev_eui', normalizedDevEui);
 
-    query = this.applyDeviceReadScope(query, userId, isGlobalUser);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data, error } = (await query
       .order('name', { ascending: true })
@@ -202,16 +200,18 @@ export class DevicesService {
     user: AuthenticatedUser,
   ): Promise<{ online: number; offline: number }> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
 
     let query = client
       .from('cw_devices')
       .select(
-        'owner_match:cw_device_owners(), last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)',
+        `${DEVICE_OWNER_MATCH_EMBED}, last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)`,
       );
 
-    query = this.applyDeviceReadScope(query, userId, isGlobalUser);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: devices, error: devicesError } = await query.order('name', {
       ascending: true,
@@ -256,15 +256,17 @@ export class DevicesService {
     user: AuthenticatedUser,
   ): Promise<{ group: string | null; count: number }[]> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
 
     let query = client
       .from('cw_devices')
-      .select('owner_match:cw_device_owners(), cw_device_owners(*), group')
+      .select(`${DEVICE_OWNER_MATCH_EMBED}, cw_device_owners(*), group`)
       .not('group', 'is', null);
 
-    query = this.applyDeviceReadScope(query, userId, isGlobalUser);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: groups, error } = await query;
 
@@ -322,7 +324,6 @@ export class DevicesService {
     );
     const client = this.supabaseService.getClient();
     const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       this.logger.warn('findData: dev_eui is empty or missing');
@@ -337,13 +338,17 @@ export class DevicesService {
       .select(
         `
     *,
-    owner_match:cw_device_owners(),
+    ${DEVICE_OWNER_MATCH_EMBED},
     cw_device_owners(*)
   `,
       )
       .eq('dev_eui', normalizedDevEui);
 
-    deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
+    deviceQuery = applyDeviceReadScope(
+      deviceQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: device, error: deviceError } =
       (await deviceQuery.single()) as SingleResult<DeviceRecord>;
@@ -452,8 +457,6 @@ export class DevicesService {
     take: number = 144,
   ): Promise<PagedDevicesResponse<SensorDataRow>> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -461,10 +464,14 @@ export class DevicesService {
 
     let deviceQuery = client
       .from('cw_devices')
-      .select(`*, owner_match:cw_device_owners(), cw_device_owners(*)`)
+      .select(`*, ${DEVICE_OWNER_MATCH_EMBED}, cw_device_owners(*)`)
       .eq('dev_eui', normalizedDevEui);
 
-    deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
+    deviceQuery = applyDeviceReadScope(
+      deviceQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: device, error: deviceError } =
       (await deviceQuery.single()) as SingleResult<DeviceRecord>;
@@ -539,8 +546,6 @@ export class DevicesService {
     locationGroup?: string,
   ): Promise<PagedDevicesResponse<Record<string, unknown>>> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const hasLocationFilter =
       typeof searchLocation === 'string' && searchLocation.trim().length > 0;
     const locationIdFilter = hasLocationFilter
@@ -553,14 +558,14 @@ export class DevicesService {
     let devicesQuery = client
       .from('cw_devices')
       .select(
-        `dev_eui, name, group, location_id, last_data_updated_at, cw_device_type(name, default_upload_interval, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, owner_match:cw_device_owners()`,
+        `dev_eui, name, group, location_id, last_data_updated_at, cw_device_type(name, default_upload_interval, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, ${DEVICE_OWNER_MATCH_EMBED}`,
         { count: 'exact' },
       );
 
-    devicesQuery = this.applyDeviceReadScope(
+    devicesQuery = applyDeviceReadScope(
       devicesQuery,
-      userId,
-      isGlobalUser,
+      user,
+      await this.accessService.getReadableOrgIds(user),
     );
 
     if (searchGroup) {
@@ -698,15 +703,17 @@ export class DevicesService {
     locationId: number,
   ): Promise<DeviceRecord[]> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
 
     let query = client
       .from('cw_devices')
-      .select('*, owner_match:cw_device_owners()')
+      .select(`*, ${DEVICE_OWNER_MATCH_EMBED}`)
       .eq('location_id', locationId);
 
-    query = this.applyDeviceReadScope(query, userId, isGlobalUser);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: devices, error: devicesError } = await query.order('name', {
       ascending: true,
@@ -729,8 +736,6 @@ export class DevicesService {
     primaryAndSecondaryOnly = false,
   ) {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -738,10 +743,14 @@ export class DevicesService {
 
     let deviceQuery = client
       .from('cw_devices')
-      .select('*, owner_match:cw_device_owners()')
+      .select(`*, ${DEVICE_OWNER_MATCH_EMBED}`)
       .eq('dev_eui', normalizedDevEui);
 
-    deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
+    deviceQuery = applyDeviceReadScope(
+      deviceQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: device, error: deviceError } =
       (await deviceQuery.single()) as SingleResult<DeviceRecord>;
@@ -822,22 +831,18 @@ export class DevicesService {
       throw new BadRequestException('dev_eui is required');
     }
 
-    // do I own the location?
+    // Adding a device to a location is a location-manage action: the
+    // location's implicit owner, Admins, and Managers may do it. (Previously
+    // this required the literal owner, locking location Admins out.)
+    // 404 when the location is invisible, 403 when below Manager.
     if (!device.location_id) {
       throw new BadRequestException('location_id is required');
     }
-    const location = (await this.locationsService.findOne(
-      device.location_id,
+    await this.accessService.assertLocationAccess(
       user,
-    )) as LocationRow | null;
-    if (!location) {
-      throw new BadRequestException('Invalid location');
-    }
-    if (!isGlobalUser && location.owner_id !== userId) {
-      throw new UnauthorizedException(
-        'You do not have permission to create a device in this location',
-      );
-    }
+      device.location_id,
+      Action.LocationDeviceCreate,
+    );
 
     // Creating a device consumes an unassigned license seat (the TTI device
     // quota paywall). CropWatch staff are exempt, mirroring the location gate,
@@ -870,50 +875,13 @@ export class DevicesService {
       throw new InternalServerErrorException('Failed to create device');
     }
 
-    /******************************************************************************
-     * After creating a new device in a location, all users in that location must get
-     * permission to that device, as there is no way to assign permission to a device,
-     * only to a location (and the users inside of a location get permission to devices)
-     * This makes sense because you can view locations, and all devices inside of them
-     * there is no point in having permission to a device, but no permission to view the lcoation
-     * as even if you could see a device, you would have no route to get to said device.
-     *
-     * Let's add permissions for all existing location users here!!!
-     *********************************************************************************/
-
-    const { data: locationUsers, error: locationUsersError } = await client
-      .from('cw_location_owners')
-      .select('user_id')
-      .eq('location_id', device.location_id);
-
-    if (locationUsersError) {
-      throw new InternalServerErrorException('Failed to fetch location users');
-    }
-
-    // REmove YOU from the list of location users to add, as you are already the owner of the device and have all permissions
-    if (locationUsers.find((user) => user.user_id === userId)) {
-      locationUsers.splice(
-        locationUsers.findIndex((user) => user.user_id === userId),
-        1,
-      );
-    }
-
-    // Add permissions for all existing location users
-    for (const locationUser of locationUsers) {
-      const { error: addPermissionError } = await client
-        .from('cw_device_owners')
-        .insert({
-          dev_eui: normalizedDevEui,
-          user_id: locationUser.user_id,
-          permission_level: PermissionLevel.DISABLED, // location users opt in per device
-        });
-
-      if (addPermissionError) {
-        throw new InternalServerErrorException(
-          'Failed to add device permissions for location users',
-        );
-      }
-    }
+    /*
+     * Organizations model (PR-B): new devices no longer receive per-user
+     * Disabled fan-out rows. Access now resolves as: device override row,
+     * else the caller's LOCATION grant default — so everyone granted the
+     * location sees a new device at their location default immediately.
+     * (Before, every new device started Disabled for every shared user.)
+     */
 
     // Consume the seat immediately so the new device cannot exist unlicensed.
     if (licenseId) {
@@ -934,66 +902,29 @@ export class DevicesService {
   ) {
     // Ensure user has access to the device they want to replace
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
 
-    let existingDeviceQuery = client
-      .from('cw_devices')
-      .select(`*, owner_match:cw_device_owners()`)
-      .eq('dev_eui', normalizedDevEui);
-
-    existingDeviceQuery = this.applyDeviceManageScope(
-      existingDeviceQuery,
-      userId,
-      isGlobalUser,
-      PermissionLevel.ADMIN,
+    // Replacing is an Admin-tier action on BOTH devices: the one being
+    // replaced and the replacement. (Previously the replacement was checked
+    // by re-querying the old eui, so no authorization ran against it.)
+    await this.accessService.assertDeviceAccess(
+      user,
+      normalizedDevEui,
+      Action.DeviceReplace,
     );
 
-    const { data: device, error: deviceError } =
-      (await existingDeviceQuery.single()) as SingleResult<DeviceRecord>;
-
-    if (deviceError) {
-      throw new InternalServerErrorException('Failed to fetch device');
-    }
-
-    if (!device) {
-      throw new NotFoundException('Device not found');
-    }
-
-    // We have access to the existing device; verify access to the REPLACEMENT
-    // device by its own dev_eui. Previously this re-checked the old eui (a
-    // copy-paste of the block above), so no authorization was ever performed
-    // against the target device.
     const normalizedNewDevEui = newDevice.dev_eui?.trim();
     if (!normalizedNewDevEui) {
       throw new BadRequestException('Replacement dev_eui is required');
     }
-    let newDeviceQuery = client
-      .from('cw_devices')
-      .select(`*, owner_match:cw_device_owners()`)
-      .eq('dev_eui', normalizedNewDevEui);
-
-    newDeviceQuery = this.applyDeviceManageScope(
-      newDeviceQuery,
-      userId,
-      isGlobalUser,
-      PermissionLevel.ADMIN,
+    await this.accessService.assertDeviceAccess(
+      user,
+      normalizedNewDevEui,
+      Action.DeviceReplace,
     );
-
-    const { data: newDeviceData, error: newDeviceError } =
-      (await newDeviceQuery.single()) as SingleResult<DeviceRecord>;
-
-    if (newDeviceError) {
-      throw new InternalServerErrorException('Failed to fetch new device');
-    }
-
-    if (!newDeviceData) {
-      throw new NotFoundException('New device not found');
-    }
 
     // We have access to both devices, let's now update the existing device with the new device.
     const { data: updatedDeviceData, error: updateDeviceError } = (await client
@@ -1027,8 +958,6 @@ export class DevicesService {
     permissionLevel: number,
   ) {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -1040,47 +969,62 @@ export class DevicesService {
       throw new BadRequestException('permissionLevel is required');
     }
 
-    // Check we have permission to do the permission update
-    let permissionQuery = client
-      .from('cw_devices')
-      .select('*, owner_match:cw_device_owners()')
-      .eq('dev_eui', normalizedDevEui);
-
-    permissionQuery = this.applyDeviceManageScope(
-      permissionQuery,
-      userId,
-      isGlobalUser,
-      PermissionLevel.ADMIN,
+    // Changing device permissions is an Admin-tier action:
+    // 404 when the device is invisible, 403 when below Admin.
+    const access = await this.accessService.assertDeviceAccess(
+      user,
+      normalizedDevEui,
+      Action.DeviceGrant,
     );
 
-    const { data: RequestingUserHasPermission, error: deviceError } =
-      (await permissionQuery.single()) as SingleResult<DeviceRecord>;
-
-    if (!RequestingUserHasPermission || deviceError) {
-      throw new UnauthorizedException(
-        'You do not have permission to update this device',
-      );
-    }
-
     // Get the user we plan to update permission for
-
     const { data: targetUser, error: targetUserError } = await client
       .from('profiles')
       .select('id')
       .eq('email', targetUserEmail)
-      .single();
+      .maybeSingle();
 
-    if (!targetUser || targetUserError) {
-      throw new UnauthorizedException(
-        'You do not have permission to update this device',
+    if (targetUserError) {
+      throw new InternalServerErrorException('Failed to fetch user data');
+    }
+    if (!targetUser) {
+      throw new NotFoundException('User with the provided email not found');
+    }
+
+    // Grant ceiling: no touching the implicit owner's access, no changing
+    // your own level, and no granting a level stronger than your own.
+    const { data: targetRow, error: targetRowError } = (await client
+      .from('cw_device_owners')
+      .select('permission_level')
+      .eq('dev_eui', normalizedDevEui)
+      .eq('user_id', targetUser.id)
+      .maybeSingle()) as SingleResult<Pick<DeviceOwnerRow, 'permission_level'>>;
+    if (targetRowError) {
+      throw new InternalServerErrorException(
+        'Failed to fetch device permissions',
       );
     }
+
+    assertCanGrant({
+      actor: {
+        isStaff: user.isStaff,
+        isOwner: access.isOwner,
+        level: access.level,
+      },
+      target: {
+        isResourceOwner:
+          access.ownerId != null && targetUser.id === access.ownerId,
+        isSelf: targetUser.id === user.sub,
+        currentLevel: targetRow?.permission_level ?? null,
+      },
+      newLevel: permissionLevel,
+    });
 
     // do the thing
     const { data, error } = (await client
       .from('cw_device_owners')
       .update({ permission_level: permissionLevel })
-      .eq('dev_eui', devEui)
+      .eq('dev_eui', normalizedDevEui)
       .eq('user_id', targetUser.id)
       .select('*')) as ListResult<DeviceOwnerRow>;
 
@@ -1102,7 +1046,6 @@ export class DevicesService {
   ) {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -1117,31 +1060,15 @@ export class DevicesService {
       throw new BadRequestException('Device location is required');
     }
 
-    // Check we have permission to do the update
-    let permissionQuery = client
-      .from('cw_devices')
-      .select('*, owner_match:cw_device_owners()')
-      .eq('dev_eui', normalizedDevEui);
-
-    permissionQuery = this.applyDeviceManageScope(
-      permissionQuery,
-      userId,
-      isGlobalUser,
-      MANAGE_CEILING,
+    // Editing a device is a Manager-tier action:
+    // 404 when the device is invisible, 403 when below Manager.
+    const access = await this.accessService.assertDeviceAccess(
+      user,
+      normalizedDevEui,
+      Action.DeviceEdit,
     );
 
-    const { data: RequestingUserHasPermission, error: deviceError } =
-      (await permissionQuery.single()) as SingleResult<DeviceRecord>;
-
-    if (!RequestingUserHasPermission || deviceError) {
-      throw new UnauthorizedException(
-        'You do not have permission to update this device',
-      );
-    }
-
-    const currentDevice = RequestingUserHasPermission;
-    const isMovingLocation =
-      Number(currentDevice.location_id) !== Number(location_id);
+    const isMovingLocation = Number(access.locationId) !== Number(location_id);
 
     // Moving a device hands it over to the destination location:
     //  * the destination location's owner becomes the device owner,
@@ -1157,16 +1084,16 @@ export class DevicesService {
       let destinationQuery = client
         .from('cw_locations')
         .select(
-          'location_id, owner_id, owner_match:cw_location_owners(), cw_location_owners(user_id)',
+          `location_id, owner_id, ${LOCATION_OWNER_MATCH_EMBED}, cw_location_owners(user_id)`,
         )
         .eq('location_id', location_id);
 
-      if (!isGlobalUser) {
-        destinationQuery = destinationQuery
-          .eq('owner_match.user_id', userId)
-          .lte('owner_match.permission_level', MANAGE_CEILING)
-          .or(`owner_id.eq.${userId},owner_match.not.is.null`);
-      }
+      destinationQuery = applyLocationManageScope(
+        destinationQuery,
+        user,
+        undefined,
+        await this.accessService.getManagedOrgIds(user),
+      );
 
       const { data: destination, error: destinationError } =
         (await destinationQuery.maybeSingle()) as SingleResult<
@@ -1181,7 +1108,7 @@ export class DevicesService {
         );
       }
       if (!destination) {
-        throw new UnauthorizedException(
+        throw new ForbiddenException(
           'You do not have permission to move this device to that location',
         );
       }
@@ -1274,36 +1201,5 @@ export class DevicesService {
         'Failed to grant device permissions for the new location',
       );
     }
-  }
-
-  private applyDeviceReadScope<Q extends DeviceScopeQuery<Q>>(
-    query: Q,
-    userId: string,
-    isGlobalUser: boolean,
-  ): Q {
-    if (isGlobalUser) {
-      return query;
-    }
-
-    return query
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', READ_EXCLUSIVE_CEILING)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`);
-  }
-
-  private applyDeviceManageScope<Q extends DeviceScopeQuery<Q>>(
-    query: Q,
-    userId: string,
-    isGlobalUser: boolean,
-    maxPermissionLevel: number,
-  ): Q {
-    if (isGlobalUser) {
-      return query;
-    }
-
-    return query
-      .eq('owner_match.user_id', userId)
-      .lte('owner_match.permission_level', maxPermissionLevel)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`);
   }
 }
