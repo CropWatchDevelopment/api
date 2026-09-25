@@ -68,6 +68,10 @@ export const POLICY_CEILINGS: Readonly<Record<Action, number>> = {
 export const OWNER_ONLY_ACTIONS: ReadonlySet<Action> = new Set([
   Action.LocationCreate,
   Action.LocationDelete,
+  // Owner-only as an ORG action; the level-2 ceiling below still lets
+  // grandfathered legacy Admin/Manager grants add devices to their shared
+  // locations until staff convert those accounts.
+  Action.LocationDeviceCreate,
   Action.DeviceReplace,
   Action.GatewayCreate,
   Action.OrgSettingsManage,

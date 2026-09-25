@@ -21,6 +21,13 @@ export class GatewayDto implements TableRow<'cw_gateways'> {
   @ApiProperty()
   is_public: boolean;
 
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description: 'Owning organization (026)',
+  })
+  org_id: string | null;
+
   @ApiProperty({ required: false, nullable: true, format: 'date-time' })
   updated_at: string | null;
 

@@ -683,6 +683,7 @@ export type Database = {
           id: number
           is_online: boolean
           is_public: boolean
+          org_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -692,6 +693,7 @@ export type Database = {
           id?: number
           is_online: boolean
           is_public?: boolean
+          org_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -701,6 +703,7 @@ export type Database = {
           id?: number
           is_online?: boolean
           is_public?: boolean
+          org_id?: string | null
           updated_at?: string | null
         }
         Relationships: []

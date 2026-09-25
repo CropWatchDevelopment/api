@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -46,6 +47,17 @@ export class LocationsService {
     const userId = user.sub;
     const client = this.supabaseService.getClient();
 
+    // Creating a location is an org-structure action: the org's Owner only.
+    // Every pre-organizations account is the owner of its own personal org,
+    // so existing users are unaffected; company managers/members and guests
+    // are rejected.
+    const ctx = await this.accessService.getOrgContext(user);
+    if (!user.isStaff && ctx.org?.role !== 'owner') {
+      throw new ForbiddenException(
+        'Only the organization owner can create locations',
+      );
+    }
+
     createLocationDto.owner_id = userId; // Ensure the owner_id is set to the authenticated user
 
     const { data: locationData, error: locationError } = (await client
@@ -53,6 +65,9 @@ export class LocationsService {
       .insert({
         ...createLocationDto,
         owner_id: userId,
+        // Explicit org (the compat trigger only knows home orgs; a
+        // transferred company's owner may not be its home_of user).
+        org_id: ctx.org?.id ?? null,
       })
       .select('*')
       .single()) as QueryResult<LocationRow>;
