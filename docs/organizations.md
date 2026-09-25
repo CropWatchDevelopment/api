@@ -24,6 +24,7 @@ The org-aware API layer built on migrations `025_organizations.sql` and
 | Variable | Meaning |
 |---|---|
 | `ORGS_ENABLED` | `'true'` enables invites, personal→company upgrade, and sub-org link mutations. Anything else hides them as 404s. The authz layer itself is **not** flag-gated. |
+| `ORG_OVERLAY_DISABLED` | **Kill-switch.** `'true'` collapses access resolution to grants-only (exact pre-organizations behavior) for every request, without a deploy. Members/managers temporarily lose org-derived access (their grants still apply); flip back off to restore. |
 | `APP_PUBLIC_URL` | Base URL for invite links in emails (default `https://app.cropwatch.io`). |
 | `SMTP_HOST/PORT/USER/PASS/FROM` | Shared mail transport (`common/mail/MailService`), also used by account-removal. |
 
