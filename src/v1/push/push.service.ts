@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { listManagedDevices } from '../common/managed-devices.helper';
+import { AccessService } from '../common/authz';
 import { canRead } from '../common/permission-levels';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
@@ -19,7 +19,10 @@ export interface PushTokenSummary {
 
 @Injectable()
 export class PushService {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly accessService: AccessService,
+  ) {}
 
   // Idempotent: re-registering after a page reload or FCM token refresh
   // re-stamps last_seen_at; a different account on the same browser takes
@@ -96,7 +99,7 @@ export class PushService {
   ): Promise<PushRecipientCandidate[]> {
     const client = this.supabaseService.getAdminClient();
 
-    const managed = await listManagedDevices(client, user.sub, user.isStaff);
+    const managed = await this.accessService.listAccessibleDevices(user);
     const viewable = new Set(
       managed.filter((device) => device.canView).map((device) => device.devEui),
     );

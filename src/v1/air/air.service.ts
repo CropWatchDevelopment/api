@@ -7,6 +7,7 @@ import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { BaseDataService } from '../common/base-data.service';
+import { AccessService, Action } from '../common/authz';
 import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
 import { UpdateAirAnnotationDto } from './dto/update-air-annotation.dto';
 import type { TableRow } from '../types/supabase';
@@ -21,8 +22,9 @@ export class AirService extends BaseDataService<'cw_air_data'> {
   constructor(
     supabaseService: SupabaseService,
     timezoneFormatter: TimezoneFormatterService,
+    accessService: AccessService,
   ) {
-    super(supabaseService, timezoneFormatter, 'cw_air_data');
+    super(supabaseService, timezoneFormatter, accessService, 'cw_air_data');
   }
 
   async findAllNotes(
@@ -77,7 +79,8 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     }
     const createdBy = user.email?.trim();
 
-    await this.assertDeviceAccess(normalizedDevEui, user);
+    // Writing notes is a User-tier action — Viewers are read-only.
+    await this.assertDeviceAccess(normalizedDevEui, user, Action.NoteWrite);
     const client = this.supabaseService.getClient();
     const resolvedCreatedAt = await this.resolveAnnotationCreatedAt(
       client,
@@ -123,7 +126,7 @@ export class AirService extends BaseDataService<'cw_air_data'> {
       throw new BadRequestException('Air annotation not found');
     }
 
-    await this.assertDeviceAccess(existingNote.dev_eui, user);
+    await this.assertDeviceAccess(existingNote.dev_eui, user, Action.NoteWrite);
 
     // Whitelist: UpdateAirAnnotationDto (PartialType of the create DTO) also
     // admits dev_eui/created_at — never let an update re-point a note at a
@@ -177,7 +180,7 @@ export class AirService extends BaseDataService<'cw_air_data'> {
       throw new BadRequestException('Air annotation not found');
     }
 
-    await this.assertDeviceAccess(existingNote.dev_eui, user);
+    await this.assertDeviceAccess(existingNote.dev_eui, user, Action.NoteWrite);
 
     const { error: deleteError } = await client
       .from('cw_air_annotations')

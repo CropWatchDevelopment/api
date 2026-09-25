@@ -2,12 +2,11 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
-  NotFoundException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from './timezone-formatter.service';
 import { TableRow, TableName } from '../types/supabase';
-import { READ_EXCLUSIVE_CEILING } from './permission-levels';
+import { AccessService, Action } from './authz';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 /**
@@ -18,6 +17,7 @@ export abstract class BaseDataService<T extends TableName> {
   constructor(
     protected readonly supabaseService: SupabaseService,
     protected readonly timezoneFormatter: TimezoneFormatterService,
+    protected readonly accessService: AccessService,
     protected readonly tableName: T,
   ) {}
 
@@ -73,35 +73,16 @@ export abstract class BaseDataService<T extends TableName> {
     }));
   }
 
+  /**
+   * Asserts the caller may perform `action` on the device (default: read
+   * data). 404 when the device is invisible, 403 when visible but the
+   * action is above the caller's level.
+   */
   protected async assertDeviceAccess(
     devEui: string,
     user: AuthenticatedUser,
+    action: Action = Action.DataRead,
   ): Promise<void> {
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
-    let query = this.supabaseService
-      .getClient()
-      .from('cw_devices')
-      .select('dev_eui, owner_match:cw_device_owners()')
-      .eq('dev_eui', devEui);
-
-    if (!isGlobalUser) {
-      query = query
-        .eq('owner_match.user_id', userId)
-        .lt('owner_match.permission_level', READ_EXCLUSIVE_CEILING)
-        .or(`user_id.eq.${userId},owner_match.not.is.null`);
-    }
-
-    const { data, error } = await query.maybeSingle();
-
-    if (error) {
-      throw new InternalServerErrorException(
-        'Failed to validate device access',
-      );
-    }
-
-    if (!data) {
-      throw new NotFoundException('Device not found');
-    }
+    await this.accessService.assertDeviceAccess(user, devEui, action);
   }
 }

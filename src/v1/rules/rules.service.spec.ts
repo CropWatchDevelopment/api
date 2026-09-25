@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { AccessService, type AccessibleDevice } from '../common/authz';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
 import { RulesService } from './rules.service';
@@ -121,7 +122,26 @@ function buildClient(stubsByTable: Record<string, QueryStub | QueryStub[]>) {
   return { from };
 }
 
-function serviceWith(client: { from: jest.Mock }): RulesService {
+interface AccessServiceMock {
+  listAccessibleDevices: jest.Mock;
+  assertDevicesManageable: jest.Mock;
+}
+
+// Stands in for AccessService: resolves the caller's accessible devices and
+// passes manage checks unless a test rejects them explicitly.
+function buildAccessService(
+  devices: AccessibleDevice[] = [],
+): AccessServiceMock {
+  return {
+    listAccessibleDevices: jest.fn().mockResolvedValue(devices),
+    assertDevicesManageable: jest.fn().mockResolvedValue(undefined),
+  };
+}
+
+function serviceWith(
+  client: { from: jest.Mock },
+  accessService: AccessServiceMock = buildAccessService(),
+): RulesService {
   return new RulesService(
     {
       getClient: jest.fn(() => client),
@@ -129,6 +149,7 @@ function serviceWith(client: { from: jest.Mock }): RulesService {
     } as unknown as SupabaseService,
     {} as unknown as DevicesService,
     {} as unknown as LocationsService,
+    accessService as unknown as AccessService,
   );
 }
 
@@ -154,6 +175,10 @@ describe('RulesService', () => {
           provide: LocationsService,
           useValue: {},
         },
+        {
+          provide: AccessService,
+          useValue: {},
+        },
       ],
     }).compile();
 
@@ -165,21 +190,9 @@ describe('RulesService', () => {
   });
 
   it('findAll returns an empty list when the user cannot view any devices', async () => {
-    const devicesQuery = buildQueryStub({
-      list: { data: [], error: null },
-    });
-    const client = {
-      from: jest.fn(() => devicesQuery),
-    };
-
-    const serviceWithClient = new RulesService(
-      {
-        getClient: jest.fn(() => client),
-        getAdminClient: jest.fn(),
-      } as unknown as SupabaseService,
-      {} as unknown as DevicesService,
-      {} as unknown as LocationsService,
-    );
+    const accessService = buildAccessService([]);
+    const client = { from: jest.fn() };
+    const serviceWithClient = serviceWith(client, accessService);
 
     await expect(
       serviceWithClient.findAll({
@@ -189,36 +202,20 @@ describe('RulesService', () => {
       }),
     ).resolves.toEqual([]);
 
-    expect(client.from).toHaveBeenCalledWith('cw_devices');
+    expect(accessService.listAccessibleDevices).toHaveBeenCalledWith(
+      expect.objectContaining({ sub: 'user-1' }),
+    );
+    expect(client.from).not.toHaveBeenCalled();
   });
 
   it('create rejects devices the caller cannot manage', async () => {
-    const devicesQuery = buildQueryStub({
-      list: {
-        data: [
-          {
-            dev_eui: 'AA',
-            name: 'Device A',
-            user_id: 'someone-else',
-            cw_device_owners: [{ user_id: 'user-1', permission_level: 4 }],
-          },
-        ],
-        error: null,
-      },
-    });
-
-    const client = {
-      from: jest.fn(() => devicesQuery),
-    };
-
-    const serviceWithClient = new RulesService(
-      {
-        getClient: jest.fn(() => client),
-        getAdminClient: jest.fn(),
-      } as unknown as SupabaseService,
-      {} as unknown as DevicesService,
-      {} as unknown as LocationsService,
+    const accessService = buildAccessService();
+    accessService.assertDevicesManageable.mockRejectedValue(
+      new ForbiddenException(
+        'You do not have permission to manage one or more selected devices',
+      ),
     );
+    const serviceWithClient = serviceWith({ from: jest.fn() }, accessService);
 
     await expect(
       serviceWithClient.create(
@@ -243,22 +240,23 @@ describe('RulesService', () => {
         { sub: 'user-1', email: 'user@example.com', isStaff: false },
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(accessService.assertDevicesManageable).toHaveBeenCalledWith(
+      expect.objectContaining({ sub: 'user-1' }),
+      ['AA'],
+    );
   });
 
   it('findOne throws NotFound when no assignment is visible to the user', async () => {
-    const devicesQuery = buildQueryStub({
-      list: {
-        data: [
-          {
-            dev_eui: 'AA',
-            name: 'Device A',
-            user_id: 'user-1',
-            cw_device_owners: [],
-          },
-        ],
-        error: null,
+    const accessService = buildAccessService([
+      {
+        devEui: 'AA',
+        name: 'Device A',
+        permissionLevel: 1,
+        canView: true,
+        canManage: true,
       },
-    });
+    ]);
     const templateQuery = buildQueryStub({
       maybeSingle: {
         data: {
@@ -276,20 +274,11 @@ describe('RulesService', () => {
       list: { data: [], error: null },
     });
 
-    const fromMock = jest
-      .fn()
-      .mockImplementationOnce(() => devicesQuery)
-      .mockImplementationOnce(() => templateQuery)
-      .mockImplementationOnce(() => assignmentsQuery);
-
-    const serviceWithClient = new RulesService(
-      {
-        getClient: jest.fn(() => ({ from: fromMock })),
-        getAdminClient: jest.fn(),
-      } as unknown as SupabaseService,
-      {} as unknown as DevicesService,
-      {} as unknown as LocationsService,
-    );
+    const client = buildClient({
+      cw_rule_templates: templateQuery,
+      cw_device_rule_assignments: assignmentsQuery,
+    });
+    const serviceWithClient = serviceWith(client, accessService);
 
     await expect(
       serviceWithClient.findOne(1, {
@@ -303,13 +292,20 @@ describe('RulesService', () => {
   describe('getStateForDevices', () => {
     const jwt = { sub: 'user-1', email: 'user@example.com', isStaff: false };
 
-    const deviceRows = [
-      { dev_eui: 'AA', name: 'Mine', user_id: 'user-1', cw_device_owners: [] },
+    const accessibleDevices: AccessibleDevice[] = [
       {
-        dev_eui: 'BB',
+        devEui: 'AA',
+        name: 'Mine',
+        permissionLevel: 1,
+        canView: true,
+        canManage: true,
+      },
+      {
+        devEui: 'BB',
         name: 'Not mine',
-        user_id: 'someone-else',
-        cw_device_owners: [],
+        permissionLevel: 5,
+        canView: false,
+        canManage: false,
       },
     ];
 
@@ -329,10 +325,12 @@ describe('RulesService', () => {
         },
       });
       const client = buildClient({
-        cw_devices: buildQueryStub({ list: { data: deviceRows, error: null } }),
         cw_rule_state: stateQuery,
       });
-      const service = serviceWith(client);
+      const service = serviceWith(
+        client,
+        buildAccessService(accessibleDevices),
+      );
 
       const result = await service.getStateForDevices(jwt, ['AA', 'BB']);
 
@@ -351,7 +349,6 @@ describe('RulesService', () => {
 
     it('lastChange is the reset time when the reset is newer', async () => {
       const client = buildClient({
-        cw_devices: buildQueryStub({ list: { data: deviceRows, error: null } }),
         cw_rule_state: buildQueryStub({
           list: {
             data: [
@@ -368,24 +365,33 @@ describe('RulesService', () => {
         }),
       });
 
-      const result = await serviceWith(client).getStateForDevices(jwt, ['AA']);
+      const result = await serviceWith(
+        client,
+        buildAccessService(accessibleDevices),
+      ).getStateForDevices(jwt, ['AA']);
       expect(result.states[0].lastChange).toBe('2026-08-11T02:00:00Z');
     });
 
     it('skips the state query entirely when nothing requested is visible', async () => {
-      const client = buildClient({
-        cw_devices: buildQueryStub({ list: { data: deviceRows, error: null } }),
-        // No cw_rule_state stub: from('cw_rule_state') would throw.
-      });
+      // No cw_rule_state stub: from('cw_rule_state') would throw.
+      const client = buildClient({});
 
-      const result = await serviceWith(client).getStateForDevices(jwt, ['BB']);
+      const result = await serviceWith(
+        client,
+        buildAccessService(accessibleDevices),
+      ).getStateForDevices(jwt, ['BB']);
       expect(result.states).toEqual([]);
     });
 
     it('returns empty without any queries for an empty request', async () => {
+      const accessService = buildAccessService(accessibleDevices);
       const client = buildClient({});
-      const result = await serviceWith(client).getStateForDevices(jwt, []);
+      const result = await serviceWith(
+        client,
+        accessService,
+      ).getStateForDevices(jwt, []);
       expect(result.states).toEqual([]);
+      expect(accessService.listAccessibleDevices).not.toHaveBeenCalled();
       expect(client.from).not.toHaveBeenCalled();
     });
   });
@@ -433,6 +439,7 @@ describe('RulesService', () => {
         {} as unknown as SupabaseService,
         {} as unknown as DevicesService,
         {} as unknown as LocationsService,
+        {} as unknown as AccessService,
       );
       jest.spyOn(service, 'findAll').mockResolvedValue([
         buildRule(1, [
@@ -456,6 +463,7 @@ describe('RulesService', () => {
         {} as unknown as SupabaseService,
         {} as unknown as DevicesService,
         {} as unknown as LocationsService,
+        {} as unknown as AccessService,
       );
       jest
         .spyOn(service, 'findAll')
@@ -475,12 +483,13 @@ describe('RulesService', () => {
   describe('update and remove state handling', () => {
     const jwt = { sub: 'user-1', email: 'user@example.com', isStaff: false };
 
-    const deviceRows = (devEuis: string[]) =>
+    const accessibleDevices = (devEuis: string[]): AccessibleDevice[] =>
       devEuis.map((devEui) => ({
-        dev_eui: devEui,
+        devEui,
         name: `Device ${devEui}`,
-        user_id: 'user-1',
-        cw_device_owners: [],
+        permissionLevel: 1,
+        canView: true,
+        canManage: true,
       }));
 
     const templateRow = {
@@ -526,7 +535,11 @@ describe('RulesService', () => {
       overrides?: Partial<
         Record<'stateHandlers', { deleteReturn: StubResult }>
       >,
-    ): { client: { from: jest.Mock }; stubs: UpdateStubs } => {
+    ): {
+      client: { from: jest.Mock };
+      stubs: UpdateStubs;
+      accessService: AccessServiceMock;
+    } => {
       const state = buildQueryStub({
         list: { data: [], error: null },
         ...(overrides?.stateHandlers ?? {}),
@@ -536,9 +549,6 @@ describe('RulesService', () => {
         maybeSingle: { data: templateRow, error: null },
       });
       const client = buildClient({
-        cw_devices: buildQueryStub({
-          list: { data: deviceRows(existingDevEuis), error: null },
-        }),
         cw_rule_templates: templates,
         cw_device_rule_assignments: buildQueryStub({
           list: { data: assignmentRows(existingDevEuis), error: null },
@@ -548,12 +558,16 @@ describe('RulesService', () => {
         cw_rule_state: state,
         cw_rule_trigger_log: triggerLog,
       });
-      return { client, stubs: { state, triggerLog, templates } };
+      return {
+        client,
+        stubs: { state, triggerLog, templates },
+        accessService: buildAccessService(accessibleDevices(existingDevEuis)),
+      };
     };
 
     it('update preserves state for still-assigned devices (never a template-wide wipe)', async () => {
-      const { client, stubs } = buildUpdateClient(['AA', 'BB']);
-      const service = serviceWith(client);
+      const { client, stubs, accessService } = buildUpdateClient(['AA', 'BB']);
+      const service = serviceWith(client, accessService);
 
       await service.update(1, savePayload(['AA']), jwt);
 
@@ -570,8 +584,8 @@ describe('RulesService', () => {
     });
 
     it('update closes open trigger-log rows only for removed devices', async () => {
-      const { client, stubs } = buildUpdateClient(['AA', 'BB']);
-      const service = serviceWith(client);
+      const { client, stubs, accessService } = buildUpdateClient(['AA', 'BB']);
+      const service = serviceWith(client, accessService);
 
       await service.update(1, savePayload(['AA']), jwt);
 
@@ -595,8 +609,8 @@ describe('RulesService', () => {
     });
 
     it('update happy path returns the re-fetched template', async () => {
-      const { client } = buildUpdateClient(['AA']);
-      const service = serviceWith(client);
+      const { client, accessService } = buildUpdateClient(['AA']);
+      const service = serviceWith(client, accessService);
 
       const result = await service.update(1, savePayload(['AA']), jwt);
 
@@ -605,12 +619,12 @@ describe('RulesService', () => {
     });
 
     it('update surfaces InternalServerErrorException when state cleanup fails', async () => {
-      const { client } = buildUpdateClient(['AA'], {
+      const { client, accessService } = buildUpdateClient(['AA'], {
         stateHandlers: {
           deleteReturn: { data: null, error: { message: 'boom' } },
         },
       });
-      const service = serviceWith(client);
+      const service = serviceWith(client, accessService);
 
       await expect(
         service.update(1, savePayload(['AA']), jwt),
@@ -618,8 +632,8 @@ describe('RulesService', () => {
     });
 
     it('remove closes all open trigger-log rows and deletes state, children, template', async () => {
-      const { client, stubs } = buildUpdateClient(['AA']);
-      const service = serviceWith(client);
+      const { client, stubs, accessService } = buildUpdateClient(['AA']);
+      const service = serviceWith(client, accessService);
 
       await service.remove(1, jwt);
 

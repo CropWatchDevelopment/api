@@ -7,7 +7,10 @@ import {
 } from '@nestjs/common';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { READ_EXCLUSIVE_CEILING } from '../common/permission-levels';
+import {
+  DEVICE_OWNER_MATCH_EMBED,
+  applyDeviceReadScope,
+} from '../common/authz';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
 import type { TableRow } from '../types/supabase';
@@ -97,8 +100,6 @@ export class DashboardService {
     query: DashboardQuery,
   ): Promise<DashboardPage> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
 
     const skip = Math.max(0, query.skip ?? 0);
     const take = Math.min(Math.max(1, query.take ?? 50), 200);
@@ -123,15 +124,11 @@ export class DashboardService {
       `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
          cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
          ${locationSelect},
-         owner_match:cw_device_owners()`,
+         ${DEVICE_OWNER_MATCH_EMBED}`,
       { count: 'exact' },
     );
 
-    devicesQuery = this.applyDeviceReadScope(
-      devicesQuery,
-      userId,
-      isGlobalUser,
-    );
+    devicesQuery = applyDeviceReadScope(devicesQuery, user);
 
     if (query.group) {
       devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
@@ -181,8 +178,6 @@ export class DashboardService {
     query: DashboardQuery,
   ): Promise<DashboardLocationPage> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
 
     const skip = Math.max(0, query.skip ?? 0);
     const take = Math.min(Math.max(1, query.take ?? 20), 100);
@@ -202,8 +197,8 @@ export class DashboardService {
       : 'cw_locations(location_id, name, "group")';
     let locsQuery = client
       .from('cw_devices')
-      .select(`location_id, ${locationSelect}, owner_match:cw_device_owners()`);
-    locsQuery = this.applyDeviceReadScope(locsQuery, userId, isGlobalUser);
+      .select(`location_id, ${locationSelect}, ${DEVICE_OWNER_MATCH_EMBED}`);
+    locsQuery = applyDeviceReadScope(locsQuery, user);
     if (query.group) locsQuery = locsQuery.ilike('group', `%${query.group}%`);
     if (query.name) {
       locsQuery = locsQuery.or(
@@ -280,13 +275,9 @@ export class DashboardService {
       `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
          cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
          cw_locations(location_id, name, "group"),
-         owner_match:cw_device_owners()`,
+         ${DEVICE_OWNER_MATCH_EMBED}`,
     );
-    devicesQuery = this.applyDeviceReadScope(
-      devicesQuery,
-      userId,
-      isGlobalUser,
-    );
+    devicesQuery = applyDeviceReadScope(devicesQuery, user);
 
     if (includeNoLoc && locIds.length > 0) {
       devicesQuery = devicesQuery.or(
@@ -354,8 +345,6 @@ export class DashboardService {
     devEui: string,
   ): Promise<Record<string, unknown> | null> {
     const client = this.supabaseService.getClient();
-    const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const normalized = devEui?.trim();
 
     if (!normalized) {
@@ -365,11 +354,11 @@ export class DashboardService {
     let deviceQuery = client
       .from('cw_devices')
       .select(
-        'dev_eui, cw_device_type(data_table_v2), owner_match:cw_device_owners()',
+        `dev_eui, cw_device_type(data_table_v2), ${DEVICE_OWNER_MATCH_EMBED}`,
       )
       .eq('dev_eui', normalized);
 
-    deviceQuery = this.applyDeviceReadScope(deviceQuery, userId, isGlobalUser);
+    deviceQuery = applyDeviceReadScope(deviceQuery, user);
 
     const { data: device, error: deviceError } =
       await deviceQuery.maybeSingle();
@@ -674,21 +663,5 @@ export class DashboardService {
       parts.push(`location_id.in.(${locationIds.join(',')})`);
     }
     return parts.join(',');
-  }
-
-  private applyDeviceReadScope<
-    Q extends {
-      eq(column: string, value: unknown): Q;
-      lt(column: string, value: unknown): Q;
-      or(filters: string): Q;
-    },
-  >(query: Q, userId: string, isGlobalUser: boolean): Q {
-    if (isGlobalUser) {
-      return query;
-    }
-    return query
-      .eq('owner_match.user_id', userId)
-      .lt('owner_match.permission_level', READ_EXCLUSIVE_CEILING)
-      .or(`user_id.eq.${userId},owner_match.not.is.null`);
   }
 }

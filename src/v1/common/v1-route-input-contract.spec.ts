@@ -826,7 +826,7 @@ describe('V1 Route Input Contracts', () => {
       expectedCall: {
         args: [
           15,
-          { extra: 'keep-me', permission_level: 3, user_id: 'user-456' },
+          { email: 'user@example.com', location_id: 15, permission_level: 3 },
           true,
           MOCK_USER,
         ],
@@ -835,12 +835,12 @@ describe('V1 Route Input Contracts', () => {
       },
       expectedStatus: 200,
       method: 'patch',
-      name: 'PATCH /v1/locations/:id/permission-level keeps the current untyped body behavior',
+      name: 'PATCH /v1/locations/:id/permission-level preserves the validated body (legacy matching location_id allowed)',
       url: '/v1/locations/15/permission-level?applyToAllDevices=true',
       body: {
-        extra: 'keep-me',
+        email: 'user@example.com',
+        location_id: 15,
         permission_level: 3,
-        user_id: 'user-456',
       },
     },
     {
@@ -1028,6 +1028,32 @@ describe('V1 Route Input Contracts', () => {
       method: 'patch',
       name: 'PATCH /v1/devices/:dev_eui/permission-level rejects unknown body properties',
       url: '/v1/devices/DEV-001/permission-level',
+    },
+    {
+      auth: true,
+      body: {
+        email: 'user@example.com',
+        location_id: 999,
+        permission_level: 1,
+      },
+      expectedMessage: 'location_id in body must match route parameter',
+      expectedStatus: 400,
+      method: 'patch',
+      name: 'PATCH /v1/locations/:id/permission-level rejects a body location_id that differs from the route (cross-location escalation regression)',
+      url: '/v1/locations/15/permission-level',
+    },
+    {
+      auth: true,
+      body: {
+        email: 'user@example.com',
+        permission_level: 3,
+        rogue: true,
+      },
+      expectedMessage: ['property rogue should not exist'],
+      expectedStatus: 400,
+      method: 'patch',
+      name: 'PATCH /v1/locations/:id/permission-level rejects unknown body properties (was an untyped body)',
+      url: '/v1/locations/15/permission-level',
     },
     {
       auth: true,

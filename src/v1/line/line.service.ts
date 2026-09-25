@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { listManagedDevices } from '../common/managed-devices.helper';
+import { AccessService } from '../common/authz';
 import { canRead } from '../common/permission-levels';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { LineApiClient, type LineMessage } from './line-api.client';
@@ -59,6 +59,7 @@ export class LineService {
     private readonly configService: ConfigService,
     private readonly supabaseService: SupabaseService,
     private readonly lineApiClient: LineApiClient,
+    private readonly accessService: AccessService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -344,7 +345,7 @@ export class LineService {
   ): Promise<LineRecipientCandidate[]> {
     const client = this.supabaseService.getAdminClient();
 
-    const managed = await listManagedDevices(client, user.sub, user.isStaff);
+    const managed = await this.accessService.listAccessibleDevices(user);
     const viewable = new Set(
       managed.filter((device) => device.canView).map((device) => device.devEui),
     );

@@ -397,6 +397,24 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         },
         "type": "object",
       },
+      "UpdateLocationUserPermissionLevelDto": {
+        "properties": {
+          "email": {
+            "type": "string",
+          },
+          "location_id": {
+            "type": "number",
+          },
+          "permission_level": {
+            "type": "number",
+          },
+        },
+        "required": [
+          "email",
+          "permission_level",
+        ],
+        "type": "object",
+      },
       "UpdatePreferencesDto": {
         "properties": {
           "area_unit": {
@@ -1364,6 +1382,16 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
             },
           },
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLocationUserPermissionLevelDto",
+              },
+            },
+          },
+          "required": true,
+        },
       },
     },
     "/v1/soil/{dev_eui}": {

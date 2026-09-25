@@ -4,9 +4,10 @@ import { DevicesModule } from '../devices/devices.module';
 import { LocationsModule } from '../locations/locations.module';
 import { RulesController } from './rules.controller';
 import { RulesService } from './rules.service';
+import { AuthzModule } from '../common/authz';
 
 @Module({
-  imports: [SupabaseModule, DevicesModule, LocationsModule],
+  imports: [SupabaseModule, DevicesModule, LocationsModule, AuthzModule],
   controllers: [RulesController],
   providers: [RulesService],
 })
