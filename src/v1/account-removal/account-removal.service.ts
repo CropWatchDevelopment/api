@@ -2,11 +2,10 @@ import { createHmac, randomInt, timingSafeEqual } from 'crypto';
 import {
   BadRequestException,
   Injectable,
-  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createTransport, type Transporter } from 'nodemailer';
+import { MailService } from '../common/mail/mail.service';
 
 export interface AccountRemovalChallenge {
   question: string;
@@ -30,10 +29,10 @@ const CHALLENGE_KEY_CONTEXT = 'account-removal-challenge-v1';
  */
 @Injectable()
 export class AccountRemovalService {
-  private readonly logger = new Logger(AccountRemovalService.name);
-  private transporter: Transporter | null = null;
-
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly mailService: MailService,
+  ) {}
 
   createChallenge(): AccountRemovalChallenge {
     const a = randomInt(2, 21);
@@ -76,10 +75,6 @@ export class AccountRemovalService {
   }
 
   async sendRemovalRequest(email: string, message?: string): Promise<void> {
-    const transporter = this.getTransporter();
-    const from =
-      this.configService.get<string>('SMTP_FROM') ??
-      this.configService.get<string>('SMTP_USER');
     const now = new Date();
 
     const lines = [
@@ -96,19 +91,11 @@ export class AccountRemovalService {
       'This request only notifies you — no account data has been changed.',
     );
 
-    try {
-      await transporter.sendMail({
-        from,
-        to: REQUEST_RECIPIENTS,
-        subject: `Account removal request: ${email}`,
-        text: lines.join('\n'),
-      });
-    } catch (error) {
-      this.logger.error(`Failed to send account removal request email`, error);
-      throw new ServiceUnavailableException(
-        'Could not deliver the request — please try again later',
-      );
-    }
+    await this.mailService.send({
+      to: REQUEST_RECIPIENTS,
+      subject: `Account removal request: ${email}`,
+      text: lines.join('\n'),
+    });
   }
 
   private signAnswer(answer: number, expiresAt: number): string {
@@ -124,25 +111,5 @@ export class AccountRemovalService {
     return createHmac('sha256', `${CHALLENGE_KEY_CONTEXT}:${secret}`)
       .update(`${answer}:${expiresAt}`)
       .digest('hex');
-  }
-
-  private getTransporter(): Transporter {
-    if (this.transporter) return this.transporter;
-
-    const host = this.configService.get<string>('SMTP_HOST');
-    const user = this.configService.get<string>('SMTP_USER');
-    const pass = this.configService.get<string>('SMTP_PASS');
-    if (!host || !user || !pass) {
-      throw new ServiceUnavailableException('Email delivery is not configured');
-    }
-    const port = Number(this.configService.get<string>('SMTP_PORT') ?? '465');
-
-    this.transporter = createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    });
-    return this.transporter;
   }
 }

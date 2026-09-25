@@ -4,12 +4,11 @@ import {
 } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import { AccountRemovalService } from './account-removal.service';
+import type { MailService } from '../common/mail/mail.service';
 
+// The shared MailService owns the transport now; the service under test only
+// composes the message and delegates.
 const sendMailMock = jest.fn((_mail: unknown) => Promise.resolve());
-
-jest.mock('nodemailer', () => ({
-  createTransport: jest.fn(() => ({ sendMail: sendMailMock })),
-}));
 
 function buildService(
   overrides: Record<string, string | undefined> = {},
@@ -25,7 +24,9 @@ function buildService(
   const configService = {
     get: jest.fn((key: string) => values[key]),
   } as unknown as ConfigService;
-  return new AccountRemovalService(configService);
+  return new AccountRemovalService(configService, {
+    send: sendMailMock,
+  } as unknown as MailService);
 }
 
 describe('AccountRemovalService', () => {
@@ -102,16 +103,24 @@ describe('AccountRemovalService', () => {
       expect(args.text).toContain('bye now');
     });
 
-    it('fails closed when SMTP is not configured', async () => {
+    it('propagates the mail service failing closed when SMTP is not configured', async () => {
+      // MailService owns the fail-closed behavior (see mail.service.spec.ts);
+      // this service must let its 503 bubble untouched.
+      sendMailMock.mockRejectedValueOnce(
+        new ServiceUnavailableException('Email delivery is not configured'),
+      );
       const service = buildService({ SMTP_HOST: undefined });
       await expect(
         service.sendRemovalRequest('leaving@example.com'),
       ).rejects.toThrow(ServiceUnavailableException);
-      expect(sendMailMock).not.toHaveBeenCalled();
     });
 
     it('maps transport failures to a 503 without leaking details', async () => {
-      sendMailMock.mockRejectedValueOnce(new Error('SMTP down'));
+      sendMailMock.mockRejectedValueOnce(
+        new ServiceUnavailableException(
+          'Could not deliver the email — please try again later',
+        ),
+      );
       const service = buildService();
       await expect(
         service.sendRemovalRequest('leaving@example.com'),
