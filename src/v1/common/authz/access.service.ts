@@ -21,6 +21,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { PostgrestError } from '@supabase/supabase-js';
+import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../../../supabase/supabase.service';
 import type { AuthenticatedUser } from '../../auth/authenticated-user';
 import type { TableRow } from '../../types/supabase';
@@ -131,7 +132,10 @@ export class AccessService {
     Map<string, Promise<unknown>>
   >();
 
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(
+    private readonly supabaseService: SupabaseService,
+    private readonly configService: ConfigService,
+  ) {}
 
   private memo<T>(
     user: AuthenticatedUser,
@@ -160,6 +164,12 @@ export class AccessService {
   /** The caller's organizational standing (memoized per request). */
   getOrgContext(user: AuthenticatedUser): Promise<OrgContext> {
     return this.memo(user, 'org:context', async () => {
+      // Kill-switch: ORG_OVERLAY_DISABLED=true collapses resolution to
+      // grants-only (exact pre-organizations behavior) without a deploy.
+      // Flip the env var back off to restore the org overlay.
+      if (this.configService.get<string>('ORG_OVERLAY_DISABLED') === 'true') {
+        return emptyOrgContext(user.isStaff);
+      }
       const client = this.supabaseService.getClient();
       const { data, error } = (await client
         .from('organization_members')

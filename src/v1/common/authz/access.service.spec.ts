@@ -48,10 +48,15 @@ describe('AccessService', () => {
       }
       return queue.shift() as QueryBuilder;
     });
-    const service = new AccessService({
-      getClient: jest.fn(() => ({ from })),
-      getAdminClient: jest.fn(),
-    } as unknown as SupabaseService);
+    const service = new AccessService(
+      {
+        getClient: jest.fn(() => ({ from })),
+        getAdminClient: jest.fn(),
+      } as unknown as SupabaseService,
+      {
+        get: jest.fn(() => undefined),
+      } as unknown as import('@nestjs/config').ConfigService,
+    );
     return { service, from };
   };
 
@@ -379,10 +384,15 @@ describe('AccessService — org overlay', () => {
       if (table === 'organizations') return builder({ data: [], error: null });
       throw new Error(`Unexpected table ${table}`);
     });
-    return new AccessService({
-      getClient: jest.fn(() => ({ from })),
-      getAdminClient: jest.fn(),
-    } as unknown as SupabaseService);
+    return new AccessService(
+      {
+        getClient: jest.fn(() => ({ from })),
+        getAdminClient: jest.fn(),
+      } as unknown as SupabaseService,
+      {
+        get: jest.fn(() => undefined),
+      } as unknown as import('@nestjs/config').ConfigService,
+    );
   };
   const caller = (): AuthenticatedUser => ({
     sub: 'user-1',
@@ -541,5 +551,34 @@ describe('AccessService — org overlay', () => {
     await expect(
       service.assertOrgAction(u, OTHER, Action.OrgRead),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('AccessService — ORG_OVERLAY_DISABLED kill-switch', () => {
+  it('collapses resolution to grants-only (pre-organizations behavior)', async () => {
+    const from = jest.fn(() => {
+      throw new Error('the overlay must not query anything when disabled');
+    });
+    const service = new AccessService(
+      {
+        getClient: jest.fn(() => ({ from })),
+        getAdminClient: jest.fn(),
+      } as unknown as SupabaseService,
+      {
+        get: jest.fn((key: string) =>
+          key === 'ORG_OVERLAY_DISABLED' ? 'true' : undefined,
+        ),
+      } as unknown as import('@nestjs/config').ConfigService,
+    );
+
+    const ctx = await service.getOrgContext({
+      sub: 'user-1',
+      email: 'owner@example.com',
+      isStaff: false,
+    });
+    expect(ctx.org).toBeNull();
+    expect(ctx.managedOrgIds).toEqual([]);
+    expect(ctx.parentReadOrgIds).toEqual([]);
+    expect(from).not.toHaveBeenCalled();
   });
 });

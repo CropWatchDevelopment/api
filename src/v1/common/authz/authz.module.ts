@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { SupabaseModule } from '../../../supabase/supabase.module';
 import { AccessService } from './access.service';
 
@@ -8,7 +9,7 @@ import { AccessService } from './access.service';
  * TS imports from `./index`.
  */
 @Module({
-  imports: [SupabaseModule],
+  imports: [SupabaseModule, ConfigModule],
   providers: [AccessService],
   exports: [AccessService],
 })

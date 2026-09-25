@@ -158,10 +158,14 @@ export class StripeService {
   }
 
   /** Create the Stripe customer for a user (persisted by the caller). */
-  async createCustomer(userId: string, email: string | null): Promise<string> {
+  async createCustomer(
+    userId: string,
+    email: string | null,
+    orgId?: string | null,
+  ): Promise<string> {
     const customer = await this.stripe.customers.create({
       email: email ?? undefined,
-      metadata: { user_id: userId },
+      metadata: { user_id: userId, ...(orgId ? { org_id: orgId } : {}) },
     });
     return customer.id;
   }
@@ -205,6 +209,8 @@ export class StripeService {
     priceId: string;
     customerId: string;
     userId: string;
+    /** The owning organization; carried in metadata and the reference. */
+    orgId?: string | null;
     quantity?: number;
     /** Let the customer change the quantity on the hosted page, never below `minimum`. */
     adjustableQuantity?: { minimum: number };
@@ -212,7 +218,7 @@ export class StripeService {
     const session = await this.stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: input.customerId,
-      client_reference_id: input.userId,
+      client_reference_id: input.orgId ? `org:${input.orgId}` : input.userId,
       line_items: [
         {
           price: input.priceId,
@@ -227,7 +233,12 @@ export class StripeService {
             : {}),
         },
       ],
-      subscription_data: { metadata: { user_id: input.userId } },
+      subscription_data: {
+        metadata: {
+          user_id: input.userId,
+          ...(input.orgId ? { org_id: input.orgId } : {}),
+        },
+      },
       allow_promotion_codes: true,
       success_url: this.checkoutSuccessUrl || undefined,
       cancel_url: this.checkoutCancelUrl || undefined,

@@ -25,6 +25,7 @@ import {
 import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import { StaffGuard } from '../auth/guards/staff.guard';
+import { OrgOwnerGuard } from '../common/authz';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { PaymentsService } from './payments.service';
@@ -57,7 +58,7 @@ export class PaymentsController {
   }
 
   @Get('subscriptions/state')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({
     summary:
       'Get the full billing overview (billing mode, device seats, reporting, licenses)',
@@ -77,7 +78,7 @@ export class PaymentsController {
   }
 
   @Get('licenses')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({ summary: "List the user's device licenses" })
   getLicenses(@CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.getLicenses(user);
@@ -88,7 +89,7 @@ export class PaymentsController {
   // ---------------------------------------------------------------------------
 
   @Post('subscriptions/device/checkout')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({
     summary: 'Create a hosted checkout for device licenses (seats, min 3)',
   })
@@ -100,7 +101,7 @@ export class PaymentsController {
   }
 
   @Patch('subscriptions/device/seats')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({ summary: 'Change the number of device licenses (seats)' })
   changeDeviceSeats(
     @Body() dto: ChangeSeatsDto,
@@ -110,7 +111,7 @@ export class PaymentsController {
   }
 
   @Delete('subscriptions/device')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({
     summary: 'Cancel the device subscription (all seats)',
   })
@@ -129,7 +130,7 @@ export class PaymentsController {
   // ---------------------------------------------------------------------------
 
   @Post('subscriptions/reporting/checkout')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({
     summary: 'Create a hosted checkout for the reporting add-on',
   })
@@ -138,7 +139,7 @@ export class PaymentsController {
   }
 
   @Delete('subscriptions/reporting')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({ summary: 'Cancel the reporting add-on subscription' })
   cancelReportingSubscription(
     @Body() dto: CancelSubscriptionDto,
@@ -155,7 +156,7 @@ export class PaymentsController {
   // ---------------------------------------------------------------------------
 
   @Post('licenses/:id/assign')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({ summary: 'Assign a license to a device' })
   assignLicense(
@@ -171,7 +172,7 @@ export class PaymentsController {
   }
 
   @Patch('licenses/:id/move')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({ summary: 'Move a license to a different device' })
   moveLicense(
@@ -183,7 +184,7 @@ export class PaymentsController {
   }
 
   @Post('licenses/:id/unassign')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({ summary: 'Unassign a license from its device' })
   unassignLicense(
@@ -194,7 +195,7 @@ export class PaymentsController {
   }
 
   @Post('licenses/:id/cancel')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiParam({ name: 'id', description: 'License id', type: Number })
   @ApiOperation({
     summary:
@@ -208,7 +209,7 @@ export class PaymentsController {
   }
 
   @Post('portal')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, OrgOwnerGuard)
   @ApiOperation({ summary: 'Open the Stripe customer billing portal' })
   openPortal(@CurrentUser() user: AuthenticatedUser) {
     return this.paymentsService.openPortal(user);

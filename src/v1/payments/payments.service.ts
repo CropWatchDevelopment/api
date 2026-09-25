@@ -59,6 +59,49 @@ export class PaymentsService {
   ) {}
 
   // ---------------------------------------------------------------------------
+  // Org billing resolution (plan 6.3)
+  //
+  // Billing rows stay keyed by the ORG OWNER's user id until the
+  // constraints migration re-keys the tables: for a personal org that is
+  // the caller themself (exact pre-org behavior), and for a company it is
+  // the single owner, so the owner's row IS the org's billing.
+  // ---------------------------------------------------------------------------
+
+  /** The org owner's user id for `orgId`, or null when the org has none. */
+  private async orgOwnerUserId(
+    client: SupabaseClient,
+    orgId: string,
+  ): Promise<string | null> {
+    const { data } = (await client
+      .from('organization_members')
+      .select('user_id')
+      .eq('org_id', orgId)
+      .eq('role', 'owner')
+      .maybeSingle()) as QueryResult<{ user_id: string }>;
+    return data?.user_id ?? null;
+  }
+
+  /**
+   * Resolve whose billing row the caller reads: their own when they are the
+   * org owner (or have no org), otherwise their org owner's.
+   */
+  private async resolveBillingUserId(user: AuthenticatedUser): Promise<{
+    userId: string;
+    orgId: string | null;
+  }> {
+    const ctx = await this.accessService.getOrgContext(user);
+    if (!ctx.org) {
+      return { userId: user.sub, orgId: null };
+    }
+    if (ctx.org.role === 'owner') {
+      return { userId: user.sub, orgId: ctx.org.id };
+    }
+    const client = this.supabaseService.getClient();
+    const owner = await this.orgOwnerUserId(client, ctx.org.id);
+    return { userId: owner ?? user.sub, orgId: ctx.org.id };
+  }
+
+  // ---------------------------------------------------------------------------
   // Reads
   // ---------------------------------------------------------------------------
 
@@ -180,7 +223,9 @@ export class PaymentsService {
   async getEntitlements(
     user: AuthenticatedUser,
   ): Promise<BillingEntitlementsResponse> {
-    const userId = user.sub;
+    // Members and managers read their ORG's entitlement flags (booleans
+    // only — never invoices, payment methods, or seat management).
+    const { userId } = await this.resolveBillingUserId(user);
     const client = this.supabaseService.getClient();
 
     const { data: row } = (await client
@@ -221,12 +266,19 @@ export class PaymentsService {
    * consulted once and the cache refreshed. Stripe outages fall back to the
    * cache so a transient error never blocks a legitimately-subscribed user.
    */
-  async hasReportingEntitlement(user: AuthenticatedUser): Promise<boolean> {
+  async hasReportingEntitlement(
+    user: AuthenticatedUser,
+    deviceOrgId?: string | null,
+  ): Promise<boolean> {
     if (user.isStaff) {
       return true;
     }
-    const userId = user.sub;
     const client = this.supabaseService.getClient();
+    // The entitlement belongs to the org that owns the report's devices
+    // (plan 6.3); without one, the caller's own org billing applies.
+    const userId = deviceOrgId
+      ? ((await this.orgOwnerUserId(client, deviceOrgId)) ?? user.sub)
+      : (await this.resolveBillingUserId(user)).userId;
 
     const { data: row } = (await client
       .from('billing_customers')
@@ -313,10 +365,12 @@ export class PaymentsService {
       );
     }
 
+    const { orgId } = await this.resolveBillingUserId(user);
     const checkoutUrl = await this.stripeService.createCheckout({
       priceId: this.requirePriceId(devicePriceId, 'device'),
       customerId,
       userId,
+      orgId,
       quantity,
       // Let the customer adjust the seat count on the hosted checkout page
       // (never below the minimum); the final quantity is confirmed by the
@@ -343,10 +397,12 @@ export class PaymentsService {
       throw new ConflictException('The reporting package is already active.');
     }
 
+    const { orgId } = await this.resolveBillingUserId(user);
     const checkoutUrl = await this.stripeService.createCheckout({
       priceId: this.requirePriceId(reportingPriceId, 'reporting'),
       customerId,
       userId,
+      orgId,
       quantity: 1,
     });
     return { checkoutUrl };
@@ -892,20 +948,22 @@ export class PaymentsService {
       case 'checkout.session.completed': {
         const session = event.data.object;
         const customerId = this.readId(session.customer);
-        await this.linkCustomer(
+        // The reference is `org:<orgId>` for org-aware checkouts and a bare
+        // user id for pre-organization sessions still in flight.
+        const referenceUserId = await this.resolveBillingReference(
           client,
           session.client_reference_id ?? null,
-          customerId,
         );
+        await this.linkCustomer(client, referenceUserId, customerId);
         // Converge subscription state immediately in case the
         // customer.subscription.* events arrived first (or are delayed).
         const subscriptionId = this.readId(session.subscription);
-        if (subscriptionId && session.client_reference_id && customerId) {
+        if (subscriptionId && referenceUserId && customerId) {
           const info = await this.fetchSubscriptionInfo(subscriptionId, null);
           if (info) {
             await this.applySubscriptionState(
               client,
-              session.client_reference_id,
+              referenceUserId,
               customerId,
               info,
               false,
@@ -1028,15 +1086,41 @@ export class PaymentsService {
   }
 
   /**
-   * Resolve which CropWatch user a webhook subscription belongs to:
-   * subscription metadata first, then the local customer mapping, then the
-   * Stripe customer's metadata.
+   * Turn a checkout client reference into the billing user id:
+   * `org:<orgId>` resolves to the org owner's row; anything else is a
+   * legacy bare user id.
+   */
+  private async resolveBillingReference(
+    client: SupabaseClient,
+    reference: string | null,
+  ): Promise<string | null> {
+    if (!reference) {
+      return null;
+    }
+    if (reference.startsWith('org:')) {
+      return this.orgOwnerUserId(client, reference.slice('org:'.length));
+    }
+    return reference;
+  }
+
+  /**
+   * Resolve which billing user a webhook subscription belongs to (plan
+   * 6.3 order): metadata.org_id -> the org owner's row; legacy
+   * metadata.user_id; the local customer mapping; the Stripe customer's
+   * metadata.
    */
   private async resolveWebhookUserId(
     client: SupabaseClient,
     subscription: Stripe.Subscription,
     customerId: string | null,
   ): Promise<string | null> {
+    const fromOrgMetadata = subscription.metadata?.org_id;
+    if (fromOrgMetadata) {
+      const owner = await this.orgOwnerUserId(client, fromOrgMetadata);
+      if (owner) {
+        return owner;
+      }
+    }
     const fromMetadata = subscription.metadata?.user_id;
     if (fromMetadata) {
       return fromMetadata;

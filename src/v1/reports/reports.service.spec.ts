@@ -57,6 +57,7 @@ describe('ReportsService.requestRegeneration', () => {
   let queueTable: ReturnType<typeof createQueueTableMock>;
   let hasReportingEntitlement: jest.Mock;
   let assertDevicesManageable: jest.Mock;
+  let listAccessibleDevices: jest.Mock;
 
   beforeEach(() => {
     queueTable = createQueueTableMock();
@@ -73,12 +74,16 @@ describe('ReportsService.requestRegeneration', () => {
 
     hasReportingEntitlement = jest.fn().mockResolvedValue(true);
     assertDevicesManageable = jest.fn().mockResolvedValue(undefined);
+    listAccessibleDevices = jest.fn().mockResolvedValue([]);
     service = new ReportsService(
       supabaseService,
       {} as DevicesService,
       {} as LocationsService,
       { hasReportingEntitlement } as unknown as PaymentsService,
-      { assertDevicesManageable } as unknown as AccessService,
+      {
+        assertDevicesManageable,
+        listAccessibleDevices,
+      } as unknown as AccessService,
     );
 
     // findOne is exercised by its own integration paths; here it gates the

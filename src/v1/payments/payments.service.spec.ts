@@ -112,6 +112,7 @@ describe('PaymentsService', () => {
   const createService = (
     client: ReturnType<typeof createClient>,
     stripeService: StripeServiceMock,
+    accessOverrides: Record<string, unknown> = {},
   ) =>
     new PaymentsService(
       {
@@ -128,6 +129,19 @@ describe('PaymentsService', () => {
           orgRole: null,
           parentRead: false,
         }),
+        // No org standing: billing resolves to the caller's own row,
+        // which is the exact pre-organizations behavior these tests pin.
+        getOrgContext: jest.fn().mockResolvedValue({
+          isStaff: false,
+          org: null,
+          suspended: false,
+          guestSeats: [],
+          guestOrgIds: [],
+          dormantOrgIds: [],
+          managedOrgIds: [],
+          parentReadOrgIds: [],
+        }),
+        ...accessOverrides,
       } as unknown as AccessService,
     );
 
@@ -852,6 +866,154 @@ describe('PaymentsService', () => {
           reporting_status: 'active',
         }),
       );
+    });
+  });
+  describe('org-aware billing (PR-B stage D)', () => {
+    const ORG = '99999999-9999-4999-8999-999999999999';
+    const OWNER = 'owner-1';
+
+    it('webhook resolves metadata.org_id to the org owner\u2019s billing row', async () => {
+      const ownerLookup = createBuilder({
+        data: { user_id: OWNER },
+        error: null,
+      });
+      const linkUpsert = createBuilder({ data: null, error: null });
+      const cachePatch = createBuilder({ data: null, error: null });
+      const client = createClient({
+        organization_members: [ownerLookup],
+        billing_customers: [linkUpsert, cachePatch],
+      });
+      const stripeService = createStripeMock({
+        constructWebhookEvent: jest.fn(() =>
+          webhookEvent('customer.subscription.updated', {
+            id: 'sub_rep_org',
+            customer: 'cus_org',
+            metadata: { org_id: ORG },
+          }),
+        ),
+        retrieveSubscription: jest.fn(() =>
+          Promise.resolve(reportingSub({ id: 'sub_rep_org' })),
+        ),
+      });
+      const service = createService(client, stripeService);
+
+      await expect(
+        service.handleWebhook(Buffer.from('{}'), { 'stripe-signature': 'ok' }),
+      ).resolves.toEqual({ received: true });
+
+      expect(ownerLookup.eq).toHaveBeenCalledWith('org_id', ORG);
+      expect(linkUpsert.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ user_id: OWNER }),
+        { onConflict: 'user_id' },
+      );
+      expect(cachePatch.update).toHaveBeenCalledWith(
+        expect.objectContaining({ reporting_subscription_id: 'sub_rep_org' }),
+      );
+    });
+
+    it('checkout.session.completed resolves an org: reference to the owner', async () => {
+      const ownerLookup = createBuilder({
+        data: { user_id: OWNER },
+        error: null,
+      });
+      const linkUpsert = createBuilder({ data: null, error: null });
+      const client = createClient({
+        organization_members: [ownerLookup],
+        billing_customers: [linkUpsert],
+      });
+      const stripeService = createStripeMock({
+        constructWebhookEvent: jest.fn(() =>
+          webhookEvent('checkout.session.completed', {
+            customer: 'cus_org',
+            client_reference_id: `org:${ORG}`,
+            subscription: null,
+          }),
+        ),
+      });
+      const service = createService(client, stripeService);
+
+      await expect(
+        service.handleWebhook(Buffer.from('{}'), { 'stripe-signature': 'ok' }),
+      ).resolves.toEqual({ received: true });
+
+      expect(linkUpsert.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          user_id: OWNER,
+          stripe_customer_id: 'cus_org',
+        }),
+        { onConflict: 'user_id' },
+      );
+    });
+
+    it('a legacy user_id-only subscription still resolves (in-flight checkouts)', async () => {
+      const linkUpsert = createBuilder({ data: null, error: null });
+      const cachePatch = createBuilder({ data: null, error: null });
+      const client = createClient({
+        billing_customers: [linkUpsert, cachePatch],
+      });
+      const stripeService = createStripeMock({
+        constructWebhookEvent: jest.fn(() =>
+          webhookEvent('customer.subscription.updated', {
+            id: 'sub_rep_legacy',
+            customer: 'cus_legacy',
+            metadata: { user_id: 'user-1' },
+          }),
+        ),
+        retrieveSubscription: jest.fn(() =>
+          Promise.resolve(reportingSub({ id: 'sub_rep_legacy' })),
+        ),
+      });
+      const service = createService(client, stripeService);
+
+      await expect(
+        service.handleWebhook(Buffer.from('{}'), { 'stripe-signature': 'ok' }),
+      ).resolves.toEqual({ received: true });
+      expect(linkUpsert.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ user_id: 'user-1' }),
+        { onConflict: 'user_id' },
+      );
+    });
+
+    it('a company member reads the ORG owner\u2019s entitlement flags', async () => {
+      const ownerLookup = createBuilder({
+        data: { user_id: OWNER },
+        error: null,
+      });
+      const billingRow = createBuilder({
+        data: {
+          billing_mode: 'stripe',
+          reporting_status: 'active',
+          reporting_manual: false,
+        },
+        error: null,
+      });
+      const licenseCount = createBuilder({ data: null, error: null });
+      const client = createClient({
+        organization_members: [ownerLookup],
+        billing_customers: [billingRow],
+        device_licenses: [licenseCount],
+      });
+      const service = createService(client, createStripeMock(), {
+        getOrgContext: jest.fn().mockResolvedValue({
+          isStaff: false,
+          org: { id: ORG, type: 'company', name: 'Acme', role: 'member' },
+          suspended: false,
+          guestSeats: [],
+          guestOrgIds: [],
+          dormantOrgIds: [],
+          managedOrgIds: [],
+          parentReadOrgIds: [],
+        }),
+      });
+
+      const result = await service.getEntitlements({
+        sub: 'member-1',
+        email: 'member@example.com',
+        isStaff: false,
+      });
+      expect(result.reporting).toBe(true);
+      // The billing row consulted is the OWNER's, not the member's.
+      expect(billingRow.eq).toHaveBeenCalledWith('user_id', OWNER);
     });
   });
 });
