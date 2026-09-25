@@ -109,7 +109,11 @@ export class DevicesService {
       { count: 'exact' },
     );
 
-    devicesQuery = applyDeviceReadScope(devicesQuery, user);
+    devicesQuery = applyDeviceReadScope(
+      devicesQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     if (searchGroup) {
       devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
@@ -171,7 +175,11 @@ export class DevicesService {
       )
       .eq('dev_eui', normalizedDevEui);
 
-    query = applyDeviceReadScope(query, user);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data, error } = (await query
       .order('name', { ascending: true })
@@ -199,7 +207,11 @@ export class DevicesService {
         `${DEVICE_OWNER_MATCH_EMBED}, last_data_updated_at, upload_interval, cw_device_type(default_upload_interval)`,
       );
 
-    query = applyDeviceReadScope(query, user);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: devices, error: devicesError } = await query.order('name', {
       ascending: true,
@@ -250,7 +262,11 @@ export class DevicesService {
       .select(`${DEVICE_OWNER_MATCH_EMBED}, cw_device_owners(*), group`)
       .not('group', 'is', null);
 
-    query = applyDeviceReadScope(query, user);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: groups, error } = await query;
 
@@ -328,7 +344,11 @@ export class DevicesService {
       )
       .eq('dev_eui', normalizedDevEui);
 
-    deviceQuery = applyDeviceReadScope(deviceQuery, user);
+    deviceQuery = applyDeviceReadScope(
+      deviceQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: device, error: deviceError } =
       (await deviceQuery.single()) as SingleResult<DeviceRecord>;
@@ -447,7 +467,11 @@ export class DevicesService {
       .select(`*, ${DEVICE_OWNER_MATCH_EMBED}, cw_device_owners(*)`)
       .eq('dev_eui', normalizedDevEui);
 
-    deviceQuery = applyDeviceReadScope(deviceQuery, user);
+    deviceQuery = applyDeviceReadScope(
+      deviceQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: device, error: deviceError } =
       (await deviceQuery.single()) as SingleResult<DeviceRecord>;
@@ -538,7 +562,11 @@ export class DevicesService {
         { count: 'exact' },
       );
 
-    devicesQuery = applyDeviceReadScope(devicesQuery, user);
+    devicesQuery = applyDeviceReadScope(
+      devicesQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     if (searchGroup) {
       devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
@@ -681,7 +709,11 @@ export class DevicesService {
       .select(`*, ${DEVICE_OWNER_MATCH_EMBED}`)
       .eq('location_id', locationId);
 
-    query = applyDeviceReadScope(query, user);
+    query = applyDeviceReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: devices, error: devicesError } = await query.order('name', {
       ascending: true,
@@ -714,7 +746,11 @@ export class DevicesService {
       .select(`*, ${DEVICE_OWNER_MATCH_EMBED}`)
       .eq('dev_eui', normalizedDevEui);
 
-    deviceQuery = applyDeviceReadScope(deviceQuery, user);
+    deviceQuery = applyDeviceReadScope(
+      deviceQuery,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data: device, error: deviceError } =
       (await deviceQuery.single()) as SingleResult<DeviceRecord>;

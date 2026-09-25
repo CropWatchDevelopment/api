@@ -22,6 +22,9 @@ function createDeviceAccess(
     isStaff: false,
     level: 1,
     locationId: null,
+    orgId: null,
+    orgRole: null,
+    parentRead: false,
     ownerId: 'user-123',
     ...overrides,
   };

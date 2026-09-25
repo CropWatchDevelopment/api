@@ -1,10 +1,13 @@
 import { PermissionLevel } from '../permission-levels';
 import { Action } from './actions';
 import {
+  OWNER_ONLY_ACTIONS,
+  PARENT_READ_ACTIONS,
   POLICY_CEILINGS,
   type AccessSubject,
   capabilitiesFor,
   decide,
+  orgCapabilitiesFor,
 } from './policy';
 
 const subject = (
@@ -56,7 +59,7 @@ describe('decide', () => {
     {
       name: 'admin (1)',
       subject: subject(PermissionLevel.ADMIN),
-      allowed: () => true,
+      allowed: (action) => POLICY_CEILINGS[action] >= PermissionLevel.ADMIN,
     },
     {
       name: 'manager (2)',
@@ -109,6 +112,50 @@ describe('decide', () => {
       false,
     );
     expect(decide(subject(PermissionLevel.VIEWER), Action.DataRead)).toBe(true);
+  });
+});
+
+describe('org-role and parent-link overlay', () => {
+  it('an org owner passes everything, including owner-only actions', () => {
+    const s = subject(null, { orgRole: 'owner' });
+    expect(decide(s, Action.BillingManage)).toBe(true);
+    expect(decide(s, Action.LocationCreate)).toBe(true);
+    expect(decide(s, Action.GuestInvite)).toBe(true);
+    expect(decide(s, Action.DeviceEdit)).toBe(true);
+  });
+
+  it('an org manager passes everything except the owner-only set', () => {
+    const s = subject(null, { orgRole: 'manager' });
+    expect(decide(s, Action.DeviceEdit)).toBe(true);
+    expect(decide(s, Action.LocationEdit)).toBe(true);
+    expect(decide(s, Action.RelayControl)).toBe(true);
+    expect(decide(s, Action.RuleManage)).toBe(true);
+    expect(decide(s, Action.MemberInvite)).toBe(true);
+    expect(decide(s, Action.OrgManageOpen)).toBe(true);
+    for (const action of OWNER_ONLY_ACTIONS) {
+      expect({ action, allowed: decide(s, action) }).toEqual({
+        action,
+        allowed: false,
+      });
+    }
+  });
+
+  it('a parent-org manager gets read+download only on child resources', () => {
+    const s = subject(null, { parentRead: true });
+    for (const action of Object.values(Action)) {
+      expect({ action, allowed: decide(s, action) }).toEqual({
+        action,
+        allowed: PARENT_READ_ACTIONS.has(action),
+      });
+    }
+  });
+
+  it('org capabilities: manager lacks billing, member gets org.read only', () => {
+    expect(orgCapabilitiesFor('owner')).toContain(Action.BillingManage);
+    expect(orgCapabilitiesFor('manager')).not.toContain(Action.BillingManage);
+    expect(orgCapabilitiesFor('manager')).toContain(Action.OrgManageOpen);
+    expect(orgCapabilitiesFor('member')).toEqual([Action.OrgRead]);
+    expect(orgCapabilitiesFor(null)).toEqual([]);
   });
 });
 

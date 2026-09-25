@@ -96,7 +96,11 @@ export class LocationsService {
     cw_location_owners(*)
   `);
 
-    query = applyLocationReadScope(query, user);
+    query = applyLocationReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     if (searchName) {
       query = query.ilike('name', `%${searchName}%`);
@@ -122,7 +126,11 @@ export class LocationsService {
       )
       .eq('location_id', id);
 
-    query = applyLocationReadScope(query, user);
+    query = applyLocationReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data, error } = (await query
       .order('name', { ascending: true })
@@ -193,7 +201,11 @@ export class LocationsService {
 
     // Shared read scope: owned OR granted below Disabled. (Previously this
     // had an extra owner_id filter that hid every shared location's group.)
-    query = applyLocationReadScope(query, user);
+    query = applyLocationReadScope(
+      query,
+      user,
+      await this.accessService.getReadableOrgIds(user),
+    );
 
     const { data, error } = await query.order('name', { ascending: true });
 

@@ -7,6 +7,7 @@ import {
 import Stripe from 'stripe';
 import { PaymentsService } from './payments.service';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { AccessService } from '../common/authz';
 import { StripeService, BillingSubscriptionInfo } from './stripe.service';
 
 const DEVICE_PRICE = 'price_device';
@@ -118,6 +119,16 @@ describe('PaymentsService', () => {
         getAdminClient: jest.fn(() => client),
       } as unknown as SupabaseService,
       stripeService as unknown as StripeService,
+      {
+        getDeviceAccess: jest.fn().mockResolvedValue({
+          exists: true,
+          isStaff: false,
+          isOwner: true,
+          level: 1,
+          orgRole: null,
+          parentRead: false,
+        }),
+      } as unknown as AccessService,
     );
 
   const user = { sub: 'user-1', email: 'kevin@example.com', isStaff: false };

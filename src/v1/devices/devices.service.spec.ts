@@ -14,6 +14,9 @@ describe('DevicesService', () => {
   ): DeviceAccess => ({
     exists: true,
     devEui: 'DEV-001',
+    orgId: null,
+    orgRole: null,
+    parentRead: false,
     locationId: 1,
     ownerId: 'old-owner',
     isStaff: false,
@@ -29,6 +32,8 @@ describe('DevicesService', () => {
       assertLocationAccess: jest.fn(),
       getDeviceAccess: jest.fn(),
       getLocationAccess: jest.fn(),
+      getReadableOrgIds: jest.fn().mockResolvedValue([]),
+      getManagedOrgIds: jest.fn().mockResolvedValue([]),
     }) as unknown as AccessService & {
       assertDeviceAccess: jest.Mock;
       assertLocationAccess: jest.Mock;
@@ -60,7 +65,10 @@ describe('DevicesService', () => {
         },
         {
           provide: AccessService,
-          useValue: {},
+          useValue: {
+            getReadableOrgIds: jest.fn().mockResolvedValue([]),
+            getManagedOrgIds: jest.fn().mockResolvedValue([]),
+          },
         },
       ],
     }).compile();
