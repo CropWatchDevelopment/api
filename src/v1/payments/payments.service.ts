@@ -11,7 +11,7 @@ import {
 import { SupabaseClient, type PostgrestError } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { MANAGE_CEILING } from '../common/permission-levels';
+import { AccessService, Action, decide } from '../common/authz';
 import type { TableInsert, TableRow } from '../types/supabase';
 import { StripeService, BillingSubscriptionInfo } from './stripe.service';
 import {
@@ -55,6 +55,7 @@ export class PaymentsService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly stripeService: StripeService,
+    private readonly accessService: AccessService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -519,7 +520,6 @@ export class PaymentsService {
     devEui: string,
   ): Promise<BillingLicense> {
     const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const client = this.supabaseService.getClient();
 
     const license = await this.loadOwnedLicense(client, userId, licenseId);
@@ -529,7 +529,7 @@ export class PaymentsService {
       );
     }
 
-    await this.assertDeviceManageable(client, userId, isGlobalUser, devEui);
+    await this.assertDeviceManageable(user, devEui);
     await this.assertDeviceUnlicensed(client, devEui, licenseId);
 
     return this.setLicenseDevice(client, userId, licenseId, devEui);
@@ -541,11 +541,10 @@ export class PaymentsService {
     devEui: string,
   ): Promise<BillingLicense> {
     const userId = user.sub;
-    const isGlobalUser = user.isStaff;
     const client = this.supabaseService.getClient();
 
     await this.loadOwnedLicense(client, userId, licenseId);
-    await this.assertDeviceManageable(client, userId, isGlobalUser, devEui);
+    await this.assertDeviceManageable(user, devEui);
     await this.assertDeviceUnlicensed(client, devEui, licenseId);
 
     return this.setLicenseDevice(client, userId, licenseId, devEui);
@@ -1431,28 +1430,11 @@ export class PaymentsService {
   }
 
   private async assertDeviceManageable(
-    client: SupabaseClient,
-    userId: string,
-    isGlobalUser: boolean,
+    user: AuthenticatedUser,
     devEui: string,
   ): Promise<void> {
-    let query = client
-      .from('cw_devices')
-      .select('dev_eui, owner_match:cw_device_owners()')
-      .eq('dev_eui', devEui);
-
-    if (!isGlobalUser) {
-      query = query
-        .eq('owner_match.user_id', userId)
-        .lte('owner_match.permission_level', MANAGE_CEILING)
-        .or(`user_id.eq.${userId},owner_match.not.is.null`);
-    }
-
-    const { data, error } = await query.maybeSingle();
-    if (error) {
-      throw new InternalServerErrorException('Failed to verify device access');
-    }
-    if (!data) {
+    const access = await this.accessService.getDeviceAccess(user, devEui);
+    if (!access.exists || !decide(access, Action.DeviceEdit)) {
       throw new ForbiddenException('You do not manage this device');
     }
   }

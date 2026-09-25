@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -8,10 +7,7 @@ import {
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { TableRow } from '../types/supabase';
-import {
-  listManagedDevices,
-  type ManagedDevice,
-} from '../common/managed-devices.helper';
+import { AccessService, type AccessibleDevice } from '../common/authz';
 import {
   groupBy,
   matchesSearch,
@@ -59,20 +55,14 @@ export class RulesService {
     private readonly supabaseService: SupabaseService,
     private readonly devicesService: DevicesService,
     private readonly locationsService: LocationsService,
+    private readonly accessService: AccessService,
   ) {}
 
   async findAll(
     user: AuthenticatedUser,
     searchTerm?: string,
   ): Promise<RuleTemplateDto[]> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
+    const devices = await this.accessService.listAccessibleDevices(user);
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) return [];
 
@@ -144,7 +134,7 @@ export class RulesService {
    */
   async getCatalog(user: AuthenticatedUser): Promise<RuleCatalogDto> {
     const client = this.supabaseService.getClient();
-    const devices = await listManagedDevices(client, user.sub, user.isStaff);
+    const devices = await this.accessService.listAccessibleDevices(user);
     const nameByDevEui = new Map(
       devices.filter((d) => d.canView).map((d) => [d.devEui, d.name]),
     );
@@ -218,11 +208,7 @@ export class RulesService {
     const requested = uniqueValues(devEuis);
     if (requested.length === 0) return { ts, states: [] };
 
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      user.sub,
-      user.isStaff,
-    );
+    const devices = await this.accessService.listAccessibleDevices(user);
     const viewable = new Set(
       devices.filter((device) => device.canView).map((d) => d.devEui),
     );
@@ -292,14 +278,7 @@ export class RulesService {
   }
 
   async findOne(id: number, user: AuthenticatedUser): Promise<RuleTemplateDto> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
+    const devices = await this.accessService.listAccessibleDevices(user);
     const viewableDevices = devices.filter((device) => device.canView);
     if (viewableDevices.length === 0) {
       throw new NotFoundException('Rule template not found');
@@ -366,18 +345,11 @@ export class RulesService {
     id: number,
     user: AuthenticatedUser,
   ): Promise<RuleTriggerLogDto[]> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
     // Reuse findOne so a hidden or non-existent template returns 404 instead of
     // an empty list.
     await this.findOne(id, user);
 
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
+    const devices = await this.accessService.listAccessibleDevices(user);
     const viewableDevices = devices.filter((device) => device.canView);
     const deviceNames = new Map(
       devices.map((device) => [device.devEui, device.name]),
@@ -420,16 +392,8 @@ export class RulesService {
     payload: SaveRuleTemplateDto,
     user: AuthenticatedUser,
   ): Promise<RuleTemplateDto> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
     const normalized = normalizeSaveRequest(payload);
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
-    assertDevicesCanBeManaged(devices, normalized.devEuis);
+    await this.accessService.assertDevicesManageable(user, normalized.devEuis);
 
     const client = this.supabaseService.getClient();
     const { data: templateData, error: templateError } = (await client
@@ -473,22 +437,14 @@ export class RulesService {
     payload: SaveRuleTemplateDto,
     user: AuthenticatedUser,
   ): Promise<RuleTemplateDto> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
     const normalized = normalizeSaveRequest(payload);
     const existing = await this.findOne(id, user);
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
 
     const allDevEuis = uniqueValues([
       ...existing.assignments.map((assignment) => assignment.devEui),
       ...normalized.devEuis,
     ]);
-    assertDevicesCanBeManaged(devices, allDevEuis);
+    await this.accessService.assertDevicesManageable(user, allDevEuis);
 
     const client = this.supabaseService.getClient();
     const { error: updateError } = await client
@@ -512,17 +468,9 @@ export class RulesService {
   }
 
   async remove(id: number, user: AuthenticatedUser): Promise<{ id: number }> {
-    const userId = user.sub;
-    const isStaff = user.isStaff;
-
     const existing = await this.findOne(id, user);
-    const devices = await listManagedDevices(
-      this.supabaseService.getClient(),
-      userId,
-      isStaff,
-    );
-    assertDevicesCanBeManaged(
-      devices,
+    await this.accessService.assertDevicesManageable(
+      user,
       existing.assignments.map((assignment) => assignment.devEui),
     );
 
@@ -819,7 +767,7 @@ function buildRuleTemplates(args: {
   criteria: CriterionRow[];
   actions: ActionRow[];
   states: StateRow[];
-  devices: ManagedDevice[];
+  devices: AccessibleDevice[];
 }): RuleTemplateDto[] {
   const { templates, assignments, criteria, actions, states, devices } = args;
 
@@ -1011,19 +959,4 @@ function normalizeSaveRequest(
 // values are quoted so EUIs survive as literals.
 function toPostgrestList(values: string[]): string {
   return `(${values.map((value) => `"${value}"`).join(',')})`;
-}
-
-function assertDevicesCanBeManaged(
-  devices: ManagedDevice[],
-  devEuis: string[],
-): void {
-  const manageable = new Set(
-    devices.filter((device) => device.canManage).map((device) => device.devEui),
-  );
-  const missing = devEuis.find((devEui) => !manageable.has(devEui));
-  if (missing) {
-    throw new ForbiddenException(
-      'You do not have permission to manage one or more selected devices',
-    );
-  }
 }

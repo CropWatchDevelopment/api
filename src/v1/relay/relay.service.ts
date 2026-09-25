@@ -43,7 +43,6 @@ import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type DeviceOwnerRow = TableRow<'cw_device_owners'>;
 type DeviceTypeRow = TableRow<'cw_device_type'>;
-type LocationOwnerRow = TableRow<'cw_location_owners'>;
 type DeviceRow = TableRow<'cw_devices'>;
 type RelayRow = TableRow<'cw_relay_data'>;
 type RelayInsert = TableInsert<'cw_relay_data'>;
@@ -433,7 +432,7 @@ export class RelayService {
 
     const permissionLevel = isGlobalUser
       ? 0
-      : await this.resolvePermissionLevel(client, device, userId);
+      : this.resolvePermissionLevel(device, userId);
 
     return {
       applicationId,
@@ -443,11 +442,15 @@ export class RelayService {
     };
   }
 
-  private async resolvePermissionLevel(
-    client: ReturnType<SupabaseService['getClient']>,
-    device: DeviceRecord,
-    userId: string,
-  ): Promise<number> {
+  /**
+   * Relay permission comes from the DEVICE's rows only (direct ownership or
+   * the caller's cw_device_owners row), matching every other device check.
+   * Location grants deliberately do not apply: a Disabled device row must
+   * hide the device — previously location rows were min()'d in, so a
+   * location Manager with a Disabled device row could still control the
+   * relay.
+   */
+  private resolvePermissionLevel(device: DeviceRecord, userId: string): number {
     const permissionLevels: number[] = [];
 
     if (device.user_id && device.user_id === userId) {
@@ -456,28 +459,6 @@ export class RelayService {
 
     for (const owner of device.cw_device_owners ?? []) {
       if (readString(owner.user_id) === userId) {
-        permissionLevels.push(readPermissionLevel(owner.permission_level));
-      }
-    }
-
-    if (device.location_id) {
-      const { data, error } = (await client
-        .from('cw_location_owners')
-        .select('*')
-        .eq('location_id', device.location_id)
-        .eq('user_id', userId)) as QueryResult<LocationOwnerRow[]>;
-
-      if (error) {
-        this.logger.error(
-          `Failed to fetch location ownership for relay device ${device.dev_eui}`,
-          error.message,
-        );
-        throw new InternalServerErrorException(
-          'Failed to resolve relay permissions',
-        );
-      }
-
-      for (const owner of data ?? []) {
         permissionLevels.push(readPermissionLevel(owner.permission_level));
       }
     }

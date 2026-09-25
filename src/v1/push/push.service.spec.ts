@@ -1,4 +1,5 @@
 import { SupabaseService } from '../../supabase/supabase.service';
+import { AccessService } from '../common/authz';
 import { PushService } from './push.service';
 
 type StubResult = {
@@ -51,10 +52,18 @@ function buildAdminClient(
   return { from };
 }
 
-function createService(adminClient?: { from: jest.Mock }) {
-  return new PushService({
-    getAdminClient: jest.fn(() => adminClient ?? { from: jest.fn() }),
-  } as unknown as SupabaseService);
+function createService(
+  adminClient?: { from: jest.Mock },
+  accessService?: { listAccessibleDevices: jest.Mock },
+) {
+  return new PushService(
+    {
+      getAdminClient: jest.fn(() => adminClient ?? { from: jest.fn() }),
+    } as unknown as SupabaseService,
+    (accessService ?? {
+      listAccessibleDevices: jest.fn().mockResolvedValue([]),
+    }) as unknown as AccessService,
+  );
 }
 
 describe('PushService', () => {
@@ -163,17 +172,17 @@ describe('PushService', () => {
     };
 
     it('scopes to caller-viewable devices, includes the owner, excludes DISABLED, and maps pushEnabled', async () => {
-      const managedLookup = chain({
-        data: [
+      const accessService = {
+        listAccessibleDevices: jest.fn().mockResolvedValue([
           {
-            dev_eui: 'DEV-A',
+            devEui: 'DEV-A',
             name: 'A',
-            user_id: 'user-1',
-            cw_device_owners: [],
+            permissionLevel: 1,
+            canView: true,
+            canManage: true,
           },
-        ],
-        error: null,
-      });
+        ]),
+      };
       const viewersLookup = chain({
         data: [
           {
@@ -208,11 +217,11 @@ describe('PushService', () => {
         error: null,
       });
       const adminClient = buildAdminClient({
-        cw_devices: [managedLookup, viewersLookup],
+        cw_devices: [viewersLookup],
         profiles: [profilesLookup],
         cw_push_tokens: [tokensLookup],
       });
-      const service = createService(adminClient);
+      const service = createService(adminClient, accessService);
 
       const result = await service.listEligibleRecipients(caller, [
         'DEV-A',
@@ -237,9 +246,11 @@ describe('PushService', () => {
     });
 
     it('returns empty without further queries when the caller can view none', async () => {
-      const managedLookup = chain({ data: [], error: null });
-      const adminClient = buildAdminClient({ cw_devices: [managedLookup] });
-      const service = createService(adminClient);
+      const accessService = {
+        listAccessibleDevices: jest.fn().mockResolvedValue([]),
+      };
+      // Empty client: any from() call would throw.
+      const service = createService(buildAdminClient({}), accessService);
 
       await expect(
         service.listEligibleRecipients(caller, ['DEV-X']),
@@ -247,17 +258,17 @@ describe('PushService', () => {
     });
 
     it('marks a user enrolled with multiple tokens as pushEnabled once', async () => {
-      const managedLookup = chain({
-        data: [
+      const accessService = {
+        listAccessibleDevices: jest.fn().mockResolvedValue([
           {
-            dev_eui: 'DEV-A',
+            devEui: 'DEV-A',
             name: 'A',
-            user_id: 'user-1',
-            cw_device_owners: [],
+            permissionLevel: 1,
+            canView: true,
+            canManage: true,
           },
-        ],
-        error: null,
-      });
+        ]),
+      };
       const viewersLookup = chain({
         data: [{ user_id: 'multi-user', cw_device_owners: [] }],
         error: null,
@@ -273,11 +284,11 @@ describe('PushService', () => {
         error: null,
       });
       const adminClient = buildAdminClient({
-        cw_devices: [managedLookup, viewersLookup],
+        cw_devices: [viewersLookup],
         profiles: [profilesLookup],
         cw_push_tokens: [tokensLookup],
       });
-      const service = createService(adminClient);
+      const service = createService(adminClient, accessService);
 
       const result = await service.listEligibleRecipients(caller, ['DEV-A']);
 

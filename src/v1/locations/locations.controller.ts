@@ -24,6 +24,7 @@ import {
 import { LocationDto } from './dto/location.dto';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
 import { CreateLocationOwnerDto } from './dto/create-location-owner.dto';
+import { UpdateLocationUserPermissionLevelDto } from './dto/update-location-user-permission-level.dto';
 import {
   isValidPermissionLevel,
   MAX_PERMISSION_LEVEL,
@@ -213,13 +214,26 @@ export class LocationsController {
   })
   async updateUserPermissionLevel(
     @Param('id') id: string,
-    @Body() updateLocationUserPermissionLevelDto: unknown,
+    @Body()
+    updateLocationUserPermissionLevelDto: UpdateLocationUserPermissionLevelDto,
     @Query('applyToAllDevices') applyToAllDevices: string = 'false',
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    const locationId = Number.parseInt(id, 10);
+    if (!Number.isInteger(locationId) || locationId < 1) {
+      throw new BadRequestException('Location ID is required');
+    }
+    if (
+      typeof updateLocationUserPermissionLevelDto.location_id === 'number' &&
+      updateLocationUserPermissionLevelDto.location_id !== locationId
+    ) {
+      throw new BadRequestException(
+        'location_id in body must match route parameter',
+      );
+    }
     const applyToAllDevicesFlag = applyToAllDevices === 'true';
     return this.locationsService.updateUserPermissionLevel(
-      +id,
+      locationId,
       updateLocationUserPermissionLevelDto,
       applyToAllDevicesFlag,
       user,

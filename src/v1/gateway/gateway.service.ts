@@ -33,6 +33,24 @@ export class GatewayService {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
 
+    // Staff bypass scoping, like every other resource in the API.
+    if (user.isStaff) {
+      const { data: allGateways, error: allGatewaysError } = await client
+        .from('cw_gateways')
+        .select('*');
+      if (allGatewaysError) {
+        throw new InternalServerErrorException('Failed to fetch gateways');
+      }
+      return ((allGateways ?? []) as GatewayRow[]).map((gw) => ({
+        id: gw.id,
+        gateway_id: gw.gateway_id,
+        is_online: gw.is_online,
+        is_public: gw.is_public,
+        gateway_name: gw.gateway_name,
+        updated_at: gw.updated_at,
+      }));
+    }
+
     const { data: ownedGateways, error: ownedGatewaysError } = await client
       .from('cw_gateways')
       .select('*, cw_gateways_owners!inner(*)')
@@ -100,8 +118,9 @@ export class GatewayService {
       throw new NotFoundException('Gateway not found');
     }
 
+    // Staff bypass scoping, like every other resource in the API.
     const isOwner = data.cw_gateways_owners?.some((o) => o.user_id === userId);
-    if (!data.is_public && !isOwner) {
+    if (!data.is_public && !isOwner && !user.isStaff) {
       throw new NotFoundException('Gateway not found');
     }
 

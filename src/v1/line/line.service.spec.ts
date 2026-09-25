@@ -2,6 +2,7 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac } from 'crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { AccessService } from '../common/authz';
 import { LineApiClient } from './line-api.client';
 import { LineService } from './line.service';
 
@@ -70,6 +71,9 @@ function createService(options?: {
     ),
     getProfile: jest.fn(() => Promise.resolve(null)),
   };
+  const accessService = {
+    listAccessibleDevices: jest.fn().mockResolvedValue([]),
+  };
   const service = new LineService(
     {
       get: jest.fn(
@@ -85,8 +89,9 @@ function createService(options?: {
       ),
     } as unknown as SupabaseService,
     apiClient as unknown as LineApiClient,
+    accessService as unknown as AccessService,
   );
-  return { service, apiClient };
+  return { service, apiClient, accessService };
 }
 
 function sign(body: Buffer, secret: string): string {
@@ -459,17 +464,6 @@ describe('LineService', () => {
     };
 
     it('scopes to caller-viewable devices, includes the owner, excludes DISABLED', async () => {
-      const managedLookup = chain({
-        data: [
-          {
-            dev_eui: 'DEV-A',
-            name: 'A',
-            user_id: 'user-1',
-            cw_device_owners: [],
-          },
-        ],
-        error: null,
-      });
       const viewersLookup = chain({
         data: [
           {
@@ -502,10 +496,19 @@ describe('LineService', () => {
         error: null,
       });
       const adminClient = buildAdminClient({
-        cw_devices: [managedLookup, viewersLookup],
+        cw_devices: [viewersLookup],
         profiles: [profilesLookup],
       });
-      const { service } = createService({ adminClient });
+      const { service, accessService } = createService({ adminClient });
+      accessService.listAccessibleDevices.mockResolvedValue([
+        {
+          devEui: 'DEV-A',
+          name: 'A',
+          permissionLevel: 1,
+          canView: true,
+          canManage: true,
+        },
+      ]);
 
       const result = await service.listEligibleRecipients(caller, [
         'DEV-A',
@@ -530,9 +533,8 @@ describe('LineService', () => {
     });
 
     it('returns empty without further queries when the caller can view none', async () => {
-      const managedLookup = chain({ data: [], error: null });
-      const adminClient = buildAdminClient({ cw_devices: [managedLookup] });
-      const { service } = createService({ adminClient });
+      // Empty client: any from() call would throw.
+      const { service } = createService({ adminClient: buildAdminClient({}) });
 
       await expect(
         service.listEligibleRecipients(caller, ['DEV-X']),
@@ -540,23 +542,6 @@ describe('LineService', () => {
     });
 
     it('dedupes a user appearing on multiple devices', async () => {
-      const managedLookup = chain({
-        data: [
-          {
-            dev_eui: 'DEV-A',
-            name: 'A',
-            user_id: 'user-1',
-            cw_device_owners: [],
-          },
-          {
-            dev_eui: 'DEV-B',
-            name: 'B',
-            user_id: 'user-1',
-            cw_device_owners: [],
-          },
-        ],
-        error: null,
-      });
       const viewersLookup = chain({
         data: [
           { user_id: 'shared-user', cw_device_owners: [] },
@@ -577,10 +562,26 @@ describe('LineService', () => {
         error: null,
       });
       const adminClient = buildAdminClient({
-        cw_devices: [managedLookup, viewersLookup],
+        cw_devices: [viewersLookup],
         profiles: [profilesLookup],
       });
-      const { service } = createService({ adminClient });
+      const { service, accessService } = createService({ adminClient });
+      accessService.listAccessibleDevices.mockResolvedValue([
+        {
+          devEui: 'DEV-A',
+          name: 'A',
+          permissionLevel: 1,
+          canView: true,
+          canManage: true,
+        },
+        {
+          devEui: 'DEV-B',
+          name: 'B',
+          permissionLevel: 1,
+          canView: true,
+          canManage: true,
+        },
+      ]);
 
       const result = await service.listEligibleRecipients(caller, [
         'DEV-A',

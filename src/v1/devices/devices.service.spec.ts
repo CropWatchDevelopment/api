@@ -1,11 +1,40 @@
+import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DevicesService } from './devices.service';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { LocationsService } from '../locations/locations.service';
 import { PaymentsService } from '../payments/payments.service';
+import { AccessService, Action, type DeviceAccess } from '../common/authz';
 
 describe('DevicesService', () => {
   let service: DevicesService;
+
+  const deviceAccess = (
+    overrides: Partial<DeviceAccess> = {},
+  ): DeviceAccess => ({
+    exists: true,
+    devEui: 'DEV-001',
+    locationId: 1,
+    ownerId: 'old-owner',
+    isStaff: false,
+    isOwner: false,
+    level: 1,
+    canRead: true,
+    ...overrides,
+  });
+
+  const createAccessMock = () =>
+    ({
+      assertDeviceAccess: jest.fn(),
+      assertLocationAccess: jest.fn(),
+      getDeviceAccess: jest.fn(),
+      getLocationAccess: jest.fn(),
+    }) as unknown as AccessService & {
+      assertDeviceAccess: jest.Mock;
+      assertLocationAccess: jest.Mock;
+      getDeviceAccess: jest.Mock;
+      getLocationAccess: jest.Mock;
+    };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -28,6 +57,10 @@ describe('DevicesService', () => {
             assertLicenseAvailable: jest.fn(),
             assignLicense: jest.fn(),
           },
+        },
+        {
+          provide: AccessService,
+          useValue: {},
         },
       ],
     }).compile();
@@ -135,14 +168,15 @@ describe('DevicesService', () => {
 
     const latestDataService = new DevicesService(
       supabaseService as unknown as SupabaseService,
-      {} as any,
+      {} as LocationsService,
+      {} as PaymentsService,
+      createAccessMock(),
     );
 
     const result = await latestDataService.findAllLatestData(
       { sub: 'user-1', email: null, isStaff: false },
       0,
       25,
-      'Bearer test-token',
     );
 
     expect(result.total).toBe(2);
@@ -190,36 +224,26 @@ describe('DevicesService', () => {
 
     const deviceService = new DevicesService(
       supabaseService as unknown as SupabaseService,
-      {} as any,
+      {} as LocationsService,
+      {} as PaymentsService,
+      createAccessMock(),
     );
 
     await expect(
       deviceService.findOne(
         { sub: 'staff-1', email: 'staff@cropwatch.io', isStaff: true },
         'DEV-001',
-        'Bearer test-token',
       ),
     ).resolves.toMatchObject({ dev_eui: 'DEV-001', name: 'Global Device' });
 
+    // Staff skip every scope filter: only the primary-key eq is applied.
+    expect(deviceBuilder.eq).toHaveBeenCalledTimes(1);
     expect(deviceBuilder.eq).toHaveBeenCalledWith('dev_eui', 'DEV-001');
-    expect(deviceBuilder.eq).not.toHaveBeenCalledWith(
-      'owner_match.user_id',
-      'staff-1',
-    );
+    expect(deviceBuilder.or).not.toHaveBeenCalled();
   });
 
   describe('updateDevice location moves', () => {
     const jwt = { sub: 'mover-1', email: 'mover@example.com', isStaff: false };
-
-    function createPermissionCheckBuilder(deviceRow: unknown) {
-      return {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        lte: jest.fn().mockReturnThis(),
-        or: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: deviceRow, error: null }),
-      };
-    }
 
     function createDestinationBuilder(locationRow: unknown) {
       return {
@@ -273,21 +297,20 @@ describe('DevicesService', () => {
         getClient: jest.fn(() => ({ from: fromMock })),
         getAdminClient: jest.fn(),
       };
+      const accessService = createAccessMock();
       return {
         service: new DevicesService(
           supabaseService as unknown as SupabaseService,
-          {} as any,
+          {} as LocationsService,
+          {} as PaymentsService,
+          accessService,
         ),
         fromMock,
+        accessService,
       };
     }
 
     it('hands the device to the destination owner and resets permissions on a move', async () => {
-      const permissionBuilder = createPermissionCheckBuilder({
-        dev_eui: 'DEV-001',
-        location_id: 1,
-        user_id: 'old-owner',
-      });
       const destinationBuilder = createDestinationBuilder({
         location_id: 2,
         owner_id: 'new-owner',
@@ -301,29 +324,29 @@ describe('DevicesService', () => {
       const updateBuilder = createUpdateBuilder();
       const deleteBuilder = createDeleteBuilder();
       const insertBuilder = createInsertBuilder();
-      const { service, fromMock } = createService([
-        permissionBuilder,
+      const { service, fromMock, accessService } = createService([
         destinationBuilder,
         updateBuilder,
         deleteBuilder,
         insertBuilder,
       ]);
+      accessService.assertDeviceAccess.mockResolvedValue(
+        deviceAccess({ locationId: 1 }),
+      );
 
-      await service.updateDevice(
+      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2);
+
+      // Editing needed Manager tier on the device itself.
+      expect(accessService.assertDeviceAccess).toHaveBeenCalledWith(
         jwt,
         'DEV-001',
-        'Sensor',
-        null,
-        2,
-        'Bearer token-1',
+        Action.DeviceEdit,
       );
 
       // Mover needed manage scope on the destination location.
       expect(destinationBuilder.eq).toHaveBeenCalledWith('location_id', 2);
-      expect(destinationBuilder.lte).toHaveBeenCalledWith(
-        'owner_match.permission_level',
-        2,
-      );
+      expect(destinationBuilder.lte).toHaveBeenCalledTimes(1);
+      expect(destinationBuilder.or).toHaveBeenCalledTimes(1);
 
       // Device ownership follows the destination location owner.
       expect(updateBuilder.update).toHaveBeenCalledWith({
@@ -346,59 +369,40 @@ describe('DevicesService', () => {
         ]),
       );
       expect(insertedRows).toHaveLength(3);
-      expect(fromMock).toHaveBeenCalledTimes(5);
+      expect(fromMock).toHaveBeenCalledTimes(4);
     });
 
     it('rejects a move when the mover cannot manage the destination location', async () => {
-      const permissionBuilder = createPermissionCheckBuilder({
-        dev_eui: 'DEV-001',
-        location_id: 1,
-        user_id: 'old-owner',
-      });
       const destinationBuilder = createDestinationBuilder(null);
-      const { service, fromMock } = createService([
-        permissionBuilder,
+      const { service, fromMock, accessService } = createService([
         destinationBuilder,
       ]);
+      accessService.assertDeviceAccess.mockResolvedValue(
+        deviceAccess({ locationId: 1 }),
+      );
 
       await expect(
-        service.updateDevice(
-          jwt,
-          'DEV-001',
-          'Sensor',
-          null,
-          2,
-          'Bearer token-1',
-        ),
+        service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2),
       ).rejects.toMatchObject({
+        status: 403,
         message:
           'You do not have permission to move this device to that location',
       });
 
       // The device update must never run.
-      expect(fromMock).toHaveBeenCalledTimes(2);
+      expect(fromMock).toHaveBeenCalledTimes(1);
     });
 
     it('leaves ownership and permissions untouched when the location does not change', async () => {
-      const permissionBuilder = createPermissionCheckBuilder({
-        dev_eui: 'DEV-001',
-        location_id: 2,
-        user_id: 'old-owner',
-      });
       const updateBuilder = createUpdateBuilder();
-      const { service, fromMock } = createService([
-        permissionBuilder,
+      const { service, fromMock, accessService } = createService([
         updateBuilder,
       ]);
-
-      await service.updateDevice(
-        jwt,
-        'DEV-001',
-        'Renamed',
-        'greenhouse',
-        2,
-        'Bearer token-1',
+      accessService.assertDeviceAccess.mockResolvedValue(
+        deviceAccess({ locationId: 2 }),
       );
+
+      await service.updateDevice(jwt, 'DEV-001', 'Renamed', 'greenhouse', 2);
 
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Renamed',
@@ -406,15 +410,10 @@ describe('DevicesService', () => {
         location_id: 2,
       });
       // No destination lookup, no permission reset.
-      expect(fromMock).toHaveBeenCalledTimes(2);
+      expect(fromMock).toHaveBeenCalledTimes(1);
     });
 
     it('keeps the current device owner when the destination location has no owner', async () => {
-      const permissionBuilder = createPermissionCheckBuilder({
-        dev_eui: 'DEV-001',
-        location_id: 1,
-        user_id: 'old-owner',
-      });
       const destinationBuilder = createDestinationBuilder({
         location_id: 2,
         owner_id: null,
@@ -423,22 +422,17 @@ describe('DevicesService', () => {
       const updateBuilder = createUpdateBuilder();
       const deleteBuilder = createDeleteBuilder();
       const insertBuilder = createInsertBuilder();
-      const { service } = createService([
-        permissionBuilder,
+      const { service, accessService } = createService([
         destinationBuilder,
         updateBuilder,
         deleteBuilder,
         insertBuilder,
       ]);
-
-      await service.updateDevice(
-        jwt,
-        'DEV-001',
-        'Sensor',
-        null,
-        2,
-        'Bearer token-1',
+      accessService.assertDeviceAccess.mockResolvedValue(
+        deviceAccess({ locationId: 1 }),
       );
+
+      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2);
 
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Sensor',
@@ -495,6 +489,18 @@ describe('DevicesService', () => {
       },
       client: unknown,
     ) => {
+      const accessService = {
+        // Location Admins/Managers and the owner may add devices.
+        assertLocationAccess: jest.fn().mockResolvedValue({
+          exists: true,
+          locationId: 2,
+          ownerId: 'user-1',
+          isStaff: false,
+          isOwner: true,
+          level: 1,
+          canRead: true,
+        }),
+      };
       const module = await Test.createTestingModule({
         providers: [
           DevicesService,
@@ -507,16 +513,16 @@ describe('DevicesService', () => {
           },
           {
             provide: LocationsService,
-            useValue: {
-              findOne: jest
-                .fn()
-                .mockResolvedValue({ id: 2, owner_id: 'user-1' }),
-            },
+            useValue: {},
           },
           { provide: PaymentsService, useValue: payments },
+          { provide: AccessService, useValue: accessService },
         ],
       }).compile();
-      return module.get<DevicesService>(DevicesService);
+      return {
+        service: module.get<DevicesService>(DevicesService),
+        accessService,
+      };
     };
 
     it('rejects a non-staff create without license_id before touching the database', async () => {
@@ -525,7 +531,7 @@ describe('DevicesService', () => {
         assignLicense: jest.fn(),
       };
       const { client, devicesBuilder } = buildClient();
-      const deviceService = await buildService(payments, client);
+      const { service: deviceService } = await buildService(payments, client);
 
       await expect(
         deviceService.createDevice(customer, DEV_EUI, {
@@ -537,13 +543,37 @@ describe('DevicesService', () => {
       expect(payments.assignLicense).not.toHaveBeenCalled();
     });
 
+    it('gates creation on location-manage access, not literal ownership', async () => {
+      const payments = {
+        assertLicenseAvailable: jest.fn().mockResolvedValue(undefined),
+        assignLicense: jest.fn().mockResolvedValue({}),
+      };
+      const { client } = buildClient();
+      const { service: deviceService, accessService } = await buildService(
+        payments,
+        client,
+      );
+
+      await deviceService.createDevice(customer, DEV_EUI, {
+        dev_eui: DEV_EUI,
+        location_id: 2,
+        license_id: 6,
+      });
+
+      expect(accessService.assertLocationAccess).toHaveBeenCalledWith(
+        customer,
+        2,
+        Action.LocationDeviceCreate,
+      );
+    });
+
     it('validates the seat before insert and consumes it after creation', async () => {
       const payments = {
         assertLicenseAvailable: jest.fn().mockResolvedValue(undefined),
         assignLicense: jest.fn().mockResolvedValue({}),
       };
       const { client, devicesBuilder } = buildClient();
-      const deviceService = await buildService(payments, client);
+      const { service: deviceService } = await buildService(payments, client);
 
       await deviceService.createDevice(customer, DEV_EUI, {
         dev_eui: DEV_EUI,
@@ -564,7 +594,7 @@ describe('DevicesService', () => {
         assignLicense: jest.fn(),
       };
       const { client, devicesBuilder } = buildClient();
-      const deviceService = await buildService(payments, client);
+      const { service: deviceService } = await buildService(payments, client);
 
       await expect(
         deviceService.createDevice(customer, DEV_EUI, {
@@ -583,7 +613,7 @@ describe('DevicesService', () => {
         assignLicense: jest.fn().mockResolvedValue({}),
       };
       const { client } = buildClient();
-      const deviceService = await buildService(payments, client);
+      const { service: deviceService } = await buildService(payments, client);
 
       await deviceService.createDevice(staffUser, DEV_EUI, {
         dev_eui: DEV_EUI,
@@ -616,17 +646,6 @@ describe('DevicesService', () => {
       isStaff: false,
     };
 
-    // ADMIN-scope device lookup: .select().eq().eq().lte().or().single().
-    function createDeviceScopeBuilder(deviceRow: unknown) {
-      return {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        lte: jest.fn().mockReturnThis(),
-        or: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: deviceRow, error: null }),
-      };
-    }
-
     // Update path: .update().eq().select('*').single().
     function createUpdateBuilder(row: unknown) {
       return {
@@ -646,73 +665,77 @@ describe('DevicesService', () => {
         getClient: jest.fn(() => ({ from: fromMock })),
         getAdminClient: jest.fn(),
       };
+      const accessService = createAccessMock();
       return {
         service: new DevicesService(
           supabaseService as unknown as SupabaseService,
-          {} as any,
+          {} as LocationsService,
+          {} as PaymentsService,
+          accessService,
         ),
         fromMock,
+        accessService,
       };
     }
 
     it('authorizes against the replacement dev_eui, not the old one', async () => {
-      const existingBuilder = createDeviceScopeBuilder({ dev_eui: 'OLD-EUI' });
-      const newDeviceBuilder = createDeviceScopeBuilder({ dev_eui: 'NEW-EUI' });
       const updateBuilder = createUpdateBuilder({ dev_eui: 'NEW-EUI' });
-      const { service, fromMock } = createService([
-        existingBuilder,
-        newDeviceBuilder,
+      const { service, fromMock, accessService } = createService([
         updateBuilder,
       ]);
+      accessService.assertDeviceAccess.mockResolvedValue(deviceAccess());
 
       await service.replaceDevice(admin, 'OLD-EUI', { dev_eui: 'NEW-EUI' });
 
-      // The old-device check still runs against the route eui...
-      expect(existingBuilder.eq).toHaveBeenCalledWith('dev_eui', 'OLD-EUI');
-      // ...and the replacement check must target the NEW eui. The bug was that
-      // it re-checked the old eui, so no authz ever ran against the target.
-      expect(newDeviceBuilder.eq).toHaveBeenCalledWith('dev_eui', 'NEW-EUI');
-      expect(newDeviceBuilder.eq).not.toHaveBeenCalledWith(
-        'dev_eui',
+      // Replacing is Admin-tier on BOTH devices. The bug was that the second
+      // check re-queried the old eui, so no authz ever ran on the target.
+      expect(accessService.assertDeviceAccess).toHaveBeenNthCalledWith(
+        1,
+        admin,
         'OLD-EUI',
+        Action.DeviceReplace,
       );
-      expect(fromMock).toHaveBeenCalledTimes(3);
+      expect(accessService.assertDeviceAccess).toHaveBeenNthCalledWith(
+        2,
+        admin,
+        'NEW-EUI',
+        Action.DeviceReplace,
+      );
+      expect(fromMock).toHaveBeenCalledTimes(1);
     });
 
     it('does not update when the caller lacks access to the replacement device', async () => {
-      const existingBuilder = createDeviceScopeBuilder({ dev_eui: 'OLD-EUI' });
-      const newDeviceBuilder = createDeviceScopeBuilder(null); // no access to NEW
       const updateBuilder = createUpdateBuilder({ dev_eui: 'NEW-EUI' });
-      const { service, fromMock } = createService([
-        existingBuilder,
-        newDeviceBuilder,
+      const { service, fromMock, accessService } = createService([
         updateBuilder,
       ]);
+      accessService.assertDeviceAccess
+        .mockResolvedValueOnce(deviceAccess())
+        .mockRejectedValueOnce(new NotFoundException('Device not found'));
 
       await expect(
         service.replaceDevice(admin, 'OLD-EUI', { dev_eui: 'NEW-EUI' }),
       ).rejects.toMatchObject({ status: 404 });
 
-      expect(newDeviceBuilder.eq).toHaveBeenCalledWith('dev_eui', 'NEW-EUI');
       // The device update must never run.
       expect(updateBuilder.update).not.toHaveBeenCalled();
-      expect(fromMock).toHaveBeenCalledTimes(2);
+      expect(fromMock).not.toHaveBeenCalled();
     });
 
     it('rejects a blank replacement dev_eui before any replacement lookup', async () => {
-      const existingBuilder = createDeviceScopeBuilder({ dev_eui: 'OLD-EUI' });
       const updateBuilder = createUpdateBuilder({ dev_eui: 'NEW-EUI' });
-      const { service, fromMock } = createService([
-        existingBuilder,
+      const { service, fromMock, accessService } = createService([
         updateBuilder,
       ]);
+      accessService.assertDeviceAccess.mockResolvedValue(deviceAccess());
 
       await expect(
         service.replaceDevice(admin, 'OLD-EUI', { dev_eui: '  ' }),
       ).rejects.toMatchObject({ status: 400 });
 
-      // Only the existing-device lookup ran; no replacement lookup, no update.
-      expect(fromMock).toHaveBeenCalledTimes(1);
+      // Only the existing-device check ran; no replacement check, no update.
+      expect(accessService.assertDeviceAccess).toHaveBeenCalledTimes(1);
+      expect(fromMock).not.toHaveBeenCalled();
     });
   });
 });
