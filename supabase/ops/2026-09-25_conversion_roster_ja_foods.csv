@@ -1,0 +1,8 @@
+﻿proposed_org_role,email,full_name,employer,current_location_grants (1=Admin 2=Manager 3=User 4=Viewer),current_device_grants_differing_from_location (summary),personal_org_empty,user_id,notes
+OWNER,takao-harada.70@miyazaki.mz-ja.or.jp,貴生 原田,JA-Foods,all 5 locations=1,(none),n/a (his org becomes the company),4b455cf3-7f43-4f1d-84ce-88d7a708d9e1,Anchor. Org owns 5 locations + 12 devices.
+manager,aono_koh@kei.mz-ja.or.jp,航大 青野,JA-Foods,all 5 locations=1,(none — incl. Admin relay rows at same level),yes,414e6cf2-c7ab-4cef-bbb3-958b97bc1131,Admin everywhere (incl. relay control restored in June PR-A preflight).
+manager,matsumoto_yuu@kei.mz-ja.or.jp,裕介 松本,JA-Foods,all 5 locations=1,(none — incl. Admin relay rows at same level),yes,0a1a9ee1-e57c-4120-be2e-5137a441f057,Admin everywhere (incl. relay control).
+member(Viewer),info@jafoods-miyazaki.jp,,(no employer set),all 5 locations=4 (Viewer),(none),yes,3abcded1-8377-436a-b5b9-5d0835a6c1ce,Company's own info@ address but Viewer-only. Member keeps them inside the org; guest if it's a shared/outside mailbox.
+guest,cfwk9053@yahoo.co.jp,,(no employer set),"原料保管庫=4; 出荷場冷凍庫=4 (Viewer, 2 of 5 locations)",(none),yes,ef25630b-5068-4a68-b3bd-bd8f933de110,"Personal yahoo address, partial Viewer access — looks like an outside collaborator → guest."
+staff — no membership,kevin@cropwatch.io,Kevin Cantrell,CropWatch LLC,all 5 locations=1,(none),n/a,fd140e81-7640-4f42-ab52-dff1b5635723,Staff support access.
+staff — no membership,sayaka@cropwatch.io,Sayaka Ikemizu,CropWatch LLC,all 5 locations=1,トンネルフリーザー1 [3436343159337A10] = lvl4,n/a,afd745a3-f355-4b81-93fb-1e4c9dad1daa,Staff support access.
