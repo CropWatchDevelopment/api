@@ -1,0 +1,5 @@
+﻿proposed_org_role,email,full_name,employer,current_location_grants (1=Admin 2=Manager 3=User 4=Viewer),current_device_grants_differing_from_location (summary),personal_org_empty,user_id,notes
+No longer employed,onogawa@koyuforest.or.jp,,児湯広域森林組合,小径木工場=1,(none),n/a (his org becomes the company),aa0fe8bd-c416-4def-92c6-9def6027e8b7,No longer employed — CONFIRMED 2026-09-26: remove access only (grants + org standing); account itself remains as an empty personal org. hando takes ownership via staff transfer.
+OWNER,hando@koyuforest.or.jp,智康 半渡,(no employer set),小径木工場=2,(none),yes,f0747912-c9dd-4cbe-bb86-9a74358191b8,"Legacy lvl2 Manager, same koyuforest.or.jp domain — manager keeps device-edit ability."
+staff — no membership,kevin@cropwatch.io,Kevin Cantrell,CropWatch LLC,小径木工場=1,スプリンクラー1_センサー右 = lvl2,n/a,fd140e81-7640-4f42-ab52-dff1b5635723,Staff support access.
+staff — no membership,sayaka@cropwatch.io,Sayaka Ikemizu,CropWatch LLC,小径木工場=1,AI検知システム lvl1; スプリンクラーセンサー x2 lvl2; スプリンクラー1_センサー真ん中 lvl1; 温度・湿度センサー lvl1,n/a,afd745a3-f355-4b81-93fb-1e4c9dad1daa,Staff support access.
