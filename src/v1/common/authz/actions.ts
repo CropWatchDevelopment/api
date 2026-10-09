@@ -26,6 +26,8 @@ export const Action = {
   DeviceGrant: 'device.grant',
   /** Replace a device with another physical unit. */
   DeviceReplace: 'device.replace',
+  /** Delete a device and all of its data (owner-only). */
+  DeviceDelete: 'device.delete',
 
   /** Read sensor data (air / soil / water / traffic / power). */
   DataRead: 'data.read',

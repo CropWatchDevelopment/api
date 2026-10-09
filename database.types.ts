@@ -2396,6 +2396,7 @@ export type Database = {
         Args: { avatar_url: string }
         Returns: Record<string, unknown>
       }
+      delete_device: { Args: { p_dev_eui: string }; Returns: Json }
       delete_storage_object: {
         Args: { bucket: string; object: string }
         Returns: Record<string, unknown>
@@ -2509,6 +2510,10 @@ export type Database = {
       is_location_member_for: { Args: { loc_id: number }; Returns: boolean }
       is_location_owner_for: { Args: { loc_id: number }; Returns: boolean }
       org_home_of: { Args: { p_user: string }; Returns: string }
+      purge_device_data_batch: {
+        Args: { p_batch_size?: number; p_dev_eui: string }
+        Returns: number
+      }
       remove_org_member: {
         Args: { p_org_id: string; p_user_id: string }
         Returns: Json

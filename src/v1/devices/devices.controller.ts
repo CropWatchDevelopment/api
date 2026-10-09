@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotImplementedException,
   Param,
@@ -476,6 +477,47 @@ export class DevicesController {
     throw new NotImplementedException(
       'Device replacement is not yet implemented. Please contact support if you would like this feature to be prioritized.',
     );
+  }
+
+  @Delete(':dev_eui')
+  @ApiParam({ name: 'dev_eui', description: 'Device dev_eui' })
+  @ApiOperation({
+    summary: 'Delete a device and all of its data',
+    description: `
+    Permanently deletes a device together with all of its sensor data,
+    permissions, rule and report assignments, and gateway links. Any license
+    assigned to the device is freed (back to unassigned). This cannot be undone.
+    Only the device owner, the org owner, or CropWatch staff may delete a device.
+
+    Very large devices may not finish in one request: the response then has
+    complete: false and the device still exists — call again to continue.
+    `,
+  })
+  @ApiOkResponse({
+    description:
+      'Device deleted (complete: true) or partially purged (complete: false).',
+    schema: {
+      type: 'object',
+      properties: {
+        dev_eui: { type: 'string' },
+        complete: { type: 'boolean' },
+        purgedRows: { type: 'number' },
+        deleted: { type: 'object', additionalProperties: { type: 'number' } },
+      },
+    },
+  })
+  @ApiNotFoundResponse({
+    description: 'Device not found.',
+    type: ErrorResponseDto,
+  })
+  remove(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('dev_eui') devEui: string,
+  ) {
+    if (!devEui?.trim()) {
+      throw new BadRequestException('dev_eui is required');
+    }
+    return this.devicesService.deleteDevice(user, devEui);
   }
 
   @Patch(':dev_eui/permission-level')
