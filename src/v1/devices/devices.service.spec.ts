@@ -778,7 +778,7 @@ describe('DevicesService', () => {
 
     it('checks DeviceDelete, purges in batches, then deletes the device', async () => {
       const { service, rpcMock, accessService } = createService([
-        { data: 10000, error: null },
+        { data: 2500, error: null },
         { data: 512, error: null },
         { data: 0, error: null },
         { data: { deleted: { device_licenses_freed: 1 } }, error: null },
@@ -795,7 +795,7 @@ describe('DevicesService', () => {
       expect(rpcMock).toHaveBeenCalledTimes(4);
       expect(rpcMock).toHaveBeenNthCalledWith(1, 'purge_device_data_batch', {
         p_dev_eui: 'DEV-001',
-        p_batch_size: 10000,
+        p_batch_size: 2500,
       });
       expect(rpcMock).toHaveBeenLastCalledWith('delete_device', {
         p_dev_eui: 'DEV-001',
@@ -803,7 +803,7 @@ describe('DevicesService', () => {
       expect(result).toEqual({
         dev_eui: 'DEV-001',
         complete: true,
-        purgedRows: 10512,
+        purgedRows: 3012,
         deleted: { device_licenses_freed: 1 },
       });
     });

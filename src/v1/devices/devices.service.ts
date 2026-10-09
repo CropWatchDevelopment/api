@@ -72,10 +72,13 @@ type ListResult<T> = {
 
 /**
  * Rows deleted per purge_device_data_batch call (one table at a time). Each
- * call must finish well inside PostgREST's 8s statement_timeout; 10k rows of
- * the largest device measured ~0.6s of cold reads plus the per-row FK work.
+ * call must finish well inside PostgREST's 8s statement_timeout. A live
+ * sensor's readings are interleaved with every other device's, so each row
+ * sits on its own page: production measured ~0.6 ms/row (10k rows = 6.2s on
+ * 2026-10-10), so 2.5k rows (~1.5s) keeps a 5x margin. Total time is
+ * unchanged — the cost is per row, not per call.
  */
-const DELETE_DEVICE_BATCH_SIZE = 10000;
+const DELETE_DEVICE_BATCH_SIZE = 2500;
 /**
  * Stop purging and report `complete: false` after this long, so one request
  * stays under the shortest Vercel function limit; the app re-calls until done.
