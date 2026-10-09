@@ -70,6 +70,28 @@ type ListResult<T> = {
   error: PostgrestError | null;
 };
 
+/**
+ * Rows deleted per purge_device_data_batch call (one table at a time). Each
+ * call must finish well inside PostgREST's 8s statement_timeout; 10k rows of
+ * the largest device measured ~0.6s of cold reads plus the per-row FK work.
+ */
+const DELETE_DEVICE_BATCH_SIZE = 10000;
+/**
+ * Stop purging and report `complete: false` after this long, so one request
+ * stays under the shortest Vercel function limit; the app re-calls until done.
+ */
+const DELETE_DEVICE_TIME_BUDGET_MS = 6_000;
+
+export interface DeleteDeviceResult {
+  dev_eui: string;
+  /** false: data purge paused on the time budget; call again to continue. */
+  complete: boolean;
+  /** Sensor-data rows removed by the batched purge in this call. */
+  purgedRows: number;
+  /** Per-table counts from delete_device (only when complete). */
+  deleted?: Record<string, number>;
+}
+
 export interface PagedDevicesResponse<T> {
   total?: number;
   skip: number;
@@ -1148,6 +1170,84 @@ export class DevicesService {
     }
 
     return data;
+  }
+
+  /**
+   * Permanently deletes a device and all of its data (owner-only).
+   *
+   * Sensor data is purged first in batches (purge_device_data_batch) so no
+   * single statement runs into PostgREST's 8s timeout, then delete_device
+   * frees the device's licenses and removes the device row in one
+   * transaction (supabase/updates/028_delete_device.sql).
+   *
+   * A very large device may not finish purging within the time budget; the
+   * device row is then left in place and `complete: false` is returned so
+   * the caller can call again to continue where it stopped.
+   */
+  async deleteDevice(
+    user: AuthenticatedUser,
+    devEui: string,
+  ): Promise<DeleteDeviceResult> {
+    const client = this.supabaseService.getClient();
+    const normalizedDevEui = devEui?.trim();
+    if (!normalizedDevEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+
+    // Deleting is owner-only: 404 when the device is invisible, 403 otherwise.
+    await this.accessService.assertDeviceAccess(
+      user,
+      normalizedDevEui,
+      Action.DeviceDelete,
+    );
+
+    const startedAt = Date.now();
+    let purgedRows = 0;
+    for (;;) {
+      if (Date.now() - startedAt > DELETE_DEVICE_TIME_BUDGET_MS) {
+        this.logger.warn(
+          `deleteDevice ${normalizedDevEui}: purge paused after ${purgedRows} rows (time budget)`,
+        );
+        return { dev_eui: normalizedDevEui, complete: false, purgedRows };
+      }
+      const { data, error } = (await client.rpc('purge_device_data_batch', {
+        p_dev_eui: normalizedDevEui,
+        p_batch_size: DELETE_DEVICE_BATCH_SIZE,
+      })) as SingleResult<number>;
+      if (error) {
+        this.logger.error(
+          `deleteDevice ${normalizedDevEui}: purge failed: ${error.message}`,
+        );
+        throw new InternalServerErrorException('Failed to delete device data');
+      }
+      if (!data) {
+        break;
+      }
+      purgedRows += data;
+    }
+
+    const { data, error } = (await client.rpc('delete_device', {
+      p_dev_eui: normalizedDevEui,
+    })) as SingleResult<{ deleted?: Record<string, number> }>;
+    if (error) {
+      if (error.message?.includes('DEVICE_NOT_FOUND')) {
+        throw new NotFoundException('Device not found');
+      }
+      this.logger.error(
+        `deleteDevice ${normalizedDevEui}: delete failed: ${error.message}`,
+      );
+      throw new InternalServerErrorException('Failed to delete device');
+    }
+
+    this.logger.log(
+      `deleteDevice ${normalizedDevEui} by ${user.sub}: purged ${purgedRows} rows, ${JSON.stringify(data?.deleted ?? {})}`,
+    );
+    return {
+      dev_eui: normalizedDevEui,
+      complete: true,
+      purgedRows,
+      deleted: data?.deleted ?? {},
+    };
   }
 
   /**

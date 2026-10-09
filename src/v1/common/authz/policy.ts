@@ -35,6 +35,7 @@ export const POLICY_CEILINGS: Readonly<Record<Action, number>> = {
   [Action.DeviceEdit]: PermissionLevel.MANAGER,
   [Action.DeviceGrant]: PermissionLevel.ADMIN,
   [Action.DeviceReplace]: PermissionLevel.ADMIN,
+  [Action.DeviceDelete]: 0,
 
   [Action.DataRead]: PermissionLevel.VIEWER,
   [Action.NoteWrite]: PermissionLevel.USER,
@@ -73,6 +74,7 @@ export const OWNER_ONLY_ACTIONS: ReadonlySet<Action> = new Set([
   // locations until staff convert those accounts.
   Action.LocationDeviceCreate,
   Action.DeviceReplace,
+  Action.DeviceDelete,
   Action.GatewayCreate,
   Action.OrgSettingsManage,
   Action.GuestInvite,

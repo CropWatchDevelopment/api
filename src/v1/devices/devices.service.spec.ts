@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DevicesService } from './devices.service';
 import { SupabaseService } from '../../supabase/supabase.service';
@@ -744,6 +744,130 @@ describe('DevicesService', () => {
       // Only the existing-device check ran; no replacement check, no update.
       expect(accessService.assertDeviceAccess).toHaveBeenCalledTimes(1);
       expect(fromMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('deleteDevice', () => {
+    const owner = {
+      sub: 'owner-1',
+      email: 'owner@example.com',
+      isStaff: false,
+    };
+
+    function createService(rpcResponses: { data: unknown; error: unknown }[]) {
+      const rpcMock = jest.fn();
+      for (const response of rpcResponses) {
+        rpcMock.mockResolvedValueOnce(response);
+      }
+      const supabaseService = {
+        getClient: jest.fn(() => ({ rpc: rpcMock })),
+        getAdminClient: jest.fn(),
+      };
+      const accessService = createAccessMock();
+      return {
+        service: new DevicesService(
+          supabaseService as unknown as SupabaseService,
+          {} as LocationsService,
+          {} as PaymentsService,
+          accessService,
+        ),
+        rpcMock,
+        accessService,
+      };
+    }
+
+    it('checks DeviceDelete, purges in batches, then deletes the device', async () => {
+      const { service, rpcMock, accessService } = createService([
+        { data: 10000, error: null },
+        { data: 512, error: null },
+        { data: 0, error: null },
+        { data: { deleted: { device_licenses_freed: 1 } }, error: null },
+      ]);
+      accessService.assertDeviceAccess.mockResolvedValue(deviceAccess());
+
+      const result = await service.deleteDevice(owner, ' DEV-001 ');
+
+      expect(accessService.assertDeviceAccess).toHaveBeenCalledWith(
+        owner,
+        'DEV-001',
+        Action.DeviceDelete,
+      );
+      expect(rpcMock).toHaveBeenCalledTimes(4);
+      expect(rpcMock).toHaveBeenNthCalledWith(1, 'purge_device_data_batch', {
+        p_dev_eui: 'DEV-001',
+        p_batch_size: 10000,
+      });
+      expect(rpcMock).toHaveBeenLastCalledWith('delete_device', {
+        p_dev_eui: 'DEV-001',
+      });
+      expect(result).toEqual({
+        dev_eui: 'DEV-001',
+        complete: true,
+        purgedRows: 10512,
+        deleted: { device_licenses_freed: 1 },
+      });
+    });
+
+    it('never touches the database when the caller is not allowed to delete', async () => {
+      const { service, rpcMock, accessService } = createService([]);
+      accessService.assertDeviceAccess.mockRejectedValue(
+        new ForbiddenException('nope'),
+      );
+
+      await expect(
+        service.deleteDevice(owner, 'DEV-001'),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(rpcMock).not.toHaveBeenCalled();
+    });
+
+    it('does not delete the device row when the purge fails', async () => {
+      const { service, rpcMock, accessService } = createService([
+        {
+          data: null,
+          error: { message: 'canceling statement due to statement timeout' },
+        },
+      ]);
+      accessService.assertDeviceAccess.mockResolvedValue(deviceAccess());
+
+      await expect(
+        service.deleteDevice(owner, 'DEV-001'),
+      ).rejects.toMatchObject({ status: 500 });
+      expect(rpcMock).toHaveBeenCalledTimes(1);
+      expect(rpcMock).not.toHaveBeenCalledWith(
+        'delete_device',
+        expect.anything(),
+      );
+    });
+
+    it('maps DEVICE_NOT_FOUND from the RPC to 404', async () => {
+      const { service, accessService } = createService([
+        { data: 0, error: null },
+        { data: null, error: { message: 'DEVICE_NOT_FOUND' } },
+      ]);
+      accessService.assertDeviceAccess.mockResolvedValue(deviceAccess());
+
+      await expect(
+        service.deleteDevice(owner, 'DEV-001'),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('returns complete: false and keeps the device when the time budget runs out', async () => {
+      const { service, rpcMock, accessService } = createService([
+        { data: 20000, error: null },
+      ]);
+      accessService.assertDeviceAccess.mockResolvedValue(deviceAccess());
+      const now = jest.spyOn(Date, 'now');
+      now.mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(60_000);
+
+      const result = await service.deleteDevice(owner, 'DEV-001');
+
+      now.mockRestore();
+      expect(result).toEqual({
+        dev_eui: 'DEV-001',
+        complete: false,
+        purgedRows: 20000,
+      });
+      expect(rpcMock).toHaveBeenCalledTimes(1);
     });
   });
 });
