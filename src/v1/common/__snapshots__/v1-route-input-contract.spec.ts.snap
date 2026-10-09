@@ -931,6 +931,18 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
       "get": {},
     },
     "/v1/devices/{dev_eui}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "dev_eui",
+            "required": true,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
       "get": {
         "parameters": [
           {

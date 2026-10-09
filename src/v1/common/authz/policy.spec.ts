@@ -112,6 +112,23 @@ describe('decide', () => {
       false,
     );
     expect(decide(subject(PermissionLevel.VIEWER), Action.DataRead)).toBe(true);
+    // Deleting a device (and all its data) is owner-only: no grant level
+    // reaches it — not even an Admin share — and neither does an org manager.
+    expect(decide(subject(PermissionLevel.ADMIN), Action.DeviceDelete)).toBe(
+      false,
+    );
+    expect(
+      decide(subject(null, { orgRole: 'manager' }), Action.DeviceDelete),
+    ).toBe(false);
+    expect(
+      decide(subject(null, { parentRead: true }), Action.DeviceDelete),
+    ).toBe(false);
+    expect(
+      decide(subject(null, { orgRole: 'owner' }), Action.DeviceDelete),
+    ).toBe(true);
+    expect(decide(subject(null, { isOwner: true }), Action.DeviceDelete)).toBe(
+      true,
+    );
   });
 });
 
