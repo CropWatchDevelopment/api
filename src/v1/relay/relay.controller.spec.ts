@@ -6,16 +6,20 @@ describe('RelayController', () => {
   let controller: RelayController;
   let relayService: {
     getLatestRelay: jest.Mock;
+    getRelayHistory: jest.Mock;
     handleTtiUp: jest.Mock;
     pulseRelay: jest.Mock;
+    requestRelayStatus: jest.Mock;
     updateRelay: jest.Mock;
   };
 
   beforeEach(async () => {
     relayService = {
       getLatestRelay: jest.fn(),
+      getRelayHistory: jest.fn(),
       handleTtiUp: jest.fn(),
       pulseRelay: jest.fn(),
+      requestRelayStatus: jest.fn(),
       updateRelay: jest.fn(),
     };
 
@@ -85,5 +89,57 @@ describe('RelayController', () => {
         relay: 1,
       },
     );
+  });
+
+  it('forwards status report requests to the relay service', () => {
+    const user = {
+      email: 'user@example.com',
+      isStaff: false,
+      sub: 'user-1',
+    };
+
+    void controller.requestRelayStatus('A8404194635A05FB', user);
+
+    expect(relayService.requestRelayStatus).toHaveBeenCalledWith(
+      user,
+      'A8404194635A05FB',
+    );
+  });
+
+  it('forwards history requests with the parsed time range', () => {
+    const user = {
+      email: 'user@example.com',
+      isStaff: false,
+      sub: 'user-1',
+    };
+
+    void controller.getRelayHistory(
+      'A8404194635A05FB',
+      user,
+      '2026-10-10T00:00:00Z',
+      '2026-10-11T00:00:00Z',
+    );
+
+    expect(relayService.getRelayHistory).toHaveBeenCalledWith(
+      user,
+      'A8404194635A05FB',
+      {
+        startDate: new Date('2026-10-10T00:00:00Z'),
+        endDate: new Date('2026-10-11T00:00:00Z'),
+      },
+    );
+  });
+
+  it('rejects an invalid history range without calling the service', () => {
+    const user = {
+      email: 'user@example.com',
+      isStaff: false,
+      sub: 'user-1',
+    };
+
+    expect(() =>
+      controller.getRelayHistory('A8404194635A05FB', user, 'yesterday'),
+    ).toThrow('start must be a valid date/time');
+    expect(relayService.getRelayHistory).not.toHaveBeenCalled();
   });
 });

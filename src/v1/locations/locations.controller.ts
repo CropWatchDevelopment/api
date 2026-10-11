@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   BadRequestException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { LocationsService } from './locations.service';
 import { CreateLocationDto } from './dto/create-location.dto';
@@ -16,7 +17,9 @@ import { UpdateLocationDto } from './dto/update-location.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiOkResponse,
+  ApiOperation,
   ApiParam,
   ApiQuery,
   ApiSecurity,
@@ -32,6 +35,7 @@ import {
 } from '../common/permission-levels';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+import { ErrorResponseDto } from '../common/dto/error-response.dto';
 
 @Controller({ path: 'locations', version: '1' })
 @ApiBearerAuth('bearerAuth')
@@ -90,6 +94,59 @@ export class LocationsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.locationsService.update(+id, updateLocationDto, user);
+  }
+
+  @Get(':id/delete-preflight')
+  @ApiParam({ name: 'id', description: 'Location id' })
+  @ApiOperation({
+    summary: 'Check whether a location can be deleted',
+    description: `
+    Owner-only (the location's owner, the owner of its organization, or
+    CropWatch staff); 404/403 otherwise. Returns how many devices are still in
+    the location: it can only be deleted once that is 0.
+    `,
+  })
+  @ApiOkResponse({
+    description: 'The caller may delete the location once device_count is 0.',
+    schema: {
+      type: 'object',
+      properties: {
+        location_id: { type: 'number' },
+        device_count: { type: 'number' },
+      },
+    },
+  })
+  getDeletePreflight(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.locationsService.getDeletePreflight(id, user);
+  }
+
+  @Delete(':id')
+  @ApiParam({ name: 'id', description: 'Location id' })
+  @ApiOperation({
+    summary: 'Delete an empty location',
+    description: `
+    Permanently deletes a location and everyone's access to it. This cannot be
+    undone. Owner-only (the location's owner, the owner of its organization, or
+    CropWatch staff). Refused with 409 while the location still has devices:
+    move them to another location or delete them first.
+    `,
+  })
+  @ApiOkResponse({
+    description: 'Location deleted.',
+    schema: { type: 'object', properties: { location_id: { type: 'number' } } },
+  })
+  @ApiConflictResponse({
+    description: 'The location still has devices.',
+    type: ErrorResponseDto,
+  })
+  deleteLocation(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.locationsService.deleteLocation(id, user);
   }
 
   @Post(':id/permission')

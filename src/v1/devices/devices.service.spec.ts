@@ -482,9 +482,18 @@ describe('DevicesService', () => {
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockResolvedValue({ data: [], error: null }),
       };
+      const inventoryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+      };
       const client = {
         from: jest.fn((table: string) =>
-          table === 'cw_devices' ? devicesBuilder : ownersBuilder,
+          table === 'cw_devices'
+            ? devicesBuilder
+            : table === 'cw_device_inventory'
+              ? inventoryBuilder
+              : ownersBuilder,
         ),
       };
       return { client, devicesBuilder };
@@ -647,6 +656,164 @@ describe('DevicesService', () => {
     });
   });
 
+  describe('createDevice errors', () => {
+    const DEV_EUI = '00137A10000441E0';
+    const customer = {
+      sub: 'user-1',
+      email: 'customer@example.com',
+      isStaff: false,
+    };
+
+    const buildService = async (
+      insertError: { code: string; message: string } | null,
+      assignLicense: jest.Mock,
+      reservation: { org_id: string | null } | null = null,
+    ) => {
+      const deleteEq = jest.fn().mockResolvedValue({ error: null });
+      const devicesBuilder = {
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest
+          .fn()
+          .mockResolvedValue(
+            insertError
+              ? { data: null, error: insertError }
+              : { data: { dev_eui: DEV_EUI }, error: null },
+          ),
+        delete: jest.fn(() => ({ eq: deleteEq })),
+      };
+      const inventoryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest
+          .fn()
+          .mockResolvedValue({ data: reservation, error: null }),
+      };
+      const client = {
+        from: jest.fn((table: string) =>
+          table === 'cw_device_inventory' ? inventoryBuilder : devicesBuilder,
+        ),
+      };
+      const module = await Test.createTestingModule({
+        providers: [
+          DevicesService,
+          {
+            provide: SupabaseService,
+            useValue: { getClient: () => client, getAdminClient: () => client },
+          },
+          { provide: LocationsService, useValue: {} },
+          {
+            provide: PaymentsService,
+            useValue: {
+              assertLicenseAvailable: jest.fn().mockResolvedValue(undefined),
+              assignLicense,
+            },
+          },
+          {
+            provide: AccessService,
+            useValue: {
+              assertLocationAccess: jest
+                .fn()
+                .mockResolvedValue({ orgId: 'org-1' }),
+            },
+          },
+        ],
+      }).compile();
+      return {
+        service: module.get<DevicesService>(DevicesService),
+        devicesBuilder,
+        deleteEq,
+      };
+    };
+
+    const create = (service: DevicesService) =>
+      service.createDevice(customer, DEV_EUI, {
+        dev_eui: DEV_EUI,
+        location_id: 8,
+        license_id: 1,
+      });
+
+    it('returns 409 naming the DevEUI when it is already registered', async () => {
+      const assignLicense = jest.fn();
+      const { service } = await buildService(
+        { code: '23505', message: 'duplicate key value' },
+        assignLicense,
+      );
+
+      await expect(create(service)).rejects.toMatchObject({
+        status: 409,
+        message: `A device with DevEUI ${DEV_EUI} is already registered.`,
+      });
+      expect(assignLicense).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 when the device type or location does not exist', async () => {
+      const { service } = await buildService(
+        { code: '23503', message: 'violates foreign key constraint' },
+        jest.fn(),
+      );
+
+      await expect(create(service)).rejects.toMatchObject({ status: 400 });
+    });
+
+    it('removes the new device when the license cannot be assigned', async () => {
+      const failure = new Error('License is already assigned');
+      const { service, devicesBuilder, deleteEq } = await buildService(
+        null,
+        jest.fn().mockRejectedValue(failure),
+      );
+
+      await expect(create(service)).rejects.toBe(failure);
+      expect(devicesBuilder.delete).toHaveBeenCalled();
+      expect(deleteEq).toHaveBeenCalledWith('dev_eui', DEV_EUI);
+    });
+
+    it('stores the DevEUI in its canonical form', async () => {
+      const { service, devicesBuilder } = await buildService(
+        null,
+        jest.fn().mockResolvedValue({}),
+      );
+      await service.createDevice(customer, '00:13:7a:10:00:04:41:e0', {
+        dev_eui: '00:13:7a:10:00:04:41:e0',
+        location_id: 8,
+        license_id: 1,
+      });
+      expect(devicesBuilder.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ dev_eui: DEV_EUI }),
+      );
+    });
+
+    it('rejects a DevEUI that is not 16 hexadecimal characters', async () => {
+      const { service, devicesBuilder } = await buildService(null, jest.fn());
+      await expect(
+        service.createDevice(customer, '00137A10000441', {
+          dev_eui: '00137A10000441',
+          location_id: 8,
+          license_id: 1,
+        }),
+      ).rejects.toMatchObject({ status: 400 });
+      expect(devicesBuilder.insert).not.toHaveBeenCalled();
+    });
+
+    it('refuses a device reserved for another organization', async () => {
+      const { service, devicesBuilder } = await buildService(null, jest.fn(), {
+        org_id: 'org-2',
+      });
+      await expect(create(service)).rejects.toMatchObject({ status: 409 });
+      expect(devicesBuilder.insert).not.toHaveBeenCalled();
+    });
+
+    it('allows a device reserved for the location’s organization', async () => {
+      const { service, devicesBuilder } = await buildService(
+        null,
+        jest.fn().mockResolvedValue({}),
+        { org_id: 'org-1' },
+      );
+      await create(service);
+      expect(devicesBuilder.insert).toHaveBeenCalled();
+    });
+  });
+
   describe('replaceDevice', () => {
     const admin = {
       sub: 'admin-1',
@@ -778,7 +945,7 @@ describe('DevicesService', () => {
 
     it('checks DeviceDelete, purges in batches, then deletes the device', async () => {
       const { service, rpcMock, accessService } = createService([
-        { data: 10000, error: null },
+        { data: 2500, error: null },
         { data: 512, error: null },
         { data: 0, error: null },
         { data: { deleted: { device_licenses_freed: 1 } }, error: null },
@@ -795,7 +962,7 @@ describe('DevicesService', () => {
       expect(rpcMock).toHaveBeenCalledTimes(4);
       expect(rpcMock).toHaveBeenNthCalledWith(1, 'purge_device_data_batch', {
         p_dev_eui: 'DEV-001',
-        p_batch_size: 10000,
+        p_batch_size: 2500,
       });
       expect(rpcMock).toHaveBeenLastCalledWith('delete_device', {
         p_dev_eui: 'DEV-001',
@@ -803,7 +970,7 @@ describe('DevicesService', () => {
       expect(result).toEqual({
         dev_eui: 'DEV-001',
         complete: true,
-        purgedRows: 10512,
+        purgedRows: 3012,
         deleted: { device_licenses_freed: 1 },
       });
     });

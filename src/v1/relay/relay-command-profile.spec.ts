@@ -1,5 +1,6 @@
 import {
   buildRelayDownlink,
+  buildStatusRequestDownlink,
   buildTimedRelayDownlink,
 } from './relay-command-profile';
 
@@ -17,6 +18,18 @@ describe('buildRelayDownlink', () => {
       correlation_ids: ['cropwatch:request:test'],
       f_port: 2,
       frm_payload: 'AwER',
+      priority: 'NORMAL',
+    });
+  });
+});
+
+describe('buildStatusRequestDownlink', () => {
+  it('sends the Dragino "request an uplink" command (08 FF)', () => {
+    expect(buildStatusRequestDownlink(['cropwatch:kind:status'])).toEqual({
+      confirmed: false,
+      correlation_ids: ['cropwatch:kind:status'],
+      f_port: 2,
+      frm_payload: 'CP8=',
       priority: 'NORMAL',
     });
   });

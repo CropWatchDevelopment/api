@@ -1016,4 +1016,55 @@ describe('PaymentsService', () => {
       expect(billingRow.eq).toHaveBeenCalledWith('user_id', OWNER);
     });
   });
+
+  describe('assignLicense', () => {
+    const user = { sub: 'user-1', email: 'u@example.com', isStaff: false };
+    const seat = {
+      id: 14,
+      user_id: 'user-1',
+      seat_index: 0,
+      status: 'unassigned',
+      dev_eui: null,
+      stripe_subscription_id: null,
+    };
+
+    it('assigns an unassigned seat, only while it is still unassigned', async () => {
+      const update = createBuilder({ data: [{ id: 14 }], error: null });
+      const client = createClient({
+        device_licenses: [
+          createBuilder({ data: seat, error: null }),
+          createBuilder({ data: null, error: null }),
+          update,
+          createBuilder({
+            data: {
+              ...seat,
+              status: 'assigned',
+              dev_eui: 'AAAA000000000001',
+              cw_devices: { name: 'Sensor' },
+            },
+            error: null,
+          }),
+        ],
+      });
+      const service = createService(client, createStripeMock());
+
+      await service.assignLicense(user, 14, 'AAAA000000000001');
+      expect(update.is).toHaveBeenCalledWith('dev_eui', null);
+    });
+
+    it('fails when a parallel request took the seat first', async () => {
+      const client = createClient({
+        device_licenses: [
+          createBuilder({ data: seat, error: null }),
+          createBuilder({ data: null, error: null }),
+          createBuilder({ data: [], error: null }),
+        ],
+      });
+      const service = createService(client, createStripeMock());
+
+      await expect(
+        service.assignLicense(user, 14, 'AAAA000000000002'),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+  });
 });

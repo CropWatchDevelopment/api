@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -72,10 +73,13 @@ type ListResult<T> = {
 
 /**
  * Rows deleted per purge_device_data_batch call (one table at a time). Each
- * call must finish well inside PostgREST's 8s statement_timeout; 10k rows of
- * the largest device measured ~0.6s of cold reads plus the per-row FK work.
+ * call must finish well inside PostgREST's 8s statement_timeout. A live
+ * sensor's readings are interleaved with every other device's, so each row
+ * sits on its own page: production measured ~0.6 ms/row (10k rows = 6.2s on
+ * 2026-10-10), so 2.5k rows (~1.5s) keeps a 5x margin. Total time is
+ * unchanged — the cost is per row, not per call.
  */
-const DELETE_DEVICE_BATCH_SIZE = 10000;
+const DELETE_DEVICE_BATCH_SIZE = 2500;
 /**
  * Stop purging and report `complete: false` after this long, so one request
  * stays under the shortest Vercel function limit; the app re-calls until done.
@@ -848,9 +852,15 @@ export class DevicesService {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
     const isGlobalUser = user.isStaff;
-    const normalizedDevEui = devEui?.trim();
-    if (!normalizedDevEui) {
-      throw new BadRequestException('dev_eui is required');
+    // DevEUIs are stored as 16 upper-case hex characters; a different spelling
+    // of the same EUI must not become a second device.
+    const normalizedDevEui = (devEui ?? '')
+      .replace(/[\s:-]/g, '')
+      .toUpperCase();
+    if (!/^[0-9A-F]{16}$/.test(normalizedDevEui)) {
+      throw new BadRequestException(
+        'dev_eui must be 16 hexadecimal characters',
+      );
     }
 
     // Adding a device to a location is a location-manage action: the
@@ -860,11 +870,32 @@ export class DevicesService {
     if (!device.location_id) {
       throw new BadRequestException('location_id is required');
     }
-    await this.accessService.assertLocationAccess(
+    const locationAccess = await this.accessService.assertLocationAccess(
       user,
       device.location_id,
       Action.LocationDeviceCreate,
     );
+
+    // A device CropWatch reserved for another organization (key inventory)
+    // cannot be claimed here either — same rule as guided setup.
+    if (!isGlobalUser) {
+      const { data: reservation, error: reservationError } = (await client
+        .from('cw_device_inventory')
+        .select('org_id')
+        .eq('dev_eui', normalizedDevEui)
+        .maybeSingle()) as {
+        data: { org_id: string | null } | null;
+        error: { code?: string } | null;
+      };
+      if (reservationError) {
+        throw new InternalServerErrorException('Failed to check the device');
+      }
+      if (reservation?.org_id && reservation.org_id !== locationAccess.orgId) {
+        throw new ConflictException(
+          'This device is registered to another CropWatch account.',
+        );
+      }
+    }
 
     // Creating a device consumes an unassigned license seat (the TTI device
     // quota paywall). CropWatch staff are exempt, mirroring the location gate,
@@ -894,6 +925,20 @@ export class DevicesService {
       .single()) as SingleResult<DeviceRow>;
 
     if (createDeviceError) {
+      // Surface the causes a user can fix; everything else stays a logged 500.
+      if (createDeviceError.code === '23505') {
+        throw new ConflictException(
+          `A device with DevEUI ${normalizedDevEui} is already registered.`,
+        );
+      }
+      if (createDeviceError.code === '23503') {
+        throw new BadRequestException(
+          'The selected device type or location does not exist.',
+        );
+      }
+      this.logger.error(
+        `createDevice ${normalizedDevEui}: ${createDeviceError.code} ${createDeviceError.message}`,
+      );
       throw new InternalServerErrorException('Failed to create device');
     }
 
@@ -906,12 +951,27 @@ export class DevicesService {
      */
 
     // Consume the seat immediately so the new device cannot exist unlicensed.
+    // If that fails, remove the device again so a retry is not blocked by a
+    // half-created, unlicensed device holding the DevEUI.
     if (licenseId) {
-      await this.paymentsService.assignLicense(
-        user,
-        licenseId,
-        normalizedDevEui,
-      );
+      try {
+        await this.paymentsService.assignLicense(
+          user,
+          licenseId,
+          normalizedDevEui,
+        );
+      } catch (error) {
+        const { error: rollbackError } = await client
+          .from('cw_devices')
+          .delete()
+          .eq('dev_eui', normalizedDevEui);
+        if (rollbackError) {
+          this.logger.error(
+            `createDevice ${normalizedDevEui}: license assignment failed and rollback failed: ${rollbackError.message}`,
+          );
+        }
+        throw error;
+      }
     }
 
     return createdDeviceData;

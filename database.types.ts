@@ -457,6 +457,42 @@ export type Database = {
           },
         ]
       }
+      cw_device_inventory: {
+        Row: {
+          app_key_enc: string
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          dev_eui: string
+          device_type_id: number | null
+          join_eui: string
+          note: string | null
+          org_id: string | null
+        }
+        Insert: {
+          app_key_enc: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          dev_eui: string
+          device_type_id?: number | null
+          join_eui: string
+          note?: string | null
+          org_id?: string | null
+        }
+        Update: {
+          app_key_enc?: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          dev_eui?: string
+          device_type_id?: number | null
+          join_eui?: string
+          note?: string | null
+          org_id?: string | null
+        }
+        Relationships: []
+      }
       cw_device_type: {
         Row: {
           created_at: string
@@ -588,6 +624,7 @@ export type Database = {
           sensor_serial: string | null
           sensor1_serial: string | null
           sensor2_serial: string | null
+          tti_application_id: string | null
           tti_name: string | null
           type: number | null
           upload_interval: number | null
@@ -613,6 +650,7 @@ export type Database = {
           sensor_serial?: string | null
           sensor1_serial?: string | null
           sensor2_serial?: string | null
+          tti_application_id?: string | null
           tti_name?: string | null
           type?: number | null
           upload_interval?: number | null
@@ -638,6 +676,7 @@ export type Database = {
           sensor_serial?: string | null
           sensor1_serial?: string | null
           sensor2_serial?: string | null
+          tti_application_id?: string | null
           tti_name?: string | null
           type?: number | null
           upload_interval?: number | null
@@ -839,6 +878,7 @@ export type Database = {
           long: number | null
           map_zoom: number | null
           name: string
+          network_region: string
           org_id: string | null
           owner_id: string | null
         }
@@ -851,6 +891,7 @@ export type Database = {
           long?: number | null
           map_zoom?: number | null
           name: string
+          network_region?: string
           org_id?: string | null
           owner_id?: string | null
         }
@@ -863,6 +904,7 @@ export type Database = {
           long?: number | null
           map_zoom?: number | null
           name?: string
+          network_region?: string
           org_id?: string | null
           owner_id?: string | null
         }
@@ -882,6 +924,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cw_network_profiles: {
+        Row: {
+          application_id: string
+          created_at: string
+          default_join_eui: string | null
+          device_type_id: number
+          frequency_plan_id: string
+          id: number
+          is_active: boolean
+          lorawan_phy_version: string
+          lorawan_version: string
+          region: string
+          supports_class_c: boolean
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          default_join_eui?: string | null
+          device_type_id: number
+          frequency_plan_id: string
+          id?: number
+          is_active?: boolean
+          lorawan_phy_version?: string
+          lorawan_version?: string
+          region: string
+          supports_class_c?: boolean
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          default_join_eui?: string | null
+          device_type_id?: number
+          frequency_plan_id?: string
+          id?: number
+          is_active?: boolean
+          lorawan_phy_version?: string
+          lorawan_version?: string
+          region?: string
+          supports_class_c?: boolean
+        }
+        Relationships: []
       }
       cw_notifier_types: {
         Row: {
@@ -995,6 +1079,60 @@ export type Database = {
           },
         ]
       }
+      cw_relay_commands: {
+        Row: {
+          command: string
+          created_at: string
+          dev_eui: string
+          duration_seconds: number | null
+          id: number
+          relay: number | null
+          request_id: string
+          requested_by: string | null
+          sent_at: string
+          target_state: string | null
+        }
+        Insert: {
+          command: string
+          created_at?: string
+          dev_eui: string
+          duration_seconds?: number | null
+          id?: never
+          relay?: number | null
+          request_id: string
+          requested_by?: string | null
+          sent_at: string
+          target_state?: string | null
+        }
+        Update: {
+          command?: string
+          created_at?: string
+          dev_eui?: string
+          duration_seconds?: number | null
+          id?: never
+          relay?: number | null
+          request_id?: string
+          requested_by?: string | null
+          sent_at?: string
+          target_state?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_relay_commands_dev_eui_fkey"
+            columns: ["dev_eui"]
+            isOneToOne: false
+            referencedRelation: "cw_devices"
+            referencedColumns: ["dev_eui"]
+          },
+          {
+            foreignKeyName: "cw_relay_commands_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cw_relay_data: {
         Row: {
           created_at: string
@@ -1025,6 +1163,41 @@ export type Database = {
             foreignKeyName: "cw_relay_data_dev_eui_fkey"
             columns: ["dev_eui"]
             isOneToOne: true
+            referencedRelation: "cw_devices"
+            referencedColumns: ["dev_eui"]
+          },
+        ]
+      }
+      cw_relay_reports: {
+        Row: {
+          created_at: string
+          dev_eui: string
+          id: number
+          relay_1: boolean | null
+          relay_2: boolean | null
+          reported_at: string
+        }
+        Insert: {
+          created_at?: string
+          dev_eui: string
+          id?: never
+          relay_1?: boolean | null
+          relay_2?: boolean | null
+          reported_at: string
+        }
+        Update: {
+          created_at?: string
+          dev_eui?: string
+          id?: never
+          relay_1?: boolean | null
+          relay_2?: boolean | null
+          reported_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_relay_reports_dev_eui_fkey"
+            columns: ["dev_eui"]
+            isOneToOne: false
             referencedRelation: "cw_devices"
             referencedColumns: ["dev_eui"]
           },

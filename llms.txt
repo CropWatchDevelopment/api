@@ -125,8 +125,10 @@ For devices that support relay actuation over LoRaWAN downlink (via TTI).
 | Method | Path | Auth | Body / Notes |
 |---|---|---|---|
 | GET | `/relay/:dev_eui` | JWT | Returns latest known relay state. |
-| PATCH | `/relay/:dev_eui` | JWT | `UpdateRelayDto` `{ relay: 1\|2, targetState: 'on'\|'off' }` — sends downlink, waits for TTI confirmation. |
+| GET | `/relay/:dev_eui/history` | JWT | `?start&end` (ISO, ≤ 31 days) — timeline, newest first: device-reported state changes and commands (who sent them, `outcome`: confirmed / mismatch / unconfirmed / pending / answered). Empty → `[]`. |
+| PATCH | `/relay/:dev_eui` | JWT | `UpdateRelayDto` `{ relay: 1\|2, targetState: 'on'\|'off' }` — queues the downlink and returns `requestedAt`; the device confirms with an uplink (reports after `requestedAt`). |
 | POST | `/relay/:dev_eui/pulse` | JWT | `PulseRelayDto` `{ relay: 1\|2, durationSeconds: 1..4294967 }` — drive on for N seconds then revert. |
+| POST | `/relay/:dev_eui/status-request` | JWT | Asks the device to report its relay state now (Dragino `08 FF`); for overdue confirmations. 202. |
 | POST | `/relay/tti/up` | — | TTI webhook for confirmation uplinks. Not for client use. |
 
 ### Locations — `/v1/locations`

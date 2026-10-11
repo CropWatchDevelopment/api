@@ -1,10 +1,12 @@
 import {
+  ConflictException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { LocationsService } from './locations.service';
 import { SupabaseService } from '../../supabase/supabase.service';
+import { Action } from '../common/authz';
 import type { AccessService, LocationAccess } from '../common/authz';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
@@ -372,5 +374,119 @@ describe('LocationsService', () => {
     ]);
     expect(locationOwnerUpsertQuery.delete).not.toHaveBeenCalled();
     expect(failingDeviceOwnerUpsertQuery.delete).not.toHaveBeenCalled();
+  });
+  describe('deleteLocation', () => {
+    // `select(..., { count: 'exact', head: true }).eq(...)` resolves on eq().
+    type CountBuilder = { select: jest.Mock; eq: jest.Mock };
+    const countBuilder = (
+      count: number | null,
+      error: unknown = null,
+    ): CountBuilder => {
+      const builder: CountBuilder = {
+        select: jest.fn(() => builder),
+        eq: jest.fn(() => Promise.resolve({ count, error })),
+      };
+      return builder;
+    };
+    const asBuilder = (builder: unknown) => builder as QueryBuilder;
+
+    it('requires the owner-only LocationDelete permission before touching data', async () => {
+      const client = createClient({});
+      const { service, accessService } = createService(client);
+      accessService.assertLocationAccess.mockRejectedValue(
+        new ForbiddenException('nope'),
+      );
+
+      await expect(service.deleteLocation(8, USER)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(accessService.assertLocationAccess).toHaveBeenCalledWith(
+        USER,
+        8,
+        Action.LocationDelete,
+      );
+      expect(client.from).not.toHaveBeenCalled();
+    });
+
+    it('refuses with 409 while devices remain, without deleting anything', async () => {
+      const devices = countBuilder(3);
+      const client = createClient({ cw_devices: [asBuilder(devices)] });
+      const { service, accessService } = createService(client);
+      accessService.assertLocationAccess.mockResolvedValue(locationAccess());
+
+      await expect(service.deleteLocation(8, USER)).rejects.toMatchObject({
+        status: 409,
+        message: expect.stringContaining('3 devices') as unknown,
+      });
+      expect(devices.eq).toHaveBeenCalledWith('location_id', 8);
+      expect(client.from).not.toHaveBeenCalledWith('cw_locations');
+    });
+
+    it('deletes an empty location', async () => {
+      const devices = countBuilder(0);
+      const deletion = createBuilder({ data: { location_id: 8 }, error: null });
+      const client = createClient({
+        cw_devices: [asBuilder(devices)],
+        cw_locations: [deletion],
+      });
+      const { service, accessService } = createService(client);
+      accessService.assertLocationAccess.mockResolvedValue(locationAccess());
+
+      await expect(service.deleteLocation(8, USER)).resolves.toEqual({
+        location_id: 8,
+      });
+      expect(deletion.delete).toHaveBeenCalled();
+      expect(deletion.eq).toHaveBeenCalledWith('location_id', 8);
+    });
+
+    it('maps a device moved in after the count (FK violation) to 409', async () => {
+      const devices = countBuilder(0);
+      const deletion = createBuilder({
+        data: null,
+        error: { code: '23503', message: 'violates foreign key constraint' },
+      });
+      const client = createClient({
+        cw_devices: [asBuilder(devices)],
+        cw_locations: [deletion],
+      });
+      const { service, accessService } = createService(client);
+      accessService.assertLocationAccess.mockResolvedValue(locationAccess());
+
+      await expect(service.deleteLocation(8, USER)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+    });
+
+    it('returns 404 when no location was deleted', async () => {
+      const devices = countBuilder(0);
+      const deletion = createBuilder({ data: null, error: null });
+      const client = createClient({
+        cw_devices: [asBuilder(devices)],
+        cw_locations: [deletion],
+      });
+      const { service, accessService } = createService(client);
+      accessService.assertLocationAccess.mockResolvedValue(locationAccess());
+
+      await expect(service.deleteLocation(8, USER)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+
+    it('preflight reports the device count to owners only', async () => {
+      const devices = countBuilder(2);
+      const client = createClient({ cw_devices: [asBuilder(devices)] });
+      const { service, accessService } = createService(client);
+      accessService.assertLocationAccess.mockResolvedValue(locationAccess());
+
+      await expect(service.getDeletePreflight(8, USER)).resolves.toEqual({
+        location_id: 8,
+        device_count: 2,
+      });
+      expect(accessService.assertLocationAccess).toHaveBeenCalledWith(
+        USER,
+        8,
+        Action.LocationDelete,
+      );
+    });
   });
 });

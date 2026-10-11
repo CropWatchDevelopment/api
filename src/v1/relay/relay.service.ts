@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -16,6 +17,7 @@ import { PulseRelayDto } from './dto/pulse-relay.dto';
 import { UpdateRelayDto } from './dto/update-relay.dto';
 import {
   buildRelayDownlink,
+  buildStatusRequestDownlink,
   buildTimedRelayDownlink,
 } from './relay-command-profile';
 import { RelayCommandLockService } from './relay-command-lock.service';
@@ -23,6 +25,14 @@ import {
   parseRelayConfirmation,
   readRelayRowTimestamp,
 } from './relay-confirmation';
+import {
+  buildRelayHistory,
+  toRelayCommandRecord,
+  type RelayCommandRecord,
+  type RelayCommandRow,
+  type RelayHistoryEntry,
+  type RelayReportRecord,
+} from './relay-history';
 import {
   getOtherRelayNumber,
   getRelayState,
@@ -41,15 +51,26 @@ import {
   type DeviceAccess,
   decide,
 } from '../common/authz';
+import type { TimeseriesRange } from '../common/timeseries-range.helper';
 
 type DeviceOwnerRow = TableRow<'cw_device_owners'>;
 type DeviceTypeRow = TableRow<'cw_device_type'>;
 type DeviceRow = TableRow<'cw_devices'>;
 type RelayRow = TableRow<'cw_relay_data'>;
 type RelayInsert = TableInsert<'cw_relay_data'>;
+type RelayCommandInsert = TableInsert<'cw_relay_commands'>;
 
 /** Shape of a PostgREST response from the untyped Supabase client. */
 type QueryResult<T> = { data: T | null; error: PostgrestError | null };
+
+/** Longest range one history request may cover. */
+const RELAY_HISTORY_MAX_RANGE_MS = 31 * 24 * 60 * 60 * 1000;
+/** Reports this long after the range still settle commands sent inside it. */
+const RELAY_HISTORY_LOOKAHEAD_MS = 24 * 60 * 60 * 1000;
+/** PostgREST caps responses at max-rows; longer reads go page by page. */
+const POSTGREST_PAGE_SIZE = 1000;
+/** Postgres foreign_key_violation. */
+const FOREIGN_KEY_VIOLATION = '23503';
 
 type RelayDeviceContext = {
   applicationId: string;
@@ -95,18 +116,22 @@ function readBearerToken(value: string | undefined): string {
 
 function buildRelayCorrelationIds(input: {
   devEui: string;
-  relay: 1 | 2;
+  relay?: 1 | 2;
   requestId: string;
   targetState?: 'off' | 'on';
   durationMs?: number;
-  kind: 'fixed' | 'pulse';
+  kind: 'fixed' | 'pulse' | 'status';
 }): string[] {
   const correlationIds = [
     `cropwatch:request:${input.requestId}`,
     `cropwatch:device:${input.devEui}`,
-    `cropwatch:relay:${input.relay}`,
-    `cropwatch:kind:${input.kind}`,
   ];
+
+  if (input.relay) {
+    correlationIds.push(`cropwatch:relay:${input.relay}`);
+  }
+
+  correlationIds.push(`cropwatch:kind:${input.kind}`);
 
   if (input.targetState) {
     correlationIds.push(`cropwatch:target:${input.targetState}`);
@@ -173,25 +198,9 @@ export class RelayService {
       );
     }
 
-    const latestRow = await this.findLatestRelayRow(normalizedDevEui);
-    const currentState = getRelayState(latestRow, relay);
-    if (currentState !== null) {
-      const alreadyInTarget =
-        (targetState === 'on' && currentState) ||
-        (targetState === 'off' && !currentState);
-
-      if (alreadyInTarget) {
-        return {
-          confirmed: true,
-          data: latestRow,
-          dev_eui: normalizedDevEui,
-          message: `Relay ${relay} is already ${targetState}`,
-          relay,
-          targetState,
-        };
-      }
-    }
-
+    // Always send it, even when cw_relay_data already shows the target state:
+    // that row only changes when the device reports, so after a lost report it
+    // is stale, and skipping the command would leave the relay stuck.
     const releaseLock = this.relayCommandLockService.acquire(normalizedDevEui);
     const requestedAt = new Date().toISOString();
 
@@ -212,10 +221,24 @@ export class RelayService {
         downlinks: [buildRelayDownlink(relay, targetState, correlationIds)],
       });
 
+      await this.recordRelayCommand({
+        dev_eui: context.device.dev_eui,
+        sent_at: requestedAt,
+        command: 'fixed',
+        relay,
+        target_state: targetState,
+        requested_by: user.sub,
+        request_id: requestId,
+      });
+
+      // `confirmed` is kept for API compatibility and means TTI accepted the
+      // downlink. The device confirms later with an uplink (cw_relay_data
+      // rows received after `requestedAt`).
       return {
         confirmed: true,
+        queued: true,
         dev_eui: normalizedDevEui,
-        message: `Relay ${relay} confirmed ${targetState} by TTI`,
+        message: `Relay ${relay} ${targetState} command sent; waiting for the device to report its new state`,
         relay,
         requestedAt,
         targetState,
@@ -301,8 +324,20 @@ export class RelayService {
         ],
       });
 
+      await this.recordRelayCommand({
+        dev_eui: context.device.dev_eui,
+        sent_at: requestedAt,
+        command: 'pulse',
+        relay,
+        target_state: 'on',
+        duration_seconds: durationSeconds,
+        requested_by: user.sub,
+        request_id: requestId,
+      });
+
       return {
         confirmed: true,
+        queued: true,
         dev_eui: normalizedDevEui,
         durationMs,
         durationSeconds,
@@ -327,6 +362,116 @@ export class RelayService {
     } finally {
       releaseLock();
     }
+  }
+
+  /**
+   * Asks the device to report its relay state now. The app calls this when a
+   * command's confirmation uplink is overdue (a lost uplink otherwise leaves
+   * cw_relay_data stale until the next scheduled report). Pushed, not
+   * replaced, so a relay command still waiting in the queue is kept.
+   */
+  async requestRelayStatus(user: AuthenticatedUser, devEui: string) {
+    const normalizedDevEui = normalizeDevEui(devEui);
+    if (!normalizedDevEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+
+    const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
+    if (!decide(context.access, Action.RelayControl)) {
+      throw new ForbiddenException(
+        'You do not have permission to control this relay',
+      );
+    }
+
+    const releaseLock = this.relayCommandLockService.acquire(normalizedDevEui);
+    const requestedAt = new Date().toISOString();
+
+    try {
+      const ttiClient = createTtiClient(this.configService);
+      const requestId = globalThis.crypto.randomUUID();
+      const correlationIds = buildRelayCorrelationIds({
+        devEui: normalizedDevEui,
+        kind: 'status',
+        requestId,
+      });
+
+      await ttiClient.pushDownlinkQueue({
+        applicationId: context.applicationId,
+        deviceId: context.deviceId,
+        downlinks: [buildStatusRequestDownlink(correlationIds)],
+      });
+
+      await this.recordRelayCommand({
+        dev_eui: context.device.dev_eui,
+        sent_at: requestedAt,
+        command: 'status',
+        requested_by: user.sub,
+        request_id: requestId,
+      });
+
+      return {
+        dev_eui: normalizedDevEui,
+        message: 'Status report requested from the device',
+        queued: true,
+        requestedAt,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw mapTtiClientError(error);
+    } finally {
+      releaseLock();
+    }
+  }
+
+  /**
+   * The relay's timeline for a range, newest first: state changes the device
+   * reported and every command sent from CropWatch, each with whether the
+   * device confirmed it. Empty ranges return [] (not 404): a relay that
+   * nobody touched simply has no history.
+   */
+  async getRelayHistory(
+    user: AuthenticatedUser,
+    devEui: string,
+    { startDate, endDate }: TimeseriesRange,
+  ): Promise<RelayHistoryEntry[]> {
+    const normalizedDevEui = normalizeDevEui(devEui);
+    if (!normalizedDevEui) {
+      throw new BadRequestException('dev_eui is required');
+    }
+
+    if (endDate.getTime() - startDate.getTime() > RELAY_HISTORY_MAX_RANGE_MS) {
+      throw new BadRequestException(
+        'Relay history covers at most 31 days per request',
+      );
+    }
+
+    const context = await this.loadRelayDeviceContext(user, normalizedDevEui);
+    const deviceEui = context.device.dev_eui;
+    // Commands near the end of the range are settled by reports after it.
+    const evaluatedAt = new Date(
+      Math.min(Date.now(), endDate.getTime() + RELAY_HISTORY_LOOKAHEAD_MS),
+    );
+    if (evaluatedAt < startDate) {
+      return [];
+    }
+
+    const [baseline, reports, commands] = await Promise.all([
+      this.findRelayReportBefore(deviceEui, startDate),
+      this.findRelayReports(deviceEui, startDate, evaluatedAt),
+      this.findRelayCommands(deviceEui, startDate, evaluatedAt),
+    ]);
+
+    return buildRelayHistory({
+      baseline,
+      reports,
+      commands,
+      start: startDate,
+      end: endDate,
+      evaluatedAt,
+    });
   }
 
   async handleTtiUp(
@@ -454,6 +599,138 @@ export class RelayService {
     }
 
     return data ?? null;
+  }
+
+  /**
+   * Logs a command the device was just sent. Never throws: the relay already
+   * has the command, so a failed log must not turn into a failed command.
+   */
+  private async recordRelayCommand(row: RelayCommandInsert): Promise<void> {
+    const failure = `Failed to record relay ${row.command} command for ${row.dev_eui}`;
+
+    try {
+      const client = this.supabaseService.getClient();
+      let { error } = (await client
+        .from('cw_relay_commands')
+        .insert(row)) as QueryResult<null>;
+
+      // A caller without a profile row: keep the command, just without a name.
+      if (error?.code === FOREIGN_KEY_VIOLATION && row.requested_by) {
+        ({ error } = (await client
+          .from('cw_relay_commands')
+          .insert({ ...row, requested_by: null })) as QueryResult<null>);
+      }
+
+      if (error) {
+        this.logger.error(failure, error.message);
+      }
+    } catch (error) {
+      this.logger.error(
+        failure,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  private async findRelayReportBefore(
+    devEui: string,
+    before: Date,
+  ): Promise<RelayReportRecord | null> {
+    const { data, error } = (await this.supabaseService
+      .getClient()
+      .from('cw_relay_reports')
+      .select('id, reported_at, relay_1, relay_2')
+      .eq('dev_eui', devEui)
+      .lt('reported_at', before.toISOString())
+      .order('reported_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()) as QueryResult<RelayReportRecord>;
+
+    if (error) {
+      this.logger.error(
+        `Failed to fetch relay history for ${devEui}`,
+        error.message,
+      );
+      throw new InternalServerErrorException('Failed to fetch relay history');
+    }
+
+    return data ?? null;
+  }
+
+  private async findRelayReports(
+    devEui: string,
+    from: Date,
+    to: Date,
+  ): Promise<RelayReportRecord[]> {
+    const client = this.supabaseService.getClient();
+
+    return await this.readAllPages(
+      (first, last) =>
+        client
+          .from('cw_relay_reports')
+          .select('id, reported_at, relay_1, relay_2')
+          .eq('dev_eui', devEui)
+          .gte('reported_at', from.toISOString())
+          .lte('reported_at', to.toISOString())
+          .order('reported_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(first, last) as PromiseLike<QueryResult<RelayReportRecord[]>>,
+      devEui,
+    );
+  }
+
+  private async findRelayCommands(
+    devEui: string,
+    from: Date,
+    to: Date,
+  ): Promise<RelayCommandRecord[]> {
+    const client = this.supabaseService.getClient();
+    const rows = await this.readAllPages(
+      (first, last) =>
+        client
+          .from('cw_relay_commands')
+          .select(
+            'id, sent_at, command, relay, target_state, duration_seconds, requester:requested_by(full_name, username)',
+          )
+          .eq('dev_eui', devEui)
+          .gte('sent_at', from.toISOString())
+          .lte('sent_at', to.toISOString())
+          .order('sent_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(first, last) as PromiseLike<QueryResult<RelayCommandRow[]>>,
+      devEui,
+    );
+
+    return rows
+      .map(toRelayCommandRecord)
+      .filter((command): command is RelayCommandRecord => command !== null);
+  }
+
+  /** Reads every page of a history query (PostgREST caps responses at max-rows). */
+  private async readAllPages<T>(
+    page: (first: number, last: number) => PromiseLike<QueryResult<T[]>>,
+    devEui: string,
+  ): Promise<T[]> {
+    const rows: T[] = [];
+    for (let first = 0; ; first += POSTGREST_PAGE_SIZE) {
+      const { data, error } = await page(
+        first,
+        first + POSTGREST_PAGE_SIZE - 1,
+      );
+      if (error) {
+        this.logger.error(
+          `Failed to fetch relay history for ${devEui}`,
+          error.message,
+        );
+        throw new InternalServerErrorException('Failed to fetch relay history');
+      }
+
+      const batch = data ?? [];
+      rows.push(...batch);
+      if (batch.length < POSTGREST_PAGE_SIZE) {
+        return rows;
+      }
+    }
   }
 
   private async persistRelayConfirmation(
