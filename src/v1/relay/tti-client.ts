@@ -7,7 +7,7 @@ import type { TtiApplicationDownlink } from './relay-command-profile';
 
 type FetchLike = typeof fetch;
 
-export interface ReplaceDownlinkQueueInput {
+export interface DownlinkQueueInput {
   applicationId: string;
   deviceId: string;
   downlinks: TtiApplicationDownlink[];
@@ -104,41 +104,51 @@ export function createTtiClient(
   const baseUrl = readTtiBaseUrl(configService);
   const apiKey = readTtiApiKey(configService);
 
-  return {
-    async replaceDownlinkQueue(
-      input: ReplaceDownlinkQueueInput,
-    ): Promise<unknown> {
-      const url = new URL(
-        `/api/v3/as/applications/${encodeURIComponent(input.applicationId)}/devices/${encodeURIComponent(input.deviceId)}/down/replace`,
-        baseUrl,
+  async function queueDownlinks(
+    operation: 'push' | 'replace',
+    input: DownlinkQueueInput,
+  ): Promise<unknown> {
+    const url = new URL(
+      `/api/v3/as/applications/${encodeURIComponent(input.applicationId)}/devices/${encodeURIComponent(input.deviceId)}/down/${operation}`,
+      baseUrl,
+    );
+
+    const response = await fetchFn(url.toString(), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        downlinks: input.downlinks,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new TtiClientError(
+        response.status,
+        `TTI request failed (${response.status})`,
+        await readResponseDetail(response),
       );
+    }
 
-      const response = await fetchFn(url.toString(), {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          downlinks: input.downlinks,
-        }),
-      });
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!contentType.includes('application/json')) {
+      return null;
+    }
 
-      if (!response.ok) {
-        throw new TtiClientError(
-          response.status,
-          `TTI request failed (${response.status})`,
-          await readResponseDetail(response),
-        );
-      }
+    const text = await response.text();
+    return text ? (JSON.parse(text) as unknown) : null;
+  }
 
-      const contentType = response.headers.get('content-type') ?? '';
-      if (!contentType.includes('application/json')) {
-        return null;
-      }
-
-      const text = await response.text();
-      return text ? (JSON.parse(text) as unknown) : null;
+  return {
+    /** Drops anything still queued: a new relay command supersedes an old one. */
+    replaceDownlinkQueue(input: DownlinkQueueInput): Promise<unknown> {
+      return queueDownlinks('replace', input);
+    },
+    /** Appends to the queue, keeping a relay command that is still waiting. */
+    pushDownlinkQueue(input: DownlinkQueueInput): Promise<unknown> {
+      return queueDownlinks('push', input);
     },
   };
 }

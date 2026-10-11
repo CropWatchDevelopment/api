@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -35,6 +36,17 @@ type LocationRecord = LocationRow & {
   cw_location_owners: LocationOwnerWithProfile[];
 };
 type QueryResult<T> = { data: T | null; error: PostgrestError | null };
+
+/** Postgres foreign_key_violation: a device still points at the location. */
+const FOREIGN_KEY_VIOLATION = '23503';
+
+function locationNotEmptyMessage(deviceCount: number | null): string {
+  const devices =
+    deviceCount === null
+      ? 'devices'
+      : `${deviceCount} device${deviceCount === 1 ? '' : 's'}`;
+  return `This location still has ${devices}. Move them to another location or delete them first.`;
+}
 
 @Injectable()
 export class LocationsService {
@@ -204,6 +216,82 @@ export class LocationsService {
     }
 
     return data;
+  }
+
+  /**
+   * Owner-only check behind the location settings' danger zone: 404/403 like
+   * the delete itself, otherwise how many devices still block the delete.
+   * Counts every device in the location, including ones hidden from the caller.
+   */
+  async getDeletePreflight(
+    id: number,
+    user: AuthenticatedUser,
+  ): Promise<{ location_id: number; device_count: number }> {
+    await this.accessService.assertLocationAccess(
+      user,
+      id,
+      Action.LocationDelete,
+    );
+    return { location_id: id, device_count: await this.countDevices(id) };
+  }
+
+  /**
+   * Permanently deletes an empty location (owner-only); its permission grants
+   * go with it (cw_location_owners cascades). A location that still holds
+   * devices is refused with 409: the count gives a clear message, and the
+   * cw_devices FK (no ON DELETE action) rejects the delete anyway if a device
+   * is moved in between the count and the delete.
+   */
+  async deleteLocation(
+    id: number,
+    user: AuthenticatedUser,
+  ): Promise<{ location_id: number }> {
+    await this.accessService.assertLocationAccess(
+      user,
+      id,
+      Action.LocationDelete,
+    );
+
+    const deviceCount = await this.countDevices(id);
+    if (deviceCount > 0) {
+      throw new ConflictException(locationNotEmptyMessage(deviceCount));
+    }
+
+    const client = this.supabaseService.getClient();
+    const { data, error } = (await client
+      .from('cw_locations')
+      .delete()
+      .eq('location_id', id)
+      .select('location_id')
+      .maybeSingle()) as QueryResult<Pick<LocationRow, 'location_id'>>;
+
+    if (error) {
+      if (error.code === FOREIGN_KEY_VIOLATION) {
+        throw new ConflictException(locationNotEmptyMessage(null));
+      }
+      throw new InternalServerErrorException('Failed to delete location');
+    }
+    if (!data) {
+      throw new NotFoundException('Location not found');
+    }
+
+    return { location_id: data.location_id };
+  }
+
+  /** All devices in the location, regardless of the caller's visibility. */
+  private async countDevices(locationId: number): Promise<number> {
+    const client = this.supabaseService.getClient();
+    const { count, error } = await client
+      .from('cw_devices')
+      .select('dev_eui', { count: 'exact', head: true })
+      .eq('location_id', locationId);
+
+    if (error) {
+      throw new InternalServerErrorException(
+        'Failed to check the location for devices',
+      );
+    }
+    return count ?? 0;
   }
 
   async findAllLocationGroups(user: AuthenticatedUser): Promise<string[]> {

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -851,9 +852,15 @@ export class DevicesService {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
     const isGlobalUser = user.isStaff;
-    const normalizedDevEui = devEui?.trim();
-    if (!normalizedDevEui) {
-      throw new BadRequestException('dev_eui is required');
+    // DevEUIs are stored as 16 upper-case hex characters; a different spelling
+    // of the same EUI must not become a second device.
+    const normalizedDevEui = (devEui ?? '')
+      .replace(/[\s:-]/g, '')
+      .toUpperCase();
+    if (!/^[0-9A-F]{16}$/.test(normalizedDevEui)) {
+      throw new BadRequestException(
+        'dev_eui must be 16 hexadecimal characters',
+      );
     }
 
     // Adding a device to a location is a location-manage action: the
@@ -863,11 +870,32 @@ export class DevicesService {
     if (!device.location_id) {
       throw new BadRequestException('location_id is required');
     }
-    await this.accessService.assertLocationAccess(
+    const locationAccess = await this.accessService.assertLocationAccess(
       user,
       device.location_id,
       Action.LocationDeviceCreate,
     );
+
+    // A device CropWatch reserved for another organization (key inventory)
+    // cannot be claimed here either — same rule as guided setup.
+    if (!isGlobalUser) {
+      const { data: reservation, error: reservationError } = (await client
+        .from('cw_device_inventory')
+        .select('org_id')
+        .eq('dev_eui', normalizedDevEui)
+        .maybeSingle()) as {
+        data: { org_id: string | null } | null;
+        error: { code?: string } | null;
+      };
+      if (reservationError) {
+        throw new InternalServerErrorException('Failed to check the device');
+      }
+      if (reservation?.org_id && reservation.org_id !== locationAccess.orgId) {
+        throw new ConflictException(
+          'This device is registered to another CropWatch account.',
+        );
+      }
+    }
 
     // Creating a device consumes an unassigned license seat (the TTI device
     // quota paywall). CropWatch staff are exempt, mirroring the location gate,
@@ -897,6 +925,20 @@ export class DevicesService {
       .single()) as SingleResult<DeviceRow>;
 
     if (createDeviceError) {
+      // Surface the causes a user can fix; everything else stays a logged 500.
+      if (createDeviceError.code === '23505') {
+        throw new ConflictException(
+          `A device with DevEUI ${normalizedDevEui} is already registered.`,
+        );
+      }
+      if (createDeviceError.code === '23503') {
+        throw new BadRequestException(
+          'The selected device type or location does not exist.',
+        );
+      }
+      this.logger.error(
+        `createDevice ${normalizedDevEui}: ${createDeviceError.code} ${createDeviceError.message}`,
+      );
       throw new InternalServerErrorException('Failed to create device');
     }
 
@@ -909,12 +951,27 @@ export class DevicesService {
      */
 
     // Consume the seat immediately so the new device cannot exist unlicensed.
+    // If that fails, remove the device again so a retry is not blocked by a
+    // half-created, unlicensed device holding the DevEUI.
     if (licenseId) {
-      await this.paymentsService.assignLicense(
-        user,
-        licenseId,
-        normalizedDevEui,
-      );
+      try {
+        await this.paymentsService.assignLicense(
+          user,
+          licenseId,
+          normalizedDevEui,
+        );
+      } catch (error) {
+        const { error: rollbackError } = await client
+          .from('cw_devices')
+          .delete()
+          .eq('dev_eui', normalizedDevEui);
+        if (rollbackError) {
+          this.logger.error(
+            `createDevice ${normalizedDevEui}: license assignment failed and rollback failed: ${rollbackError.message}`,
+          );
+        }
+        throw error;
+      }
     }
 
     return createdDeviceData;

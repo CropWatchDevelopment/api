@@ -440,11 +440,13 @@ export class DevicesController {
     @Param('dev_eui') devEui: string,
     @Body() body: CreateDeviceDto,
   ) {
-    const normalizedDevEui = devEui?.trim();
+    const normalize = (value: string | undefined) =>
+      (value ?? '').replace(/[\s:-]/g, '').toUpperCase();
+    const normalizedDevEui = normalize(devEui);
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
     }
-    if (body.dev_eui?.trim() && body.dev_eui.trim() !== normalizedDevEui) {
+    if (body.dev_eui?.trim() && normalize(body.dev_eui) !== normalizedDevEui) {
       throw new BadRequestException(
         'dev_eui in body must match route parameter',
       );

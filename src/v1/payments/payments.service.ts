@@ -588,7 +588,9 @@ export class PaymentsService {
     await this.assertDeviceManageable(user, devEui);
     await this.assertDeviceUnlicensed(client, devEui, licenseId);
 
-    return this.setLicenseDevice(client, userId, licenseId, devEui);
+    return this.setLicenseDevice(client, userId, licenseId, devEui, {
+      requireUnassigned: true,
+    });
   }
 
   async moveLicense(
@@ -1547,8 +1549,9 @@ export class PaymentsService {
     userId: string,
     licenseId: number,
     devEui: string,
+    options: { requireUnassigned?: boolean } = {},
   ): Promise<BillingLicense> {
-    const { error } = await client
+    let query = client
       .from('device_licenses')
       .update({
         dev_eui: devEui,
@@ -1557,12 +1560,27 @@ export class PaymentsService {
       })
       .eq('id', licenseId)
       .eq('user_id', userId);
+    // Assigning must not take a seat another request just assigned: the
+    // condition makes the check-and-set atomic, so two parallel assignments
+    // of one license cannot both succeed.
+    if (options.requireUnassigned) {
+      query = query.is('dev_eui', null);
+    }
+    const { data, error } = (await query.select('id')) as {
+      data: { id: number }[] | null;
+      error: { code?: string } | null;
+    };
     if (error) {
       // Unique violation on dev_eui => device already licensed (race).
       if (error.code === '23505') {
         throw new ConflictException('That device already has a license.');
       }
       throw new InternalServerErrorException('Failed to assign license');
+    }
+    if (!data || data.length === 0) {
+      throw new ConflictException(
+        'License is already assigned. Move it or unassign it first.',
+      );
     }
     return this.fetchLicense(client, userId, licenseId);
   }

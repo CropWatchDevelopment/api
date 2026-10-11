@@ -1240,6 +1240,18 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
       "get": {},
     },
     "/v1/locations/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+      },
       "get": {
         "parameters": [
           {
@@ -1273,6 +1285,20 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           },
           "required": true,
         },
+      },
+    },
+    "/v1/locations/{id}/delete-preflight": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
       },
     },
     "/v1/locations/{id}/permission": {

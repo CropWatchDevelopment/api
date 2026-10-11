@@ -19,6 +19,8 @@ const NO_ACTION_BYTE = 0x11;
 const RELAY_COMMAND_PREFIX = 0x03;
 const TIMED_RELAY_COMMAND_PREFIX = 0x05;
 const TIMED_RELAY_REVERT_TO_ORIGINAL_MODE = 0x01;
+/** Dragino "request an uplink": the device reports its current I/O state. */
+const STATUS_REQUEST_COMMAND = [0x08, 0xff];
 
 function buildDownlink(
   bytes: number[],
@@ -77,6 +79,12 @@ export function buildRelayDownlink(
     [RELAY_COMMAND_PREFIX, relay1Byte, relay2Byte],
     correlationIds,
   );
+}
+
+export function buildStatusRequestDownlink(
+  correlationIds: string[] = [],
+): TtiApplicationDownlink {
+  return buildDownlink(STATUS_REQUEST_COMMAND, correlationIds);
 }
 
 export function buildTimedRelayDownlink(

@@ -36,6 +36,12 @@ export class LocationDto implements LocationRow {
   @ApiProperty()
   name: string;
 
+  @ApiProperty({
+    enum: ['as1', 'au1', 'eu1', 'nam1'],
+    description: 'TTI cluster new devices here are registered on (031)',
+  })
+  network_region: string;
+
   @ApiProperty({ nullable: true, required: false })
   owner_id: string | null;
 

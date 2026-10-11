@@ -85,6 +85,31 @@ describe('createTtiClient', () => {
     });
   });
 
+  it('appends to the queue through the TTI downlink push endpoint', async () => {
+    let requestUrl = '';
+    const fetchFn = ((input: RequestInfo | URL) => {
+      requestUrl =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      return Promise.resolve(createJsonResponse({}));
+    }) as typeof fetch;
+
+    const client = createTtiClient(configService, fetchFn);
+
+    await client.pushDownlinkQueue({
+      applicationId: 'dragino-ja-lt-22222',
+      deviceId: 'relay-field-01',
+      downlinks: [buildRelayDownlink(1, 'on')],
+    });
+
+    expect(requestUrl).toBe(
+      'https://tti.example.com/api/v3/as/applications/dragino-ja-lt-22222/devices/relay-field-01/down/push',
+    );
+  });
+
   it('surfaces TTI error responses as structured client errors', async () => {
     const fetchFn = (() =>
       Promise.resolve(
