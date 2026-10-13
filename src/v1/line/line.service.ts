@@ -9,6 +9,7 @@ import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { AccessService } from '../common/authz';
 import { canRead } from '../common/permission-levels';
+import { isStaffEmail } from '../common/owner-filter.helper';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import { LineApiClient, type LineMessage } from './line-api.client';
 
@@ -337,8 +338,8 @@ export class LineService {
 
   // Users eligible as LINE recipients for a rule: everyone with view access
   // to any of the given devices, scoped to devices the CALLER can view.
-  // Unlinked users are included (flagged) — they start receiving alerts the
-  // moment they link.
+  // CropWatch staff are left out unless the caller is staff. Unlinked users
+  // are included (flagged) — they start receiving alerts the moment they link.
   async listEligibleRecipients(
     user: AuthenticatedUser,
     devEuis: string[],
@@ -387,6 +388,8 @@ export class LineService {
       throw new Error(`Failed to load profiles: ${profilesError.message}`);
     }
 
+    // Staff hold support access to customer devices; customers must not see
+    // them in recipient lists (same rule as filterStaffOwnerRows).
     return (
       (profiles ?? []) as Array<{
         id: string;
@@ -396,6 +399,7 @@ export class LineService {
         line_id: string | null;
       }>
     )
+      .filter((profile) => user.isStaff || !isStaffEmail(profile.email))
       .map((profile) => ({
         userId: profile.id,
         displayName:

@@ -594,6 +594,78 @@ describe('LineService', () => {
         args: ['id', ['shared-user']],
       });
     });
+
+    // A customer device with a CropWatch support account among its viewers.
+    function serviceWithStaffViewer() {
+      const adminClient = buildAdminClient({
+        cw_devices: [
+          chain({
+            data: [
+              {
+                user_id: 'customer-1',
+                cw_device_owners: [{ user_id: 'staff-2', permission_level: 1 }],
+              },
+            ],
+            error: null,
+          }),
+        ],
+        profiles: [
+          chain({
+            data: [
+              {
+                id: 'customer-1',
+                full_name: 'Customer',
+                username: null,
+                email: 'farmer@example.com',
+                line_id: null,
+              },
+              {
+                id: 'staff-2',
+                full_name: 'Support',
+                username: null,
+                email: 'Support@CropWatch.io',
+                line_id: 'U2',
+              },
+            ],
+            error: null,
+          }),
+        ],
+      });
+      const { service, accessService } = createService({ adminClient });
+      accessService.listAccessibleDevices.mockResolvedValue([
+        {
+          devEui: 'DEV-A',
+          name: 'A',
+          permissionLevel: 1,
+          canView: true,
+          canManage: true,
+        },
+      ]);
+      return service;
+    }
+
+    it('hides CropWatch staff from non-staff callers', async () => {
+      const result = await serviceWithStaffViewer().listEligibleRecipients(
+        caller,
+        ['DEV-A'],
+      );
+
+      expect(result.map((candidate) => candidate.userId)).toEqual([
+        'customer-1',
+      ]);
+    });
+
+    it('lists CropWatch staff for staff callers', async () => {
+      const result = await serviceWithStaffViewer().listEligibleRecipients(
+        { sub: 'staff-9', email: 'kevin@cropwatch.io', isStaff: true },
+        ['DEV-A'],
+      );
+
+      expect(result.map((candidate) => candidate.userId)).toEqual([
+        'customer-1',
+        'staff-2',
+      ]);
+    });
   });
 
   describe('createLinkNonce / unlink', () => {
