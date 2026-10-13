@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PushController } from './push.controller';
 import type { PushService } from './push.service';
 
@@ -8,6 +8,8 @@ function createController() {
   const service = {
     registerToken: jest.fn(() => Promise.resolve()),
     unregisterToken: jest.fn(() => Promise.resolve()),
+    refreshToken: jest.fn(() => Promise.resolve(true)),
+    removeDevice: jest.fn(() => Promise.resolve(true)),
     listTokens: jest.fn(() => Promise.resolve([])),
     listEligibleRecipients: jest.fn(() => Promise.resolve([])),
   };
@@ -53,6 +55,51 @@ describe('PushController', () => {
       BadRequestException,
     );
     expect(service.unregisterToken).not.toHaveBeenCalled();
+  });
+
+  it('refreshes this browser and reports whether the caller is subscribed', async () => {
+    const { controller, service } = createController();
+
+    await expect(
+      controller.refreshToken(USER, {
+        token: 'fcm-new',
+        previousToken: 'fcm-old',
+        deviceLabel: 'iPad',
+      }),
+    ).resolves.toEqual({ subscribed: true });
+    expect(service.refreshToken).toHaveBeenCalledWith(
+      'user-1',
+      'fcm-new',
+      'fcm-old',
+      'iPad',
+    );
+  });
+
+  it('removes one of my devices by its list id', async () => {
+    const { controller, service } = createController();
+    const id = 'a'.repeat(64);
+
+    await controller.removeDevice(USER, id);
+
+    expect(service.removeDevice).toHaveBeenCalledWith('user-1', id);
+  });
+
+  it('rejects a malformed device id', async () => {
+    const { controller, service } = createController();
+
+    await expect(controller.removeDevice(USER, 'fcm-token-1')).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(service.removeDevice).not.toHaveBeenCalled();
+  });
+
+  it("answers 404 for a device that isn't mine", async () => {
+    const { controller, service } = createController();
+    service.removeDevice.mockResolvedValueOnce(false);
+
+    await expect(controller.removeDevice(USER, 'b'.repeat(64))).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('parses comma-separated devEuis for recipients', async () => {

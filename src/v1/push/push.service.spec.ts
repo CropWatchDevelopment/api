@@ -1,10 +1,11 @@
 import { SupabaseService } from '../../supabase/supabase.service';
 import { AccessService } from '../common/authz';
-import { PushService } from './push.service';
+import { PushService, pushDeviceId } from './push.service';
 
 type StubResult = {
   data: unknown;
   error: { message: string; code?: string } | null;
+  count?: number | null;
 };
 
 // Chainable, thenable query stub: filter methods record args and return the
@@ -23,6 +24,8 @@ function chain(result: StubResult) {
     'gt',
     'lt',
     'in',
+    'like',
+    'order',
   ]) {
     stub[method] = jest.fn((...args: unknown[]) => {
       calls.push({ method, args });
@@ -85,7 +88,8 @@ describe('PushService', () => {
       expect(row.user_id).toBe('user-1');
       expect(row.device_label).toBe('Pixel 9');
       expect(typeof row.last_seen_at).toBe('string');
-      expect(options).toEqual({ onConflict: 'token' });
+      // Per (browser, account): another account on this browser keeps its row.
+      expect(options).toEqual({ onConflict: 'token,user_id' });
     });
 
     it('stores a null device_label when none is provided', async () => {
@@ -129,10 +133,214 @@ describe('PushService', () => {
         args: ['user_id', 'user-1'],
       });
     });
+
+    it('takes the user off every Push rule when their last device unsubscribes', async () => {
+      const del = chain({ data: null, error: null });
+      const remaining = chain({ data: null, error: null, count: 0 });
+      const actionsLookup = chain({
+        data: [
+          {
+            id: 11,
+            config: {
+              recipient: '{"userIds":["user-1","user-2"]}',
+              note: 'kept',
+            },
+          },
+          { id: 12, config: { recipient: '{"userIds":["user-1"]}' } },
+          // Substring hit for 'user-1' that is a different user.
+          { id: 13, config: { recipient: '{"userIds":["user-10"]}' } },
+        ],
+        error: null,
+      });
+      const update11 = chain({ data: null, error: null });
+      const update12 = chain({ data: null, error: null });
+      const adminClient = buildAdminClient({
+        cw_push_tokens: [del, remaining],
+        cw_rule_template_actions: [actionsLookup, update11, update12],
+      });
+      const service = createService(adminClient);
+
+      await service.unregisterToken('user-1', 'fcm-token-1');
+
+      expect(actionsLookup.calls).toContainEqual({
+        method: 'eq',
+        args: ['cw_rule_action_types.name', 'Push'],
+      });
+      expect(actionsLookup.calls).toContainEqual({
+        method: 'like',
+        args: ['config->>recipient', '%user-1%'],
+      });
+      expect(update11.calls).toEqual([
+        {
+          method: 'update',
+          args: [
+            {
+              config: { recipient: '{"userIds":["user-2"]}', note: 'kept' },
+            },
+          ],
+        },
+        { method: 'eq', args: ['id', 11] },
+      ]);
+      expect(update12.calls).toEqual([
+        {
+          method: 'update',
+          args: [{ config: { recipient: '{"userIds":[]}' } }],
+        },
+        { method: 'eq', args: ['id', 12] },
+      ]);
+    });
+
+    it('leaves rules alone while the user still has another device enrolled', async () => {
+      const del = chain({ data: null, error: null });
+      const remaining = chain({ data: null, error: null, count: 1 });
+      // No cw_rule_template_actions stub: touching rules would throw.
+      const adminClient = buildAdminClient({
+        cw_push_tokens: [del, remaining],
+      });
+      const service = createService(adminClient);
+
+      await expect(
+        service.unregisterToken('user-1', 'fcm-token-1'),
+      ).resolves.toBeUndefined();
+    });
+  });
+
+  describe('refreshToken', () => {
+    it("re-stamps the caller's own row and reports it subscribed", async () => {
+      const update = chain({ data: [{ token: 'fcm-token-1' }], error: null });
+      const adminClient = buildAdminClient({ cw_push_tokens: [update] });
+      const service = createService(adminClient);
+
+      await expect(
+        service.refreshToken('user-1', 'fcm-token-1', undefined, 'iPhone'),
+      ).resolves.toBe(true);
+
+      const call = update.calls.find((c) => c.method === 'update');
+      const [row] = call!.args as [Record<string, unknown>];
+      expect(row.device_label).toBe('iPhone');
+      expect(typeof row.last_seen_at).toBe('string');
+      expect(update.calls).toContainEqual({
+        method: 'eq',
+        args: ['token', 'fcm-token-1'],
+      });
+      expect(update.calls).toContainEqual({
+        method: 'eq',
+        args: ['user_id', 'user-1'],
+      });
+    });
+
+    it('never turns push on for an account without a row on this browser', async () => {
+      const update = chain({ data: [], error: null });
+      const adminClient = buildAdminClient({ cw_push_tokens: [update] });
+      const service = createService(adminClient);
+
+      await expect(service.refreshToken('user-2', 'fcm-token-1')).resolves.toBe(
+        false,
+      );
+      expect(
+        update.calls.some(
+          (c) => c.method === 'upsert' || c.method === 'insert',
+        ),
+      ).toBe(false);
+    });
+
+    it('moves every account on the browser when Firebase rotates its token', async () => {
+      const previous = chain({
+        data: [
+          {
+            user_id: 'user-1',
+            device_label: 'Chrome on Linux',
+            created_at: '2026-08-01T00:00:00Z',
+          },
+          {
+            user_id: 'user-2',
+            device_label: 'Chrome on Linux',
+            created_at: '2026-09-01T00:00:00Z',
+          },
+        ],
+        error: null,
+      });
+      const moved = chain({ data: null, error: null });
+      const dropped = chain({ data: null, error: null });
+      const restamp = chain({ data: [{ token: 'fcm-new' }], error: null });
+      const adminClient = buildAdminClient({
+        cw_push_tokens: [previous, moved, dropped, restamp],
+      });
+      const service = createService(adminClient);
+
+      await expect(
+        service.refreshToken('user-1', 'fcm-new', 'fcm-old'),
+      ).resolves.toBe(true);
+
+      expect(previous.calls).toContainEqual({
+        method: 'eq',
+        args: ['token', 'fcm-old'],
+      });
+      const upsert = moved.calls.find((c) => c.method === 'upsert');
+      const [rows, options] = upsert!.args as [
+        Array<Record<string, unknown>>,
+        Record<string, unknown>,
+      ];
+      expect(rows.map((r) => [r.token, r.user_id, r.created_at])).toEqual([
+        ['fcm-new', 'user-1', '2026-08-01T00:00:00Z'],
+        ['fcm-new', 'user-2', '2026-09-01T00:00:00Z'],
+      ]);
+      expect(options).toEqual({ onConflict: 'token,user_id' });
+      expect(dropped.calls).toEqual([
+        { method: 'delete', args: [] },
+        { method: 'eq', args: ['token', 'fcm-old'] },
+      ]);
+    });
+  });
+
+  describe('removeDevice', () => {
+    it("removes the caller's matching device and runs the last-device cleanup", async () => {
+      const owned = chain({
+        data: [{ token: 'fcm-a' }, { token: 'fcm-b' }],
+        error: null,
+      });
+      const del = chain({ data: null, error: null });
+      const remaining = chain({ data: null, error: null, count: 0 });
+      const actionsLookup = chain({ data: [], error: null });
+      const adminClient = buildAdminClient({
+        cw_push_tokens: [owned, del, remaining],
+        cw_rule_template_actions: [actionsLookup],
+      });
+      const service = createService(adminClient);
+
+      await expect(
+        service.removeDevice('user-1', pushDeviceId('fcm-b')),
+      ).resolves.toBe(true);
+
+      expect(del.calls).toContainEqual({
+        method: 'eq',
+        args: ['token', 'fcm-b'],
+      });
+      expect(del.calls).toContainEqual({
+        method: 'eq',
+        args: ['user_id', 'user-1'],
+      });
+      expect(actionsLookup.calls).toContainEqual({
+        method: 'like',
+        args: ['config->>recipient', '%user-1%'],
+      });
+    });
+
+    it("returns false for an id that isn't one of the caller's devices", async () => {
+      const owned = chain({ data: [{ token: 'fcm-a' }], error: null });
+      // One stub for the table: a delete would show up in its calls.
+      const adminClient = buildAdminClient({ cw_push_tokens: [owned] });
+      const service = createService(adminClient);
+
+      await expect(
+        service.removeDevice('user-1', pushDeviceId('someone-elses-token')),
+      ).resolves.toBe(false);
+      expect(owned.calls.some((c) => c.method === 'delete')).toBe(false);
+    });
   });
 
   describe('listTokens', () => {
-    it("returns only the caller's rows, camel-cased", async () => {
+    it("returns the caller's devices with hashed ids, never raw tokens", async () => {
       const select = chain({
         data: [
           {
@@ -155,7 +363,7 @@ describe('PushService', () => {
       });
       expect(result).toEqual([
         {
-          token: 'fcm-token-1',
+          id: pushDeviceId('fcm-token-1'),
           deviceLabel: 'Pixel 9',
           createdAt: '2026-08-01T00:00:00Z',
           lastSeenAt: '2026-08-20T00:00:00Z',
@@ -294,6 +502,78 @@ describe('PushService', () => {
 
       expect(result).toEqual([
         { userId: 'multi-user', displayName: 'Multi', pushEnabled: true },
+      ]);
+    });
+
+    // A customer device with a CropWatch support account among its viewers.
+    function serviceWithStaffViewer() {
+      const accessService = {
+        listAccessibleDevices: jest.fn().mockResolvedValue([
+          {
+            devEui: 'DEV-A',
+            name: 'A',
+            permissionLevel: 1,
+            canView: true,
+            canManage: true,
+          },
+        ]),
+      };
+      const adminClient = buildAdminClient({
+        cw_devices: [
+          chain({
+            data: [
+              {
+                user_id: 'customer-1',
+                cw_device_owners: [{ user_id: 'staff-2', permission_level: 1 }],
+              },
+            ],
+            error: null,
+          }),
+        ],
+        profiles: [
+          chain({
+            data: [
+              {
+                id: 'customer-1',
+                full_name: 'Customer',
+                username: null,
+                email: 'farmer@example.com',
+              },
+              {
+                id: 'staff-2',
+                full_name: 'Support',
+                username: null,
+                email: 'Support@CropWatch.io',
+              },
+            ],
+            error: null,
+          }),
+        ],
+        cw_push_tokens: [chain({ data: [], error: null })],
+      });
+      return createService(adminClient, accessService);
+    }
+
+    it('hides CropWatch staff from non-staff callers', async () => {
+      const result = await serviceWithStaffViewer().listEligibleRecipients(
+        caller,
+        ['DEV-A'],
+      );
+
+      expect(result.map((candidate) => candidate.userId)).toEqual([
+        'customer-1',
+      ]);
+    });
+
+    it('lists CropWatch staff for staff callers', async () => {
+      const result = await serviceWithStaffViewer().listEligibleRecipients(
+        { sub: 'staff-9', email: 'kevin@cropwatch.io', isStaff: true },
+        ['DEV-A'],
+      );
+
+      expect(result.map((candidate) => candidate.userId)).toEqual([
+        'customer-1',
+        'staff-2',
       ]);
     });
   });
