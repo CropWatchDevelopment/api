@@ -375,7 +375,7 @@ describe('V1 Route Input Contracts', () => {
         'createLinkNonce',
         'createLinkCode',
         'listEligibleRecipients',
-        'unlink',
+        'unlinkLineAccount',
       ]),
     };
 
@@ -949,7 +949,7 @@ describe('V1 Route Input Contracts', () => {
       auth: true,
       expectedCall: {
         args: [MOCK_USER.sub],
-        method: 'unlink',
+        method: 'unlinkLineAccount',
         service: 'line',
       },
       expectedStatus: 204,
