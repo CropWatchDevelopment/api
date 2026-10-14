@@ -23,7 +23,7 @@ import {
   assertCanGrant,
   type LocationAccess,
 } from '../common/authz';
-import type { TableRow } from '../types/supabase';
+import type { TableRow, TableUpdate } from '../types/supabase';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
 type LocationRow = TableRow<'cw_locations'>;
@@ -197,12 +197,18 @@ export class LocationsService {
     // The permission gate above is the authorization boundary; the update
     // itself only filters by primary key. (Previously this re-filtered on
     // owner_id, which made Managers pass the gate and then 500.)
+    // Only write the fields the caller sent, so a coordinates-only save
+    // doesn't touch the name/group and a rename doesn't clear coordinates.
+    const changes: TableUpdate<'cw_locations'> = {};
+    for (const key of ['name', 'group', 'lat', 'long', 'map_zoom'] as const) {
+      if (updateLocationDto[key] !== undefined) {
+        Object.assign(changes, { [key]: updateLocationDto[key] });
+      }
+    }
+
     const { data, error } = (await client
       .from('cw_locations')
-      .update({
-        name: updateLocationDto.name,
-        group: updateLocationDto.group,
-      })
+      .update(changes)
       .eq('location_id', id)
       .select('*')
       .maybeSingle()) as QueryResult<LocationRow>;

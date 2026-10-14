@@ -216,6 +216,46 @@ describe('LocationsService', () => {
     expect(updateQuery.maybeSingle).toHaveBeenCalledTimes(1);
   });
 
+  it('update writes coordinates without touching the name or group', async () => {
+    const updateQuery = createBuilder({
+      data: { location_id: 5, lat: 31.9147, long: 131.4232, map_zoom: 16 },
+      error: null,
+    });
+    const client = createClient({ cw_locations: [updateQuery] });
+    const { service, accessService } = createService(client);
+    accessService.assertLocationAccess.mockResolvedValue(
+      locationAccess({ locationId: 5, level: 2 }),
+    );
+
+    await service.update(
+      5,
+      { lat: 31.9147, long: 131.4232, map_zoom: 16 },
+      USER,
+    );
+
+    expect(updateQuery.update).toHaveBeenCalledWith({
+      lat: 31.9147,
+      long: 131.4232,
+      map_zoom: 16,
+    });
+  });
+
+  it('update can clear coordinates with null', async () => {
+    const updateQuery = createBuilder({
+      data: { location_id: 5, lat: null, long: null },
+      error: null,
+    });
+    const client = createClient({ cw_locations: [updateQuery] });
+    const { service, accessService } = createService(client);
+    accessService.assertLocationAccess.mockResolvedValue(
+      locationAccess({ locationId: 5, level: 2 }),
+    );
+
+    await service.update(5, { lat: null, long: null }, USER);
+
+    expect(updateQuery.update).toHaveBeenCalledWith({ lat: null, long: null });
+  });
+
   it('findAllLocationGroups uses the shared read scope (regression: shared locations were hidden)', async () => {
     const groupsQuery = createBuilder({
       data: [{ group: 'North' }, { group: 'North' }, { group: 'South' }],
