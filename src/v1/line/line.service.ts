@@ -409,7 +409,7 @@ export class LineService {
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   }
 
-  async unlink(userId: string): Promise<void> {
+  async unlinkLineAccount(userId: string): Promise<void> {
     // line_id is deliberately excluded from the PATCH-profile whitelist;
     // this service method is the only authenticated write path for it.
     const { error } = await this.supabaseService

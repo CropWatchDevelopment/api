@@ -125,7 +125,9 @@ export class LineController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Unlink the LINE account from the current user' })
-  async unlink(@CurrentUser() user: AuthenticatedUser): Promise<void> {
-    await this.lineService.unlink(user.sub);
+  async unlinkLineAccount(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    await this.lineService.unlinkLineAccount(user.sub);
   }
 }

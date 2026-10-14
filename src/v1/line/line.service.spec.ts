@@ -668,7 +668,7 @@ describe('LineService', () => {
     });
   });
 
-  describe('createLinkNonce / unlink', () => {
+  describe('createLinkNonce / unlinkLineAccount', () => {
     it('purges expired nonces and inserts a fresh 10-minute nonce', async () => {
       const purge = chain({ data: null, error: null });
       const insert = chain({ data: null, error: null });
@@ -711,12 +711,12 @@ describe('LineService', () => {
       expect(row.user_id).toBe('user-1');
     });
 
-    it('unlink clears line_id for the current user', async () => {
+    it('unlinkLineAccount clears line_id for the current user', async () => {
       const profileUpdate = chain({ data: null, error: null });
       const adminClient = buildAdminClient({ profiles: [profileUpdate] });
       const { service } = createService({ adminClient });
 
-      await service.unlink('user-1');
+      await service.unlinkLineAccount('user-1');
 
       expect(profileUpdate.calls).toContainEqual({
         method: 'update',
