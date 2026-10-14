@@ -7,6 +7,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   Min,
 } from 'class-validator';
 import { Database } from '../../../../database.types';
@@ -38,6 +39,8 @@ export class CreateLocationDto implements LocationInsert {
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(-90)
+  @Max(90)
   lat?: number | null;
 
   @ApiProperty({ required: false })
@@ -51,12 +54,16 @@ export class CreateLocationDto implements LocationInsert {
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(-180)
+  @Max(180)
   long?: number | null;
 
   @ApiProperty({ required: false, nullable: true })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ allowInfinity: false, allowNaN: false })
+  @Min(0)
+  @Max(22)
   map_zoom?: number | null;
 
   @ApiProperty({ required: false, nullable: true })
