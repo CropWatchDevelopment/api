@@ -1,5 +1,10 @@
 {
   "version": 2,
+  "git": {
+    "deploymentEnabled": {
+      "badges": false
+    }
+  },
   "builds": [
     {
       "src": "src/main.ts",
