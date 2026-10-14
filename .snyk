@@ -1,0 +1,27 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.1
+# ignores vulnerabilities until expiry date; change duration by modifying expiry date
+ignore:
+  SNYK-JS-DEEPMERGE-19964053:
+    - jest > *:
+        reason: >-
+          No fixed deepmerge release. Dev-only: reached via
+          jest/ts-jest/@nestjs/cli, which merge our own config files, never user
+          input. Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-10-14T04:10:12.811Z
+    - ts-jest > *:
+        reason: >-
+          No fixed deepmerge release. Dev-only: reached via
+          jest/ts-jest/@nestjs/cli, which merge our own config files, never user
+          input. Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-10-14T04:10:15.980Z
+    - '@nestjs/cli > *':
+        reason: >-
+          No fixed deepmerge release. Dev-only: reached via
+          jest/ts-jest/@nestjs/cli, which merge our own config files, never user
+          input. Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-10-14T04:10:19.229Z
+patch: {}
