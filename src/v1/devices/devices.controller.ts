@@ -217,7 +217,8 @@ export class DevicesController {
     summary:
       'Get the latest primary data for all devices in a location (paginated)',
     description: `
-    Returns the latest, 2 primary data values from the table record for all devices in a specific location.`,
+    Returns the latest, 2 primary data values from the table record for all devices in a specific location.
+    Each device also carries gateway_signals: every gateway's latest reading of it (rssi, snr, last_update), without gateway identity.`,
   })
   allDevicesInLocation(
     @CurrentUser() user: AuthenticatedUser,

@@ -1037,4 +1037,98 @@ describe('DevicesService', () => {
       expect(rpcMock).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('findAllDevicesInLocation gateway signals', () => {
+    const staff = {
+      sub: 'staff-1',
+      email: 'staff@cropwatch.io',
+      isStaff: true,
+    };
+
+    /** A client whose queries resolve per table; records the .in() filters. */
+    function createService(
+      responses: Record<string, { data: unknown; error: unknown }>,
+    ) {
+      const inCalls: { table: string; values: unknown[] }[] = [];
+      const from = jest.fn((table: string) => {
+        const builder: Record<string, unknown> = {};
+        for (const method of ['select', 'eq', 'or', 'lt', 'lte', 'order']) {
+          builder[method] = jest.fn(() => builder);
+        }
+        builder.in = jest.fn((_column: string, values: unknown[]) => {
+          inCalls.push({ table, values });
+          return builder;
+        });
+        builder.then = (resolve: (value: unknown) => unknown) =>
+          resolve(responses[table]);
+        return builder;
+      });
+      const service = new DevicesService(
+        {
+          getClient: () => ({ from }),
+          getAdminClient: jest.fn(),
+        } as unknown as SupabaseService,
+        {} as LocationsService,
+        {} as PaymentsService,
+        createAccessMock(),
+      );
+      return { service, inCalls };
+    }
+
+    it('attaches every gateway reading to its device, [] when never heard', async () => {
+      const { service, inCalls } = createService({
+        cw_devices: {
+          data: [
+            { dev_eui: 'DEV-A', name: 'A' },
+            { dev_eui: 'DEV-B', name: 'B' },
+          ],
+          error: null,
+        },
+        cw_device_gateway: {
+          data: [
+            {
+              dev_eui: 'DEV-A',
+              rssi: -97,
+              snr: 6.5,
+              last_update: '2026-10-15T14:00:00Z',
+            },
+            {
+              dev_eui: 'DEV-A',
+              rssi: -118,
+              snr: -9,
+              last_update: '2026-10-14T02:00:00Z',
+            },
+          ],
+          error: null,
+        },
+      });
+
+      const devices = await service.findAllDevicesInLocation(staff, 7);
+
+      expect(inCalls).toEqual([
+        { table: 'cw_device_gateway', values: ['DEV-A', 'DEV-B'] },
+      ]);
+      expect(devices.map((d) => [d.dev_eui, d.gateway_signals])).toEqual([
+        [
+          'DEV-A',
+          [
+            { rssi: -97, snr: 6.5, last_update: '2026-10-15T14:00:00Z' },
+            { rssi: -118, snr: -9, last_update: '2026-10-14T02:00:00Z' },
+          ],
+        ],
+        ['DEV-B', []],
+      ]);
+    });
+
+    it('fails rather than return devices without their signals', async () => {
+      const { service } = createService({
+        cw_devices: { data: [{ dev_eui: 'DEV-A', name: 'A' }], error: null },
+        cw_device_gateway: { data: null, error: { message: 'boom' } },
+      });
+
+      await expect(
+        service.findAllDevicesInLocation(staff, 7),
+      ).rejects.toMatchObject({ status: 500 });
+    });
+  });
 });
