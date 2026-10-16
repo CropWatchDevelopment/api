@@ -43,6 +43,17 @@ type DeviceRecord = DeviceRow & {
   cw_device_type?: DeviceTypeRow | DeviceTypeRow[] | null;
 };
 
+/** One gateway's latest reading of a device (cw_device_gateway). */
+type DeviceGatewaySignal = Pick<
+  TableRow<'cw_device_gateway'>,
+  'rssi' | 'snr' | 'last_update'
+>;
+
+/** A location's device plus every gateway reading of it. */
+type LocationDeviceRecord = DeviceRecord & {
+  gateway_signals: DeviceGatewaySignal[];
+};
+
 type LatestDeviceTypeJoin = Pick<
   DeviceTypeRow,
   | 'name'
@@ -727,7 +738,7 @@ export class DevicesService {
   public async findAllDevicesInLocation(
     user: AuthenticatedUser,
     locationId: number,
-  ): Promise<DeviceRecord[]> {
+  ): Promise<LocationDeviceRecord[]> {
     const client = this.supabaseService.getClient();
 
     let query = client
@@ -753,7 +764,48 @@ export class DevicesService {
       throw new NotFoundException('No devices found for this location');
     }
 
-    return devices as DeviceRecord[];
+    const rows = devices as DeviceRecord[];
+    const signals = await this.findGatewaySignals(
+      rows.map((device) => device.dev_eui),
+    );
+    return rows.map((device) => ({
+      ...device,
+      gateway_signals: signals.get(device.dev_eui) ?? [],
+    }));
+  }
+
+  /**
+   * Every gateway's latest reading of each device, in one query per 100
+   * devices. Gateway identity is left out, so no gateway visibility check is
+   * needed: the readings alone are what GatewayService.findByDevice already
+   * returns for gateways the caller cannot see.
+   */
+  private async findGatewaySignals(
+    devEuis: string[],
+  ): Promise<Map<string, DeviceGatewaySignal[]>> {
+    const client = this.supabaseService.getClient();
+    const byDevice = new Map<string, DeviceGatewaySignal[]>();
+
+    for (let i = 0; i < devEuis.length; i += 100) {
+      const { data, error } = (await client
+        .from('cw_device_gateway')
+        .select('dev_eui, rssi, snr, last_update')
+        .in('dev_eui', devEuis.slice(i, i + 100))) as {
+        data: (DeviceGatewaySignal & { dev_eui: string })[] | null;
+        error: PostgrestError | null;
+      };
+      if (error) {
+        throw new InternalServerErrorException(
+          'Failed to fetch device gateway signals',
+        );
+      }
+      for (const { dev_eui, ...signal } of data ?? []) {
+        const list = byDevice.get(dev_eui);
+        if (list) list.push(signal);
+        else byDevice.set(dev_eui, [signal]);
+      }
+    }
+    return byDevice;
   }
 
   public async findLatestData(

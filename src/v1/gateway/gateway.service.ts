@@ -29,7 +29,7 @@ const PAGE_SIZE = 1000;
 
 type GatewayRow = TableRow<'cw_gateways'>;
 type GatewayOwnerRow = TableRow<'cw_gateways_owners'>;
-type GatewayRecord = GatewayRow & {
+export type GatewayRecord = GatewayRow & {
   cw_gateways_owners?: GatewayOwnerRow[];
 };
 type DeviceGatewayRow = Pick<
@@ -210,6 +210,15 @@ export class GatewayService {
   // -------------------------------------------------------------------------
 
   async findAll(user: AuthenticatedUser): Promise<GatewayDto[]> {
+    return this.enrich(await this.listVisible(user));
+  }
+
+  /**
+   * The gateways GET /v1/gateway lists for the caller, without enrichment:
+   * staff see every gateway; others see their org's (as Owner/Manager),
+   * their own (cw_gateways_owners) and public ones.
+   */
+  async listVisible(user: AuthenticatedUser): Promise<GatewayRecord[]> {
     const client = this.supabaseService.getClient();
     const managedOrgIds = user.isStaff
       ? []
@@ -222,7 +231,7 @@ export class GatewayService {
       if (error) {
         throw new InternalServerErrorException('Failed to fetch gateways');
       }
-      return this.enrich(data ?? []);
+      return data ?? [];
     }
 
     // Org overlay: the org's Owner and Managers see the org's gateways.
@@ -267,7 +276,7 @@ export class GatewayService {
       listed.push(gw);
     }
 
-    return this.enrich(listed);
+    return listed;
   }
 
   async findOne(
