@@ -19,6 +19,7 @@ import { LocationsModule } from './v1/locations/locations.module';
 import { RelayModule } from './v1/relay/relay.module';
 import { GatewayModule } from './v1/gateway/gateway.module';
 import { DashboardModule } from './v1/dashboard/dashboard.module';
+import { OverviewModule } from './v1/overview/overview.module';
 import { PaymentsModule } from './v1/payments/payments.module';
 import { LineModule } from './v1/line/line.module';
 import { PushModule } from './v1/push/push.module';
@@ -71,6 +72,7 @@ import { OrganizationsModule } from './v1/organizations/organizations.module';
     RelayModule,
     GatewayModule,
     DashboardModule,
+    OverviewModule,
     PaymentsModule,
     OrganizationsModule,
     LineModule,

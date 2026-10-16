@@ -8,5 +8,6 @@ import { AuthzModule } from '../common/authz';
   imports: [SupabaseModule, AuthzModule],
   controllers: [GatewayController],
   providers: [GatewayService],
+  exports: [GatewayService],
 })
 export class GatewayModule {}
