@@ -73,6 +73,7 @@ describe('AuthService', () => {
         data: {
           session: {
             access_token: 'token-abc',
+            refresh_token: 'refresh-abc',
             token_type: 'bearer',
             expires_in: 3600,
             expires_at: 1700000000,
@@ -92,6 +93,7 @@ describe('AuthService', () => {
       });
       expect(result.message).toBe('Login successful.');
       expect(result.result.accessToken).toBe('token-abc');
+      expect(result.result.refreshToken).toBe('refresh-abc');
     });
   });
 });

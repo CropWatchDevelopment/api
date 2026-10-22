@@ -106,6 +106,10 @@ export class AuthService {
 
     const result = {
       accessToken: session.access_token,
+      // Lets the web app keep the session going past the access token's
+      // lifetime (it stores it in an httpOnly cookie and refreshes with
+      // Supabase Auth). Single-use: Supabase rotates it on every refresh.
+      refreshToken: session.refresh_token,
       token_type: session.token_type,
       expires_in_seconds: session.expires_in,
       expires_at: session.expires_at,
