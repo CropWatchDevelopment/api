@@ -13,7 +13,7 @@ It's a NestJS 11 app written in TypeScript, with Supabase (Postgres and auth) as
 
 ## Running it locally
 
-You need Node.js 20 (the version CI uses) and pnpm. The repo pins pnpm through the `packageManager` field, so Corepack picks the right version:
+You need Node.js 24 (the version CI and Vercel use) and pnpm. The repo pins pnpm through the `packageManager` field, so Corepack picks the right version:
 
 ```bash
 corepack enable
