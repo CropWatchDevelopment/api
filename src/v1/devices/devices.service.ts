@@ -24,6 +24,7 @@ import {
   applyDeviceReadScope,
   applyLocationManageScope,
   assertCanGrant,
+  decide,
 } from '../common/authz';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
@@ -193,7 +194,7 @@ export class DevicesService {
   async findOne(
     user: AuthenticatedUser,
     devEui: string,
-  ): Promise<DeviceRecord> {
+  ): Promise<DeviceRecord & { can_write_notes: boolean }> {
     const client = this.supabaseService.getClient();
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
@@ -231,7 +232,16 @@ export class DevicesService {
       throw new NotFoundException('Device not found');
     }
 
-    return data;
+    // The same NoteWrite decision the notes endpoints enforce, so the app
+    // only offers adding notes where it works.
+    const access = await this.accessService.getDeviceAccess(
+      user,
+      normalizedDevEui,
+    );
+    return {
+      ...data,
+      can_write_notes: access.canRead && decide(access, Action.NoteWrite),
+    };
   }
 
   public async findAllStatus(

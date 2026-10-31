@@ -256,6 +256,7 @@ describe('RulesService', () => {
         permissionLevel: 1,
         canView: true,
         canManage: true,
+        canWriteNotes: true,
       },
     ]);
     const templateQuery = buildQueryStub({
@@ -301,6 +302,7 @@ describe('RulesService', () => {
         permissionLevel: 1,
         canView: true,
         canManage: true,
+        canWriteNotes: true,
       },
       {
         devEui: 'BB',
@@ -309,6 +311,7 @@ describe('RulesService', () => {
         permissionLevel: 5,
         canView: false,
         canManage: false,
+        canWriteNotes: false,
       },
     ];
 
@@ -494,6 +497,7 @@ describe('RulesService', () => {
         permissionLevel: 1,
         canView: true,
         canManage: true,
+        canWriteNotes: true,
       }));
 
     const templateRow = {
@@ -755,6 +759,7 @@ describe('RulesService', () => {
           permissionLevel: 1,
           canView: true,
           canManage: true,
+          canWriteNotes: true,
         },
       ]);
       return { client, actions, profiles, accessService };

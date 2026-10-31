@@ -1138,6 +1138,7 @@ function buildReportTemplates(args: {
               deviceName: device?.name ?? null,
               locationName: extractLocationName(assignment),
               permissionLevel: device?.permissionLevel ?? null,
+              canManage: device?.canManage ?? false,
             };
           },
         ),

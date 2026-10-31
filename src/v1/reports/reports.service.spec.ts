@@ -486,3 +486,81 @@ describe('ReportsService staff recipients', () => {
     ]);
   });
 });
+
+describe('ReportsService assignment canManage', () => {
+  // Every query in a chain resolves to the table's rows (or its one row for
+  // maybeSingle).
+  function tableStub(rows: unknown[] = [], row: unknown = null) {
+    const chain: Record<string, unknown> = {};
+    for (const method of ['select', 'eq', 'in']) {
+      chain[method] = jest.fn(() => chain);
+    }
+    chain.maybeSingle = jest.fn().mockResolvedValue({ data: row, error: null });
+    chain.then = (resolve: (value: unknown) => unknown) =>
+      resolve({ data: rows, error: null });
+    return chain;
+  }
+
+  it("tells the app which devices the caller may edit the report's notes for", async () => {
+    const assignment = (id: number, devEui: string) => ({
+      id,
+      template_id: 42,
+      dev_eui: devEui,
+      is_active: true,
+      created_at: null,
+    });
+    const tables: Record<string, unknown> = {
+      cw_report_templates: tableStub([], {
+        id: 42,
+        name: 'Weekly',
+        description: null,
+        data_pull_interval: 30,
+        device_type_id: null,
+        is_active: true,
+        created_at: '2026-10-01T00:00:00Z',
+      }),
+      cw_device_report_assignments: tableStub([
+        assignment(1, 'MANAGED'),
+        assignment(2, 'VIEWED'),
+      ]),
+      cw_report_template_schedule: tableStub(),
+      cw_report_template_recipients: tableStub(),
+      cw_report_template_alert_points: tableStub(),
+      cw_report_template_data_processing_schedules: tableStub(),
+    };
+    const accessible = (devEui: string, canManage: boolean) => ({
+      devEui,
+      orgId: null,
+      name: devEui,
+      permissionLevel: canManage ? 2 : 4,
+      canView: true,
+      canManage,
+      canWriteNotes: canManage,
+    });
+    const service = new ReportsService(
+      {
+        getClient: () => ({ from: (table: string) => tables[table] }),
+      } as unknown as SupabaseService,
+      {} as DevicesService,
+      {} as LocationsService,
+      {} as PaymentsService,
+      {
+        listAccessibleDevices: jest
+          .fn()
+          .mockResolvedValue([
+            accessible('MANAGED', true),
+            accessible('VIEWED', false),
+          ]),
+      } as unknown as AccessService,
+    );
+
+    const report = await service.findOne(42, USER);
+
+    expect(
+      report.assignments.map((entry) => [entry.devEui, entry.canManage]),
+    ).toEqual([
+      ['MANAGED', true],
+      ['VIEWED', false],
+    ]);
+  });
+});

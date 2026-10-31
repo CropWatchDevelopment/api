@@ -166,9 +166,10 @@ export class DashboardService {
     }
 
     const devices = (data ?? []) as DashboardDeviceRecord[];
+    const canWriteNotes = await this.noteWriteCheck(user);
 
     const rows = await Promise.all(
-      devices.map((d) => this.buildRow(client, d)),
+      devices.map((d) => this.buildRow(client, d, canWriteNotes(d.dev_eui))),
     );
 
     return {
@@ -324,10 +325,11 @@ export class DashboardService {
       );
     }
 
+    const canWriteNotes = await this.noteWriteCheck(user);
     const rows = (
       await Promise.all(
         ((devices ?? []) as DashboardDeviceRecord[]).map((d) =>
-          this.buildRow(client, d),
+          this.buildRow(client, d, canWriteNotes(d.dev_eui)),
         ),
       )
     ).filter((r): r is DashboardRow => r !== null);
@@ -441,9 +443,26 @@ export class DashboardService {
     return latest ?? null;
   }
 
+  /**
+   * Whether the caller may write notes on a device — the same NoteWrite
+   * decision the notes endpoints enforce, so the app only offers what works.
+   */
+  private async noteWriteCheck(
+    user: AuthenticatedUser,
+  ): Promise<(devEui: string) => boolean> {
+    // Staff may write everywhere; skip loading every device in the system.
+    if (user.isStaff) return () => true;
+    const devices = await this.accessService.listAccessibleDevices(user);
+    const writable = new Set(
+      devices.filter((d) => d.canWriteNotes).map((d) => d.devEui),
+    );
+    return (devEui) => writable.has(devEui);
+  }
+
   private async buildRow(
     client: ReturnType<SupabaseService['getClient']>,
     d: DashboardDeviceRecord,
+    canWriteNotes: boolean,
   ): Promise<DashboardRow | null> {
     const deviceType = Array.isArray(d.cw_device_type)
       ? d.cw_device_type[0]
@@ -491,6 +510,7 @@ export class DashboardService {
           }
         : null,
       latest,
+      can_write_notes: canWriteNotes,
     };
   }
 
