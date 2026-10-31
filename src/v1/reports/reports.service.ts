@@ -14,6 +14,8 @@ import {
   matchesSearch,
   uniqueValues,
 } from '../common/collection.helpers';
+import { isStaffEmail } from '../common/owner-filter.helper';
+import { withoutStaffEmails } from '../common/staff-redaction.helper';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
 import { PaymentsService } from '../payments/payments.service';
@@ -206,7 +208,7 @@ export class ReportsService {
       templates,
       assignments,
       schedule,
-      recipients,
+      recipients: withoutStaffEmails(recipients, user.isStaff),
       alertPoints,
       dpSchedules,
       devices,
@@ -276,7 +278,7 @@ export class ReportsService {
       templates: [templateResult.data as TemplateRow],
       assignments,
       schedule,
-      recipients,
+      recipients: withoutStaffEmails(recipients, user.isStaff),
       alertPoints,
       dpSchedules,
       devices,
@@ -373,6 +375,14 @@ export class ReportsService {
     if (updateError) {
       throw new InternalServerErrorException(
         'Failed to update report template',
+      );
+    }
+
+    // A customer never saw the staff recipients, so their save must not drop them.
+    if (!user.isStaff) {
+      normalized.recipients = await this.withStaffRecipientsKept(
+        id,
+        normalized.recipients,
       );
     }
 
@@ -807,6 +817,37 @@ export class ReportsService {
     }
 
     return data ?? [];
+  }
+
+  /** A customer's recipient list with the template's staff recipients appended. */
+  private async withStaffRecipientsKept(
+    templateId: number,
+    recipients: NormalizedRecipientRow[],
+  ): Promise<NormalizedRecipientRow[]> {
+    const existing = await this.loadRecipientsByTemplateIds([templateId]);
+    const key = (row: {
+      communication_method?: number;
+      email: string | null;
+    }) => `${row.communication_method}:${row.email?.trim().toLowerCase()}`;
+    const submitted = new Set(
+      recipients.map((entry) =>
+        key({
+          communication_method: entry.communicationMethod,
+          email: entry.email,
+        }),
+      ),
+    );
+
+    const staff = existing
+      .filter((row) => isStaffEmail(row.email) && !submitted.has(key(row)))
+      .map(
+        (row): NormalizedRecipientRow => ({
+          communicationMethod: row.communication_method,
+          email: row.email,
+          name: row.name,
+        }),
+      );
+    return [...recipients, ...staff];
   }
 
   private async loadAlertPointsByTemplateIds(

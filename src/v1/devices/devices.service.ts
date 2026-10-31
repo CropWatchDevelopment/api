@@ -13,6 +13,7 @@ import type { TableRow } from '../types/supabase';
 import { LocationsService } from '../locations/locations.service';
 import { PaymentsService } from '../payments/payments.service';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
+import { hideStaffAuthorsInRows } from '../common/staff-redaction.helper';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { PermissionLevel } from '../common/permission-levels';
 import {
@@ -479,7 +480,7 @@ export class DevicesService {
     return {
       skip,
       take,
-      data: latestData,
+      data: hideStaffAuthorsInRows(latestData, user.isStaff),
     };
   }
 
@@ -569,7 +570,7 @@ export class DevicesService {
     return {
       skip,
       take,
-      data: latestData,
+      data: hideStaffAuthorsInRows(latestData, user.isStaff),
     };
   }
 
