@@ -22,6 +22,7 @@ import {
   orgCapabilitiesFor,
 } from '../common/authz';
 import { isStaffEmail } from '../common/owner-filter.helper';
+import { withoutStaffEmails } from '../common/staff-redaction.helper';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import type { TableRow } from '../types/supabase';
 import {
@@ -678,7 +679,7 @@ export class OrganizationsService {
     if (actor !== 'owner') {
       rows = rows.filter((row) => row.role !== 'guest');
     }
-    return rows;
+    return withoutStaffEmails(rows, user.isStaff);
   }
 
   async revokeInvite(user: AuthenticatedUser, orgId: string, inviteId: string) {
@@ -782,14 +783,19 @@ export class OrganizationsService {
     }
     const expired =
       data.status === 'pending' && Date.parse(data.expires_at) <= Date.now();
+    // The preview is public, so a staff inviter is never named; the app says
+    // CropWatch staff sent it instead.
+    const invitedByStaff = isStaffEmail(data.profiles?.email);
     return {
       org_name: data.organizations?.name ?? null,
       role: data.role,
       status: expired ? 'expired' : data.status,
       masked_email: maskEmail(data.email),
-      invited_by:
-        data.profiles?.full_name ??
-        (data.profiles?.email ? maskEmail(data.profiles.email) : null),
+      invited_by: invitedByStaff
+        ? null
+        : (data.profiles?.full_name ??
+          (data.profiles?.email ? maskEmail(data.profiles.email) : null)),
+      invited_by_staff: invitedByStaff,
       expires_at: data.expires_at,
     };
   }

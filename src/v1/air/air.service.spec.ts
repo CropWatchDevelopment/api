@@ -162,6 +162,7 @@ describe('AirService', () => {
       await expect(service.createNote(dto, user)).resolves.toEqual({
         created_at: resolvedCreatedAt,
         created_by: 'user-123@example.com',
+        created_by_staff: false,
         dev_eui: '2CF7F1C073800102',
         id: 1,
         include_in_report: true,
@@ -340,9 +341,10 @@ describe('AirService', () => {
         title: 'New title',
       } as UpdateAirAnnotationDto;
 
-      await expect(service.updateNote(7, dto, user)).resolves.toEqual(
-        updatedNote,
-      );
+      await expect(service.updateNote(7, dto, user)).resolves.toEqual({
+        ...updatedNote,
+        created_by_staff: false,
+      });
 
       // Access is asserted against the STORED dev_eui, not the body's,
       // and note edits require the NoteWrite action.
@@ -358,6 +360,30 @@ describe('AirService', () => {
         title: 'New title',
       });
       expect(builder.updateEq).toHaveBeenCalledWith('id', 7);
+    });
+
+    it('hides a staff author from the customer who edits the note', async () => {
+      const user: AuthenticatedUser = {
+        email: 'user@example.com',
+        isStaff: false,
+        sub: 'user-1',
+      };
+      const staffNote = { ...existingNote, created_by: 'kevin@cropwatch.io' };
+      const builder = createUpdateBuilder({ data: staffNote, error: null });
+      builder.single.mockResolvedValue({
+        data: { ...staffNote, title: 'New title' },
+        error: null,
+      });
+      client.from.mockReturnValue(builder);
+
+      await expect(
+        service.updateNote(7, { title: 'New title' }, user),
+      ).resolves.toEqual({
+        ...staffNote,
+        title: 'New title',
+        created_by: null,
+        created_by_staff: true,
+      });
     });
 
     it('rejects when the note does not exist', async () => {
@@ -422,6 +448,67 @@ describe('AirService', () => {
         Action.NoteWrite,
       );
       expect(builder.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findAllNotes', () => {
+    const notes = [
+      {
+        created_at: '2026-03-13T14:30:01+00:00',
+        created_by: 'farmer@example.com',
+        dev_eui: '2CF7F1C073800102',
+        id: 1,
+        include_in_report: true,
+        note: null,
+        title: 'Vent opened',
+      },
+      {
+        created_at: '2026-03-14T09:00:00+00:00',
+        created_by: 'Kevin@CropWatch.io',
+        dev_eui: '2CF7F1C073800102',
+        id: 2,
+        include_in_report: false,
+        note: 'sensor swapped',
+        title: 'QA check',
+      },
+    ];
+
+    function listNotes(user: AuthenticatedUser) {
+      const builder = {
+        eq: jest.fn().mockReturnThis(),
+        gte: jest.fn().mockReturnThis(),
+        lte: jest.fn().mockReturnThis(),
+        order: jest.fn().mockResolvedValue({ data: notes, error: null }),
+        select: jest.fn().mockReturnThis(),
+      };
+      client.from.mockReturnValue(builder);
+      return service.findAllNotes('2CF7F1C073800102', '3', '2026', user);
+    }
+
+    it('names a staff author only to staff', async () => {
+      const customerView = await listNotes({
+        email: 'farmer@example.com',
+        isStaff: false,
+        sub: 'user-1',
+      });
+      expect(
+        customerView.map((note) => [note.created_by, note.created_by_staff]),
+      ).toEqual([
+        ['farmer@example.com', false],
+        [null, true],
+      ]);
+
+      const staffView = await listNotes({
+        email: 'kevin@cropwatch.io',
+        isStaff: true,
+        sub: 'staff-1',
+      });
+      expect(
+        staffView.map((note) => [note.created_by, note.created_by_staff]),
+      ).toEqual([
+        ['farmer@example.com', false],
+        ['Kevin@CropWatch.io', true],
+      ]);
     });
   });
 });

@@ -13,6 +13,15 @@ import {
   matchesSearch,
   uniqueValues,
 } from '../common/collection.helpers';
+import { isStaffEmail } from '../common/owner-filter.helper';
+import {
+  addRuleRecipients,
+  readRuleRecipients,
+  ruleRecipientKind,
+  splitStaffRecipients,
+  writeRuleRecipients,
+  type RuleRecipientKind,
+} from '../common/staff-redaction.helper';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
 import { RuleActionTypeDto } from './dto/rule-action-type.dto';
@@ -104,7 +113,7 @@ export class RulesService {
       templates,
       assignments,
       criteria,
-      actions,
+      actions: await this.visibleActions(actions, user),
       states,
       devices,
     });
@@ -334,7 +343,7 @@ export class RulesService {
       templates: [templateResult.data],
       assignments,
       criteria,
-      actions,
+      actions: await this.visibleActions(actions, user),
       states,
       devices,
     });
@@ -466,6 +475,14 @@ export class RulesService {
       throw new InternalServerErrorException('Failed to update rule template');
     }
 
+    // A customer never saw the staff recipients, so their save must not drop them.
+    if (!user.isStaff) {
+      normalized.actions = await this.withStaffRecipientsKept(
+        id,
+        normalized.actions,
+      );
+    }
+
     await this.replaceTemplateChildren(id, normalized);
     await this.cleanupStateForUnassignedDevices(id, normalized.devEuis);
 
@@ -552,6 +569,108 @@ export class RulesService {
     }
 
     return data ?? [];
+  }
+
+  /**
+   * Decides whether a recipient is CropWatch staff: an address by its domain,
+   * a LINE/Push user id by that user's profile email.
+   */
+  private async staffRecipientCheck(
+    actions: ActionRow[],
+  ): Promise<(kind: RuleRecipientKind, recipient: string) => boolean> {
+    const userIds = uniqueValues(
+      actions.flatMap((row) => {
+        const kind = ruleRecipientKind(readActionTypeName(row));
+        return kind === 'userIds' ? readRuleRecipients(kind, row.config) : [];
+      }),
+    );
+
+    const staffUserIds = new Set<string>();
+    if (userIds.length > 0) {
+      const { data, error } = await this.supabaseService
+        .getClient()
+        .from('profiles')
+        .select('id, email')
+        .in('id', userIds);
+      if (error) {
+        throw new InternalServerErrorException(
+          'Failed to load rule recipients',
+        );
+      }
+      for (const profile of (data ?? []) as {
+        id: string;
+        email: string | null;
+      }[]) {
+        if (isStaffEmail(profile.email)) staffUserIds.add(profile.id);
+      }
+    }
+
+    return (kind, recipient) =>
+      kind === 'email' ? isStaffEmail(recipient) : staffUserIds.has(recipient);
+  }
+
+  /**
+   * The actions as a customer may see them: staff recipients removed, and an
+   * action that only addresses staff left out. Staff see everything.
+   */
+  private async visibleActions(
+    actions: ActionRow[],
+    user: AuthenticatedUser,
+  ): Promise<ActionRow[]> {
+    if (user.isStaff) return actions;
+    const isStaffRecipient = await this.staffRecipientCheck(actions);
+
+    return actions.flatMap((row) => {
+      const kind = ruleRecipientKind(readActionTypeName(row));
+      if (!kind) return [row];
+      const { visible, staff } = splitStaffRecipients(kind, row.config, (r) =>
+        isStaffRecipient(kind, r),
+      );
+      if (staff.length === 0) return [row];
+      if (visible.length === 0) return [];
+      return [
+        { ...row, config: writeRuleRecipients(kind, row.config, visible) },
+      ];
+    });
+  }
+
+  /**
+   * A customer's save with the template's staff recipients put back: into the
+   * same action when it is still there, otherwise as a staff-only action of
+   * the same type.
+   */
+  private async withStaffRecipientsKept(
+    templateId: number,
+    actions: NormalizedSaveRequest['actions'],
+  ): Promise<NormalizedSaveRequest['actions']> {
+    const existing = await this.loadActionsByTemplateIds([templateId]);
+    const isStaffRecipient = await this.staffRecipientCheck(existing);
+    const kept = actions.map((action) => ({ ...action }));
+
+    for (const row of existing) {
+      const kind = ruleRecipientKind(readActionTypeName(row));
+      if (!kind) continue;
+      const { staff } = splitStaffRecipients(kind, row.config, (r) =>
+        isStaffRecipient(kind, r),
+      );
+      if (staff.length === 0) continue;
+
+      const target = kept.find(
+        (action) =>
+          action.id === row.id && action.actionType === row.action_type,
+      );
+      if (target) {
+        target.config = addRuleRecipients(kind, target.config, staff);
+      } else {
+        kept.push({
+          id: null,
+          actionType: row.action_type,
+          config: writeRuleRecipients(kind, row.config, staff),
+        });
+      }
+    }
+
+    return kept;
   }
 
   async findAllActionTypes(): Promise<RuleActionTypeDto[]> {
@@ -844,16 +963,20 @@ function mapCriterion(row: CriterionRow): RuleTemplateCriterionDto {
   };
 }
 
-function mapAction(row: ActionRow): RuleTemplateActionDto {
+function readActionTypeName(row: ActionRow): string | null {
   const rawJoin = row.cw_rule_action_types;
   const joined = Array.isArray(rawJoin)
     ? (rawJoin[0] ?? null)
     : (rawJoin ?? null);
+  return joined?.name ?? null;
+}
+
+function mapAction(row: ActionRow): RuleTemplateActionDto {
   return {
     id: row.id,
     templateId: row.template_id,
     actionType: row.action_type,
-    actionTypeName: joined?.name ?? null,
+    actionTypeName: readActionTypeName(row),
     config: row.config,
     createdAt: row.created_at,
   };

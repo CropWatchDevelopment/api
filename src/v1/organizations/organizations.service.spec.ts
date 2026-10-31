@@ -265,6 +265,92 @@ describe('OrganizationsService', () => {
     });
   });
 
+  describe('staff in invites', () => {
+    const inviteRows = [
+      {
+        id: 'i-1',
+        email: 'new@example.com',
+        role: 'member',
+        invited_by: USER.sub,
+      },
+      {
+        id: 'i-2',
+        email: 'Support@CropWatch.io',
+        role: 'member',
+        invited_by: 'u-staff',
+      },
+    ];
+    const STAFF: AuthenticatedUser = {
+      sub: 'u-staff',
+      email: 'kevin@cropwatch.io',
+      isStaff: true,
+    };
+
+    it('the invite list hides invites to staff from customers', async () => {
+      const { service } = makeService({
+        tables: { organization_invites: [{ data: inviteRows, error: null }] },
+        ctx: ownerCtx,
+      });
+      const rows = await service.listInvites(USER, ORG);
+      expect(rows.map((r) => r.id)).toEqual(['i-1']);
+    });
+
+    it('staff see every invite', async () => {
+      const { service } = makeService({
+        tables: { organization_invites: [{ data: inviteRows, error: null }] },
+      });
+      const rows = await service.listInvites(STAFF, ORG);
+      expect(rows.map((r) => r.id)).toEqual(['i-1', 'i-2']);
+    });
+
+    const preview = (profiles: Record<string, unknown> | null) =>
+      makeService({
+        tables: {
+          organization_invites: [
+            {
+              data: {
+                email: 'new@example.com',
+                role: 'member',
+                status: 'pending',
+                expires_at: '2999-01-01T00:00:00Z',
+                organizations: { name: 'Acme' },
+                profiles,
+              },
+              error: null,
+            },
+          ],
+        },
+      }).service.previewInvite('token');
+
+    it('the invite page never names a staff inviter', async () => {
+      await expect(
+        preview({ full_name: 'Kevin Cantrell', email: 'kevin@cropwatch.io' }),
+      ).resolves.toMatchObject({ invited_by: null, invited_by_staff: true });
+      await expect(
+        preview({ full_name: null, email: 'kevin@cropwatch.io' }),
+      ).resolves.toMatchObject({ invited_by: null, invited_by_staff: true });
+    });
+
+    it('the invite page names a customer inviter', async () => {
+      await expect(
+        preview({ full_name: 'Owner', email: 'owner@example.com' }),
+      ).resolves.toMatchObject({
+        invited_by: 'Owner',
+        invited_by_staff: false,
+      });
+      await expect(
+        preview({ full_name: null, email: 'owner@example.com' }),
+      ).resolves.toMatchObject({
+        invited_by: 'o***@example.com',
+        invited_by_staff: false,
+      });
+      await expect(preview(null)).resolves.toMatchObject({
+        invited_by: null,
+        invited_by_staff: false,
+      });
+    });
+  });
+
   describe('members', () => {
     const memberRows = [
       {

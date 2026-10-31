@@ -1131,4 +1131,91 @@ describe('DevicesService', () => {
       ).rejects.toMatchObject({ status: 500 });
     });
   });
+
+  describe('air note authors in device data', () => {
+    const notes = [
+      { id: 1, created_by: 'farmer@example.com', title: 'Vent opened' },
+      { id: 2, created_by: 'kevin@cropwatch.io', title: 'QA check' },
+    ];
+
+    function createService() {
+      const from = jest.fn((table: string) => {
+        const builder: Record<string, jest.Mock> = {};
+        for (const method of [
+          'select',
+          'eq',
+          'or',
+          'lt',
+          'lte',
+          'gte',
+          'order',
+          'range',
+          'limit',
+        ]) {
+          builder[method] = jest.fn(() => builder);
+        }
+        const rows: Record<string, unknown> = {
+          cw_devices: { dev_eui: 'DEV-A', type: 7 },
+          cw_device_type: { id: 7, data_table_v2: 'cw_air_data' },
+        };
+        builder.single = jest.fn(() =>
+          Promise.resolve({ data: rows[table], error: null }),
+        );
+        builder.maybeSingle = builder.single;
+        (builder as Record<string, unknown>).then = (
+          resolve: (value: unknown) => unknown,
+        ) =>
+          resolve({
+            data: [{ id: 100, cw_air_annotations: notes }],
+            error: null,
+          });
+        return builder;
+      });
+      return new DevicesService(
+        {
+          getClient: () => ({ from }),
+          getAdminClient: jest.fn(),
+        } as unknown as SupabaseService,
+        {} as LocationsService,
+        {} as PaymentsService,
+        createAccessMock(),
+      );
+    }
+
+    const customer = {
+      sub: 'u-1',
+      email: 'farmer@example.com',
+      isStaff: false,
+    };
+    const staff = { sub: 'u-2', email: 'kevin@cropwatch.io', isStaff: true };
+    const authors = (result: { data: unknown[] }) =>
+      (
+        result.data[0] as {
+          cw_air_annotations: { created_by: string | null }[];
+        }
+      ).cw_air_annotations.map((note) => note.created_by);
+
+    it('hides staff authors from customers in the latest readings', async () => {
+      const result = await createService().findData(customer, 'DEV-A');
+      expect(authors(result)).toEqual(['farmer@example.com', null]);
+    });
+
+    it('hides staff authors from customers in a date range', async () => {
+      const result = await createService().findDataWithinRange(
+        customer,
+        'DEV-A',
+        '2026-10-01T00:00:00Z',
+        '2026-10-02T00:00:00Z',
+      );
+      expect(authors(result)).toEqual(['farmer@example.com', null]);
+    });
+
+    it('names staff authors to staff', async () => {
+      const result = await createService().findData(staff, 'DEV-A');
+      expect(authors(result)).toEqual([
+        'farmer@example.com',
+        'kevin@cropwatch.io',
+      ]);
+    });
+  });
 });
