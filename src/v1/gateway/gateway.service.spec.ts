@@ -1,6 +1,14 @@
-import { NotFoundException } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CONNECTED_WINDOW_HOURS, GatewayService } from './gateway.service';
+import {
+  CLAIM_PROOF_WINDOW_DAYS,
+  CONNECTED_WINDOW_HOURS,
+  GatewayService,
+} from './gateway.service';
+import { GatewayClaimException } from './gateway-claim.errors';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { AccessService, Action } from '../common/authz';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
@@ -18,6 +26,7 @@ function createFakeClient(results: Record<string, Result[]>) {
   const chainMethods = [
     'select',
     'eq',
+    'ilike',
     'in',
     'gte',
     'lt',
@@ -467,5 +476,264 @@ describe('GatewayService', () => {
       );
       expect(accessService.listAccessibleDevices).not.toHaveBeenCalled();
     });
+  });
+
+  describe('claim', () => {
+    const EUI = '647FDAFFFE02D202';
+    const unclaimed = () =>
+      gatewayRow({ id: 1342412, gateway_id: 'eui-647fdafffe02d202' });
+    const staff: AuthenticatedUser = {
+      sub: 'staff-1',
+      email: 'kevin@cropwatch.io',
+      isStaff: true,
+    };
+    const manages = (devEui: string, canManage = true) =>
+      accessService.listAccessibleDevices.mockResolvedValue([
+        {
+          devEui,
+          name: null,
+          orgId: null,
+          permissionLevel: 1,
+          canView: true,
+          canManage,
+        },
+      ]);
+
+    it('adds an unclaimed gateway that heard a device the caller manages', async () => {
+      manages('a1b2c3d4e5f60708');
+      const fake = createFakeClient({
+        cw_gateways: [{ data: [unclaimed()], error: null }],
+        cw_device_gateway: [
+          { data: [{ dev_eui: 'A1B2C3D4E5F60708' }], error: null },
+        ],
+        cw_gateways_owners: [{ data: null, error: null }],
+      });
+      supabaseService.getClient.mockReturnValue(fake.client);
+
+      await expect(
+        service.claim(user, { gateway_eui: '64:7f:da:ff:fe:02:d2:02' }),
+      ).resolves.toEqual({
+        gateway_id: 'eui-647fdafffe02d202',
+        gateway_name: 'North Gateway',
+        added: true,
+      });
+
+      expect(fake.queriesFor('cw_gateways')[0].calls).toContainEqual({
+        method: 'ilike',
+        args: ['gateway_id', `%${EUI}%`],
+      });
+      const proof = fake.queriesFor('cw_device_gateway')[0].calls;
+      expect(proof).toContainEqual({
+        method: 'eq',
+        args: ['gateway_id', 'eui-647fdafffe02d202'],
+      });
+      const since = Date.parse(
+        proof.find((c) => c.method === 'gte')?.args[1] as string,
+      );
+      expect(Date.now() - since).toBeGreaterThanOrEqual(
+        CLAIM_PROOF_WINDOW_DAYS * 24 * 60 * 60 * 1000 - 60_000,
+      );
+      expect(fake.queriesFor('cw_gateways_owners')[0].calls).toContainEqual({
+        method: 'insert',
+        args: [
+          {
+            gateway_id: 1342412,
+            user_id: 'user-123',
+            gateway_eui: 'eui-647fdafffe02d202',
+          },
+        ],
+      });
+    });
+
+    it('changes nothing when the caller already owns the gateway', async () => {
+      const fake = createFakeClient({
+        cw_gateways: [
+          {
+            data: [
+              gatewayRow({ cw_gateways_owners: [{ user_id: 'user-123' }] }),
+            ],
+            error: null,
+          },
+        ],
+      });
+      supabaseService.getClient.mockReturnValue(fake.client);
+
+      await expect(
+        service.claim(user, { gateway_eui: EUI }),
+      ).resolves.toMatchObject({ added: false });
+      expect(fake.queriesFor('cw_gateways_owners')).toHaveLength(0);
+    });
+
+    it('changes nothing when the caller manages the owning org', async () => {
+      accessService.getManagedOrgIds.mockResolvedValue(['org-1']);
+      const fake = createFakeClient({
+        cw_gateways: [{ data: [gatewayRow({ org_id: 'org-1' })], error: null }],
+      });
+      supabaseService.getClient.mockReturnValue(fake.client);
+
+      await expect(
+        service.claim(user, { gateway_eui: EUI }),
+      ).resolves.toMatchObject({ added: false });
+      expect(fake.queriesFor('cw_gateways_owners')).toHaveLength(0);
+    });
+
+    it.each([
+      ['another org', { org_id: 'org-other' }],
+      ['another user', { cw_gateways_owners: [{ user_id: 'other' }] }],
+    ])('refuses a gateway that belongs to %s', async (_label, overrides) => {
+      const fake = createFakeClient({
+        cw_gateways: [{ data: [gatewayRow(overrides)], error: null }],
+      });
+      supabaseService.getClient.mockReturnValue(fake.client);
+
+      await expect(
+        service.claim(user, { gateway_eui: EUI }),
+      ).rejects.toMatchObject({ code: 'GATEWAY_CLAIMED' });
+      expect(fake.queriesFor('cw_device_gateway')).toHaveLength(0);
+      expect(fake.queriesFor('cw_gateways_owners')).toHaveLength(0);
+    });
+
+    it("refuses when the gateway heard none of the caller's devices", async () => {
+      const fake = createFakeClient({
+        cw_gateways: [{ data: [unclaimed()], error: null }],
+        cw_device_gateway: [{ data: [], error: null }],
+      });
+      supabaseService.getClient.mockReturnValue(fake.client);
+
+      await expect(
+        service.claim(user, { gateway_eui: EUI }),
+      ).rejects.toMatchObject({ code: 'GATEWAY_NOT_HEARD' });
+      expect(accessService.listAccessibleDevices).not.toHaveBeenCalled();
+      expect(fake.queriesFor('cw_gateways_owners')).toHaveLength(0);
+    });
+
+    it('does not count devices the caller can only view', async () => {
+      manages('A1B2C3D4E5F60708', false);
+      const fake = createFakeClient({
+        cw_gateways: [{ data: [unclaimed()], error: null }],
+        cw_device_gateway: [
+          { data: [{ dev_eui: 'A1B2C3D4E5F60708' }], error: null },
+        ],
+      });
+      supabaseService.getClient.mockReturnValue(fake.client);
+
+      await expect(
+        service.claim(user, { gateway_eui: EUI }),
+      ).rejects.toMatchObject({ code: 'GATEWAY_NOT_HEARD' });
+    });
+
+    it.each([
+      ['GATEWAY_NOT_FOUND', []],
+      ['GATEWAY_AMBIGUOUS', [gatewayRow(), gatewayRow({ id: 12 })]],
+    ])('reports %s', async (code, rows) => {
+      const fake = createFakeClient({
+        cw_gateways: [{ data: rows, error: null }],
+      });
+      supabaseService.getClient.mockReturnValue(fake.client);
+
+      await expect(
+        service.claim(user, { gateway_eui: EUI }),
+      ).rejects.toMatchObject({ code });
+    });
+
+    it('rejects an EUI that is not 16 hex characters once separators are removed', async () => {
+      await expect(
+        service.claim(user, { gateway_eui: '64-7F-DA-FF-FE-02-D2-0' }),
+      ).rejects.toMatchObject({ code: 'INVALID_EUI' });
+      expect(supabaseService.getClient).not.toHaveBeenCalled();
+    });
+
+    it('lets only staff add a gateway to another account', async () => {
+      await expect(
+        service.claim(user, { gateway_eui: EUI, user_email: 'a@b.co' }),
+      ).rejects.toBeInstanceOf(GatewayClaimException);
+      await expect(
+        service.claim(user, { gateway_eui: EUI, user_email: 'a@b.co' }),
+      ).rejects.toMatchObject({ code: 'STAFF_ONLY' });
+      expect(supabaseService.getClient).not.toHaveBeenCalled();
+    });
+
+    it('lets staff add any gateway to another account without proof', async () => {
+      const fake = createFakeClient({
+        profiles: [{ data: { id: 'target-1' }, error: null }],
+        cw_gateways: [
+          {
+            data: [
+              gatewayRow({
+                org_id: 'org-other',
+                cw_gateways_owners: [{ user_id: 'other' }],
+              }),
+            ],
+            error: null,
+          },
+        ],
+        cw_gateways_owners: [{ data: null, error: null }],
+      });
+      supabaseService.getClient.mockReturnValue(fake.client);
+
+      await expect(
+        service.claim(staff, {
+          gateway_eui: EUI,
+          user_email: 'info_1%@asahireiki.com',
+        }),
+      ).resolves.toMatchObject({ added: true });
+
+      // Wildcards in the email are matched literally.
+      expect(fake.queriesFor('profiles')[0].calls).toContainEqual({
+        method: 'ilike',
+        args: ['email', 'info\\_1\\%@asahireiki.com'],
+      });
+      expect(fake.queriesFor('cw_gateways_owners')[0].calls).toContainEqual({
+        method: 'insert',
+        args: [{ gateway_id: 11, user_id: 'target-1', gateway_eui: 'gw-001' }],
+      });
+      expect(fake.queriesFor('cw_device_gateway')).toHaveLength(0);
+      expect(accessService.getManagedOrgIds).not.toHaveBeenCalled();
+    });
+
+    it('reports an unknown account email to staff', async () => {
+      const fake = createFakeClient({
+        profiles: [{ data: null, error: null }],
+      });
+      supabaseService.getClient.mockReturnValue(fake.client);
+
+      await expect(
+        service.claim(staff, { gateway_eui: EUI, user_email: 'x@y.co' }),
+      ).rejects.toMatchObject({ code: 'USER_NOT_FOUND' });
+    });
+
+    it.each([
+      [
+        'the account lookup',
+        { profiles: [{ data: null, error: { code: 'x' } }] },
+        staff,
+        'x@y.co',
+      ],
+      [
+        'the gateway lookup',
+        { cw_gateways: [{ data: null, error: { code: 'x' } }] },
+        staff,
+        undefined,
+      ],
+      [
+        'the owner insert',
+        {
+          cw_gateways: [{ data: [unclaimed()], error: null }],
+          cw_gateways_owners: [{ data: null, error: { code: 'x' } }],
+        },
+        staff,
+        undefined,
+      ],
+    ])(
+      'fails with 500 when %s fails',
+      async (_label, results, caller, email) => {
+        const fake = createFakeClient(results);
+        supabaseService.getClient.mockReturnValue(fake.client);
+
+        await expect(
+          service.claim(caller, { gateway_eui: EUI, user_email: email }),
+        ).rejects.toBeInstanceOf(InternalServerErrorException);
+      },
+    );
   });
 });

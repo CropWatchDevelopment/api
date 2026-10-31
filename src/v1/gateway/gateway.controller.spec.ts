@@ -9,6 +9,7 @@ describe('GatewayController', () => {
     findOne: jest.Mock;
     findByDevice: jest.Mock;
     findDevices: jest.Mock;
+    claim: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -17,6 +18,7 @@ describe('GatewayController', () => {
       findOne: jest.fn(),
       findByDevice: jest.fn(),
       findDevices: jest.fn(),
+      claim: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -39,6 +41,17 @@ describe('GatewayController', () => {
     expect(controller.findOne('gw-001', user)).toBe(gateway);
 
     expect(gatewayService.findOne).toHaveBeenCalledWith('gw-001', user);
+  });
+
+  it('passes the claim body and authenticated user to the service', () => {
+    const user = { sub: 'user-123', email: null, isStaff: false };
+    const body = { gateway_eui: '647FDAFFFE02D202' };
+    const result = { gateway_id: 'eui-647fdafffe02d202', added: true };
+    gatewayService.claim.mockReturnValue(result);
+
+    expect(controller.claim(user, body)).toBe(result);
+
+    expect(gatewayService.claim).toHaveBeenCalledWith(user, body);
   });
 
   it('passes the authenticated user to find all gateways', () => {

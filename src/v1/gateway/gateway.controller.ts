@@ -1,22 +1,33 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
+  HttpCode,
   Param,
+  Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { GatewayService } from './gateway.service';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiSecurity,
   ApiUnauthorizedResponse,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { GatewayDto } from './dto/gateway.dto';
+import {
+  GatewayClaimDto,
+  GatewayClaimResultDto,
+} from './dto/gateway-claim.dto';
 import { DeviceGatewayDto } from './dto/device-gateway.dto';
 import { GatewayDevicesResponseDto } from './dto/gateway-device.dto';
 import { ErrorResponseDto } from '../common/dto/error-response.dto';
@@ -47,6 +58,50 @@ export class GatewayController {
   })
   findAll(@CurrentUser() user: AuthenticatedUser) {
     return this.gatewayService.findAll(user);
+  }
+
+  @Post('claim')
+  @HttpCode(200)
+  // Bounds EUI probing (EUIs come in sequential batches).
+  // blockDuration = ttl, or the counter would reset after the module's 30 s.
+  @Throttle({
+    default: { ttl: 3_600_000, limit: 30, blockDuration: 3_600_000 },
+  })
+  @ApiOperation({
+    summary: 'Add a gateway to an account by its EUI',
+    description: `
+    Customers can add an unclaimed gateway that heard one of the devices they
+    manage in the last 7 days; it is then claimed for their organization.
+    Staff can add any gateway to any account (\`user_email\`). Errors carry a
+    machine-readable \`code\`.
+    `,
+  })
+  @ApiOkResponse({
+    description: 'Gateway added, or the account could already see it.',
+    type: GatewayClaimResultDto,
+  })
+  @ApiUnauthorizedResponse({
+    description: 'Missing or invalid bearer token.',
+    type: ErrorResponseDto,
+  })
+  @ApiForbiddenResponse({
+    description: 'STAFF_ONLY: user_email was sent by a non-staff caller.',
+    type: ErrorResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: 'GATEWAY_NOT_FOUND or USER_NOT_FOUND.',
+    type: ErrorResponseDto,
+  })
+  @ApiConflictResponse({
+    description: 'GATEWAY_CLAIMED or GATEWAY_AMBIGUOUS.',
+    type: ErrorResponseDto,
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'GATEWAY_NOT_HEARD: no device of yours was heard by it.',
+    type: ErrorResponseDto,
+  })
+  claim(@CurrentUser() user: AuthenticatedUser, @Body() body: GatewayClaimDto) {
+    return this.gatewayService.claim(user, body);
   }
 
   // by-device is declared before ':gatewayId' so it is not captured as a
