@@ -36,6 +36,9 @@ export interface DashboardRow {
     primary: number | string | boolean | null;
     secondary: number | string | boolean | null;
   } | null;
+
+  /** The caller may add notes to this device (Action.NoteWrite). */
+  can_write_notes: boolean;
 }
 
 export interface DashboardPage {

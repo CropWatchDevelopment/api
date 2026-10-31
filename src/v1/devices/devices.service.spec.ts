@@ -230,11 +230,15 @@ describe('DevicesService', () => {
       getAdminClient: jest.fn(),
     };
 
+    const accessService = createAccessMock();
+    accessService.getDeviceAccess.mockResolvedValue(
+      deviceAccess({ isStaff: true, level: null }),
+    );
     const deviceService = new DevicesService(
       supabaseService as unknown as SupabaseService,
       {} as LocationsService,
       {} as PaymentsService,
-      createAccessMock(),
+      accessService,
     );
 
     await expect(
@@ -242,12 +246,66 @@ describe('DevicesService', () => {
         { sub: 'staff-1', email: 'staff@cropwatch.io', isStaff: true },
         'DEV-001',
       ),
-    ).resolves.toMatchObject({ dev_eui: 'DEV-001', name: 'Global Device' });
+    ).resolves.toMatchObject({
+      dev_eui: 'DEV-001',
+      name: 'Global Device',
+      can_write_notes: true,
+    });
 
     // Staff skip every scope filter: only the primary-key eq is applied.
     expect(deviceBuilder.eq).toHaveBeenCalledTimes(1);
     expect(deviceBuilder.eq).toHaveBeenCalledWith('dev_eui', 'DEV-001');
     expect(deviceBuilder.or).not.toHaveBeenCalled();
+  });
+
+  describe('findOne can_write_notes', () => {
+    function findOneAs(access: DeviceAccess) {
+      const deviceBuilder: Record<string, jest.Mock> = {};
+      for (const method of ['select', 'eq', 'lt', 'or', 'order']) {
+        deviceBuilder[method] = jest.fn(() => deviceBuilder);
+      }
+      deviceBuilder.single = jest.fn().mockResolvedValue({
+        data: { dev_eui: 'DEV-001', name: 'Greenhouse' },
+        error: null,
+      });
+      const accessService = createAccessMock();
+      accessService.getDeviceAccess.mockResolvedValue(access);
+      const deviceService = new DevicesService(
+        {
+          getClient: () => ({ from: () => deviceBuilder }),
+          getAdminClient: jest.fn(),
+        } as unknown as SupabaseService,
+        {} as LocationsService,
+        {} as PaymentsService,
+        accessService,
+      );
+      return deviceService
+        .findOne(
+          { sub: 'user-1', email: 'user@example.com', isStaff: false },
+          'DEV-001',
+        )
+        .then((device) => device.can_write_notes);
+    }
+
+    it.each([
+      ['an Admin', deviceAccess({ level: 1 }), true],
+      ['a Manager', deviceAccess({ level: 2 }), true],
+      ['a User', deviceAccess({ level: 3 }), true],
+      ['the owner', deviceAccess({ level: null, isOwner: true }), true],
+      [
+        'an org manager',
+        deviceAccess({ level: null, orgRole: 'manager' }),
+        true,
+      ],
+      ['a Viewer', deviceAccess({ level: 4 }), false],
+      [
+        'a parent org reader',
+        deviceAccess({ level: null, parentRead: true }),
+        false,
+      ],
+    ])('is %s → %s', async (_who, access, expected) => {
+      await expect(findOneAs(access)).resolves.toBe(expected);
+    });
   });
 
   describe('updateDevice location moves', () => {

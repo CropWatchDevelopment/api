@@ -104,4 +104,11 @@ export class DeviceDto {
     description: 'Rows from cw_device_owners linked by dev_eui.',
   })
   cw_device_owners?: DeviceOwnerDto[];
+
+  @ApiProperty({
+    required: false,
+    description:
+      'Whether the caller may add, edit and delete notes on this device (User level or above).',
+  })
+  can_write_notes?: boolean;
 }

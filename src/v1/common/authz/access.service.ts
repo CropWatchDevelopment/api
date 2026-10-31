@@ -116,6 +116,8 @@ export interface AccessibleDevice {
   permissionLevel: number | null;
   canView: boolean;
   canManage: boolean;
+  /** May add, edit and delete air notes (Action.NoteWrite). */
+  canWriteNotes: boolean;
 }
 
 const UUID_SHAPE = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
@@ -636,6 +638,7 @@ export class AccessService {
             permissionLevel: level,
             canView: decide(subject, Action.DeviceRead),
             canManage: decide(subject, Action.DeviceEdit),
+            canWriteNotes: decide(subject, Action.NoteWrite),
           };
         })
         .filter((device) => device.devEui.length > 0);

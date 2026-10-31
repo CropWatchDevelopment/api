@@ -24,4 +24,10 @@ export class ReportTemplateAssignmentDto {
 
   @ApiProperty({ nullable: true, required: false })
   permissionLevel: number | null;
+
+  @ApiProperty({
+    description:
+      "Whether the caller may manage this device: edit the report's notes and regenerate it.",
+  })
+  canManage: boolean;
 }
