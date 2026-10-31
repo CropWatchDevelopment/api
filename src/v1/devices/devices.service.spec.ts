@@ -230,11 +230,15 @@ describe('DevicesService', () => {
       getAdminClient: jest.fn(),
     };
 
+    const accessService = createAccessMock();
+    accessService.getDeviceAccess.mockResolvedValue(
+      deviceAccess({ isStaff: true, level: null }),
+    );
     const deviceService = new DevicesService(
       supabaseService as unknown as SupabaseService,
       {} as LocationsService,
       {} as PaymentsService,
-      createAccessMock(),
+      accessService,
     );
 
     await expect(
@@ -242,12 +246,66 @@ describe('DevicesService', () => {
         { sub: 'staff-1', email: 'staff@cropwatch.io', isStaff: true },
         'DEV-001',
       ),
-    ).resolves.toMatchObject({ dev_eui: 'DEV-001', name: 'Global Device' });
+    ).resolves.toMatchObject({
+      dev_eui: 'DEV-001',
+      name: 'Global Device',
+      can_write_notes: true,
+    });
 
     // Staff skip every scope filter: only the primary-key eq is applied.
     expect(deviceBuilder.eq).toHaveBeenCalledTimes(1);
     expect(deviceBuilder.eq).toHaveBeenCalledWith('dev_eui', 'DEV-001');
     expect(deviceBuilder.or).not.toHaveBeenCalled();
+  });
+
+  describe('findOne can_write_notes', () => {
+    function findOneAs(access: DeviceAccess) {
+      const deviceBuilder: Record<string, jest.Mock> = {};
+      for (const method of ['select', 'eq', 'lt', 'or', 'order']) {
+        deviceBuilder[method] = jest.fn(() => deviceBuilder);
+      }
+      deviceBuilder.single = jest.fn().mockResolvedValue({
+        data: { dev_eui: 'DEV-001', name: 'Greenhouse' },
+        error: null,
+      });
+      const accessService = createAccessMock();
+      accessService.getDeviceAccess.mockResolvedValue(access);
+      const deviceService = new DevicesService(
+        {
+          getClient: () => ({ from: () => deviceBuilder }),
+          getAdminClient: jest.fn(),
+        } as unknown as SupabaseService,
+        {} as LocationsService,
+        {} as PaymentsService,
+        accessService,
+      );
+      return deviceService
+        .findOne(
+          { sub: 'user-1', email: 'user@example.com', isStaff: false },
+          'DEV-001',
+        )
+        .then((device) => device.can_write_notes);
+    }
+
+    it.each([
+      ['an Admin', deviceAccess({ level: 1 }), true],
+      ['a Manager', deviceAccess({ level: 2 }), true],
+      ['a User', deviceAccess({ level: 3 }), true],
+      ['the owner', deviceAccess({ level: null, isOwner: true }), true],
+      [
+        'an org manager',
+        deviceAccess({ level: null, orgRole: 'manager' }),
+        true,
+      ],
+      ['a Viewer', deviceAccess({ level: 4 }), false],
+      [
+        'a parent org reader',
+        deviceAccess({ level: null, parentRead: true }),
+        false,
+      ],
+    ])('is %s → %s', async (_who, access, expected) => {
+      await expect(findOneAs(access)).resolves.toBe(expected);
+    });
   });
 
   describe('updateDevice location moves', () => {
@@ -1129,6 +1187,291 @@ describe('DevicesService', () => {
       await expect(
         service.findAllDevicesInLocation(staff, 7),
       ).rejects.toMatchObject({ status: 500 });
+    });
+  });
+
+  describe('air note authors in device data', () => {
+    const notes = [
+      { id: 1, created_by: 'farmer@example.com', title: 'Vent opened' },
+      { id: 2, created_by: 'kevin@cropwatch.io', title: 'QA check' },
+    ];
+
+    function createService() {
+      const from = jest.fn((table: string) => {
+        const builder: Record<string, jest.Mock> = {};
+        for (const method of [
+          'select',
+          'eq',
+          'or',
+          'lt',
+          'lte',
+          'gte',
+          'order',
+          'range',
+          'limit',
+        ]) {
+          builder[method] = jest.fn(() => builder);
+        }
+        const rows: Record<string, unknown> = {
+          cw_devices: { dev_eui: 'DEV-A', type: 7 },
+          cw_device_type: { id: 7, data_table_v2: 'cw_air_data' },
+        };
+        builder.single = jest.fn(() =>
+          Promise.resolve({ data: rows[table], error: null }),
+        );
+        builder.maybeSingle = builder.single;
+        (builder as Record<string, unknown>).then = (
+          resolve: (value: unknown) => unknown,
+        ) =>
+          resolve({
+            data: [{ id: 100, cw_air_annotations: notes }],
+            error: null,
+          });
+        return builder;
+      });
+      return new DevicesService(
+        {
+          getClient: () => ({ from }),
+          getAdminClient: jest.fn(),
+        } as unknown as SupabaseService,
+        {} as LocationsService,
+        {} as PaymentsService,
+        createAccessMock(),
+      );
+    }
+
+    const customer = {
+      sub: 'u-1',
+      email: 'farmer@example.com',
+      isStaff: false,
+    };
+    const staff = { sub: 'u-2', email: 'kevin@cropwatch.io', isStaff: true };
+    const authors = (result: { data: unknown[] }) =>
+      (
+        result.data[0] as {
+          cw_air_annotations: { created_by: string | null }[];
+        }
+      ).cw_air_annotations.map((note) => note.created_by);
+
+    it('hides staff authors from customers in the latest readings', async () => {
+      const result = await createService().findData(customer, 'DEV-A');
+      expect(authors(result)).toEqual(['farmer@example.com', null]);
+    });
+
+    it('hides staff authors from customers in a date range', async () => {
+      const result = await createService().findDataWithinRange(
+        customer,
+        'DEV-A',
+        '2026-10-01T00:00:00Z',
+        '2026-10-02T00:00:00Z',
+      );
+      expect(authors(result)).toEqual(['farmer@example.com', null]);
+    });
+
+    it('names staff authors to staff', async () => {
+      const result = await createService().findData(staff, 'DEV-A');
+      expect(authors(result)).toEqual([
+        'farmer@example.com',
+        'kevin@cropwatch.io',
+      ]);
+    });
+  });
+  describe('rule alerts on readings', () => {
+    const user = { sub: 'u-1', email: 'farmer@example.com', isStaff: false };
+    // Newest first, every 10 minutes: 11:27–12:07 in Tokyo.
+    const readings = ['03:07', '02:57', '02:47', '02:37', '02:27'].map(
+      (time) => ({ id: time, created_at: `2026-10-31T${time}:00+00:00` }),
+    );
+
+    function createService(options: {
+      rows?: unknown[];
+      triggers?: unknown[];
+      triggersError?: unknown;
+      nextReading?: unknown;
+    }) {
+      const calls: Record<string, Array<[string, unknown[]]>> = {};
+      const from = jest.fn((table: string) => {
+        const builder: Record<string, jest.Mock> = {};
+        for (const method of [
+          'select',
+          'eq',
+          'or',
+          'lt',
+          'lte',
+          'gt',
+          'gte',
+          'in',
+          'order',
+          'range',
+          'limit',
+        ]) {
+          builder[method] = jest.fn((...args: unknown[]) => {
+            (calls[table] ??= []).push([method, args]);
+            return builder;
+          });
+        }
+        const single: Record<string, unknown> = {
+          cw_devices: { dev_eui: 'DEV-A', type: 7 },
+          cw_device_type: { id: 7, data_table_v2: 'cw_air_data' },
+          cw_air_data: options.nextReading ?? null,
+        };
+        builder.single = jest.fn(() =>
+          Promise.resolve({ data: single[table], error: null }),
+        );
+        builder.maybeSingle = builder.single;
+        const lists: Record<string, { data: unknown; error: unknown }> = {
+          cw_air_data: { data: options.rows ?? readings, error: null },
+          cw_rule_trigger_log: {
+            data: options.triggers ?? [],
+            error: options.triggersError ?? null,
+          },
+          cw_rule_templates: {
+            data: [{ id: 30, name: 'Freezer too warm' }],
+            error: null,
+          },
+        };
+        (builder as Record<string, unknown>).then = (
+          resolve: (value: unknown) => unknown,
+        ) => resolve(lists[table]);
+        return builder;
+      });
+      const service = new DevicesService(
+        {
+          getClient: () => ({ from }),
+          getAdminClient: jest.fn(),
+        } as unknown as SupabaseService,
+        {} as LocationsService,
+        {} as PaymentsService,
+        createAccessMock(),
+      );
+      return { service, calls, from };
+    }
+
+    const range = (service: DevicesService) =>
+      service.findDataWithinRange(
+        user,
+        'DEV-A',
+        '2026-10-31T00:00:00Z',
+        '2026-10-31T04:00:00Z',
+      );
+
+    it('marks the readings an alarm covered, with the rule that raised it', async () => {
+      const { service, calls, from } = createService({
+        triggers: [
+          {
+            template_id: 30,
+            triggered_at: '2026-10-31T02:47:48.127+00:00',
+            reset_at: '2026-10-31T03:07:48.194+00:00',
+          },
+        ],
+      });
+
+      const result = await range(service);
+      const rows = result.data as Array<{
+        id: string;
+        alerts: Array<{ rule_name: string | null }>;
+      }>;
+
+      expect(
+        rows.map((row) => [row.id, row.alerts.map((a) => a.rule_name)]),
+      ).toEqual([
+        ['03:07', ['Freezer too warm']],
+        ['02:57', ['Freezer too warm']],
+        ['02:47', ['Freezer too warm']],
+        ['02:37', []],
+        ['02:27', []],
+      ]);
+      // Only this device's alarms that overlap the page are asked for.
+      expect(calls.cw_rule_trigger_log).toEqual(
+        expect.arrayContaining([
+          ['eq', ['dev_eui', 'DEV-A']],
+          ['lte', ['triggered_at', '2026-10-31T03:22:00.000Z']],
+          ['or', ['reset_at.is.null,reset_at.gte."2026-10-31T02:27:00.000Z"']],
+        ]),
+      );
+      expect(calls.cw_rule_templates).toContainEqual(['in', ['id', [30]]]);
+      // The old, never-written cw_air_alerts table is no longer embedded.
+      expect(calls.cw_air_data).toContainEqual([
+        'select',
+        ['*, cw_air_annotations(*)'],
+      ]);
+      // Every trigger began within the page: no next-reading lookup.
+      expect(
+        from.mock.calls.filter(([table]) => table === 'cw_air_data'),
+      ).toHaveLength(1);
+    });
+
+    it('looks up the next reading only for a trigger stamped after the newest one', async () => {
+      const { service, calls } = createService({
+        triggers: [
+          {
+            template_id: 30,
+            triggered_at: '2026-10-31T03:17:48+00:00',
+            reset_at: null,
+          },
+        ],
+        nextReading: { created_at: '2026-10-31T03:17:00+00:00' },
+      });
+
+      const result = await range(service);
+
+      // The 03:17 reading on the next page set it off, so nothing here is marked.
+      expect(
+        (result.data as Array<{ alerts: unknown[] }>).every(
+          (row) => row.alerts.length === 0,
+        ),
+      ).toBe(true);
+      expect(calls.cw_air_data).toEqual(
+        expect.arrayContaining([
+          ['gt', ['created_at', '2026-10-31T03:07:00.000Z']],
+          ['order', ['created_at', { ascending: true }]],
+        ]),
+      );
+    });
+
+    it('gives every reading an empty alert list when the device had no alarms', async () => {
+      const { service, calls } = createService({});
+
+      const result = await service.findData(user, 'DEV-A');
+
+      expect(
+        (result.data as Array<{ alerts: unknown[] }>).map((row) => row.alerts),
+      ).toEqual([[], [], [], [], []]);
+      expect(calls.cw_rule_templates).toBeUndefined();
+    });
+
+    it("still hides a staff note's author on a reading that carries alerts", async () => {
+      const { service } = createService({
+        rows: [
+          {
+            ...readings[0],
+            cw_air_annotations: [
+              { id: 1, created_by: 'kevin@cropwatch.io', title: 'QA check' },
+            ],
+          },
+        ],
+        triggers: [
+          {
+            template_id: 30,
+            triggered_at: '2026-10-31T03:07:40+00:00',
+            reset_at: null,
+          },
+        ],
+      });
+
+      const [row] = (await range(service)).data as Array<{
+        alerts: unknown[];
+        cw_air_annotations: Array<{ created_by: string | null }>;
+      }>;
+
+      expect(row.alerts).toHaveLength(1);
+      expect(row.cw_air_annotations[0].created_by).toBeNull();
+    });
+
+    it('fails when the alarms cannot be read', async () => {
+      const { service } = createService({ triggersError: { message: 'boom' } });
+
+      await expect(range(service)).rejects.toThrow('Failed to fetch alerts');
     });
   });
 });

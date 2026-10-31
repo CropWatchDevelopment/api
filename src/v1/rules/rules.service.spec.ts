@@ -256,6 +256,7 @@ describe('RulesService', () => {
         permissionLevel: 1,
         canView: true,
         canManage: true,
+        canWriteNotes: true,
       },
     ]);
     const templateQuery = buildQueryStub({
@@ -301,6 +302,7 @@ describe('RulesService', () => {
         permissionLevel: 1,
         canView: true,
         canManage: true,
+        canWriteNotes: true,
       },
       {
         devEui: 'BB',
@@ -309,6 +311,7 @@ describe('RulesService', () => {
         permissionLevel: 5,
         canView: false,
         canManage: false,
+        canWriteNotes: false,
       },
     ];
 
@@ -494,6 +497,7 @@ describe('RulesService', () => {
         permissionLevel: 1,
         canView: true,
         canManage: true,
+        canWriteNotes: true,
       }));
 
     const templateRow = {
@@ -661,6 +665,289 @@ describe('RulesService', () => {
         method: 'eq',
         args: ['id', 1],
       });
+    });
+  });
+
+  describe('staff recipients', () => {
+    const customer = {
+      sub: 'farmer-1',
+      email: 'farmer@example.com',
+      isStaff: false,
+    };
+    const staff = {
+      sub: 'staff-1',
+      email: 'kevin@cropwatch.io',
+      isStaff: true,
+    };
+
+    const emailType = { id: 1, name: 'EMail' };
+    const pushType = { id: 3, name: 'Push' };
+    const relayType = { id: 4, name: 'LoRaWAN' };
+    const action = (
+      id: number,
+      type: { id: number; name: string },
+      recipient: string,
+    ) => ({
+      id,
+      template_id: 1,
+      action_type: type.id,
+      config: { recipient },
+      created_at: null,
+      // PostgREST may embed the join as an object or a one-element array.
+      cw_rule_action_types: id % 2 === 0 ? [type] : type,
+    });
+    const actionRows = [
+      action(11, emailType, 'farmer@example.com, kevin@cropwatch.io'),
+      action(12, emailType, 'sayaka@cropwatch.io'),
+      action(
+        13,
+        pushType,
+        JSON.stringify({ userIds: ['farmer-1', 'staff-1'] }),
+      ),
+      action(14, relayType, '{"relay":1,"state":"on"}'),
+    ];
+    const profileRows = [
+      { id: 'farmer-1', email: 'farmer@example.com' },
+      { id: 'staff-1', email: 'kevin@cropwatch.io' },
+    ];
+
+    const buildStaffClient = (withProfiles = true) => {
+      const actions = buildQueryStub({
+        list: { data: actionRows, error: null },
+      });
+      const profiles = buildQueryStub({
+        list: { data: profileRows, error: null },
+      });
+      const templateRow = {
+        id: 1,
+        name: 'Freezer temp',
+        description: null,
+        device_type_id: null,
+        is_active: true,
+        created_at: null,
+      };
+      const client = buildClient({
+        cw_rule_templates: buildQueryStub({
+          list: { data: [templateRow], error: null },
+          maybeSingle: { data: templateRow, error: null },
+        }),
+        cw_device_rule_assignments: buildQueryStub({
+          list: {
+            data: [
+              {
+                id: 1,
+                dev_eui: 'AA',
+                template_id: 1,
+                is_active: true,
+                created_at: null,
+              },
+            ],
+            error: null,
+          },
+        }),
+        cw_rule_template_criteria: buildQueryStub({}),
+        cw_rule_template_actions: actions,
+        cw_rule_state: buildQueryStub({}),
+        cw_rule_trigger_log: buildQueryStub({}),
+        ...(withProfiles ? { profiles } : {}),
+      });
+      const accessService = buildAccessService([
+        {
+          devEui: 'AA',
+          orgId: null,
+          name: 'Device A',
+          permissionLevel: 1,
+          canView: true,
+          canManage: true,
+          canWriteNotes: true,
+        },
+      ]);
+      return { client, actions, profiles, accessService };
+    };
+
+    const savePayload = (
+      actions: Array<{
+        id?: number | null;
+        actionType: number;
+        config: { recipient: string };
+      }>,
+    ) => ({
+      name: 'Freezer temp',
+      devEuis: ['AA'],
+      criteria: [
+        {
+          subject: 'temperature_c',
+          operator: '>=',
+          triggerValue: -15,
+          resetValue: -18,
+        },
+      ],
+      actions,
+    });
+
+    it('are hidden from customers, and an action only for staff is left out', async () => {
+      const { client, profiles, accessService } = buildStaffClient();
+      const service = serviceWith(client, accessService);
+
+      const rule = await service.findOne(1, customer);
+
+      expect(rule.actions.map((entry) => [entry.id, entry.config])).toEqual([
+        [11, { recipient: 'farmer@example.com' }],
+        [13, { recipient: '{"userIds":["farmer-1"]}' }],
+        [14, { recipient: '{"relay":1,"state":"on"}' }],
+      ]);
+      expect(profiles.in).toHaveBeenCalledWith('id', ['farmer-1', 'staff-1']);
+    });
+
+    it('are hidden from the rules list as well', async () => {
+      const { client, accessService } = buildStaffClient();
+      const service = serviceWith(client, accessService);
+
+      const [rule] = await service.findAll(customer);
+
+      expect(rule.actions.map((entry) => entry.id)).toEqual([11, 13, 14]);
+      expect(JSON.stringify(rule)).not.toContain('cropwatch.io');
+      expect(JSON.stringify(rule)).not.toContain('staff-1');
+    });
+
+    it('are all shown to staff, without a profile lookup', async () => {
+      const { client, accessService } = buildStaffClient(false);
+      const service = serviceWith(client, accessService);
+
+      const rule = await service.findOne(1, staff);
+
+      expect(rule.actions.map((entry) => entry.config)).toEqual(
+        actionRows.map((row) => row.config),
+      );
+    });
+
+    it('fail loudly when the recipient profiles cannot be read', async () => {
+      const { client, accessService } = buildStaffClient(false);
+      const failing = buildClient({
+        profiles: buildQueryStub({
+          list: { data: null, error: { message: 'boom' } },
+        }),
+      });
+      const from = client.from;
+      client.from = jest.fn((table: string) =>
+        table === 'profiles' ? failing.from(table) : from(table),
+      );
+      const service = serviceWith(client, accessService);
+
+      await expect(service.findOne(1, customer)).rejects.toBeInstanceOf(
+        InternalServerErrorException,
+      );
+    });
+
+    it('are kept when a customer saves the rule', async () => {
+      const { client, actions, accessService } = buildStaffClient();
+      const service = serviceWith(client, accessService);
+
+      // The customer edited the email list, emptied the push recipients,
+      // dropped the relay action and never saw action 12.
+      await service.update(
+        1,
+        savePayload([
+          {
+            id: 11,
+            actionType: 1,
+            config: { recipient: 'farmer@example.com, new@example.com' },
+          },
+          {
+            id: 13,
+            actionType: 3,
+            config: { recipient: JSON.stringify({ userIds: [] }) },
+          },
+        ]),
+        customer,
+      );
+
+      expect(actions.insert).toHaveBeenCalledWith([
+        {
+          template_id: 1,
+          action_type: 1,
+          config: {
+            recipient:
+              'farmer@example.com, new@example.com, kevin@cropwatch.io',
+          },
+        },
+        {
+          template_id: 1,
+          action_type: 3,
+          config: { recipient: '{"userIds":["staff-1"]}' },
+        },
+        {
+          template_id: 1,
+          action_type: 1,
+          config: { recipient: 'sayaka@cropwatch.io' },
+        },
+      ]);
+    });
+
+    it('get an action of their own when the customer removes or retypes theirs', async () => {
+      const { client, actions, accessService } = buildStaffClient();
+      const service = serviceWith(client, accessService);
+
+      // Action 11 turned into a push action; action 13 was deleted.
+      await service.update(
+        1,
+        savePayload([
+          {
+            id: 11,
+            actionType: 3,
+            config: { recipient: JSON.stringify({ userIds: ['farmer-1'] }) },
+          },
+        ]),
+        customer,
+      );
+
+      expect(actions.insert).toHaveBeenCalledWith([
+        {
+          template_id: 1,
+          action_type: 3,
+          config: { recipient: '{"userIds":["farmer-1"]}' },
+        },
+        {
+          template_id: 1,
+          action_type: 1,
+          config: { recipient: 'kevin@cropwatch.io' },
+        },
+        {
+          template_id: 1,
+          action_type: 1,
+          config: { recipient: 'sayaka@cropwatch.io' },
+        },
+        {
+          template_id: 1,
+          action_type: 3,
+          config: { recipient: '{"userIds":["staff-1"]}' },
+        },
+      ]);
+    });
+
+    it('are saved as sent when staff save the rule', async () => {
+      const { client, actions, accessService } = buildStaffClient(false);
+      const service = serviceWith(client, accessService);
+
+      await service.update(
+        1,
+        savePayload([
+          {
+            id: 11,
+            actionType: 1,
+            config: { recipient: 'farmer@example.com' },
+          },
+        ]),
+        staff,
+      );
+
+      expect(actions.insert).toHaveBeenCalledWith([
+        {
+          template_id: 1,
+          action_type: 1,
+          config: { recipient: 'farmer@example.com' },
+        },
+      ]);
     });
   });
 });

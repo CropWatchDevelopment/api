@@ -209,7 +209,7 @@ describe('AccessService', () => {
   });
 
   describe('listAccessibleDevices', () => {
-    it('scopes the query for non-staff and computes canView/canManage', async () => {
+    it('scopes the query for non-staff and computes canView/canManage/canWriteNotes', async () => {
       const builder = createBuilder({
         data: [
           {
@@ -223,6 +223,18 @@ describe('AccessService', () => {
             name: 'Managed',
             user_id: 'someone-else',
             owner_match: [{ user_id: 'user-1', permission_level: 2 }],
+          },
+          {
+            dev_eui: 'NOTES',
+            name: 'Notes',
+            user_id: 'someone-else',
+            owner_match: [{ user_id: 'user-1', permission_level: 3 }],
+          },
+          {
+            dev_eui: 'VIEWED',
+            name: 'Viewed',
+            user_id: 'someone-else',
+            owner_match: [{ user_id: 'user-1', permission_level: 4 }],
           },
           {
             dev_eui: 'HIDDEN',
@@ -243,6 +255,7 @@ describe('AccessService', () => {
           permissionLevel: 1,
           canView: true,
           canManage: true,
+          canWriteNotes: true,
         },
         {
           devEui: 'MANAGED',
@@ -250,6 +263,23 @@ describe('AccessService', () => {
           permissionLevel: 2,
           canView: true,
           canManage: true,
+          canWriteNotes: true,
+        },
+        {
+          devEui: 'NOTES',
+          name: 'Notes',
+          permissionLevel: 3,
+          canView: true,
+          canManage: false,
+          canWriteNotes: true,
+        },
+        {
+          devEui: 'VIEWED',
+          name: 'Viewed',
+          permissionLevel: 4,
+          canView: true,
+          canManage: false,
+          canWriteNotes: false,
         },
         {
           devEui: 'HIDDEN',
@@ -257,6 +287,7 @@ describe('AccessService', () => {
           permissionLevel: 5,
           canView: false,
           canManage: false,
+          canWriteNotes: false,
         },
       ]);
       // Scoped to the caller — not the old full-table scan.

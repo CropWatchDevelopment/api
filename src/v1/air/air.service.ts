@@ -8,6 +8,7 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { BaseDataService } from '../common/base-data.service';
 import { AccessService, Action } from '../common/authz';
+import { hideStaffAuthor } from '../common/staff-redaction.helper';
 import { CreateAirAnnotationDto } from './dto/create-air-annotation.dto';
 import { UpdateAirAnnotationDto } from './dto/update-air-annotation.dto';
 import type { TableRow } from '../types/supabase';
@@ -32,7 +33,7 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     month: string,
     year: string,
     user: AuthenticatedUser,
-  ): Promise<AirAnnotationRow[]> {
+  ) {
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
       throw new BadRequestException('dev_eui is required');
@@ -66,7 +67,9 @@ export class AirService extends BaseDataService<'cw_air_data'> {
     if (error) {
       throw new InternalServerErrorException('Failed to fetch air annotations');
     }
-    return (data ?? []) as AirAnnotationRow[];
+    return ((data ?? []) as AirAnnotationRow[]).map((note) =>
+      hideStaffAuthor(note, user.isStaff),
+    );
   }
 
   async createNote(
@@ -99,11 +102,11 @@ export class AirService extends BaseDataService<'cw_air_data'> {
       .select('*')
       .single()) as QueryResult<AirAnnotationRow>;
 
-    if (error) {
+    if (error || !data) {
       throw new BadRequestException('Failed to create air annotation');
     }
 
-    return data;
+    return hideStaffAuthor(data, user.isStaff);
   }
 
   async updateNote(
@@ -157,11 +160,11 @@ export class AirService extends BaseDataService<'cw_air_data'> {
       .select('*')
       .single()) as QueryResult<AirAnnotationRow>;
 
-    if (updateError) {
+    if (updateError || !data) {
       throw new BadRequestException('Failed to update air annotation');
     }
 
-    return data;
+    return hideStaffAuthor(data, user.isStaff);
   }
 
   async deleteNote(noteId: number, user: AuthenticatedUser) {

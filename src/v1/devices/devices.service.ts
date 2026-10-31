@@ -13,6 +13,12 @@ import type { TableRow } from '../types/supabase';
 import { LocationsService } from '../locations/locations.service';
 import { PaymentsService } from '../payments/payments.service';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
+import { hideStaffAuthorsInRows } from '../common/staff-redaction.helper';
+import {
+  TRIGGER_LAG_MS,
+  attachReadingAlerts,
+  type TriggerLogEntry,
+} from './reading-alerts';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { PermissionLevel } from '../common/permission-levels';
 import {
@@ -23,6 +29,7 @@ import {
   applyDeviceReadScope,
   applyLocationManageScope,
   assertCanGrant,
+  decide,
 } from '../common/authz';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 
@@ -192,7 +199,7 @@ export class DevicesService {
   async findOne(
     user: AuthenticatedUser,
     devEui: string,
-  ): Promise<DeviceRecord> {
+  ): Promise<DeviceRecord & { can_write_notes: boolean }> {
     const client = this.supabaseService.getClient();
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
@@ -230,7 +237,16 @@ export class DevicesService {
       throw new NotFoundException('Device not found');
     }
 
-    return data;
+    // The same NoteWrite decision the notes endpoints enforce, so the app
+    // only offers adding notes where it works.
+    const access = await this.accessService.getDeviceAccess(
+      user,
+      normalizedDevEui,
+    );
+    return {
+      ...data,
+      can_write_notes: access.canRead && decide(access, Action.NoteWrite),
+    };
   }
 
   public async findAllStatus(
@@ -443,9 +459,7 @@ export class DevicesService {
     }
 
     const getAnnotations =
-      dataTable === 'cw_air_data'
-        ? '*, cw_air_annotations(*), cw_air_alerts(*)'
-        : '*';
+      dataTable === 'cw_air_data' ? '*, cw_air_annotations(*)' : '*';
     this.logger.debug(
       `findData: querying table=${dataTable}, select=${getAnnotations}, range=${skip}-${skip + take - 1}`,
     );
@@ -479,7 +493,10 @@ export class DevicesService {
     return {
       skip,
       take,
-      data: latestData,
+      data: hideStaffAuthorsInRows(
+        await this.withReadingAlerts(dataTable, normalizedDevEui, latestData),
+        user.isStaff,
+      ),
     };
   }
 
@@ -542,11 +559,11 @@ export class DevicesService {
     const startDate = new Date(start).toISOString();
     const endDate = new Date(end).toISOString();
 
-    // Air rows carry their annotations/alerts, same as findData: the report
+    // Air rows carry their annotations, same as findData: the report
     // note-editing page reads notes from this endpoint's rows.
     const withAnnotations =
       deviceType.data_table_v2 === 'cw_air_data'
-        ? '*, cw_air_annotations(*), cw_air_alerts(*)'
+        ? '*, cw_air_annotations(*)'
         : '*';
 
     const { data: latestData, error: dataError } = (await client
@@ -569,8 +586,85 @@ export class DevicesService {
     return {
       skip,
       take,
-      data: latestData,
+      data: hideStaffAuthorsInRows(
+        await this.withReadingAlerts(
+          deviceType.data_table_v2,
+          normalizedDevEui,
+          latestData,
+        ),
+        user.isStaff,
+      ),
     };
+  }
+
+  /**
+   * One page of readings, each with the rule alarms the device was in at
+   * that reading (`alerts`), from the alert service's trigger log.
+   */
+  private async withReadingAlerts(
+    dataTable: string,
+    devEui: string,
+    rows: SensorDataRow[],
+  ) {
+    const times = rows
+      .map((row) => Date.parse(String(row.created_at)))
+      .filter(Number.isFinite);
+    if (times.length === 0) return attachReadingAlerts(rows, [], new Map());
+    const oldest = new Date(Math.min(...times)).toISOString();
+    const newest = Math.max(...times);
+
+    const client = this.supabaseService.getClient();
+    // Alarms still open, or cleared no earlier than the oldest reading, that
+    // began by the newest one (allowing for the trigger's processing lag).
+    const { data, error } = (await client
+      .from('cw_rule_trigger_log')
+      .select('template_id, triggered_at, reset_at')
+      .eq('dev_eui', devEui)
+      .lte('triggered_at', new Date(newest + TRIGGER_LAG_MS).toISOString())
+      .or(
+        `reset_at.is.null,reset_at.gte."${oldest}"`,
+      )) as ListResult<TriggerLogEntry>;
+    if (error) {
+      throw new InternalServerErrorException('Failed to fetch alerts');
+    }
+    const triggers = data ?? [];
+    if (triggers.length === 0) return attachReadingAlerts(rows, [], new Map());
+
+    const templateIds = [...new Set(triggers.map((t) => t.template_id))];
+    const stampedAfterNewest = triggers.some(
+      (t) => Date.parse(t.triggered_at) > newest,
+    );
+    const [templatesResult, nextResult] = await Promise.all([
+      client.from('cw_rule_templates').select('id, name').in('id', templateIds),
+      // A trigger stamped after the newest row may belong to the next
+      // reading, which is not on this page.
+      stampedAfterNewest
+        ? client
+            .from(dataTable)
+            .select('created_at')
+            .eq('dev_eui', devEui)
+            .gt('created_at', new Date(newest).toISOString())
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+    if (templatesResult.error || nextResult.error) {
+      throw new InternalServerErrorException('Failed to fetch alerts');
+    }
+
+    const ruleNames = new Map(
+      ((templatesResult.data ?? []) as { id: number; name: string }[]).map(
+        (template) => [template.id, template.name],
+      ),
+    );
+    const next = nextResult.data as { created_at?: string } | null;
+    return attachReadingAlerts(
+      rows,
+      triggers,
+      ruleNames,
+      next?.created_at ?? null,
+    );
   }
 
   public async findAllLatestData(

@@ -293,3 +293,274 @@ describe('ReportsService.requestRegeneration', () => {
     expect(result.id).toBe(3);
   });
 });
+
+describe('ReportsService staff recipients', () => {
+  const CUSTOMER = {
+    email: 'farmer@example.com',
+    isStaff: false,
+    sub: 'farmer-1',
+  };
+  const STAFF = { email: 'kevin@cropwatch.io', isStaff: true, sub: 'staff-1' };
+
+  const recipient = (
+    id: number,
+    email: string,
+    name: string | null = null,
+  ) => ({
+    id,
+    template_id: 42,
+    communication_method: 1,
+    email,
+    name,
+    created_at: '2026-10-01T00:00:00Z',
+  });
+  const recipientRows = [
+    recipient(1, 'farmer@example.com', 'Farmer'),
+    recipient(2, 'Sayaka@CropWatch.io', 'Sayaka'),
+    recipient(3, 'kevin@cropwatch.io'),
+  ];
+
+  // Every query in a chain resolves to the table's rows (or its one row for
+  // maybeSingle); inserts are recorded on the stub.
+  function tableStub(rows: unknown[] = [], row: unknown = null) {
+    const chain: Record<string, unknown> = {};
+    for (const method of ['select', 'eq', 'in', 'update', 'delete', 'insert']) {
+      chain[method] = jest.fn(() => chain);
+    }
+    chain.maybeSingle = jest.fn().mockResolvedValue({ data: row, error: null });
+    chain.then = (resolve: (value: unknown) => unknown) =>
+      resolve({ data: rows, error: null });
+    return chain as Record<string, jest.Mock>;
+  }
+
+  function serviceFor() {
+    const recipients = tableStub(recipientRows);
+    const templateRow = {
+      id: 42,
+      name: 'Weekly',
+      description: null,
+      data_pull_interval: 30,
+      device_type_id: null,
+      is_active: true,
+      created_at: '2026-10-01T00:00:00Z',
+    };
+    const tables: Record<string, Record<string, jest.Mock>> = {
+      cw_report_templates: tableStub([templateRow], templateRow),
+      cw_device_report_assignments: tableStub([
+        {
+          id: 1,
+          template_id: 42,
+          dev_eui: DEV_EUI,
+          is_active: true,
+          created_at: null,
+        },
+      ]),
+      cw_report_template_schedule: tableStub(),
+      cw_report_template_recipients: recipients,
+      cw_report_template_alert_points: tableStub(),
+      cw_report_template_data_processing_schedules: tableStub(),
+    };
+    const client = {
+      from: jest.fn((table: string) => {
+        if (tables[table]) return tables[table];
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+    const service = new ReportsService(
+      { getClient: jest.fn(() => client) } as unknown as SupabaseService,
+      {} as DevicesService,
+      {} as LocationsService,
+      {
+        hasReportingEntitlement: jest.fn().mockResolvedValue(true),
+      } as unknown as PaymentsService,
+      {
+        assertDevicesManageable: jest.fn().mockResolvedValue(undefined),
+        listAccessibleDevices: jest.fn().mockResolvedValue([
+          {
+            devEui: DEV_EUI,
+            orgId: null,
+            name: 'Device',
+            permissionLevel: 1,
+            canView: true,
+            canManage: true,
+          },
+        ]),
+      } as unknown as AccessService,
+    );
+    return { service, recipients };
+  }
+
+  const savePayload = (recipients: { email: string; name?: string }[]) => ({
+    name: 'Weekly',
+    dataPullInterval: 30,
+    devEuis: [DEV_EUI],
+    recipients: recipients.map((entry) => ({
+      communicationMethod: 1,
+      ...entry,
+    })),
+  });
+
+  it('are hidden from customers', async () => {
+    const { service } = serviceFor();
+
+    const report = await service.findOne(42, CUSTOMER);
+
+    expect(report.recipients.map((entry) => entry.email)).toEqual([
+      'farmer@example.com',
+    ]);
+  });
+
+  it('are hidden from the reports list as well', async () => {
+    const { service } = serviceFor();
+
+    const [report] = await service.findAll(CUSTOMER);
+
+    expect(report.recipients.map((entry) => entry.email)).toEqual([
+      'farmer@example.com',
+    ]);
+  });
+
+  it('are shown to staff', async () => {
+    const { service } = serviceFor();
+
+    const report = await service.findOne(42, STAFF);
+
+    expect(report.recipients.map((entry) => entry.email)).toEqual([
+      'farmer@example.com',
+      'Sayaka@CropWatch.io',
+      'kevin@cropwatch.io',
+    ]);
+  });
+
+  it('are kept when a customer saves the report', async () => {
+    const { service, recipients } = serviceFor();
+
+    // Retyping a staff address does not add it twice.
+    await service.update(
+      42,
+      savePayload([
+        { email: 'new@example.com' },
+        { email: 'KEVIN@cropwatch.io' },
+      ]),
+      CUSTOMER,
+    );
+
+    expect(recipients.insert).toHaveBeenCalledWith([
+      {
+        template_id: 42,
+        communication_method: 1,
+        email: 'new@example.com',
+        name: null,
+      },
+      {
+        template_id: 42,
+        communication_method: 1,
+        email: 'KEVIN@cropwatch.io',
+        name: null,
+      },
+      {
+        template_id: 42,
+        communication_method: 1,
+        email: 'Sayaka@CropWatch.io',
+        name: 'Sayaka',
+      },
+    ]);
+  });
+
+  it('are saved as sent when staff save the report', async () => {
+    const { service, recipients } = serviceFor();
+
+    await service.update(
+      42,
+      savePayload([{ email: 'farmer@example.com' }]),
+      STAFF,
+    );
+
+    expect(recipients.insert).toHaveBeenCalledWith([
+      {
+        template_id: 42,
+        communication_method: 1,
+        email: 'farmer@example.com',
+        name: null,
+      },
+    ]);
+  });
+});
+
+describe('ReportsService assignment canManage', () => {
+  // Every query in a chain resolves to the table's rows (or its one row for
+  // maybeSingle).
+  function tableStub(rows: unknown[] = [], row: unknown = null) {
+    const chain: Record<string, unknown> = {};
+    for (const method of ['select', 'eq', 'in']) {
+      chain[method] = jest.fn(() => chain);
+    }
+    chain.maybeSingle = jest.fn().mockResolvedValue({ data: row, error: null });
+    chain.then = (resolve: (value: unknown) => unknown) =>
+      resolve({ data: rows, error: null });
+    return chain;
+  }
+
+  it("tells the app which devices the caller may edit the report's notes for", async () => {
+    const assignment = (id: number, devEui: string) => ({
+      id,
+      template_id: 42,
+      dev_eui: devEui,
+      is_active: true,
+      created_at: null,
+    });
+    const tables: Record<string, unknown> = {
+      cw_report_templates: tableStub([], {
+        id: 42,
+        name: 'Weekly',
+        description: null,
+        data_pull_interval: 30,
+        device_type_id: null,
+        is_active: true,
+        created_at: '2026-10-01T00:00:00Z',
+      }),
+      cw_device_report_assignments: tableStub([
+        assignment(1, 'MANAGED'),
+        assignment(2, 'VIEWED'),
+      ]),
+      cw_report_template_schedule: tableStub(),
+      cw_report_template_recipients: tableStub(),
+      cw_report_template_alert_points: tableStub(),
+      cw_report_template_data_processing_schedules: tableStub(),
+    };
+    const accessible = (devEui: string, canManage: boolean) => ({
+      devEui,
+      orgId: null,
+      name: devEui,
+      permissionLevel: canManage ? 2 : 4,
+      canView: true,
+      canManage,
+      canWriteNotes: canManage,
+    });
+    const service = new ReportsService(
+      {
+        getClient: () => ({ from: (table: string) => tables[table] }),
+      } as unknown as SupabaseService,
+      {} as DevicesService,
+      {} as LocationsService,
+      {} as PaymentsService,
+      {
+        listAccessibleDevices: jest
+          .fn()
+          .mockResolvedValue([
+            accessible('MANAGED', true),
+            accessible('VIEWED', false),
+          ]),
+      } as unknown as AccessService,
+    );
+
+    const report = await service.findOne(42, USER);
+
+    expect(
+      report.assignments.map((entry) => [entry.devEui, entry.canManage]),
+    ).toEqual([
+      ['MANAGED', true],
+      ['VIEWED', false],
+    ]);
+  });
+});
