@@ -36,6 +36,30 @@ describe('UserThrottlerGuard.getTracker', () => {
     ).resolves.toBe(`user:${sha256('tok-a')}`);
   });
 
+  it('keys on the token passport-jwt reads, ignoring anything after it', async () => {
+    // passport-jwt authenticates the first non-space run after the scheme, so
+    // a suffix must not move the request into a fresh bucket.
+    const junk1 = await track({
+      headers: { authorization: 'Bearer tok-a x1' },
+    });
+    const junk2 = await track({
+      headers: { authorization: 'Bearer tok-a x2' },
+    });
+    expect(junk1).toBe(`user:${sha256('tok-a')}`);
+    expect(junk2).toBe(junk1);
+  });
+
+  it('parses a long run of spaces in linear time', async () => {
+    // CodeQL js/polynomial-redos: the old /^Bearer\s+(.+)$/i took ~7 s on
+    // this; the bound leaves a wide margin either way.
+    const authorization = `Bearer${' '.repeat(100_000)}a\nb`;
+    const started = performance.now();
+    await expect(track({ headers: { authorization } })).resolves.toBe(
+      `user:${sha256('a')}`,
+    );
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
   it('falls back to the client IP when there is no bearer token', async () => {
     await expect(track({ headers: {}, ip: '203.0.113.7' })).resolves.toBe(
       'ip:203.0.113.7',
