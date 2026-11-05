@@ -24,4 +24,94 @@ ignore:
           input. Not in the production dependency tree.
         expires: 2027-01-14T00:00:00.000Z
         created: 2026-10-14T04:10:19.229Z
+  SNYK-JS-MINIMATCH-22111072:
+    - '@eslint/eslintrc > *':
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - '@nestjs/cli > *':
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - eslint > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - eslint-config-prettier > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - eslint-plugin-prettier > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - jest > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - ts-jest > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - typescript-eslint > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+  SNYK-JS-GLOB-22112102:
+    - '@nestjs/cli > *':
+        reason: >-
+          Only glob 14.0.2 is fixed, a breaking major that the Nest CLI
+          (13.x, even in 11.0.24) and Jest (10.x) don't accept. Dev-only, and
+          the flaw needs a caller that cancels a walk with an AbortSignal;
+          neither tool passes one, so the abort path never runs.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T17:27:30.000Z
+    - jest > *:
+        reason: >-
+          Only glob 14.0.2 is fixed, a breaking major that the Nest CLI
+          (13.x, even in 11.0.24) and Jest (10.x) don't accept. Dev-only, and
+          the flaw needs a caller that cancels a walk with an AbortSignal;
+          neither tool passes one, so the abort path never runs.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T17:27:30.000Z
+    - ts-jest > *:
+        reason: >-
+          Only glob 14.0.2 is fixed, a breaking major that the Nest CLI
+          (13.x, even in 11.0.24) and Jest (10.x) don't accept. Dev-only, and
+          the flaw needs a caller that cancels a walk with an AbortSignal;
+          neither tool passes one, so the abort path never runs.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T17:27:30.000Z
 patch: {}
