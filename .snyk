@@ -24,4 +24,69 @@ ignore:
           input. Not in the production dependency tree.
         expires: 2027-01-14T00:00:00.000Z
         created: 2026-10-14T04:10:19.229Z
+  SNYK-JS-MINIMATCH-22111072:
+    - '@eslint/eslintrc > *':
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - '@nestjs/cli > *':
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - eslint > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - eslint-config-prettier > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - eslint-plugin-prettier > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - jest > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - ts-jest > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
+    - typescript-eslint > *:
+        reason: >-
+          No fix short of minimatch 11, which none of these tools
+          accept. Dev-only: ESLint, typescript-eslint, Jest and the Nest
+          CLI match our own config and repo globs, never user input.
+          Not in the production dependency tree.
+        expires: 2027-01-14T00:00:00.000Z
+        created: 2026-11-05T14:57:00.000Z
 patch: {}
