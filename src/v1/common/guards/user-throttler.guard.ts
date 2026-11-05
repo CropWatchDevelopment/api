@@ -29,7 +29,11 @@ export class UserThrottlerGuard extends ThrottlerGuard {
   protected getTracker(req: Request): Promise<string> {
     const authHeader = req.headers.authorization;
     if (typeof authHeader === 'string') {
-      const match = /^Bearer\s+(.+)$/i.exec(authHeader.trim());
+      // The token is the first run of non-space characters after the scheme:
+      // the same token passport-jwt authenticates, so trailing junk can't open
+      // a fresh bucket for it. `\s` and `\S` never overlap, so this is linear;
+      // the old `\s+(.+)$` was quadratic on long runs of spaces.
+      const match = /^Bearer\s+(\S+)/i.exec(authHeader.trim());
       if (match) {
         const digest = createHash('sha256').update(match[1]).digest('hex');
         return Promise.resolve(`user:${digest}`);
