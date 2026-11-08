@@ -25,6 +25,8 @@ import { LineController } from '../line/line.controller';
 import { LineService } from '../line/line.service';
 import { CropsController } from '../crops/crops.controller';
 import { CropsService } from '../crops/crops.service';
+import { AiRecommendationsController } from '../ai-recommendations/ai-recommendations.controller';
+import { AiRecommendationsService } from '../ai-recommendations/ai-recommendations.service';
 
 type MockedMethods = Record<string, jest.Mock>;
 type ServiceRegistry = Record<string, MockedMethods>;
@@ -340,6 +342,7 @@ describe('V1 Route Input Contracts', () => {
     serviceRegistry = {
       air: createMockedMethods(['createNote', 'findOne']),
       crops: createMockedMethods(['findAll', 'findOne']),
+      aiRecommendations: createMockedMethods(['findForDevice']),
       auth: createMockedMethods([
         'loginWithPassword',
         'acceptLegal',
@@ -393,6 +396,7 @@ describe('V1 Route Input Contracts', () => {
         WaterController,
         LineController,
         CropsController,
+        AiRecommendationsController,
       ],
       providers: [
         { provide: AirService, useValue: serviceRegistry.air },
@@ -404,6 +408,10 @@ describe('V1 Route Input Contracts', () => {
         { provide: WaterService, useValue: serviceRegistry.water },
         { provide: LineService, useValue: serviceRegistry.line },
         { provide: CropsService, useValue: serviceRegistry.crops },
+        {
+          provide: AiRecommendationsService,
+          useValue: serviceRegistry.aiRecommendations,
+        },
       ],
     });
 
@@ -763,6 +771,30 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
+        args: [MOCK_USER, 'DEV-001', 'daily', 1],
+        method: 'findForDevice',
+        service: 'aiRecommendations',
+      },
+      expectedStatus: 200,
+      method: 'get',
+      name: 'GET /v1/devices/:dev_eui/ai-recommendations defaults to the latest daily report',
+      url: '/v1/devices/DEV-001/ai-recommendations',
+    },
+    {
+      auth: true,
+      expectedCall: {
+        args: [MOCK_USER, 'DEV-001', 'weekly', 4],
+        method: 'findForDevice',
+        service: 'aiRecommendations',
+      },
+      expectedStatus: 200,
+      method: 'get',
+      name: 'GET /v1/devices/:dev_eui/ai-recommendations parses type and limit',
+      url: '/v1/devices/DEV-001/ai-recommendations?type=weekly&limit=4',
+    },
+    {
+      auth: true,
+      expectedCall: {
         args: [{ name: 'North Field' }, MOCK_USER],
         method: 'create',
         service: 'locations',
@@ -1007,6 +1039,22 @@ describe('V1 Route Input Contracts', () => {
   ];
 
   const rejectionCases: RejectionCase[] = [
+    {
+      auth: true,
+      expectedMessage: 'type must be daily or weekly',
+      expectedStatus: 400,
+      method: 'get',
+      name: 'GET /v1/devices/:dev_eui/ai-recommendations rejects an unknown type',
+      url: '/v1/devices/DEV-001/ai-recommendations?type=monthly',
+    },
+    {
+      auth: true,
+      expectedMessage: 'limit must be an integer from 1 to 31',
+      expectedStatus: 400,
+      method: 'get',
+      name: 'GET /v1/devices/:dev_eui/ai-recommendations rejects a limit out of range',
+      url: '/v1/devices/DEV-001/ai-recommendations?limit=0',
+    },
     {
       expectedMessage: 'Missing webhook body',
       expectedStatus: 400,

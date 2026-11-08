@@ -27,6 +27,7 @@ import { AccountRemovalModule } from './v1/account-removal/account-removal.modul
 import { CropwatchMcpModule } from './v1/mcp/mcp.module';
 import { OrganizationsModule } from './v1/organizations/organizations.module';
 import { CropsModule } from './v1/crops/crops.module';
+import { AiRecommendationsModule } from './v1/ai-recommendations/ai-recommendations.module';
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { CropsModule } from './v1/crops/crops.module';
     AccountRemovalModule,
     CropwatchMcpModule,
     CropsModule,
+    AiRecommendationsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: UserThrottlerGuard }],
