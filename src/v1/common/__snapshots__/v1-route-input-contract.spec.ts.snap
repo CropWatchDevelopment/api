@@ -271,6 +271,11 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
       },
       "UpdateDeviceNameGroupLocalDto": {
         "properties": {
+          "crop_type_id": {
+            "example": 3,
+            "nullable": true,
+            "type": "number",
+          },
           "group": {
             "example": "New Device Group",
             "type": "string",
@@ -806,6 +811,23 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
     },
     "/v1/auth/whats-new/seen": {
       "post": {},
+    },
+    "/v1/crops": {
+      "get": {},
+    },
+    "/v1/crops/{id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+      },
     },
     "/v1/devices": {
       "get": {

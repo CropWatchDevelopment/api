@@ -590,6 +590,7 @@ export class DevicesController {
       body.name,
       body.group ?? null,
       body.location_id,
+      body.crop_type_id,
     );
   }
 }

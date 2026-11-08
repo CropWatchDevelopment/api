@@ -263,6 +263,101 @@ export type Database = {
         }
         Relationships: []
       }
+      cw_crop_targets: {
+        Row: {
+          created_at: string
+          crop_type_id: number
+          max_value: number | null
+          metric: string
+          min_value: number | null
+          notes: string | null
+          optimal_max: number | null
+          optimal_min: number | null
+          period: string
+          sources: string[]
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          crop_type_id: number
+          max_value?: number | null
+          metric: string
+          min_value?: number | null
+          notes?: string | null
+          optimal_max?: number | null
+          optimal_min?: number | null
+          period?: string
+          sources?: string[]
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          crop_type_id?: number
+          max_value?: number | null
+          metric?: string
+          min_value?: number | null
+          notes?: string | null
+          optimal_max?: number | null
+          optimal_min?: number | null
+          period?: string
+          sources?: string[]
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_crop_targets_crop_type_id_fkey"
+            columns: ["crop_type_id"]
+            isOneToOne: false
+            referencedRelation: "cw_crop_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cw_crop_types: {
+        Row: {
+          category: string
+          code: string
+          created_at: string
+          cultivation: string
+          id: number
+          is_active: boolean
+          name_en: string
+          name_ja: string
+          notes: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          code: string
+          created_at?: string
+          cultivation?: string
+          id?: number
+          is_active?: boolean
+          name_en: string
+          name_ja: string
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string
+          cultivation?: string
+          id?: number
+          is_active?: boolean
+          name_en?: string
+          name_ja?: string
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cw_data_metadata: {
         Row: {
           adder: number
@@ -695,6 +790,7 @@ export type Database = {
         Row: {
           battery_changed_at: string | null
           battery_level: number | null
+          crop_type_id: number | null
           dev_eui: string
           error_status: string | null
           group: string | null
@@ -721,6 +817,7 @@ export type Database = {
         Insert: {
           battery_changed_at?: string | null
           battery_level?: number | null
+          crop_type_id?: number | null
           dev_eui: string
           error_status?: string | null
           group?: string | null
@@ -747,6 +844,7 @@ export type Database = {
         Update: {
           battery_changed_at?: string | null
           battery_level?: number | null
+          crop_type_id?: number | null
           dev_eui?: string
           error_status?: string | null
           group?: string | null
@@ -771,6 +869,13 @@ export type Database = {
           warranty_start_date?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "cw_devices_crop_type_id_fkey"
+            columns: ["crop_type_id"]
+            isOneToOne: false
+            referencedRelation: "cw_crop_types"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cw_devices_location_id_fkey"
             columns: ["location_id"]
@@ -1829,6 +1934,7 @@ export type Database = {
         Row: {
           air_humidity: number | null
           air_temperature_c: number | null
+          co2: number | null
           created_at: string
           dev_eui: string
           ec: number | null
@@ -1840,6 +1946,7 @@ export type Database = {
         Insert: {
           air_humidity?: number | null
           air_temperature_c?: number | null
+          co2?: number | null
           created_at?: string
           dev_eui: string
           ec?: number | null
@@ -1851,6 +1958,7 @@ export type Database = {
         Update: {
           air_humidity?: number | null
           air_temperature_c?: number | null
+          co2?: number | null
           created_at?: string
           dev_eui?: string
           ec?: number | null

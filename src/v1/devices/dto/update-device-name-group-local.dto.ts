@@ -41,4 +41,17 @@ export class UpdateDeviceNameGroupLocalDto {
   @IsString()
   @MaxLength(255)
   tti_name?: string | null;
+
+  @ApiPropertyOptional({
+    example: 3,
+    type: Number,
+    nullable: true,
+    description:
+      'Crop the soil sensor monitors (an id from GET /v1/crops); null clears it. Soil sensors only. Omit it to leave the crop unchanged.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  crop_type_id?: number | null;
 }

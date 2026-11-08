@@ -23,6 +23,8 @@ import { WaterController } from '../water/water.controller';
 import { WaterService } from '../water/water.service';
 import { LineController } from '../line/line.controller';
 import { LineService } from '../line/line.service';
+import { CropsController } from '../crops/crops.controller';
+import { CropsService } from '../crops/crops.service';
 
 type MockedMethods = Record<string, jest.Mock>;
 type ServiceRegistry = Record<string, MockedMethods>;
@@ -337,6 +339,7 @@ describe('V1 Route Input Contracts', () => {
   beforeAll(async () => {
     serviceRegistry = {
       air: createMockedMethods(['createNote', 'findOne']),
+      crops: createMockedMethods(['findAll', 'findOne']),
       auth: createMockedMethods([
         'loginWithPassword',
         'acceptLegal',
@@ -389,6 +392,7 @@ describe('V1 Route Input Contracts', () => {
         TrafficController,
         WaterController,
         LineController,
+        CropsController,
       ],
       providers: [
         { provide: AirService, useValue: serviceRegistry.air },
@@ -399,6 +403,7 @@ describe('V1 Route Input Contracts', () => {
         { provide: TrafficService, useValue: serviceRegistry.traffic },
         { provide: WaterService, useValue: serviceRegistry.water },
         { provide: LineService, useValue: serviceRegistry.line },
+        { provide: CropsService, useValue: serviceRegistry.crops },
       ],
     });
 
@@ -699,7 +704,7 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, 'DEV-001', 'Renamed Device', 'Zone A', 54],
+        args: [MOCK_USER, 'DEV-001', 'Renamed Device', 'Zone A', 54, undefined],
         method: 'updateDevice',
         service: 'devices',
       },
@@ -712,6 +717,48 @@ describe('V1 Route Input Contracts', () => {
         location_id: '54',
         name: 'Renamed Device',
       },
+    },
+    {
+      auth: true,
+      expectedCall: {
+        args: [MOCK_USER, 'DEV-001', 'Soil Sensor', null, 54, 3],
+        method: 'updateDevice',
+        service: 'devices',
+      },
+      expectedStatus: 200,
+      method: 'patch',
+      name: 'PATCH /v1/devices/:dev_eui passes a crop as a number',
+      url: '/v1/devices/DEV-001',
+      body: { crop_type_id: '3', location_id: 54, name: 'Soil Sensor' },
+    },
+    {
+      auth: true,
+      expectedCall: {
+        args: [MOCK_USER, 'DEV-001', 'Soil Sensor', null, 54, null],
+        method: 'updateDevice',
+        service: 'devices',
+      },
+      expectedStatus: 200,
+      method: 'patch',
+      name: 'PATCH /v1/devices/:dev_eui passes a null crop through to clear it',
+      url: '/v1/devices/DEV-001',
+      body: { crop_type_id: null, location_id: 54, name: 'Soil Sensor' },
+    },
+    {
+      auth: true,
+      expectedCall: { args: [], method: 'findAll', service: 'crops' },
+      expectedStatus: 200,
+      method: 'get',
+      name: 'GET /v1/crops lists the crop types',
+      url: '/v1/crops',
+    },
+    {
+      auth: true,
+      expectedCall: { args: [3], method: 'findOne', service: 'crops' },
+      expectedStatus: 200,
+      method: 'get',
+      name: 'GET /v1/crops/:id parses the id',
+      url: '/v1/crops/3',
     },
     {
       auth: true,
@@ -1067,6 +1114,30 @@ describe('V1 Route Input Contracts', () => {
       method: 'patch',
       name: 'PATCH /v1/devices/:dev_eui rejects unknown body properties',
       url: '/v1/devices/DEV-001',
+    },
+    {
+      auth: true,
+      body: { crop_type_id: 0, location_id: 54, name: 'Soil Sensor' },
+      expectedMessage: ['crop_type_id must not be less than 1'],
+      expectedStatus: 400,
+      method: 'patch',
+      name: 'PATCH /v1/devices/:dev_eui rejects a crop id below 1',
+      url: '/v1/devices/DEV-001',
+    },
+    {
+      auth: true,
+      body: { crop_type_id: 'tomato', location_id: 54, name: 'Soil Sensor' },
+      expectedStatus: 400,
+      method: 'patch',
+      name: 'PATCH /v1/devices/:dev_eui rejects a crop id that is not a number',
+      url: '/v1/devices/DEV-001',
+    },
+    {
+      auth: true,
+      expectedStatus: 400,
+      method: 'get',
+      name: 'GET /v1/crops/:id rejects an id that is not an integer',
+      url: '/v1/crops/tomato',
     },
     {
       auth: true,
