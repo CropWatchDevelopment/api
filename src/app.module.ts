@@ -26,6 +26,8 @@ import { PushModule } from './v1/push/push.module';
 import { AccountRemovalModule } from './v1/account-removal/account-removal.module';
 import { CropwatchMcpModule } from './v1/mcp/mcp.module';
 import { OrganizationsModule } from './v1/organizations/organizations.module';
+import { CropsModule } from './v1/crops/crops.module';
+import { AiRecommendationsModule } from './v1/ai-recommendations/ai-recommendations.module';
 
 @Module({
   imports: [
@@ -79,6 +81,8 @@ import { OrganizationsModule } from './v1/organizations/organizations.module';
     PushModule,
     AccountRemovalModule,
     CropwatchMcpModule,
+    CropsModule,
+    AiRecommendationsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: UserThrottlerGuard }],

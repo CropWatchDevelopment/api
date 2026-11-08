@@ -1271,6 +1271,8 @@ export class DevicesService {
     name: string,
     group: string | null,
     location_id: number,
+    /** A crop id (soil sensors only), null to clear it, undefined to leave it as is. */
+    cropTypeId?: number | null,
   ) {
     const client = this.supabaseService.getClient();
     const userId = user.sub;
@@ -1350,6 +1352,12 @@ export class DevicesService {
     }
 
     const updatePayload: Record<string, unknown> = { name, group, location_id };
+    if (cropTypeId !== undefined) {
+      if (cropTypeId !== null) {
+        await this.assertCropAssignable(client, normalizedDevEui, cropTypeId);
+      }
+      updatePayload.crop_type_id = cropTypeId;
+    }
     if (isMovingLocation && destinationOwnerId) {
       // Device ownership follows the location owner.
       updatePayload.user_id = destinationOwnerId;
@@ -1454,6 +1462,49 @@ export class DevicesService {
       purgedRows,
       deleted: data?.deleted ?? {},
     };
+  }
+
+  /**
+   * A crop goes only on a soil sensor (a cw_soil_data device type), and only
+   * a crop on offer in the picker (cw_crop_types.is_active).
+   */
+  private async assertCropAssignable(
+    client: ReturnType<SupabaseService['getClient']>,
+    devEui: string,
+    cropTypeId: number,
+  ): Promise<void> {
+    const [deviceResult, cropResult] = await Promise.all([
+      client
+        .from('cw_devices')
+        .select('cw_device_type(data_table_v2)')
+        .eq('dev_eui', devEui)
+        .maybeSingle(),
+      client
+        .from('cw_crop_types')
+        .select('id')
+        .eq('id', cropTypeId)
+        .eq('is_active', true)
+        .maybeSingle(),
+    ]);
+
+    if (deviceResult.error || cropResult.error) {
+      throw new InternalServerErrorException('Failed to verify the crop type');
+    }
+    const embedded = (
+      deviceResult.data as {
+        cw_device_type?:
+          | { data_table_v2?: string | null }
+          | { data_table_v2?: string | null }[]
+          | null;
+      } | null
+    )?.cw_device_type;
+    const deviceType = Array.isArray(embedded) ? embedded[0] : embedded;
+    if (deviceType?.data_table_v2 !== 'cw_soil_data') {
+      throw new BadRequestException('Only soil sensors can have a crop');
+    }
+    if (!cropResult.data) {
+      throw new BadRequestException('Unknown crop type');
+    }
   }
 
   /**
