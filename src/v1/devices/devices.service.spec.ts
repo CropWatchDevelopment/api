@@ -308,6 +308,170 @@ describe('DevicesService', () => {
     });
   });
 
+  describe('updateDevice crop', () => {
+    const jwt = { sub: 'owner-1', email: 'owner@example.com', isStaff: false };
+
+    function maybeSingleBuilder(result: { data: unknown; error: unknown }) {
+      return {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn().mockResolvedValue(result),
+      };
+    }
+
+    function createUpdateBuilder() {
+      return {
+        update: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        select: jest
+          .fn()
+          .mockResolvedValue({ data: [{ dev_eui: 'DEV-001' }], error: null }),
+      };
+    }
+
+    function createService(builders: unknown[]) {
+      const fromMock = jest.fn();
+      for (const builder of builders) {
+        fromMock.mockImplementationOnce(() => builder);
+      }
+      const accessService = createAccessMock();
+      // Same location: no move, so no destination lookup.
+      accessService.assertDeviceAccess.mockResolvedValue(
+        deviceAccess({ locationId: 2 }),
+      );
+      return {
+        service: new DevicesService(
+          {
+            getClient: jest.fn(() => ({ from: fromMock })),
+          } as unknown as SupabaseService,
+          {} as LocationsService,
+          {} as PaymentsService,
+          accessService,
+        ),
+        fromMock,
+      };
+    }
+
+    const soilDevice = {
+      data: { cw_device_type: { data_table_v2: 'cw_soil_data' } },
+      error: null,
+    };
+    const activeCrop = { data: { id: 3 }, error: null };
+
+    it('sets the crop of a soil sensor', async () => {
+      const deviceBuilder = maybeSingleBuilder(soilDevice);
+      const cropBuilder = maybeSingleBuilder(activeCrop);
+      const updateBuilder = createUpdateBuilder();
+      const { service, fromMock } = createService([
+        deviceBuilder,
+        cropBuilder,
+        updateBuilder,
+      ]);
+
+      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 3);
+
+      expect(fromMock).toHaveBeenNthCalledWith(1, 'cw_devices');
+      expect(deviceBuilder.eq).toHaveBeenCalledWith('dev_eui', 'DEV-001');
+      expect(fromMock).toHaveBeenNthCalledWith(2, 'cw_crop_types');
+      expect(cropBuilder.eq).toHaveBeenCalledWith('id', 3);
+      expect(cropBuilder.eq).toHaveBeenCalledWith('is_active', true);
+      expect(updateBuilder.update).toHaveBeenCalledWith({
+        name: 'Sensor',
+        group: null,
+        location_id: 2,
+        crop_type_id: 3,
+      });
+    });
+
+    it('reads a device type embedded as an array', async () => {
+      const updateBuilder = createUpdateBuilder();
+      const { service } = createService([
+        maybeSingleBuilder({
+          data: { cw_device_type: [{ data_table_v2: 'cw_soil_data' }] },
+          error: null,
+        }),
+        maybeSingleBuilder(activeCrop),
+        updateBuilder,
+      ]);
+
+      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 3);
+
+      expect(updateBuilder.update).toHaveBeenCalledWith(
+        expect.objectContaining({ crop_type_id: 3 }),
+      );
+    });
+
+    it('clears the crop with null, without checking the device type', async () => {
+      const updateBuilder = createUpdateBuilder();
+      const { service, fromMock } = createService([updateBuilder]);
+
+      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, null);
+
+      expect(fromMock).toHaveBeenCalledTimes(1);
+      expect(updateBuilder.update).toHaveBeenCalledWith({
+        name: 'Sensor',
+        group: null,
+        location_id: 2,
+        crop_type_id: null,
+      });
+    });
+
+    it('leaves the crop alone when none is given', async () => {
+      const updateBuilder = createUpdateBuilder();
+      const { service } = createService([updateBuilder]);
+
+      await service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2);
+
+      expect(updateBuilder.update).toHaveBeenCalledWith({
+        name: 'Sensor',
+        group: null,
+        location_id: 2,
+      });
+    });
+
+    it('refuses a crop on a device that is not a soil sensor', async () => {
+      const updateBuilder = createUpdateBuilder();
+      const { service } = createService([
+        maybeSingleBuilder({
+          data: { cw_device_type: { data_table_v2: 'cw_air_data' } },
+          error: null,
+        }),
+        maybeSingleBuilder(activeCrop),
+        updateBuilder,
+      ]);
+
+      await expect(
+        service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 3),
+      ).rejects.toThrow('Only soil sensors can have a crop');
+      expect(updateBuilder.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses an unknown or retired crop', async () => {
+      const updateBuilder = createUpdateBuilder();
+      const { service } = createService([
+        maybeSingleBuilder(soilDevice),
+        maybeSingleBuilder({ data: null, error: null }),
+        updateBuilder,
+      ]);
+
+      await expect(
+        service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 99),
+      ).rejects.toThrow('Unknown crop type');
+      expect(updateBuilder.update).not.toHaveBeenCalled();
+    });
+
+    it('is a 500 when the crop check cannot read the database', async () => {
+      const { service } = createService([
+        maybeSingleBuilder(soilDevice),
+        maybeSingleBuilder({ data: null, error: { message: 'boom' } }),
+      ]);
+
+      await expect(
+        service.updateDevice(jwt, 'DEV-001', 'Sensor', null, 2, 3),
+      ).rejects.toThrow('Failed to verify the crop type');
+    });
+  });
+
   describe('updateDevice location moves', () => {
     const jwt = { sub: 'mover-1', email: 'mover@example.com', isStaff: false };
 
