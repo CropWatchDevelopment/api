@@ -1,5 +1,5 @@
 -- =============================================================================
--- 037_ai_recommendations.sql
+-- 038_ai_recommendations.sql
 -- Storage and scoped database roles for the CropWatch AI growth recommender
 -- (repo cw-ai-services, runs on a dedicated Jetson Orin NX on the office LAN).
 --
@@ -88,7 +88,7 @@ CREATE INDEX IF NOT EXISTS cw_ai_recommendations_dev_type_start_idx
     ON public.cw_ai_recommendations (dev_eui, report_type, period_start DESC);
 
 COMMENT ON TABLE public.cw_ai_recommendations IS
-    'AI growth recommendations, one row per (dev_eui, report_type, period_start). Written by the cw-ai-services Jetson worker (role cw_ai_writer); every number and action comes from its rules engine, the LLM only phrases them (037).';
+    'AI growth recommendations, one row per (dev_eui, report_type, period_start). Written by the cw-ai-services Jetson worker (role cw_ai_writer); every number and action comes from its rules engine, the LLM only phrases them (038).';
 COMMENT ON COLUMN public.cw_ai_recommendations.metrics IS
     'Per metric x period (day/night/all): stats, coverage, effective target band and its source (crop/override), severity 0-3, judged flag and reason when not judged.';
 COMMENT ON COLUMN public.cw_ai_recommendations.findings IS
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS public.cw_device_target_overrides (
 );
 
 COMMENT ON TABLE public.cw_device_target_overrides IS
-    'Per-device target bands that override cw_crop_targets for the same metric/period (units as in cw_crop_targets). The AI recommender judges soil_moisture and soil_ec only when a row exists here (037).';
+    'Per-device target bands that override cw_crop_targets for the same metric/period (units as in cw_crop_targets). The AI recommender judges soil_moisture and soil_ec only when a row exists here (038).';
 
 ALTER TABLE public.cw_device_target_overrides ENABLE ROW LEVEL SECURITY;
 
