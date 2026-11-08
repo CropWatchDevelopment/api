@@ -3,6 +3,75 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export const AI_REPORT_TYPES = ['daily', 'weekly'] as const;
 export type AiReportType = (typeof AI_REPORT_TYPES)[number];
 
+/** A finding's text in one language, for the app's table and action list. */
+export class AiFindingTextDto {
+  @ApiProperty({ example: 'Night-time air temperature' })
+  what!: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      'The low or high end (p10/p90), or the day total for DLI; null for a sensor fault',
+    example: '6 °C',
+  })
+  value!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: '10.8 °C' })
+  average!: string | null;
+
+  @ApiProperty({ type: String, nullable: true, example: '12–16 °C' })
+  target!: string | null;
+
+  @ApiProperty({ example: 'Warmer nights' })
+  action_title!: string;
+
+  @ApiProperty({
+    example:
+      'Run the heater, or close side vents and thermal screens earlier in the evening.',
+  })
+  action!: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      'Set when another action covers this finding (e.g. heating lowers night humidity)',
+  })
+  note!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Weekly reports: on how many days it was off',
+    example: '3 of 7 days',
+  })
+  days_off!: string | null;
+}
+
+/** How the app shows a finding (deterministic; written with the report). */
+export class AiFindingDisplayDto {
+  @ApiProperty({
+    enum: ['below', 'above', 'low_end_below', 'peak_above', 'invalid'],
+    description:
+      'low_end_below / peak_above: the low or high end is off target while the average is inside it',
+  })
+  status!: string;
+
+  @ApiProperty({
+    enum: ['low', 'high'],
+    nullable: true,
+    description: 'Which end value is when an average is shown',
+  })
+  kind!: string | null;
+
+  @ApiProperty({ type: AiFindingTextDto })
+  ja!: AiFindingTextDto;
+
+  @ApiProperty({ type: AiFindingTextDto })
+  en!: AiFindingTextDto;
+}
+
 /** One "what this value means" line per measurement, written by the rules engine (never the LLM). */
 export class AiRecommendationDetailDto {
   @ApiProperty({ example: 'air_temperature' })
@@ -10,6 +79,20 @@ export class AiRecommendationDetailDto {
 
   @ApiProperty({ enum: ['all', 'day', 'night'], example: 'night' })
   period!: string;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description:
+      '0 ok, 1 close to target, 2 needs attention, 3 outside safe limits; null when not judged',
+  })
+  severity!: number | null;
+
+  @ApiProperty({ example: '夜間の気温' })
+  what_ja!: string;
+
+  @ApiProperty({ example: 'Night-time air temperature' })
+  what_en!: string;
 
   @ApiProperty({
     example:
@@ -54,6 +137,12 @@ export class AiRecommendationFindingDto {
 
   @ApiPropertyOptional({ enum: ['low', 'high'], nullable: true })
   direction?: string | null;
+
+  @ApiPropertyOptional({
+    type: AiFindingDisplayDto,
+    description: 'Absent on reports written before the display format',
+  })
+  display?: AiFindingDisplayDto;
 }
 
 /**
