@@ -1,15 +1,22 @@
 # CropWatch API
 
-Code Cleanliness
+## Code Cleanliness
+
 [![Maintainability](https://qlty.sh/gh/CropWatchDevelopment/projects/api/maintainability.svg)](https://qlty.sh/gh/CropWatchDevelopment/projects/api)
+
 [![Code Coverage](https://qlty.sh/gh/CropWatchDevelopment/projects/api/coverage.svg)](https://qlty.sh/gh/CropWatchDevelopment/projects/api)
+
 [![API CI Gate](https://github.com/CropWatchDevelopment/api/actions/workflows/ci.yml/badge.svg)](https://github.com/CropWatchDevelopment/api/actions/workflows/ci.yml)
 
-Code Security
+## Code Security
+
 [![Security](https://github.com/CropWatchDevelopment/api/actions/workflows/security.yml/badge.svg)](https://github.com/CropWatchDevelopment/api/actions/workflows/security.yml)
+
 [![Vulnerabilities](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FCropWatchDevelopment%2Fapi%2Fbadges%2Fsnyk.json&logo=snyk)](https://github.com/CropWatchDevelopment/api/actions/workflows/security.yml)
+
 [![Snyk security](https://snyk.io/test/github/CropWatchDevelopment/api/badge.svg)](https://snyk.io/test/github/CropWatchDevelopment/api)
 
+# About
 This is the backend behind [app.cropwatch.io](https://app.cropwatch.io). It serves sensor data from CropWatch's LoRaWAN devices (air, soil, water, traffic counters and relays), manages locations, gateways, alert rules and reports, and handles accounts, organizations and Stripe billing. It also receives webhooks from LINE, The Things Industries and Stripe, and runs an MCP server so AI assistants can read a user's devices with that user's permissions.
 
 It's a NestJS 11 app written in TypeScript, with Supabase (Postgres and auth) as the data store.
