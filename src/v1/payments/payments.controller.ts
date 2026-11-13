@@ -223,7 +223,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard, StaffGuard)
   @ApiOperation({
     summary:
-      'Staff: list every device owner / billing customer with device, license, and subscription counts',
+      'Staff: list every user with device, license, and subscription counts',
   })
   adminListCustomers() {
     return this.paymentsService.adminListCustomers();
