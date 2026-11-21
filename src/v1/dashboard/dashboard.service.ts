@@ -14,6 +14,11 @@ import {
 } from '../common/authz';
 import { TimezoneFormatterService } from '../common/timezone-formatter.service';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
+import { naturalSort } from '../common/natural-sort';
+import {
+  selectAllPages,
+  type PostgrestPage,
+} from '../common/postgrest-pages.helper';
 import type { TableRow } from '../types/supabase';
 import {
   DashboardLocationGroup,
@@ -53,6 +58,9 @@ type DashboardDeviceRecord = Pick<
   cw_device_type: DeviceTypeJoin | DeviceTypeJoin[] | null;
   cw_locations: LocationJoin | LocationJoin[] | null;
 };
+
+/** Columns getDevices reads for every match before sorting and paging. */
+type DeviceNameRecord = Pick<DeviceRow, 'dev_eui' | 'name'>;
 
 /** Columns selected by the location-listing query in getLocations. */
 type DeviceLocationRecord = Pick<DeviceRow, 'location_id'> & {
@@ -122,50 +130,78 @@ export class DashboardService {
         ? 'cw_locations!inner(location_id, name, group)'
         : 'cw_locations(location_id, name, group)';
 
-    let devicesQuery = client.from('cw_devices').select(
-      `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
-         cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
-         ${locationSelect},
-         ${DEVICE_OWNER_MATCH_EMBED}`,
-      { count: 'exact' },
-    );
-
-    devicesQuery = applyDeviceReadScope(
-      devicesQuery,
-      user,
-      await this.accessService.getReadableOrgIds(user),
-    );
-
-    if (query.group) {
-      devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
-    }
-    if (query.name) {
-      devicesQuery = devicesQuery.or(
-        this.buildNameOrFilter(query.name, nameLocationIds),
-      );
-    }
-    if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
-      devicesQuery = devicesQuery.eq(
-        'cw_locations.location_id',
-        locationIdFilter,
-      );
-    }
-    if (query.locationGroup) {
-      devicesQuery = devicesQuery.eq('cw_locations.group', query.locationGroup);
-    }
-
-    const { data, count, error } = await devicesQuery
-      .order('name', { ascending: true })
-      .range(skip, skip + take - 1);
-
-    if (error) {
+    const readableOrgIds = await this.accessService.getReadableOrgIds(user);
+    const logError = (error: PostgrestError) =>
       this.logger.error(`Failed to fetch dashboard devices: ${error.message}`);
+
+    // Step 1: every matching device's name. SQL can't sort names naturally,
+    // so they are sorted here and the page is cut after sorting.
+    const matches = await selectAllPages<DeviceNameRecord>(
+      (from, to) => {
+        let matchQuery = client
+          .from('cw_devices')
+          .select(
+            `dev_eui, name, ${locationSelect}, ${DEVICE_OWNER_MATCH_EMBED}`,
+          );
+        matchQuery = applyDeviceReadScope(matchQuery, user, readableOrgIds);
+        if (query.group) {
+          matchQuery = matchQuery.ilike('group', `%${query.group}%`);
+        }
+        if (query.name) {
+          matchQuery = matchQuery.or(
+            this.buildNameOrFilter(query.name, nameLocationIds),
+          );
+        }
+        if (hasLocationFilter && Number.isFinite(locationIdFilter)) {
+          matchQuery = matchQuery.eq(
+            'cw_locations.location_id',
+            locationIdFilter,
+          );
+        }
+        if (query.locationGroup) {
+          matchQuery = matchQuery.eq('cw_locations.group', query.locationGroup);
+        }
+        return matchQuery
+          .order('dev_eui', { ascending: true })
+          .range(from, to) as PromiseLike<PostgrestPage<DeviceNameRecord>>;
+      },
+      'Failed to fetch dashboard devices',
+      logError,
+    );
+
+    const pageIds = naturalSort(matches, (d) => d.name, {
+      locale: query.locale,
+    })
+      .slice(skip, skip + take)
+      .map((d) => d.dev_eui);
+    if (pageIds.length === 0) {
+      return { rows: [], total: matches.length, skip, take };
+    }
+
+    // Step 2: the page's devices in full, kept in step 1's order.
+    let pageQuery = client
+      .from('cw_devices')
+      .select(
+        `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
+         cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
+         cw_locations(location_id, name, "group"),
+         ${DEVICE_OWNER_MATCH_EMBED}`,
+      )
+      .in('dev_eui', pageIds);
+    pageQuery = applyDeviceReadScope(pageQuery, user, readableOrgIds);
+
+    const { data, error } = await pageQuery;
+    if (error) {
+      logError(error);
       throw new InternalServerErrorException(
         'Failed to fetch dashboard devices',
       );
     }
 
-    const devices = (data ?? []) as DashboardDeviceRecord[];
+    const byDevEui = new Map(
+      ((data ?? []) as DashboardDeviceRecord[]).map((d) => [d.dev_eui, d]),
+    );
+    const devices = pageIds.flatMap((devEui) => byDevEui.get(devEui) ?? []);
     const canWriteNotes = await this.noteWriteCheck(user);
 
     const rows = await Promise.all(
@@ -174,7 +210,7 @@ export class DashboardService {
 
     return {
       rows: rows.filter((r): r is DashboardRow => r !== null),
-      total: count ?? rows.length,
+      total: matches.length,
       skip,
       take,
     };
@@ -262,8 +298,10 @@ export class DashboardService {
       });
     }
 
-    const sortedLocs: Array<[string, LocInfo]> = [...uniqueLocs.entries()].sort(
-      (a, b) => (a[1]?.name ?? '').localeCompare(b[1]?.name ?? ''),
+    const sortedLocs: Array<[string, LocInfo]> = naturalSort(
+      [...uniqueLocs.entries()],
+      ([, loc]) => loc?.name,
+      { locale: query.locale },
     );
     if (hasNoLocationBucket) {
       sortedLocs.push(['none', null]);
@@ -312,8 +350,9 @@ export class DashboardService {
       );
     }
 
+    // dev_eui order makes equal names come out the same way every time.
     const { data: devices, error: devicesError } = await devicesQuery.order(
-      'name',
+      'dev_eui',
       { ascending: true },
     );
     if (devicesError) {
@@ -328,13 +367,14 @@ export class DashboardService {
     const canWriteNotes = await this.noteWriteCheck(user);
     const rows = (
       await Promise.all(
-        ((devices ?? []) as DashboardDeviceRecord[]).map((d) =>
-          this.buildRow(client, d, canWriteNotes(d.dev_eui)),
-        ),
+        naturalSort((devices ?? []) as DashboardDeviceRecord[], (d) => d.name, {
+          locale: query.locale,
+        }).map((d) => this.buildRow(client, d, canWriteNotes(d.dev_eui))),
       )
     ).filter((r): r is DashboardRow => r !== null);
 
-    // Bucket devices into the page's location slots, preserving page order.
+    // Bucket devices into the page's location slots, preserving page order
+    // (and the natural device order within each location).
     const groupsByKey = new Map<string, DashboardLocationGroup>();
     for (const [key, loc] of pagedLocs) {
       groupsByKey.set(key, { key, location: loc, devices: [] });

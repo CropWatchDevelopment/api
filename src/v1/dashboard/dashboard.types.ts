@@ -5,6 +5,8 @@ export interface DashboardQuery {
   name?: string;
   location?: string;
   locationGroup?: string;
+  /** Sort language: the request's Accept-Language (see naturalSort). */
+  locale?: string;
 }
 
 export interface DashboardRow {

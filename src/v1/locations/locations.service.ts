@@ -15,6 +15,7 @@ import { LocationDto } from './dto/location.dto';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
 import { PermissionLevel } from '../common/permission-levels';
 import { filterStaffOwnerRows } from '../common/owner-filter.helper';
+import { naturalSort } from '../common/natural-sort';
 import {
   AccessService,
   Action,
@@ -114,7 +115,12 @@ export class LocationsService {
     return locationData;
   }
 
-  async findAll(user: AuthenticatedUser, searchName?: string) {
+  async findAll(
+    user: AuthenticatedUser,
+    searchName?: string,
+    /** Sort language: the request's Accept-Language (see naturalSort). */
+    locale?: string,
+  ) {
     const client = this.supabaseService.getClient();
 
     let query = client.from('cw_locations').select(`
@@ -133,13 +139,18 @@ export class LocationsService {
       query = query.ilike('name', `%${searchName}%`);
     }
 
-    const { data, error } = await query.order('name', { ascending: true });
+    // location_id order makes equal names come out the same way every time.
+    const { data, error } = await query.order('location_id', {
+      ascending: true,
+    });
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch locations');
     }
 
-    return (data ?? []) as LocationRecord[];
+    return naturalSort((data ?? []) as LocationRecord[], (l) => l.name, {
+      locale,
+    });
   }
 
   async findOne(id: number, user: AuthenticatedUser) {
@@ -300,7 +311,11 @@ export class LocationsService {
     return count ?? 0;
   }
 
-  async findAllLocationGroups(user: AuthenticatedUser): Promise<string[]> {
+  async findAllLocationGroups(
+    user: AuthenticatedUser,
+    /** Sort language: the request's Accept-Language (see naturalSort). */
+    locale?: string,
+  ): Promise<string[]> {
     const client = this.supabaseService.getClient();
 
     let query = client
@@ -316,18 +331,18 @@ export class LocationsService {
       await this.accessService.getReadableOrgIds(user),
     );
 
-    const { data, error } = await query.order('name', { ascending: true });
+    const { data, error } = await query;
 
     if (error) {
       throw new InternalServerErrorException('Failed to fetch location groups');
     }
 
     const rows = (data ?? []) as Pick<LocationRow, 'group'>[];
-    const uniqueGroupArray = Array.from(
+    const uniqueGroups = Array.from(
       new Set(rows.map((item) => item.group)),
     ).filter((group) => group !== null);
 
-    return uniqueGroupArray;
+    return naturalSort(uniqueGroups, (group) => group, { locale });
   }
 
   async createLocationPermission(

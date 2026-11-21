@@ -275,6 +275,49 @@ describe('LocationsService', () => {
     expect(groupsQuery.or).toHaveBeenCalledTimes(1);
   });
 
+  it('findAll returns locations in natural name order for the request language', async () => {
+    const locationsQuery = createBuilder({
+      data: [
+        { location_id: 1, name: '温室' },
+        { location_id: 2, name: '10号棟' },
+        { location_id: 3, name: '五反田' },
+        { location_id: 4, name: '２号棟' },
+      ],
+      error: null,
+    });
+    const { service } = createService(
+      createClient({ cw_locations: [locationsQuery] }),
+    );
+
+    const rows = await service.findAll(USER, undefined, 'ja');
+
+    expect(rows.map((row) => row.location_id)).toEqual([4, 2, 1, 3]);
+    expect(locationsQuery.order).toHaveBeenCalledWith('location_id', {
+      ascending: true,
+    });
+  });
+
+  it('findAllLocationGroups returns each group once, in natural order', async () => {
+    const groupsQuery = createBuilder({
+      data: [
+        { group: '温室' },
+        { group: 'ハウス10' },
+        { group: 'ハウス２' },
+        { group: 'ハウス10' },
+      ],
+      error: null,
+    });
+    const { service } = createService(
+      createClient({ cw_locations: [groupsQuery] }),
+    );
+
+    await expect(service.findAllLocationGroups(USER, 'en')).resolves.toEqual([
+      'ハウス２',
+      'ハウス10',
+      '温室',
+    ]);
+  });
+
   it('updateUserPermissionLevel writes to the ROUTE location only (regression: cross-location escalation)', async () => {
     const grantCheckQuery = createBuilder({
       data: { permission_level: 3 },

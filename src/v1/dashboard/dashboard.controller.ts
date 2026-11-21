@@ -1,6 +1,15 @@
-import { Controller, Get, Param, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Headers,
+  Param,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiHeader,
   ApiOperation,
   ApiParam,
   ApiQuery,
@@ -31,9 +40,16 @@ export class DashboardController {
   @ApiQuery({ name: 'name', required: false })
   @ApiQuery({ name: 'location', required: false })
   @ApiQuery({ name: 'locationGroup', required: false })
+  @ApiHeader({
+    name: 'accept-language',
+    required: false,
+    description:
+      'Sort language for names: English (en…) or Japanese (default).',
+  })
   async getDevices(
     @CurrentUser() user: AuthenticatedUser,
     @Query() q: Record<string, string | undefined>,
+    @Headers('accept-language') acceptLanguage?: string,
   ) {
     const query: DashboardQuery = {
       skip: q.skip ? Number(q.skip) : undefined,
@@ -42,6 +58,7 @@ export class DashboardController {
       name: q.name?.trim() || undefined,
       location: q.location?.trim() || undefined,
       locationGroup: q.locationGroup?.trim() || undefined,
+      locale: acceptLanguage,
     };
     return this.dashboardService.getDevices(user, query);
   }
@@ -57,9 +74,16 @@ export class DashboardController {
   @ApiQuery({ name: 'name', required: false })
   @ApiQuery({ name: 'location', required: false })
   @ApiQuery({ name: 'locationGroup', required: false })
+  @ApiHeader({
+    name: 'accept-language',
+    required: false,
+    description:
+      'Sort language for names: English (en…) or Japanese (default).',
+  })
   async getLocations(
     @CurrentUser() user: AuthenticatedUser,
     @Query() q: Record<string, string | undefined>,
+    @Headers('accept-language') acceptLanguage?: string,
   ) {
     const query: DashboardQuery = {
       skip: q.skip ? Number(q.skip) : undefined,
@@ -68,6 +92,7 @@ export class DashboardController {
       name: q.name?.trim() || undefined,
       location: q.location?.trim() || undefined,
       locationGroup: q.locationGroup?.trim() || undefined,
+      locale: acceptLanguage,
     };
     return this.dashboardService.getLocations(user, query);
   }

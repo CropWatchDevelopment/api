@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   NotImplementedException,
   Param,
   Patch,
@@ -16,6 +17,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiHeader,
   ApiInternalServerErrorResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -220,11 +222,22 @@ export class DevicesController {
     Returns the latest, 2 primary data values from the table record for all devices in a specific location.
     Each device also carries gateway_signals: every gateway's latest reading of it (rssi, snr, last_update), without gateway identity.`,
   })
+  @ApiHeader({
+    name: 'accept-language',
+    required: false,
+    description:
+      'Sort language for names: English (en…) or Japanese (default).',
+  })
   allDevicesInLocation(
     @CurrentUser() user: AuthenticatedUser,
     @Param('location_id') locationId: number,
+    @Headers('accept-language') acceptLanguage?: string,
   ) {
-    return this.devicesService.findAllDevicesInLocation(user, locationId);
+    return this.devicesService.findAllDevicesInLocation(
+      user,
+      locationId,
+      acceptLanguage,
+    );
   }
 
   @Get(':dev_eui')

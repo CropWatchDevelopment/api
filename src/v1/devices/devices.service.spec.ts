@@ -1352,6 +1352,34 @@ describe('DevicesService', () => {
         service.findAllDevicesInLocation(staff, 7),
       ).rejects.toMatchObject({ status: 500 });
     });
+
+    it('returns the devices in natural name order for the request language', async () => {
+      const { service } = createService({
+        cw_devices: {
+          data: [
+            { dev_eui: 'DEV-A', name: 'センサー10' },
+            { dev_eui: 'DEV-B', name: '五反田' },
+            { dev_eui: 'DEV-C', name: '⑥ハウス' },
+            { dev_eui: 'DEV-D', name: '温室' },
+            { dev_eui: 'DEV-E', name: 'センサー２' },
+          ],
+          error: null,
+        },
+        cw_device_gateway: { data: [], error: null },
+      });
+
+      const ja = await service.findAllDevicesInLocation(staff, 7, 'ja');
+      const en = await service.findAllDevicesInLocation(staff, 7, 'en');
+
+      expect(ja.map((d) => d.name)).toEqual([
+        '⑥ハウス',
+        'センサー２',
+        'センサー10',
+        '温室',
+        '五反田',
+      ]);
+      expect(en.map((d) => d.name).slice(3)).toEqual(['五反田', '温室']);
+    });
   });
 
   describe('air note authors in device data', () => {

@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Headers,
   Query,
   UseGuards,
   BadRequestException,
@@ -17,6 +18,7 @@ import { UpdateLocationDto } from './dto/update-location.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.guard';
 import {
   ApiBearerAuth,
+  ApiHeader,
   ApiConflictResponse,
   ApiOkResponse,
   ApiOperation,
@@ -62,11 +64,22 @@ export class LocationsController {
     required: false,
   })
   @Get()
+  @ApiHeader({
+    name: 'accept-language',
+    required: false,
+    description:
+      'Sort language for names: English (en…) or Japanese (default).',
+  })
   findAll(
     @CurrentUser() user: AuthenticatedUser,
     @Query('name') searchName?: string,
+    @Headers('accept-language') acceptLanguage?: string,
   ) {
-    return this.locationsService.findAll(user, searchName || undefined);
+    return this.locationsService.findAll(
+      user,
+      searchName || undefined,
+      acceptLanguage,
+    );
   }
   @ApiOkResponse({
     description: "Current all of the user's location groups.",
@@ -74,8 +87,17 @@ export class LocationsController {
     isArray: true,
   })
   @Get('groups')
-  findLocationGroups(@CurrentUser() user: AuthenticatedUser) {
-    return this.locationsService.findAllLocationGroups(user);
+  @ApiHeader({
+    name: 'accept-language',
+    required: false,
+    description:
+      'Sort language for names: English (en…) or Japanese (default).',
+  })
+  findLocationGroups(
+    @CurrentUser() user: AuthenticatedUser,
+    @Headers('accept-language') acceptLanguage?: string,
+  ) {
+    return this.locationsService.findAllLocationGroups(user, acceptLanguage);
   }
   @ApiOkResponse({
     description: "Get a user's location configuration by ID.",

@@ -939,6 +939,14 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
       "get": {
         "parameters": [
           {
+            "in": "header",
+            "name": "accept-language",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
             "in": "path",
             "name": "location_id",
             "required": true,
@@ -1270,6 +1278,14 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
       "get": {
         "parameters": [
           {
+            "in": "header",
+            "name": "accept-language",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
             "in": "query",
             "name": "name",
             "required": false,
@@ -1293,7 +1309,18 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
       },
     },
     "/v1/locations/groups": {
-      "get": {},
+      "get": {
+        "parameters": [
+          {
+            "in": "header",
+            "name": "accept-language",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
     },
     "/v1/locations/{id}": {
       "delete": {

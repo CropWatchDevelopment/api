@@ -14,6 +14,7 @@ import { LocationsService } from '../locations/locations.service';
 import { PaymentsService } from '../payments/payments.service';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
 import { hideStaffAuthorsInRows } from '../common/staff-redaction.helper';
+import { naturalSort } from '../common/natural-sort';
 import {
   TRIGGER_LAG_MS,
   attachReadingAlerts,
@@ -832,6 +833,8 @@ export class DevicesService {
   public async findAllDevicesInLocation(
     user: AuthenticatedUser,
     locationId: number,
+    /** Sort language: the request's Accept-Language (see naturalSort). */
+    locale?: string,
   ): Promise<LocationDeviceRecord[]> {
     const client = this.supabaseService.getClient();
 
@@ -846,9 +849,11 @@ export class DevicesService {
       await this.accessService.getReadableOrgIds(user),
     );
 
-    const { data: devices, error: devicesError } = await query.order('name', {
-      ascending: true,
-    });
+    // dev_eui order makes equal names come out the same way every time.
+    const { data: devices, error: devicesError } = await query.order(
+      'dev_eui',
+      { ascending: true },
+    );
 
     if (devicesError) {
       throw new InternalServerErrorException('Failed to fetch devices');
@@ -858,7 +863,9 @@ export class DevicesService {
       throw new NotFoundException('No devices found for this location');
     }
 
-    const rows = devices as DeviceRecord[];
+    const rows = naturalSort(devices as DeviceRecord[], (d) => d.name, {
+      locale,
+    });
     const signals = await this.findGatewaySignals(
       rows.map((device) => device.dev_eui),
     );
