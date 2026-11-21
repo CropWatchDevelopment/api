@@ -7,6 +7,7 @@ import {
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { AccessService, Action } from '../common/authz';
+import { selectAllPages } from '../common/postgrest-pages.helper';
 import type { TableRow } from '../types/supabase';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
 import type { GatewayDto } from './dto/gateway.dto';
@@ -24,8 +25,6 @@ export const CONNECTED_WINDOW_HOURS = 24;
 
 /** Max ids interpolated into one PostgREST `in` filter. */
 const IN_CHUNK_SIZE = 100;
-/** PostgREST page size (the project's max-rows default). */
-const PAGE_SIZE = 1000;
 
 type GatewayRow = TableRow<'cw_gateways'>;
 type GatewayOwnerRow = TableRow<'cw_gateways_owners'>;
@@ -138,23 +137,6 @@ export class GatewayService {
   // Batched enrichment
   // -------------------------------------------------------------------------
 
-  /** Reads every page of a query (PostgREST caps responses at max-rows). */
-  private async selectAllPages<T>(
-    page: (from: number, to: number) => PromiseLike<QueryResult<T[]>>,
-    errorMessage: string,
-  ): Promise<T[]> {
-    const rows: T[] = [];
-    for (let from = 0; ; from += PAGE_SIZE) {
-      const { data, error } = await page(from, from + PAGE_SIZE - 1);
-      if (error) {
-        throw new InternalServerErrorException(errorMessage);
-      }
-      const batch = data ?? [];
-      rows.push(...batch);
-      if (batch.length < PAGE_SIZE) return rows;
-    }
-  }
-
   /**
    * Adds connected_device_count to gateway rows using a fixed number of
    * queries regardless of how many gateways.
@@ -170,7 +152,7 @@ export class GatewayService {
     const since = connectedSince();
     const devicesByGateway = new Map<string, Set<string>>();
     for (const ids of chunk(rows.map((gw) => gw.gateway_id))) {
-      const sightings = await this.selectAllPages<
+      const sightings = await selectAllPages<
         Pick<DeviceGatewayRow, 'dev_eui' | 'gateway_id'>
       >(
         (from, to) =>
@@ -378,7 +360,7 @@ export class GatewayService {
     const client = this.supabaseService.getClient();
     const since = connectedSince();
 
-    const sightings = await this.selectAllPages<DeviceGatewayRow>(
+    const sightings = await selectAllPages<DeviceGatewayRow>(
       (from, to) =>
         client
           .from('cw_device_gateway')
