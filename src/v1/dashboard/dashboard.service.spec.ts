@@ -62,9 +62,12 @@ function tableStub(rows: unknown[]) {
   return chain;
 }
 
-function serviceWith(accessibleDevices: AccessibleDevice[]) {
+function serviceWith(
+  accessibleDevices: AccessibleDevice[],
+  devices: unknown[] = [device('USER-DEV'), device('VIEWER-DEV')],
+) {
   const tables: Record<string, unknown[]> = {
-    cw_devices: [device('USER-DEV'), device('VIEWER-DEV')],
+    cw_devices: devices,
     cw_air_data: [{ created_at: '2026-10-30T00:00:00Z', temperature_c: 21 }],
   };
   const listAccessibleDevices = jest.fn().mockResolvedValue(accessibleDevices);
@@ -131,5 +134,94 @@ describe('DashboardService can_write_notes', () => {
 
     expect(page.rows.every((row) => row.can_write_notes)).toBe(true);
     expect(listAccessibleDevices).not.toHaveBeenCalled();
+  });
+});
+
+describe('DashboardService natural order', () => {
+  const named = (
+    devEui: string,
+    name: string,
+    location = { location_id: 7, name: 'Greenhouse', group: null },
+  ) => ({
+    ...device(devEui),
+    name,
+    location_id: location.location_id,
+    cw_locations: location,
+  });
+
+  it('sorts every matching device by name before cutting the page', async () => {
+    const { service } = serviceWith(
+      [],
+      [
+        named('D1', 'センサー10'),
+        named('D2', '⑥ハウス'),
+        named('D3', 'センサー2'),
+        named('D4', 'apple'),
+        named('D5', '1号舎'),
+        named('D6', 'センサー2'),
+      ],
+    );
+
+    const first = await service.getDevices(staff, { take: 3 });
+    const second = await service.getDevices(staff, { skip: 3, take: 3 });
+
+    expect(first.total).toBe(6);
+    expect(first.rows.map((row) => [row.dev_eui, row.name])).toEqual([
+      ['D5', '1号舎'],
+      ['D2', '⑥ハウス'],
+      ['D4', 'apple'],
+    ]);
+    expect(second.rows.map((row) => [row.dev_eui, row.name])).toEqual([
+      ['D3', 'センサー2'],
+      ['D6', 'センサー2'],
+      ['D1', 'センサー10'],
+    ]);
+  });
+
+  it('orders kanji names by the request language', async () => {
+    const { service } = serviceWith(
+      [],
+      [named('D1', '温室'), named('D2', '五反田')],
+    );
+
+    const ja = await service.getDevices(staff, { locale: 'ja' });
+    const en = await service.getDevices(staff, { locale: 'en-US,en;q=0.9' });
+
+    expect(ja.rows.map((row) => row.name)).toEqual(['温室', '五反田']);
+    expect(en.rows.map((row) => row.name)).toEqual(['五反田', '温室']);
+  });
+
+  it('returns an empty page past the last device', async () => {
+    const { service } = serviceWith([], [named('D1', 'A')]);
+
+    const page = await service.getDevices(staff, { skip: 50 });
+
+    expect(page).toEqual({ rows: [], total: 1, skip: 50, take: 50 });
+  });
+
+  it('orders locations, and the devices inside each one, naturally', async () => {
+    const house10 = { location_id: 1, name: '10号棟', group: null };
+    const house2 = { location_id: 2, name: '２号棟', group: null };
+    const { service } = serviceWith(
+      [],
+      [
+        named('D1', 'センサー10', house10),
+        named('D2', 'センサー１', house2),
+        named('D3', 'センサー2', house10),
+        named('D4', 'センサー１', house10),
+      ],
+    );
+
+    const page = await service.getLocations(staff, {});
+
+    expect(
+      page.groups.map((group) => [
+        group.location?.name,
+        group.devices.map((row) => row.name),
+      ]),
+    ).toEqual([
+      ['２号棟', ['センサー１']],
+      ['10号棟', ['センサー１', 'センサー2', 'センサー10']],
+    ]);
   });
 });

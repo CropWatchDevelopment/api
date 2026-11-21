@@ -41,6 +41,8 @@ type SuccessCase = {
     service: keyof ServiceRegistry;
   };
   expectedStatus: number;
+  /** Extra request headers, e.g. Accept-Language for sorted lists. */
+  headers?: Record<string, string>;
   method: 'delete' | 'get' | 'patch' | 'post';
   name: string;
   url: string;
@@ -616,11 +618,12 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, 42],
+        args: [MOCK_USER, 42, 'en-US,en;q=0.9'],
         method: 'findAllDevicesInLocation',
         service: 'devices',
       },
       expectedStatus: 200,
+      headers: { 'Accept-Language': 'en-US,en;q=0.9' },
       method: 'get',
       name: 'GET /v1/devices/location/:location_id preserves numeric location params',
       url: '/v1/devices/location/42',
@@ -810,11 +813,12 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER, undefined],
+        args: [MOCK_USER, undefined, 'ja'],
         method: 'findAll',
         service: 'locations',
       },
       expectedStatus: 200,
+      headers: { 'Accept-Language': 'ja' },
       method: 'get',
       name: 'GET /v1/locations preserves the current route',
       url: '/v1/locations',
@@ -822,11 +826,12 @@ describe('V1 Route Input Contracts', () => {
     {
       auth: true,
       expectedCall: {
-        args: [MOCK_USER],
+        args: [MOCK_USER, 'en'],
         method: 'findAllLocationGroups',
         service: 'locations',
       },
       expectedStatus: 200,
+      headers: { 'Accept-Language': 'en' },
       method: 'get',
       name: 'GET /v1/locations/groups preserves the current route',
       url: '/v1/locations/groups',
@@ -1251,6 +1256,10 @@ describe('V1 Route Input Contracts', () => {
 
     if (testCase.auth) {
       req = req.set('Authorization', AUTH_HEADER);
+    }
+
+    for (const [header, value] of Object.entries(testCase.headers ?? {})) {
+      req = req.set(header, value);
     }
 
     if (testCase.body !== undefined) {
