@@ -9,6 +9,16 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { Action } from '../common/authz';
 import type { AccessService, LocationAccess } from '../common/authz';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+import { GroupsService } from '../groups/groups.service';
+
+/** Resolves a group name to a fixed id (77) like GroupsService.resolveForWrite; empty → null. */
+const createGroupsMock = () =>
+  ({
+    resolveForWrite: jest.fn(
+      (_kind: string, _user: unknown, name?: string | null) =>
+        Promise.resolve(typeof name === 'string' && name.trim() ? 77 : null),
+    ),
+  }) as unknown as GroupsService & { resolveForWrite: jest.Mock };
 
 describe('LocationsService', () => {
   type QueryResult = { data: unknown; error: unknown };
@@ -95,14 +105,16 @@ describe('LocationsService', () => {
     client: ReturnType<typeof createClient>,
     accessService = createAccessService(),
   ) => {
+    const groupsService = createGroupsMock();
     const service = new LocationsService(
       {
         getClient: jest.fn(() => client),
         getAdminClient: jest.fn(),
       } as unknown as SupabaseService,
       accessService,
+      groupsService,
     );
-    return { service, accessService };
+    return { service, accessService, groupsService };
   };
 
   const USER: AuthenticatedUser = {
@@ -139,6 +151,8 @@ describe('LocationsService', () => {
       data: {
         location_id: 83,
         name: 'Staff Visible',
+        group_id: 4,
+        location_group: { name: 'Support' },
         cw_location_owners: [staffOwnerRow],
       },
       error: null,
@@ -157,9 +171,14 @@ describe('LocationsService', () => {
     ).resolves.toEqual({
       location_id: 83,
       name: 'Staff Visible',
+      // The group's name, as before 038; no group_id or embed.
+      group: 'Support',
       cw_location_owners: [staffOwnerRow],
     });
 
+    expect(locationQuery.select).toHaveBeenCalledWith(
+      expect.stringContaining('location_group:cw_location_groups(name)'),
+    );
     // Staff skip every scope filter: only the primary-key eq is applied.
     expect(locationQuery.eq).toHaveBeenCalledTimes(1);
     expect(locationQuery.eq).toHaveBeenCalledWith('location_id', 83);
@@ -190,6 +209,7 @@ describe('LocationsService', () => {
     await expect(service.findOne(84, USER)).resolves.toEqual({
       location_id: 84,
       name: 'Customer Location',
+      group: null,
       cw_location_owners: [customerOwnerRow],
     });
   });
@@ -207,13 +227,131 @@ describe('LocationsService', () => {
 
     await expect(
       service.update(5, { name: 'Renamed', group: null }, USER),
-    ).resolves.toEqual({ location_id: 5, name: 'Renamed' });
+    ).resolves.toEqual({ location_id: 5, name: 'Renamed', group: null });
+    expect(updateQuery.update).toHaveBeenCalledWith({
+      name: 'Renamed',
+      group_id: null,
+    });
 
     // The update filters by primary key only — the permission gate already
     // ran. (The old code re-filtered on owner_id, which 500'd for Managers.)
     expect(updateQuery.eq).toHaveBeenCalledTimes(1);
     expect(updateQuery.eq).toHaveBeenCalledWith('location_id', 5);
     expect(updateQuery.maybeSingle).toHaveBeenCalledTimes(1);
+  });
+
+  it('update turns the group name into a group id in the location’s org', async () => {
+    const updateQuery = createBuilder({
+      data: {
+        location_id: 5,
+        name: 'North',
+        group_id: 77,
+        location_group: { name: 'Farm A' },
+      },
+      error: null,
+    });
+    const { service, accessService, groupsService } = createService(
+      createClient({ cw_locations: [updateQuery] }),
+    );
+    accessService.assertLocationAccess.mockResolvedValue(
+      locationAccess({ locationId: 5, orgId: 'org-1' }),
+    );
+
+    await expect(
+      service.update(5, { group: ' Farm A ' }, USER),
+    ).resolves.toEqual({ location_id: 5, name: 'North', group: 'Farm A' });
+    expect(groupsService.resolveForWrite).toHaveBeenCalledWith(
+      'location',
+      USER,
+      ' Farm A ',
+      'org-1',
+    );
+    expect(updateQuery.update).toHaveBeenCalledWith({ group_id: 77 });
+  });
+
+  describe('create', () => {
+    const ownerContext = {
+      org: { id: 'org-1', role: 'owner' },
+    };
+
+    it('stores the group as an id in the owner’s org and returns its name', async () => {
+      const locationInsert = createBuilder({
+        data: {
+          location_id: 9,
+          name: 'North Field',
+          group_id: 77,
+          location_group: { name: 'Farm A' },
+        },
+        error: null,
+      });
+      const ownerInsert = createBuilder({ data: { id: 1 }, error: null });
+      const accessService = createAccessService();
+      Object.assign(accessService, {
+        getOrgContext: jest.fn().mockResolvedValue(ownerContext),
+      });
+      const { service, groupsService } = createService(
+        createClient({
+          cw_locations: [locationInsert],
+          cw_location_owners: [ownerInsert],
+        }),
+        accessService,
+      );
+
+      await expect(
+        service.create({ name: 'North Field', group: 'Farm A' }, USER),
+      ).resolves.toEqual({
+        location_id: 9,
+        name: 'North Field',
+        group: 'Farm A',
+      });
+      expect(groupsService.resolveForWrite).toHaveBeenCalledWith(
+        'location',
+        USER,
+        'Farm A',
+        'org-1',
+      );
+      expect(locationInsert.insert).toHaveBeenCalledWith({
+        name: 'North Field',
+        group_id: 77,
+        owner_id: 'user-1',
+        org_id: 'org-1',
+      });
+    });
+
+    it('refuses a non-owner before creating a group', async () => {
+      const accessService = createAccessService();
+      Object.assign(accessService, {
+        getOrgContext: jest
+          .fn()
+          .mockResolvedValue({ org: { id: 'org-1', role: 'member' } }),
+      });
+      const { service, groupsService } = createService(
+        createClient({}),
+        accessService,
+      );
+
+      await expect(
+        service.create({ name: 'North Field', group: 'Farm A' }, USER),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(groupsService.resolveForWrite).not.toHaveBeenCalled();
+    });
+
+    it('fails with 500 when the location cannot be stored', async () => {
+      const accessService = createAccessService();
+      Object.assign(accessService, {
+        getOrgContext: jest.fn().mockResolvedValue(ownerContext),
+      });
+      const { service } = createService(
+        createClient({
+          cw_locations: [createBuilder({ data: null, error: { code: 'X' } })],
+        }),
+        accessService,
+      );
+
+      await expect(
+        service.create({ name: 'North Field' }, USER),
+      ).rejects.toBeInstanceOf(InternalServerErrorException);
+    });
   });
 
   it('update writes coordinates without touching the name or group', async () => {
@@ -258,7 +396,11 @@ describe('LocationsService', () => {
 
   it('findAllLocationGroups uses the shared read scope (regression: shared locations were hidden)', async () => {
     const groupsQuery = createBuilder({
-      data: [{ group: 'North' }, { group: 'North' }, { group: 'South' }],
+      data: [
+        { location_group: { name: 'North' } },
+        { location_group: { name: 'North' } },
+        { location_group: { name: 'South' } },
+      ],
       error: null,
     });
     const client = createClient({ cw_locations: [groupsQuery] });
@@ -278,7 +420,12 @@ describe('LocationsService', () => {
   it('findAll returns locations in natural name order for the request language', async () => {
     const locationsQuery = createBuilder({
       data: [
-        { location_id: 1, name: '温室' },
+        {
+          location_id: 1,
+          name: '温室',
+          group_id: 3,
+          location_group: { name: 'Farm A' },
+        },
         { location_id: 2, name: '10号棟' },
         { location_id: 3, name: '五反田' },
         { location_id: 4, name: '２号棟' },
@@ -292,6 +439,12 @@ describe('LocationsService', () => {
     const rows = await service.findAll(USER, undefined, 'ja');
 
     expect(rows.map((row) => row.location_id)).toEqual([4, 2, 1, 3]);
+    // Every row in the API shape: the group's name, no group_id or embed.
+    expect(rows[2]).toEqual({ location_id: 1, name: '温室', group: 'Farm A' });
+    expect(rows[1]).toEqual({ location_id: 2, name: '10号棟', group: null });
+    expect(locationsQuery.select).toHaveBeenCalledWith(
+      expect.stringContaining('location_group:cw_location_groups(name)'),
+    );
     expect(locationsQuery.order).toHaveBeenCalledWith('location_id', {
       ascending: true,
     });
@@ -300,10 +453,10 @@ describe('LocationsService', () => {
   it('findAllLocationGroups returns each group once, in natural order', async () => {
     const groupsQuery = createBuilder({
       data: [
-        { group: '温室' },
-        { group: 'ハウス10' },
-        { group: 'ハウス２' },
-        { group: 'ハウス10' },
+        { location_group: { name: '温室' } },
+        { location_group: { name: 'ハウス10' } },
+        { location_group: { name: 'ハウス２' } },
+        { location_group: { name: 'ハウス10' } },
       ],
       error: null,
     });

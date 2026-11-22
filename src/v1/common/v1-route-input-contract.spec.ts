@@ -25,6 +25,11 @@ import { LineController } from '../line/line.controller';
 import { LineService } from '../line/line.service';
 import { CropsController } from '../crops/crops.controller';
 import { CropsService } from '../crops/crops.service';
+import {
+  DeviceGroupsController,
+  LocationGroupsController,
+} from '../groups/groups.controller';
+import { GroupsService } from '../groups/groups.service';
 import { AiRecommendationsController } from '../ai-recommendations/ai-recommendations.controller';
 import { AiRecommendationsService } from '../ai-recommendations/ai-recommendations.service';
 
@@ -344,6 +349,7 @@ describe('V1 Route Input Contracts', () => {
     serviceRegistry = {
       air: createMockedMethods(['createNote', 'findOne']),
       crops: createMockedMethods(['findAll', 'findOne']),
+      groups: createMockedMethods(['list', 'create', 'rename', 'remove']),
       aiRecommendations: createMockedMethods(['findForDevice']),
       auth: createMockedMethods([
         'loginWithPassword',
@@ -398,6 +404,8 @@ describe('V1 Route Input Contracts', () => {
         WaterController,
         LineController,
         CropsController,
+        LocationGroupsController,
+        DeviceGroupsController,
         AiRecommendationsController,
       ],
       providers: [
@@ -410,6 +418,7 @@ describe('V1 Route Input Contracts', () => {
         { provide: WaterService, useValue: serviceRegistry.water },
         { provide: LineService, useValue: serviceRegistry.line },
         { provide: CropsService, useValue: serviceRegistry.crops },
+        { provide: GroupsService, useValue: serviceRegistry.groups },
         {
           provide: AiRecommendationsService,
           useValue: serviceRegistry.aiRecommendations,
@@ -770,6 +779,81 @@ describe('V1 Route Input Contracts', () => {
       method: 'get',
       name: 'GET /v1/crops/:id parses the id',
       url: '/v1/crops/3',
+    },
+    {
+      auth: true,
+      expectedCall: {
+        args: ['location', MOCK_USER, { orgId: undefined, locale: 'en' }],
+        method: 'list',
+        service: 'groups',
+      },
+      expectedStatus: 200,
+      headers: { 'Accept-Language': 'en' },
+      method: 'get',
+      name: 'GET /v1/location-groups lists the location groups in the request language',
+      url: '/v1/location-groups',
+    },
+    {
+      auth: true,
+      expectedCall: {
+        args: [
+          'device',
+          MOCK_USER,
+          { orgId: '11111111-1111-4111-8111-111111111111', locale: undefined },
+        ],
+        method: 'list',
+        service: 'groups',
+      },
+      expectedStatus: 200,
+      method: 'get',
+      name: 'GET /v1/device-groups lists one organization’s device groups',
+      url: '/v1/device-groups?org_id=11111111-1111-4111-8111-111111111111',
+    },
+    {
+      auth: true,
+      body: {
+        name: '  Greenhouse A  ',
+        org_id: '11111111-1111-4111-8111-111111111111',
+      },
+      expectedCall: {
+        args: [
+          'location',
+          MOCK_USER,
+          'Greenhouse A',
+          '11111111-1111-4111-8111-111111111111',
+        ],
+        method: 'create',
+        service: 'groups',
+      },
+      expectedStatus: 201,
+      method: 'post',
+      name: 'POST /v1/location-groups creates a group with the trimmed name',
+      url: '/v1/location-groups',
+    },
+    {
+      auth: true,
+      body: { name: 'Barn' },
+      expectedCall: {
+        args: ['device', MOCK_USER, 12, 'Barn'],
+        method: 'rename',
+        service: 'groups',
+      },
+      expectedStatus: 200,
+      method: 'patch',
+      name: 'PATCH /v1/device-groups/:id renames a group',
+      url: '/v1/device-groups/12',
+    },
+    {
+      auth: true,
+      expectedCall: {
+        args: ['location', MOCK_USER, 12],
+        method: 'remove',
+        service: 'groups',
+      },
+      expectedStatus: 204,
+      method: 'delete',
+      name: 'DELETE /v1/location-groups/:id deletes a group',
+      url: '/v1/location-groups/12',
     },
     {
       auth: true,
@@ -1191,6 +1275,59 @@ describe('V1 Route Input Contracts', () => {
       method: 'get',
       name: 'GET /v1/crops/:id rejects an id that is not an integer',
       url: '/v1/crops/tomato',
+    },
+    {
+      auth: true,
+      body: { name: '   ', org_id: '11111111-1111-4111-8111-111111111111' },
+      expectedMessage: ['name should not be empty'],
+      expectedStatus: 400,
+      method: 'post',
+      name: 'POST /v1/location-groups rejects a blank name',
+      url: '/v1/location-groups',
+    },
+    {
+      auth: true,
+      body: {
+        name: 'x'.repeat(121),
+        org_id: '11111111-1111-4111-8111-111111111111',
+      },
+      expectedMessage: ['name must be shorter than or equal to 120 characters'],
+      expectedStatus: 400,
+      method: 'post',
+      name: 'POST /v1/device-groups rejects a name over 120 characters',
+      url: '/v1/device-groups',
+    },
+    {
+      auth: true,
+      body: { name: 'Barn', rogue: true },
+      expectedMessage: ['property rogue should not exist'],
+      expectedStatus: 400,
+      method: 'patch',
+      name: 'PATCH /v1/location-groups/:id rejects unknown body properties',
+      url: '/v1/location-groups/12',
+    },
+    {
+      auth: true,
+      expectedStatus: 400,
+      method: 'delete',
+      name: 'DELETE /v1/device-groups/:id rejects an id that is not an integer',
+      url: '/v1/device-groups/barn',
+    },
+    {
+      auth: true,
+      body: { name: 'Barn' },
+      expectedMessage: ['org_id must be a UUID'],
+      expectedStatus: 400,
+      method: 'post',
+      name: 'POST /v1/location-groups needs the organization to add to',
+      url: '/v1/location-groups',
+    },
+    {
+      auth: true,
+      expectedStatus: 400,
+      method: 'get',
+      name: 'GET /v1/location-groups rejects an org_id that is not a UUID',
+      url: '/v1/location-groups?org_id=farm',
     },
     {
       auth: true,

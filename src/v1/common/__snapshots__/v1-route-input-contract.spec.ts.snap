@@ -153,6 +153,24 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         ],
         "type": "object",
       },
+      "CreateGroupDto": {
+        "properties": {
+          "name": {
+            "example": "Greenhouse A",
+            "maxLength": 120,
+            "type": "string",
+          },
+          "org_id": {
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "name",
+          "org_id",
+        ],
+        "type": "object",
+      },
       "CreateLocationDto": {
         "properties": {
           "created_at": {
@@ -232,6 +250,19 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
           "admin_user_id",
           "location_id",
           "user_id",
+        ],
+        "type": "object",
+      },
+      "GroupNameDto": {
+        "properties": {
+          "name": {
+            "example": "Greenhouse A",
+            "maxLength": 120,
+            "type": "string",
+          },
+        },
+        "required": [
+          "name",
         ],
         "type": "object",
       },
@@ -829,6 +860,76 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
         ],
       },
     },
+    "/v1/device-groups": {
+      "get": {
+        "parameters": [
+          {
+            "in": "header",
+            "name": "accept-language",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/device-groups/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupNameDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
     "/v1/devices": {
       "get": {
         "parameters": [
@@ -1273,6 +1374,76 @@ exports[`V1 Route Input Contracts matches the full v1 request contract snapshot 
     },
     "/v1/line/webhook": {
       "post": {},
+    },
+    "/v1/location-groups": {
+      "get": {
+        "parameters": [
+          {
+            "in": "header",
+            "name": "accept-language",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+          {
+            "in": "query",
+            "name": "org_id",
+            "required": false,
+            "schema": {
+              "type": "string",
+            },
+          },
+        ],
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
+    },
+    "/v1/location-groups/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "number",
+            },
+          },
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupNameDto",
+              },
+            },
+          },
+          "required": true,
+        },
+      },
     },
     "/v1/locations": {
       "get": {

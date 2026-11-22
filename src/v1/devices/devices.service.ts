@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { SupabaseService } from '../../supabase/supabase.service';
-import type { TableRow } from '../types/supabase';
+import type { TableRow, TableUpdate } from '../types/supabase';
 import { LocationsService } from '../locations/locations.service';
 import { PaymentsService } from '../payments/payments.service';
 import { sanitizeOrFilterTerm } from '../common/postgrest-filter.helper';
@@ -33,6 +33,18 @@ import {
   decide,
 } from '../common/authz';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+import { GroupsService } from '../groups/groups.service';
+import {
+  DEVICE_GROUP_EMBED,
+  DEVICE_GROUP_INNER_EMBED,
+  DEVICE_GROUP_NAME,
+  DEVICE_LOCATION_GROUP_NAME,
+  deviceLocationEmbed,
+  groupName,
+  withDeviceGroup,
+  type DeviceWithGroup,
+  type GroupEmbed,
+} from '../groups/group-columns';
 
 type DeviceRow = TableRow<'cw_devices'>;
 type DeviceOwnerRow = TableRow<'cw_device_owners'>;
@@ -40,7 +52,7 @@ type DeviceTypeRow = TableRow<'cw_device_type'>;
 type LocationRow = TableRow<'cw_locations'>;
 type LocationOwnerRow = TableRow<'cw_location_owners'>;
 
-type LocationJoin = Pick<LocationRow, 'location_id' | 'name' | 'group'>;
+type LocationJoin = Pick<LocationRow, 'location_id' | 'name'>;
 
 /** Device row plus the relations embedded by the select strings below. */
 type DeviceRecord = DeviceRow & {
@@ -49,7 +61,12 @@ type DeviceRecord = DeviceRow & {
   cw_device_owners?: DeviceOwnerRow[];
   cw_locations?: LocationJoin | LocationJoin[] | null;
   cw_device_type?: DeviceTypeRow | DeviceTypeRow[] | null;
+  /** The group's name (DEVICE_GROUP_EMBED); responses carry it as `group`. */
+  device_group?: GroupEmbed;
 };
+
+/** A device as the API returns it (`group` = the group's name). */
+type DeviceResponse = DeviceWithGroup<DeviceRecord>;
 
 /** One gateway's latest reading of a device (cw_device_gateway). */
 type DeviceGatewaySignal = Pick<
@@ -58,7 +75,7 @@ type DeviceGatewaySignal = Pick<
 >;
 
 /** A location's device plus every gateway reading of it. */
-type LocationDeviceRecord = DeviceRecord & {
+type LocationDeviceRecord = DeviceResponse & {
   gateway_signals: DeviceGatewaySignal[];
 };
 
@@ -74,8 +91,9 @@ type LatestDeviceTypeJoin = Pick<
 /** Columns selected by findAllLatestData. */
 type LatestDeviceRecord = Pick<
   DeviceRow,
-  'dev_eui' | 'name' | 'group' | 'location_id' | 'last_data_updated_at'
+  'dev_eui' | 'name' | 'location_id' | 'last_data_updated_at'
 > & {
+  device_group?: GroupEmbed;
   cw_device_type: LatestDeviceTypeJoin | LatestDeviceTypeJoin[] | null;
   cw_locations: LocationJoin | LocationJoin[] | null;
 };
@@ -131,6 +149,7 @@ export class DevicesService {
     private readonly locationsService: LocationsService,
     private readonly paymentsService: PaymentsService,
     private readonly accessService: AccessService,
+    private readonly groupsService: GroupsService,
   ) {}
 
   async findAll(
@@ -140,13 +159,16 @@ export class DevicesService {
     searchGroup?: string,
     searchName?: string,
     searchLocation?: string,
-  ): Promise<PagedDevicesResponse<DeviceRecord>> {
+  ): Promise<PagedDevicesResponse<DeviceResponse>> {
     const client = this.supabaseService.getClient();
 
+    // An inner group embed when filtering by group, so devices without a
+    // matching group drop out instead of losing their group.
     let devicesQuery = client.from('cw_devices').select(
       `
     *,
     ${DEVICE_OWNER_MATCH_EMBED},
+    ${searchGroup ? DEVICE_GROUP_INNER_EMBED : DEVICE_GROUP_EMBED},
     cw_device_owners(*),
     cw_locations(name, location_id),
     device_licenses(id)
@@ -161,7 +183,7 @@ export class DevicesService {
     );
 
     if (searchGroup) {
-      devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
+      devicesQuery = devicesQuery.ilike(DEVICE_GROUP_NAME, `%${searchGroup}%`);
     }
     if (searchName) {
       const safeName = sanitizeOrFilterTerm(searchName);
@@ -185,7 +207,7 @@ export class DevicesService {
       throw new InternalServerErrorException('Failed to fetch devices');
     }
 
-    const rows = (data ?? []) as DeviceRecord[];
+    const rows = ((data ?? []) as DeviceRecord[]).map(withDeviceGroup);
     const responseTake =
       typeof take === 'number' ? take : (count ?? rows.length);
 
@@ -200,7 +222,7 @@ export class DevicesService {
   async findOne(
     user: AuthenticatedUser,
     devEui: string,
-  ): Promise<DeviceRecord & { can_write_notes: boolean }> {
+  ): Promise<DeviceResponse & { can_write_notes: boolean }> {
     const client = this.supabaseService.getClient();
     const normalizedDevEui = devEui?.trim();
     if (!normalizedDevEui) {
@@ -213,6 +235,7 @@ export class DevicesService {
         `
     *,
     ${DEVICE_OWNER_MATCH_EMBED},
+    ${DEVICE_GROUP_EMBED},
     cw_device_owners(*),
     cw_locations(name, location_id),
     cw_device_type(*)
@@ -245,7 +268,7 @@ export class DevicesService {
       normalizedDevEui,
     );
     return {
-      ...data,
+      ...withDeviceGroup(data),
       can_write_notes: access.canRead && decide(access, Action.NoteWrite),
     };
   }
@@ -313,8 +336,7 @@ export class DevicesService {
 
     let query = client
       .from('cw_devices')
-      .select(`${DEVICE_OWNER_MATCH_EMBED}, cw_device_owners(*), group`)
-      .not('group', 'is', null);
+      .select(`${DEVICE_OWNER_MATCH_EMBED}, ${DEVICE_GROUP_INNER_EMBED}`);
 
     query = applyDeviceReadScope(
       query,
@@ -332,14 +354,15 @@ export class DevicesService {
       throw new NotFoundException('No device groups found');
     }
 
-    const groupRows = groups as Pick<DeviceRow, 'group'>[];
+    const groupRows = groups as { device_group?: GroupEmbed }[];
     const groupCounts = groupRows.reduce(
       (acc, item) => {
-        const existing = acc.find((g) => g.group === item.group);
+        const group = groupName(item.device_group);
+        const existing = acc.find((g) => g.group === group);
         if (existing) {
           existing.count++;
         } else {
-          acc.push({ group: item.group, count: 1 });
+          acc.push({ group, count: 1 });
         }
         return acc;
       },
@@ -683,14 +706,18 @@ export class DevicesService {
     const locationIdFilter = hasLocationFilter
       ? Number(searchLocation)
       : undefined;
-    const dataLocationSelect = hasLocationFilter
-      ? 'cw_locations!inner(location_id, name, group)'
-      : 'cw_locations(location_id, name, group)';
+    const dataLocationSelect = deviceLocationEmbed('location_id, name', {
+      inner: hasLocationFilter,
+      groupFilter: Boolean(locationGroup),
+    });
+    const deviceGroupSelect = searchGroup
+      ? DEVICE_GROUP_INNER_EMBED
+      : DEVICE_GROUP_EMBED;
 
     let devicesQuery = client
       .from('cw_devices')
       .select(
-        `dev_eui, name, group, location_id, last_data_updated_at, cw_device_type(name, default_upload_interval, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, ${DEVICE_OWNER_MATCH_EMBED}`,
+        `dev_eui, name, location_id, last_data_updated_at, ${deviceGroupSelect}, cw_device_type(name, default_upload_interval, primary_data_v2, secondary_data_v2, data_table_v2), ${dataLocationSelect}, ${DEVICE_OWNER_MATCH_EMBED}`,
         { count: 'exact' },
       );
 
@@ -701,7 +728,7 @@ export class DevicesService {
     );
 
     if (searchGroup) {
-      devicesQuery = devicesQuery.ilike('group', `%${searchGroup}%`);
+      devicesQuery = devicesQuery.ilike(DEVICE_GROUP_NAME, `%${searchGroup}%`);
     }
     if (searchName) {
       const safeName = sanitizeOrFilterTerm(searchName);
@@ -716,9 +743,9 @@ export class DevicesService {
       );
     }
     if (locationGroup) {
-      devicesQuery = devicesQuery.eq('cw_locations.group', locationGroup);
-      devicesQuery = devicesQuery.not('cw_locations', 'is', null);
-      devicesQuery = devicesQuery.not('cw_locations.group', 'is', null);
+      // Both embeds are inner here (deviceLocationEmbed groupFilter), so
+      // devices outside the group drop out.
+      devicesQuery = devicesQuery.eq(DEVICE_LOCATION_GROUP_NAME, locationGroup);
     }
 
     const {
@@ -740,7 +767,8 @@ export class DevicesService {
       throw new NotFoundException('No devices found');
     }
 
-    const deviceRows = device as LatestDeviceRecord[];
+    // The select string is built at runtime, so supabase-js cannot type it.
+    const deviceRows = device as unknown as LatestDeviceRecord[];
     const devicesWithLatestData = (
       await Promise.all(
         deviceRows.map(async (d) => {
@@ -807,7 +835,7 @@ export class DevicesService {
             device_type: deviceType.name,
             location_name: location?.name ?? 'n/a',
             location_id: d.location_id,
-            group: d.group,
+            group: groupName(d.device_group),
             created_at: d.last_data_updated_at,
             default_upload_interval: deviceType.default_upload_interval,
             [primaryField]: latestRow[primaryField],
@@ -840,7 +868,7 @@ export class DevicesService {
 
     let query = client
       .from('cw_devices')
-      .select(`*, ${DEVICE_OWNER_MATCH_EMBED}`)
+      .select(`*, ${DEVICE_OWNER_MATCH_EMBED}, ${DEVICE_GROUP_EMBED}`)
       .eq('location_id', locationId);
 
     query = applyDeviceReadScope(
@@ -863,9 +891,11 @@ export class DevicesService {
       throw new NotFoundException('No devices found for this location');
     }
 
-    const rows = naturalSort(devices as DeviceRecord[], (d) => d.name, {
-      locale,
-    });
+    const rows = naturalSort(
+      (devices as DeviceRecord[]).map(withDeviceGroup),
+      (d) => d.name,
+      { locale },
+    );
     const signals = await this.findGatewaySignals(
       rows.map((device) => device.dev_eui),
     );
@@ -1074,8 +1104,8 @@ export class DevicesService {
         location_id: device.location_id,
         user_id: userId,
       })
-      .select('*')
-      .single()) as SingleResult<DeviceRow>;
+      .select(`*, ${DEVICE_GROUP_EMBED}`)
+      .single()) as SingleResult<DeviceRecord>;
 
     if (createDeviceError) {
       // Surface the causes a user can fix; everything else stays a logged 500.
@@ -1092,6 +1122,9 @@ export class DevicesService {
       this.logger.error(
         `createDevice ${normalizedDevEui}: ${createDeviceError.code} ${createDeviceError.message}`,
       );
+      throw new InternalServerErrorException('Failed to create device');
+    }
+    if (!createdDeviceData) {
       throw new InternalServerErrorException('Failed to create device');
     }
 
@@ -1127,7 +1160,7 @@ export class DevicesService {
       }
     }
 
-    return createdDeviceData;
+    return withDeviceGroup(createdDeviceData);
   }
 
   async replaceDevice(
@@ -1172,8 +1205,8 @@ export class DevicesService {
         location_id: newDevice.location_id,
       })
       .eq('dev_eui', normalizedDevEui)
-      .select('*')
-      .single()) as SingleResult<DeviceRow>;
+      .select(`*, ${DEVICE_GROUP_EMBED}`)
+      .single()) as SingleResult<DeviceRecord>;
 
     if (updateDeviceError) {
       throw new InternalServerErrorException('Failed to update device');
@@ -1183,7 +1216,7 @@ export class DevicesService {
       throw new NotFoundException('Device not found');
     }
 
-    return updatedDeviceData;
+    return withDeviceGroup(updatedDeviceData);
   }
 
   async updatePermissionLevel(
@@ -1313,6 +1346,7 @@ export class DevicesService {
     //  * every other member of the destination location starts Disabled,
     //  * all permissions from the previous location are removed.
     let destinationOwnerId: string | null = null;
+    let destinationOrgId: string | null = null;
     let destinationMemberIds: string[] = [];
 
     if (isMovingLocation) {
@@ -1321,7 +1355,7 @@ export class DevicesService {
       let destinationQuery = client
         .from('cw_locations')
         .select(
-          `location_id, owner_id, ${LOCATION_OWNER_MATCH_EMBED}, cw_location_owners(user_id)`,
+          `location_id, owner_id, org_id, ${LOCATION_OWNER_MATCH_EMBED}, cw_location_owners(user_id)`,
         )
         .eq('location_id', location_id);
 
@@ -1334,7 +1368,7 @@ export class DevicesService {
 
       const { data: destination, error: destinationError } =
         (await destinationQuery.maybeSingle()) as SingleResult<
-          Pick<LocationRow, 'location_id' | 'owner_id'> & {
+          Pick<LocationRow, 'location_id' | 'owner_id' | 'org_id'> & {
             cw_location_owners: Pick<LocationOwnerRow, 'user_id'>[] | null;
           }
         >;
@@ -1351,6 +1385,7 @@ export class DevicesService {
       }
 
       destinationOwnerId = destination.owner_id ?? null;
+      destinationOrgId = destination.org_id ?? null;
       destinationMemberIds = (destination.cw_location_owners ?? [])
         .map((member: { user_id: string | null }) => member.user_id)
         .filter((memberId: string | null): memberId is string =>
@@ -1358,11 +1393,28 @@ export class DevicesService {
         );
     }
 
-    const updatePayload: Record<string, unknown> = { name, group, location_id };
+    if (cropTypeId !== undefined && cropTypeId !== null) {
+      await this.assertCropAssignable(client, normalizedDevEui, cropTypeId);
+    }
+    // Every check passed: the group arrives as a name and the row stores its
+    // id, looked up in the org the device will be in. That is its location's
+    // org (org_fill_device_org sets it from location_id on every save), or
+    // its current org when the location has none. Resolved last, so a refused
+    // save adds no group.
+    const locationOrgId = isMovingLocation
+      ? destinationOrgId
+      : await this.findLocationOrgId(client, location_id);
+    const updatePayload: TableUpdate<'cw_devices'> = {
+      name,
+      group_id: await this.groupsService.resolveForWrite(
+        'device',
+        user,
+        group,
+        locationOrgId ?? access.orgId,
+      ),
+      location_id,
+    };
     if (cropTypeId !== undefined) {
-      if (cropTypeId !== null) {
-        await this.assertCropAssignable(client, normalizedDevEui, cropTypeId);
-      }
       updatePayload.crop_type_id = cropTypeId;
     }
     if (isMovingLocation && destinationOwnerId) {
@@ -1374,7 +1426,7 @@ export class DevicesService {
       .from('cw_devices')
       .update(updatePayload)
       .eq('dev_eui', devEui)
-      .select('*')) as ListResult<DeviceRow>;
+      .select(`*, ${DEVICE_GROUP_EMBED}`)) as ListResult<DeviceRecord>;
 
     if (!data || error) {
       throw new BadRequestException('Failed to update device');
@@ -1390,7 +1442,7 @@ export class DevicesService {
       );
     }
 
-    return data;
+    return data.map(withDeviceGroup);
   }
 
   /**
@@ -1521,6 +1573,24 @@ export class DevicesService {
    * up as opt-in, mirroring createDevice). The destination owner gets no row
    * — ownership via cw_devices.user_id is implicit and outranks all levels.
    */
+  /** The org of a location (null when it has none or does not exist). */
+  private async findLocationOrgId(
+    client: ReturnType<SupabaseService['getClient']>,
+    locationId: number,
+  ): Promise<string | null> {
+    const { data, error } = (await client
+      .from('cw_locations')
+      .select('org_id')
+      .eq('location_id', locationId)
+      .maybeSingle()) as SingleResult<Pick<LocationRow, 'org_id'>>;
+    if (error) {
+      throw new InternalServerErrorException(
+        'Failed to read the device location',
+      );
+    }
+    return data?.org_id ?? null;
+  }
+
   private async resetDevicePermissionsForMove(
     client: ReturnType<SupabaseService['getClient']>,
     devEui: string,
