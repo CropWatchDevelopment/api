@@ -252,6 +252,7 @@ describe('RulesService', () => {
       {
         devEui: 'AA',
         orgId: null,
+        groupId: null,
         name: 'Device A',
         permissionLevel: 1,
         canView: true,
@@ -298,6 +299,7 @@ describe('RulesService', () => {
       {
         devEui: 'AA',
         orgId: null,
+        groupId: null,
         name: 'Mine',
         permissionLevel: 1,
         canView: true,
@@ -307,6 +309,7 @@ describe('RulesService', () => {
       {
         devEui: 'BB',
         orgId: null,
+        groupId: null,
         name: 'Not mine',
         permissionLevel: 5,
         canView: false,
@@ -493,6 +496,7 @@ describe('RulesService', () => {
       devEuis.map((devEui) => ({
         devEui,
         orgId: null,
+        groupId: null,
         name: `Device ${devEui}`,
         permissionLevel: 1,
         canView: true,
@@ -755,6 +759,7 @@ describe('RulesService', () => {
         {
           devEui: 'AA',
           orgId: null,
+          groupId: null,
           name: 'Device A',
           permissionLevel: 1,
           canView: true,

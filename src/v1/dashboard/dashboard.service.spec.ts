@@ -16,13 +16,13 @@ const airType = {
 const device = (devEui: string) => ({
   dev_eui: devEui,
   name: devEui,
-  group: null,
+  device_group: null,
   upload_interval: 10,
   last_data_updated_at: null,
   error_status: null,
   location_id: 7,
   cw_device_type: airType,
-  cw_locations: { location_id: 7, name: 'Greenhouse', group: null },
+  cw_locations: { location_id: 7, name: 'Greenhouse', location_group: null },
 });
 
 const accessible = (
@@ -32,6 +32,7 @@ const accessible = (
   devEui,
   name: devEui,
   orgId: null,
+  groupId: null,
   permissionLevel: canWriteNotes ? 3 : 4,
   canView: true,
   canManage: false,
@@ -223,5 +224,118 @@ describe('DashboardService natural order', () => {
       ['２号棟', ['センサー１']],
       ['10号棟', ['センサー１', 'センサー2', 'センサー10']],
     ]);
+  });
+});
+
+describe('DashboardService groups (038)', () => {
+  const grouped = {
+    ...device('GROUPED'),
+    device_group: { name: 'Sensors' },
+    cw_locations: {
+      location_id: 7,
+      name: 'Greenhouse',
+      location_group: { name: 'Farm A' },
+    },
+  };
+
+  /** Like serviceWith, but keeps every cw_devices chain for inspection. */
+  function recordingService(devices: unknown[]) {
+    const chains: Record<string, jest.Mock>[] = [];
+    const service = new DashboardService(
+      {
+        getClient: () => ({
+          from: (table: string) => {
+            const chain = tableStub(
+              table === 'cw_devices'
+                ? devices
+                : [{ created_at: '2026-10-30T00:00:00Z', temperature_c: 21 }],
+            );
+            if (table === 'cw_devices') {
+              chains.push(chain as Record<string, jest.Mock>);
+            }
+            return chain;
+          },
+        }),
+      } as unknown as SupabaseService,
+      {} as TimezoneFormatterService,
+      {
+        getReadableOrgIds: jest.fn().mockResolvedValue([]),
+        listAccessibleDevices: jest.fn().mockResolvedValue([]),
+      } as unknown as AccessService,
+    );
+    return { service, chains };
+  }
+
+  const selects = (chain: Record<string, jest.Mock>) =>
+    chain.select.mock.calls.map(([columns]) => String(columns)).join(' ');
+
+  it('returns the device and location group names, as before', async () => {
+    const { service, chains } = recordingService([grouped]);
+
+    const page = await service.getDevices(staff, {});
+
+    // Step 2 (the page's full rows) embeds both group names.
+    expect(selects(chains[1])).toContain('device_group:cw_device_groups(name)');
+    expect(selects(chains[1])).toContain(
+      'location_group:cw_location_groups(name)',
+    );
+
+    expect(page.rows[0]).toMatchObject({
+      group: 'Sensors',
+      location: { location_id: 7, name: 'Greenhouse', group: 'Farm A' },
+    });
+
+    const locations = await service.getLocations(staff, {});
+    expect(locations.groups[0].location).toEqual({
+      location_id: 7,
+      name: 'Greenhouse',
+      group: 'Farm A',
+    });
+  });
+
+  it('filters by device group and location group through the group tables', async () => {
+    const { service, chains } = recordingService([grouped]);
+
+    await service.getDevices(staff, { group: 'sens', locationGroup: 'Farm A' });
+
+    const [match] = chains;
+    expect(selects(match)).toContain(
+      'device_group:cw_device_groups!inner(name)',
+    );
+    expect(selects(match)).toContain(
+      'cw_locations!inner(location_id, name, location_group:cw_location_groups!inner(name))',
+    );
+    expect(match.ilike).toHaveBeenCalledWith('device_group.name', '%sens%');
+    expect(match.eq).toHaveBeenCalledWith(
+      'cw_locations.location_group.name',
+      'Farm A',
+    );
+  });
+
+  it('filters the location list the same way', async () => {
+    const { service, chains } = recordingService([grouped]);
+
+    await service.getLocations(staff, {
+      group: 'sens',
+      locationGroup: 'Farm A',
+    });
+
+    const [locs, devices] = chains;
+    // Inner at both levels, so locations outside the group drop out.
+    expect(selects(locs)).toContain(
+      'cw_locations!inner(location_id, name, location_group:cw_location_groups!inner(name))',
+    );
+    expect(selects(locs)).toContain(
+      'device_group:cw_device_groups!inner(name)',
+    );
+    expect(locs.ilike).toHaveBeenCalledWith('device_group.name', '%sens%');
+    expect(locs.eq).toHaveBeenCalledWith(
+      'cw_locations.location_group.name',
+      'Farm A',
+    );
+    expect(selects(devices)).toContain(
+      'device_group:cw_device_groups!inner(name)',
+    );
+    expect(devices.ilike).toHaveBeenCalledWith('device_group.name', '%sens%');
   });
 });

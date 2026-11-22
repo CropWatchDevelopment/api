@@ -66,6 +66,7 @@ type AccessibleDeviceRow = {
   user_id: string | null;
   location_id: number | null;
   org_id: string | null;
+  group_id: number | null;
   owner_match?: OwnerEntry[] | null;
 };
 
@@ -113,6 +114,8 @@ export interface AccessibleDevice {
   devEui: string;
   name: string | null;
   orgId: string | null;
+  /** The device's group (cw_device_groups), or null. */
+  groupId: number | null;
   permissionLevel: number | null;
   canView: boolean;
   canManage: boolean;
@@ -576,7 +579,7 @@ export class AccessService {
       let query = client
         .from('cw_devices')
         .select(
-          'dev_eui, name, user_id, location_id, org_id, owner_match:cw_device_owners(user_id, permission_level)',
+          'dev_eui, name, user_id, location_id, org_id, group_id, owner_match:cw_device_owners(user_id, permission_level)',
         );
 
       if (!user.isStaff) {
@@ -635,6 +638,7 @@ export class AccessService {
             devEui: row.dev_eui,
             name: row.name?.trim() ? row.name : null,
             orgId: row.org_id,
+            groupId: row.group_id ?? null,
             permissionLevel: level,
             canView: decide(subject, Action.DeviceRead),
             canManage: decide(subject, Action.DeviceEdit),

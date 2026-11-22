@@ -2,7 +2,14 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Database } from '../../../../database.types';
 import { LocationOwnerDto } from './location-owner.dto';
 
-type LocationRow = Database['public']['Tables']['cw_locations']['Row'];
+/**
+ * The row as the API returns it: the group's name as `group` (see
+ * groups/group-columns.ts), never the stored `group_id`.
+ */
+type LocationRow = Omit<
+  Database['public']['Tables']['cw_locations']['Row'],
+  'group_id'
+>;
 
 export class LocationDto implements LocationRow {
   @ApiProperty({ format: 'date-time' })
@@ -11,7 +18,11 @@ export class LocationDto implements LocationRow {
   @ApiProperty({ nullable: true, required: false })
   description: string | null;
 
-  @ApiProperty({ nullable: true, required: false })
+  @ApiProperty({
+    nullable: true,
+    required: false,
+    description: 'Name of the location group (cw_location_groups), or null.',
+  })
   group: string | null;
 
   @ApiProperty({ nullable: true, required: false })

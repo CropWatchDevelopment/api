@@ -15,6 +15,7 @@ import {
 } from '../../tti/tti-provisioning.service';
 import { decryptAppKey, readCipherKey } from './device-key-cipher';
 import type { DeviceSetupDto, DeviceSetupLookupDto } from './device-setup.dto';
+import { GroupsService } from '../../groups/groups.service';
 import {
   DeviceSetupException,
   newSetupReference,
@@ -168,6 +169,7 @@ export class DeviceSetupService {
     private readonly paymentsService: PaymentsService,
     private readonly tti: TtiProvisioningService,
     private readonly configService: ConfigService,
+    private readonly groupsService: GroupsService,
   ) {}
 
   private fail(
@@ -392,11 +394,23 @@ export class DeviceSetupService {
     //    follow-up update; the primary key turns a concurrent setup of the
     //    same device into a conflict instead of a second registration.
     const client = this.supabaseService.getClient();
+    // The group arrives as a name; the row stores its id. A failure here
+    // reports like every other setup failure (with its reference).
+    const groupId = await this.groupsService
+      .resolveForWrite('device', user, dto.group, location.org_id)
+      .catch((error: unknown) =>
+        this.dbFail(
+          reference,
+          devEui,
+          'group lookup failed',
+          error instanceof Error ? error.message : undefined,
+        ),
+      );
     const { error: insertError } = await client.from('cw_devices').insert({
       dev_eui: devEui,
       name,
       type: dto.device_type_id,
-      group: dto.group?.trim() || null,
+      group_id: groupId,
       location_id: dto.location_id,
       lat: dto.lat ?? null,
       long: dto.long ?? null,

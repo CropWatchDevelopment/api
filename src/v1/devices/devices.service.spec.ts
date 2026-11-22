@@ -5,6 +5,16 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { LocationsService } from '../locations/locations.service';
 import { PaymentsService } from '../payments/payments.service';
 import { AccessService, Action, type DeviceAccess } from '../common/authz';
+import { GroupsService } from '../groups/groups.service';
+
+/** Resolves a group name to a fixed id (77) like GroupsService.resolveForWrite; empty → null. */
+const createGroupsMock = () =>
+  ({
+    resolveForWrite: jest.fn(
+      (_kind: string, _user: unknown, name?: string | null) =>
+        Promise.resolve(typeof name === 'string' && name.trim() ? 77 : null),
+    ),
+  }) as unknown as GroupsService & { resolveForWrite: jest.Mock };
 
 describe('DevicesService', () => {
   let service: DevicesService;
@@ -70,6 +80,7 @@ describe('DevicesService', () => {
             getManagedOrgIds: jest.fn().mockResolvedValue([]),
           },
         },
+        { provide: GroupsService, useValue: createGroupsMock() },
       ],
     }).compile();
 
@@ -104,7 +115,7 @@ describe('DevicesService', () => {
         {
           dev_eui: 'dev-1',
           name: 'North sensor',
-          group: 'air',
+          device_group: { name: 'air' },
           location_id: 42,
           last_data_updated_at: '2026-03-13T00:00:00.000Z',
           cw_device_type: {
@@ -114,13 +125,17 @@ describe('DevicesService', () => {
             data_table_v2: 'cw_air_data',
           },
           cw_locations: [
-            { location_id: 42, name: 'North Room', group: 'Farm A' },
+            {
+              location_id: 42,
+              name: 'North Room',
+              location_group: { name: 'Farm A' },
+            },
           ],
         },
         {
           dev_eui: 'dev-2',
           name: 'South sensor',
-          group: 'air',
+          device_group: { name: 'air' },
           location_id: 77,
           cw_device_type: {
             name: 'Air',
@@ -129,7 +144,11 @@ describe('DevicesService', () => {
             data_table_v2: 'cw_air_data',
           },
           cw_locations: [
-            { location_id: 77, name: 'South Room', group: 'Farm B' },
+            {
+              location_id: 77,
+              name: 'South Room',
+              location_group: { name: 'Farm B' },
+            },
           ],
         },
       ],
@@ -179,6 +198,7 @@ describe('DevicesService', () => {
       {} as LocationsService,
       {} as PaymentsService,
       createAccessMock(),
+      createGroupsMock(),
     );
 
     const result = await latestDataService.findAllLatestData(
@@ -239,6 +259,7 @@ describe('DevicesService', () => {
       {} as LocationsService,
       {} as PaymentsService,
       accessService,
+      createGroupsMock(),
     );
 
     await expect(
@@ -278,6 +299,7 @@ describe('DevicesService', () => {
         {} as LocationsService,
         {} as PaymentsService,
         accessService,
+        createGroupsMock(),
       );
       return deviceService
         .findOne(
@@ -339,16 +361,32 @@ describe('DevicesService', () => {
       accessService.assertDeviceAccess.mockResolvedValue(
         deviceAccess({ locationId: 2 }),
       );
+      const groupsService = createGroupsMock();
+      // The device's location (read for the org the group is looked up in).
+      const locationOrg = {
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        maybeSingle: jest
+          .fn()
+          .mockResolvedValue({ data: { org_id: 'org-loc' }, error: null }),
+      };
       return {
         service: new DevicesService(
           {
-            getClient: jest.fn(() => ({ from: fromMock })),
+            getClient: jest.fn(() => ({
+              from: (table: string): unknown =>
+                table === 'cw_locations'
+                  ? locationOrg
+                  : (fromMock as (table: string) => unknown)(table),
+            })),
           } as unknown as SupabaseService,
           {} as LocationsService,
           {} as PaymentsService,
           accessService,
+          groupsService,
         ),
         fromMock,
+        groupsService,
       };
     }
 
@@ -377,7 +415,7 @@ describe('DevicesService', () => {
       expect(cropBuilder.eq).toHaveBeenCalledWith('is_active', true);
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Sensor',
-        group: null,
+        group_id: null,
         location_id: 2,
         crop_type_id: 3,
       });
@@ -410,7 +448,7 @@ describe('DevicesService', () => {
       expect(fromMock).toHaveBeenCalledTimes(1);
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Sensor',
-        group: null,
+        group_id: null,
         location_id: 2,
         crop_type_id: null,
       });
@@ -424,7 +462,7 @@ describe('DevicesService', () => {
 
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Sensor',
-        group: null,
+        group_id: null,
         location_id: 2,
       });
     });
@@ -528,14 +566,17 @@ describe('DevicesService', () => {
         getAdminClient: jest.fn(),
       };
       const accessService = createAccessMock();
+      const groupsService = createGroupsMock();
       return {
         service: new DevicesService(
           supabaseService as unknown as SupabaseService,
           {} as LocationsService,
           {} as PaymentsService,
           accessService,
+          groupsService,
         ),
         fromMock,
+        groupsService,
         accessService,
       };
     }
@@ -581,7 +622,7 @@ describe('DevicesService', () => {
       // Device ownership follows the destination location owner.
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Sensor',
-        group: null,
+        group_id: null,
         location_id: 2,
         user_id: 'new-owner',
       });
@@ -600,6 +641,36 @@ describe('DevicesService', () => {
       );
       expect(insertedRows).toHaveLength(3);
       expect(fromMock).toHaveBeenCalledTimes(4);
+    });
+
+    it('looks the group up in the destination org when the device moves', async () => {
+      const destinationBuilder = createDestinationBuilder({
+        location_id: 2,
+        owner_id: 'new-owner',
+        org_id: 'org-dest',
+        cw_location_owners: [],
+      });
+      const { service, accessService, groupsService } = createService([
+        destinationBuilder,
+        createUpdateBuilder(),
+        createDeleteBuilder(),
+        createInsertBuilder(),
+      ]);
+      accessService.assertDeviceAccess.mockResolvedValue(
+        deviceAccess({ locationId: 1, orgId: 'org-source' }),
+      );
+
+      await service.updateDevice(jwt, 'DEV-001', 'Sensor', 'Barn', 2);
+
+      expect(destinationBuilder.select).toHaveBeenCalledWith(
+        expect.stringContaining('org_id'),
+      );
+      expect(groupsService.resolveForWrite).toHaveBeenCalledWith(
+        'device',
+        jwt,
+        'Barn',
+        'org-dest',
+      );
     });
 
     it('rejects a move when the mover cannot manage the destination location', async () => {
@@ -624,23 +695,40 @@ describe('DevicesService', () => {
     });
 
     it('leaves ownership and permissions untouched when the location does not change', async () => {
+      // The device's org can lag its location's: the group goes to the
+      // location's org, which org_fill_device_org gives the device on save.
+      const locationOrg = createDestinationBuilder({ org_id: 'org-loc' });
       const updateBuilder = createUpdateBuilder();
-      const { service, fromMock, accessService } = createService([
-        updateBuilder,
-      ]);
+      const { service, fromMock, accessService, groupsService } = createService(
+        [locationOrg, updateBuilder],
+      );
       accessService.assertDeviceAccess.mockResolvedValue(
-        deviceAccess({ locationId: 2 }),
+        deviceAccess({ locationId: 2, orgId: 'org-1' }),
       );
 
-      await service.updateDevice(jwt, 'DEV-001', 'Renamed', 'greenhouse', 2);
+      // Returned like every device: the group's name, no group_id.
+      await expect(
+        service.updateDevice(jwt, 'DEV-001', 'Renamed', 'greenhouse', 2),
+      ).resolves.toEqual([{ dev_eui: 'DEV-001', group: null }]);
+      expect(updateBuilder.select).toHaveBeenCalledWith(
+        expect.stringContaining('device_group:cw_device_groups(name)'),
+      );
 
+      // The name becomes the group id, looked up in the location's org.
+      expect(locationOrg.eq).toHaveBeenCalledWith('location_id', 2);
+      expect(groupsService.resolveForWrite).toHaveBeenCalledWith(
+        'device',
+        jwt,
+        'greenhouse',
+        'org-loc',
+      );
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Renamed',
-        group: 'greenhouse',
+        group_id: 77,
         location_id: 2,
       });
       // No destination lookup, no permission reset.
-      expect(fromMock).toHaveBeenCalledTimes(1);
+      expect(fromMock).toHaveBeenCalledTimes(2);
     });
 
     it('keeps the current device owner when the destination location has no owner', async () => {
@@ -666,7 +754,7 @@ describe('DevicesService', () => {
 
       expect(updateBuilder.update).toHaveBeenCalledWith({
         name: 'Sensor',
-        group: null,
+        group_id: null,
         location_id: 2,
       });
       const insertedRows = insertBuilder.insert.mock.calls[0][0];
@@ -756,6 +844,7 @@ describe('DevicesService', () => {
           },
           { provide: PaymentsService, useValue: payments },
           { provide: AccessService, useValue: accessService },
+          { provide: GroupsService, useValue: createGroupsMock() },
         ],
       }).compile();
       return {
@@ -814,14 +903,26 @@ describe('DevicesService', () => {
       const { client, devicesBuilder } = buildClient();
       const { service: deviceService } = await buildService(payments, client);
 
-      await deviceService.createDevice(customer, DEV_EUI, {
-        dev_eui: DEV_EUI,
-        location_id: 2,
-        license_id: 6,
-      });
+      // Returned like every device: the group's name, no group_id. Creating
+      // a device has never taken a group (that is the setup flow's job).
+      await expect(
+        deviceService.createDevice(customer, DEV_EUI, {
+          dev_eui: DEV_EUI,
+          location_id: 2,
+          license_id: 6,
+          group: 'Ignored',
+        }),
+      ).resolves.toEqual({ dev_eui: DEV_EUI, group: null });
+      expect(devicesBuilder.select).toHaveBeenCalledWith(
+        expect.stringContaining('device_group:cw_device_groups(name)'),
+      );
+      const [inserted] = devicesBuilder.insert.mock.calls[0] as [
+        Record<string, unknown>,
+      ];
+      expect(inserted).not.toHaveProperty('group');
+      expect(inserted).not.toHaveProperty('group_id');
 
       expect(payments.assertLicenseAvailable).toHaveBeenCalledWith(customer, 6);
-      expect(devicesBuilder.insert).toHaveBeenCalled();
       expect(payments.assignLicense).toHaveBeenCalledWith(customer, 6, DEV_EUI);
     });
 
@@ -939,6 +1040,7 @@ describe('DevicesService', () => {
                 .mockResolvedValue({ orgId: 'org-1' }),
             },
           },
+          { provide: GroupsService, useValue: createGroupsMock() },
         ],
       }).compile();
       return {
@@ -1063,14 +1165,17 @@ describe('DevicesService', () => {
         getAdminClient: jest.fn(),
       };
       const accessService = createAccessMock();
+      const groupsService = createGroupsMock();
       return {
         service: new DevicesService(
           supabaseService as unknown as SupabaseService,
           {} as LocationsService,
           {} as PaymentsService,
           accessService,
+          groupsService,
         ),
         fromMock,
+        groupsService,
         accessService,
       };
     }
@@ -1159,6 +1264,7 @@ describe('DevicesService', () => {
           {} as LocationsService,
           {} as PaymentsService,
           accessService,
+          createGroupsMock(),
         ),
         rpcMock,
         accessService,
@@ -1293,6 +1399,7 @@ describe('DevicesService', () => {
         {} as LocationsService,
         {} as PaymentsService,
         createAccessMock(),
+        createGroupsMock(),
       );
       return { service, inCalls };
     }
@@ -1429,6 +1536,7 @@ describe('DevicesService', () => {
         {} as LocationsService,
         {} as PaymentsService,
         createAccessMock(),
+        createGroupsMock(),
       );
     }
 
@@ -1535,6 +1643,7 @@ describe('DevicesService', () => {
         {} as LocationsService,
         {} as PaymentsService,
         createAccessMock(),
+        createGroupsMock(),
       );
       return { service, calls, from };
     }
@@ -1664,6 +1773,247 @@ describe('DevicesService', () => {
       const { service } = createService({ triggersError: { message: 'boom' } });
 
       await expect(range(service)).rejects.toThrow('Failed to fetch alerts');
+    });
+  });
+
+  describe('groups (038): the API still speaks group names', () => {
+    type Result = { data: unknown; count?: number | null; error: unknown };
+    const jwt = { sub: 'user-1', email: 'farmer@example.com', isStaff: false };
+
+    /** A chainable builder; awaiting it, range() or single() gives `result`. */
+    type Link = jest.Mock<Chain, unknown[]>;
+    interface Chain {
+      select: Link;
+      eq: Link;
+      lt: Link;
+      or: Link;
+      ilike: Link;
+      not: Link;
+      order: Link;
+      limit: Link;
+      range: Link;
+      in: Link;
+      update: Link;
+      single: jest.Mock<Promise<Result>, []>;
+      then: (resolve: (value: Result) => unknown) => Promise<unknown>;
+    }
+
+    const chain = (result: Result): Chain => {
+      const builder: Chain = {
+        select: jest.fn(() => builder),
+        eq: jest.fn(() => builder),
+        lt: jest.fn(() => builder),
+        or: jest.fn(() => builder),
+        ilike: jest.fn(() => builder),
+        not: jest.fn(() => builder),
+        order: jest.fn(() => builder),
+        limit: jest.fn(() => builder),
+        range: jest.fn(() => builder),
+        in: jest.fn(() => builder),
+        update: jest.fn(() => builder),
+        single: jest.fn(() => Promise.resolve(result)),
+        then: (resolve: (value: Result) => unknown) =>
+          Promise.resolve(result).then(resolve),
+      };
+      return builder;
+    };
+
+    const serviceFor = (devices: Chain, others: Record<string, Chain> = {}) => {
+      const accessService = createAccessMock();
+      const deviceService = new DevicesService(
+        {
+          getClient: () => ({
+            from: (table: string) => others[table] ?? devices,
+          }),
+        } as unknown as SupabaseService,
+        {} as LocationsService,
+        {} as PaymentsService,
+        accessService,
+        createGroupsMock(),
+      );
+      return { deviceService, accessService };
+    };
+
+    const selected = (builder: Chain) =>
+      String(builder.select.mock.calls[0][0]);
+
+    it('filters the device list on the group name and returns it as `group`', async () => {
+      const devices = chain({
+        data: [
+          {
+            dev_eui: 'D1',
+            name: 'North',
+            group_id: 9,
+            device_group: { name: 'Air' },
+          },
+        ],
+        count: 1,
+        error: null,
+      });
+      const { deviceService } = serviceFor(devices);
+
+      const page = await deviceService.findAll(jwt, 0, undefined, 'air');
+
+      expect(selected(devices)).toContain(
+        'device_group:cw_device_groups!inner(name)',
+      );
+      expect(devices.ilike).toHaveBeenCalledWith('device_group.name', '%air%');
+      expect(page.data).toEqual([
+        { dev_eui: 'D1', name: 'North', group: 'Air' },
+      ]);
+    });
+
+    it('keeps devices without a group when no group filter is given', async () => {
+      const devices = chain({
+        data: [{ dev_eui: 'D2', name: 'South', group_id: null }],
+        count: 1,
+        error: null,
+      });
+      const { deviceService } = serviceFor(devices);
+
+      const page = await deviceService.findAll(jwt);
+
+      expect(selected(devices)).toContain(
+        'device_group:cw_device_groups(name)',
+      );
+      expect(devices.ilike).not.toHaveBeenCalled();
+      expect(page.data).toEqual([
+        { dev_eui: 'D2', name: 'South', group: null },
+      ]);
+    });
+
+    it('counts the device groups by name', async () => {
+      const devices = chain({
+        data: [
+          { device_group: { name: 'Air' } },
+          { device_group: { name: 'Air' } },
+          { device_group: { name: 'Soil' } },
+        ],
+        error: null,
+      });
+      const { deviceService } = serviceFor(devices);
+
+      await expect(deviceService.findAllDeviceGroups(jwt)).resolves.toEqual([
+        { group: 'Air', count: 2 },
+        { group: 'Soil', count: 1 },
+      ]);
+      expect(selected(devices)).toContain(
+        'device_group:cw_device_groups!inner(name)',
+      );
+    });
+
+    it('filters the latest readings by location group through the group table', async () => {
+      const devices = chain({ data: [], count: 0, error: null });
+      const { deviceService } = serviceFor(devices);
+
+      await expect(
+        deviceService.findAllLatestData(
+          jwt,
+          0,
+          10,
+          undefined,
+          undefined,
+          undefined,
+          'Farm A',
+        ),
+      ).rejects.toThrow('No devices found');
+
+      expect(selected(devices)).toContain(
+        'cw_locations!inner(location_id, name, location_group:cw_location_groups!inner(name))',
+      );
+      expect(devices.eq).toHaveBeenCalledWith(
+        'cw_locations.location_group.name',
+        'Farm A',
+      );
+    });
+
+    it('filters the latest readings on the device group name', async () => {
+      const devices = chain({ data: [], count: 0, error: null });
+      const { deviceService } = serviceFor(devices);
+
+      await expect(
+        deviceService.findAllLatestData(jwt, 0, 10, 'air'),
+      ).rejects.toThrow('No devices found');
+      expect(selected(devices)).toContain(
+        'device_group:cw_device_groups!inner(name)',
+      );
+      expect(devices.ilike).toHaveBeenCalledWith('device_group.name', '%air%');
+    });
+
+    it('answers 404 when the caller has no device groups, as before', async () => {
+      const { deviceService } = serviceFor(chain({ data: [], error: null }));
+      await expect(deviceService.findAllDeviceGroups(jwt)).rejects.toThrow(
+        'No device groups found',
+      );
+    });
+
+    it('returns a location’s devices with their group names', async () => {
+      const devices = chain({
+        data: [
+          {
+            dev_eui: 'D1',
+            name: 'B',
+            group_id: 9,
+            device_group: { name: 'Air' },
+          },
+          { dev_eui: 'D2', name: 'A', group_id: null, device_group: null },
+        ],
+        error: null,
+      });
+      const signals = chain({ data: [], error: null });
+      const { deviceService } = serviceFor(devices, {
+        cw_device_gateway: signals,
+      });
+
+      await expect(
+        deviceService.findAllDevicesInLocation(jwt, 7, 'en'),
+      ).resolves.toEqual([
+        { dev_eui: 'D2', name: 'A', group: null, gateway_signals: [] },
+        { dev_eui: 'D1', name: 'B', group: 'Air', gateway_signals: [] },
+      ]);
+      expect(selected(devices)).toContain(
+        'device_group:cw_device_groups(name)',
+      );
+    });
+
+    it('returns a replaced device with its group name', async () => {
+      const devices = chain({
+        data: { dev_eui: 'NEW', group_id: 9, device_group: { name: 'Air' } },
+        error: null,
+      });
+      const { deviceService, accessService } = serviceFor(devices);
+      accessService.assertDeviceAccess.mockResolvedValue(deviceAccess());
+
+      await expect(
+        deviceService.replaceDevice(jwt, 'OLD', { dev_eui: 'NEW' }),
+      ).resolves.toEqual({ dev_eui: 'NEW', group: 'Air' });
+      expect(selected(devices)).toContain(
+        'device_group:cw_device_groups(name)',
+      );
+    });
+
+    it('returns one device with its group name and nothing of group_id', async () => {
+      const devices = chain({
+        data: {
+          dev_eui: 'D1',
+          name: 'North',
+          group_id: 9,
+          device_group: { name: 'Air' },
+        },
+        error: null,
+      });
+      const { deviceService, accessService } = serviceFor(devices);
+      accessService.getDeviceAccess.mockResolvedValue(deviceAccess());
+
+      await expect(deviceService.findOne(jwt, 'D1')).resolves.toEqual({
+        dev_eui: 'D1',
+        name: 'North',
+        group: 'Air',
+        can_write_notes: true,
+      });
+      expect(selected(devices)).toContain(
+        'device_group:cw_device_groups(name)',
+      );
     });
   });
 });

@@ -29,12 +29,23 @@ import {
   isDashboardDataTable,
 } from './dashboard.types';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+import {
+  DEVICE_GROUP_EMBED,
+  DEVICE_GROUP_INNER_EMBED,
+  DEVICE_GROUP_NAME,
+  DEVICE_LOCATION_GROUP_NAME,
+  deviceLocationEmbed,
+  groupName,
+  type GroupEmbed,
+} from '../groups/group-columns';
 
 type DeviceRow = TableRow<'cw_devices'>;
 type DeviceTypeRow = TableRow<'cw_device_type'>;
 type LocationRow = TableRow<'cw_locations'>;
 
-type LocationJoin = Pick<LocationRow, 'location_id' | 'name' | 'group'>;
+type LocationJoin = Pick<LocationRow, 'location_id' | 'name'> & {
+  location_group?: GroupEmbed;
+};
 type DeviceTypeJoin = Pick<
   DeviceTypeRow,
   | 'id'
@@ -50,14 +61,20 @@ type DashboardDeviceRecord = Pick<
   DeviceRow,
   | 'dev_eui'
   | 'name'
-  | 'group'
   | 'upload_interval'
   | 'last_data_updated_at'
   | 'error_status'
 > & {
+  device_group?: GroupEmbed;
   cw_device_type: DeviceTypeJoin | DeviceTypeJoin[] | null;
   cw_locations: LocationJoin | LocationJoin[] | null;
 };
+
+/** Device columns + embeds of the full dashboard rows (step 2 of both lists). */
+const DASHBOARD_DEVICE_COLUMNS = `dev_eui, name, upload_interval, last_data_updated_at, error_status,
+         cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
+         ${deviceLocationEmbed('location_id, name')},
+         ${DEVICE_OWNER_MATCH_EMBED}`;
 
 /** Columns getDevices reads for every match before sorting and paging. */
 type DeviceNameRecord = Pick<DeviceRow, 'dev_eui' | 'name'>;
@@ -125,10 +142,12 @@ export class DashboardService {
     const locationIdFilter = hasLocationFilter
       ? Number(query.location)
       : undefined;
-    const locationSelect =
-      hasLocationFilter || query.locationGroup
-        ? 'cw_locations!inner(location_id, name, group)'
-        : 'cw_locations(location_id, name, group)';
+    const locationSelect = deviceLocationEmbed('location_id, name', {
+      inner: hasLocationFilter,
+      groupFilter: Boolean(query.locationGroup),
+    });
+    // Inner, so devices without a matching group drop out.
+    const groupSelect = query.group ? `, ${DEVICE_GROUP_INNER_EMBED}` : '';
 
     const readableOrgIds = await this.accessService.getReadableOrgIds(user);
     const logError = (error: PostgrestError) =>
@@ -141,11 +160,11 @@ export class DashboardService {
         let matchQuery = client
           .from('cw_devices')
           .select(
-            `dev_eui, name, ${locationSelect}, ${DEVICE_OWNER_MATCH_EMBED}`,
+            `dev_eui, name, ${locationSelect}${groupSelect}, ${DEVICE_OWNER_MATCH_EMBED}`,
           );
         matchQuery = applyDeviceReadScope(matchQuery, user, readableOrgIds);
         if (query.group) {
-          matchQuery = matchQuery.ilike('group', `%${query.group}%`);
+          matchQuery = matchQuery.ilike(DEVICE_GROUP_NAME, `%${query.group}%`);
         }
         if (query.name) {
           matchQuery = matchQuery.or(
@@ -159,7 +178,10 @@ export class DashboardService {
           );
         }
         if (query.locationGroup) {
-          matchQuery = matchQuery.eq('cw_locations.group', query.locationGroup);
+          matchQuery = matchQuery.eq(
+            DEVICE_LOCATION_GROUP_NAME,
+            query.locationGroup,
+          );
         }
         return matchQuery
           .order('dev_eui', { ascending: true })
@@ -181,12 +203,7 @@ export class DashboardService {
     // Step 2: the page's devices in full, kept in step 1's order.
     let pageQuery = client
       .from('cw_devices')
-      .select(
-        `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
-         cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
-         cw_locations(location_id, name, "group"),
-         ${DEVICE_OWNER_MATCH_EMBED}`,
-      )
+      .select(`${DASHBOARD_DEVICE_COLUMNS}, ${DEVICE_GROUP_EMBED}`)
       .in('dev_eui', pageIds);
     pageQuery = applyDeviceReadScope(pageQuery, user, readableOrgIds);
 
@@ -198,8 +215,13 @@ export class DashboardService {
       );
     }
 
+    // The select string is built from constants at runtime, so supabase-js
+    // cannot type it.
     const byDevEui = new Map(
-      ((data ?? []) as DashboardDeviceRecord[]).map((d) => [d.dev_eui, d]),
+      ((data ?? []) as unknown as DashboardDeviceRecord[]).map((d) => [
+        d.dev_eui,
+        d,
+      ]),
     );
     const devices = pageIds.flatMap((devEui) => byDevEui.get(devEui) ?? []);
     const canWriteNotes = await this.noteWriteCheck(user);
@@ -235,25 +257,31 @@ export class DashboardService {
     // Use an inner join when filtering by location group so non-matching device
     // rows are excluded outright — a non-inner embed only nulls the location,
     // which would leak every location and drop their names (-> "Location <id>").
-    const locationSelect = query.locationGroup
-      ? 'cw_locations!inner(location_id, name, "group")'
-      : 'cw_locations(location_id, name, "group")';
+    const locationSelect = deviceLocationEmbed('location_id, name', {
+      groupFilter: Boolean(query.locationGroup),
+    });
+    // Inner, so devices without a matching group drop out.
+    const groupSelect = query.group ? `, ${DEVICE_GROUP_INNER_EMBED}` : '';
     let locsQuery = client
       .from('cw_devices')
-      .select(`location_id, ${locationSelect}, ${DEVICE_OWNER_MATCH_EMBED}`);
+      .select(
+        `location_id, ${locationSelect}${groupSelect}, ${DEVICE_OWNER_MATCH_EMBED}`,
+      );
     locsQuery = applyDeviceReadScope(
       locsQuery,
       user,
       await this.accessService.getReadableOrgIds(user),
     );
-    if (query.group) locsQuery = locsQuery.ilike('group', `%${query.group}%`);
+    if (query.group) {
+      locsQuery = locsQuery.ilike(DEVICE_GROUP_NAME, `%${query.group}%`);
+    }
     if (query.name) {
       locsQuery = locsQuery.or(
         this.buildNameOrFilter(query.name, nameLocationIds),
       );
     }
     if (query.locationGroup) {
-      locsQuery = locsQuery.eq('cw_locations.group', query.locationGroup);
+      locsQuery = locsQuery.eq(DEVICE_LOCATION_GROUP_NAME, query.locationGroup);
     }
     const hasLocationIdFilter =
       query.location !== undefined &&
@@ -281,7 +309,7 @@ export class DashboardService {
     } | null;
     const uniqueLocs = new Map<string, LocInfo>();
     let hasNoLocationBucket = false;
-    for (const d of (locData ?? []) as DeviceLocationRecord[]) {
+    for (const d of (locData ?? []) as unknown as DeviceLocationRecord[]) {
       const locId = d.location_id;
       if (locId == null) {
         hasNoLocationBucket = true;
@@ -294,7 +322,7 @@ export class DashboardService {
       uniqueLocs.set(key, {
         location_id: locId,
         name: loc?.name ?? `Location ${locId}`,
-        group: loc?.group ?? null,
+        group: groupName(loc?.location_group),
       });
     }
 
@@ -320,12 +348,11 @@ export class DashboardService {
       .map(([, v]) => (v as { location_id: number }).location_id);
     const includeNoLoc = pagedLocs.some(([k]) => k === 'none');
 
-    let devicesQuery = client.from('cw_devices').select(
-      `dev_eui, name, "group", upload_interval, last_data_updated_at, error_status,
-         cw_device_type(id, name, data_table_v2, primary_data_v2, secondary_data_v2, default_upload_interval),
-         cw_locations(location_id, name, "group"),
-         ${DEVICE_OWNER_MATCH_EMBED}`,
-    );
+    let devicesQuery = client
+      .from('cw_devices')
+      .select(
+        `${DASHBOARD_DEVICE_COLUMNS}, ${query.group ? DEVICE_GROUP_INNER_EMBED : DEVICE_GROUP_EMBED}`,
+      );
     devicesQuery = applyDeviceReadScope(
       devicesQuery,
       user,
@@ -342,8 +369,9 @@ export class DashboardService {
       devicesQuery = devicesQuery.in('location_id', locIds);
     }
 
-    if (query.group)
-      devicesQuery = devicesQuery.ilike('group', `%${query.group}%`);
+    if (query.group) {
+      devicesQuery = devicesQuery.ilike(DEVICE_GROUP_NAME, `%${query.group}%`);
+    }
     if (query.name) {
       devicesQuery = devicesQuery.or(
         this.buildNameOrFilter(query.name, nameLocationIds),
@@ -367,9 +395,11 @@ export class DashboardService {
     const canWriteNotes = await this.noteWriteCheck(user);
     const rows = (
       await Promise.all(
-        naturalSort((devices ?? []) as DashboardDeviceRecord[], (d) => d.name, {
-          locale: query.locale,
-        }).map((d) => this.buildRow(client, d, canWriteNotes(d.dev_eui))),
+        naturalSort(
+          (devices ?? []) as unknown as DashboardDeviceRecord[],
+          (d) => d.name,
+          { locale: query.locale },
+        ).map((d) => this.buildRow(client, d, canWriteNotes(d.dev_eui))),
       )
     ).filter((r): r is DashboardRow => r !== null);
 
@@ -530,7 +560,7 @@ export class DashboardService {
     return {
       dev_eui: d.dev_eui,
       name: d.name,
-      group: d.group ?? null,
+      group: groupName(d.device_group),
       upload_interval: d.upload_interval ?? null,
       last_data_updated_at: d.last_data_updated_at ?? null,
       error_status: d.error_status ?? null,
@@ -546,7 +576,7 @@ export class DashboardService {
         ? {
             location_id: location.location_id,
             name: location.name,
-            group: location.group ?? null,
+            group: groupName(location.location_group),
           }
         : null,
       latest,
