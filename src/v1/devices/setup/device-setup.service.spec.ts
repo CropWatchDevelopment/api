@@ -8,6 +8,16 @@ import {
   type CreateOtaaInput,
   type TtiDeviceState,
 } from '../../tti/tti-provisioning.service';
+import { GroupsService } from '../../groups/groups.service';
+
+/** Resolves a group name to a fixed id (77) like GroupsService.resolveForWrite; empty → null. */
+const createGroupsMock = () =>
+  ({
+    resolveForWrite: jest.fn(
+      (_kind: string, _user: unknown, name?: string | null) =>
+        Promise.resolve(typeof name === 'string' && name.trim() ? 77 : null),
+    ),
+  }) as unknown as GroupsService & { resolveForWrite: jest.Mock };
 
 const DEV_EUI = '00137A10000441DF';
 const OUR_ID = 'eui-00137a10000441df';
@@ -239,16 +249,18 @@ function build(scenario: Scenario = {}) {
         : undefined,
   } as unknown as ConfigService;
 
+  const groups = createGroupsMock();
   const service = new DeviceSetupService(
     { getClient: () => client } as never,
     access as never,
     payments as never,
     tti as never,
     config,
+    groups,
   );
   const inserts = () =>
     queries.filter((q) => q.table === 'cw_devices' && q.op === 'insert');
-  return { service, payments, tti, log, inserts };
+  return { service, payments, tti, log, inserts, groups };
 }
 
 const body = (extra: Record<string, unknown> = {}) => ({
@@ -374,9 +386,16 @@ describe('DeviceSetupService.setup — new devices', () => {
       }),
       expect.any(AbortSignal),
     );
+    // The group name becomes a group id, looked up in the location's org.
+    expect(t.groups.resolveForWrite).toHaveBeenCalledWith(
+      'device',
+      customer,
+      'CropWatch',
+      ORG,
+    );
     expect(t.inserts()[0].payload).toMatchObject({
       dev_eui: DEV_EUI,
-      group: 'CropWatch',
+      group_id: 77,
       lat: 35.1,
       long: 139.2,
       installed_at: '2026-10-11',

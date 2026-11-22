@@ -216,6 +216,7 @@ describe('AccessService', () => {
             dev_eui: 'OWNED',
             name: 'Mine',
             user_id: 'user-1',
+            group_id: 7,
             owner_match: [],
           },
           {
@@ -252,6 +253,7 @@ describe('AccessService', () => {
         {
           devEui: 'OWNED',
           name: 'Mine',
+          groupId: 7,
           permissionLevel: 1,
           canView: true,
           canManage: true,
@@ -260,6 +262,7 @@ describe('AccessService', () => {
         {
           devEui: 'MANAGED',
           name: 'Managed',
+          groupId: null,
           permissionLevel: 2,
           canView: true,
           canManage: true,
@@ -268,6 +271,7 @@ describe('AccessService', () => {
         {
           devEui: 'NOTES',
           name: 'Notes',
+          groupId: null,
           permissionLevel: 3,
           canView: true,
           canManage: false,
@@ -276,6 +280,7 @@ describe('AccessService', () => {
         {
           devEui: 'VIEWED',
           name: 'Viewed',
+          groupId: null,
           permissionLevel: 4,
           canView: true,
           canManage: false,
@@ -284,12 +289,17 @@ describe('AccessService', () => {
         {
           devEui: 'HIDDEN',
           name: 'Hidden',
+          groupId: null,
           permissionLevel: 5,
           canView: false,
           canManage: false,
           canWriteNotes: false,
         },
       ]);
+      // The device's group comes along (device-group visibility uses it).
+      expect(builder.select).toHaveBeenCalledWith(
+        expect.stringContaining('group_id'),
+      );
       // Scoped to the caller — not the old full-table scan.
       expect(builder.eq).toHaveBeenCalledTimes(1);
       expect(builder.or).toHaveBeenCalledTimes(1);

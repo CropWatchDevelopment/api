@@ -5,6 +5,7 @@ import { DevicesController } from './devices.controller';
 import { LocationsService } from '../locations/locations.service';
 import { PaymentsModule } from '../payments/payments.module';
 import { AuthzModule } from '../common/authz';
+import { GroupsModule } from '../groups/groups.module';
 import { TtiProvisioningService } from '../tti/tti-provisioning.service';
 import { DeviceSetupController } from './setup/device-setup.controller';
 import { DeviceSetupService } from './setup/device-setup.service';
@@ -13,7 +14,7 @@ import { DeviceSetupService } from './setup/device-setup.service';
   // DevicesModule declares its own LocationsService instance, so it must also
   // import PaymentsModule (LocationsService depends on PaymentsService for the
   // base-subscription gate on location creation).
-  imports: [SupabaseModule, PaymentsModule, AuthzModule],
+  imports: [SupabaseModule, PaymentsModule, AuthzModule, GroupsModule],
   controllers: [DevicesController, DeviceSetupController],
   providers: [
     DevicesService,

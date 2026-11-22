@@ -11,7 +11,6 @@ import { CreateLocationOwnerDto } from './dto/create-location-owner.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { UpdateLocationUserPermissionLevelDto } from './dto/update-location-user-permission-level.dto';
 import { SupabaseService } from '../../supabase/supabase.service';
-import { LocationDto } from './dto/location.dto';
 import { UpdateLocationOwnerDto } from './dto/update-location-owner.dto';
 import { PermissionLevel } from '../common/permission-levels';
 import { filterStaffOwnerRows } from '../common/owner-filter.helper';
@@ -26,6 +25,14 @@ import {
 } from '../common/authz';
 import type { TableRow, TableUpdate } from '../types/supabase';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+import { GroupsService } from '../groups/groups.service';
+import {
+  LOCATION_GROUP_EMBED,
+  LOCATION_GROUP_INNER_EMBED,
+  groupName,
+  withLocationGroup,
+  type GroupEmbed,
+} from '../groups/group-columns';
 
 type LocationRow = TableRow<'cw_locations'>;
 type LocationOwnerRow = TableRow<'cw_location_owners'>;
@@ -33,7 +40,9 @@ type OwnerProfile = Pick<TableRow<'profiles'>, 'id' | 'full_name' | 'email'>;
 type LocationOwnerWithProfile = LocationOwnerRow & {
   profiles?: OwnerProfile | OwnerProfile[] | null;
 };
-type LocationRecord = LocationRow & {
+/** A cw_locations row with its group's name embedded (LOCATION_GROUP_EMBED). */
+type LocationGroupRow = LocationRow & { location_group?: GroupEmbed };
+type LocationRecord = LocationGroupRow & {
   cw_location_owners: LocationOwnerWithProfile[];
 };
 type QueryResult<T> = { data: T | null; error: PostgrestError | null };
@@ -54,6 +63,7 @@ export class LocationsService {
   constructor(
     private readonly supabaseService: SupabaseService,
     private readonly accessService: AccessService,
+    private readonly groupsService: GroupsService,
   ) {}
 
   async create(createLocationDto: CreateLocationDto, user: AuthenticatedUser) {
@@ -73,23 +83,34 @@ export class LocationsService {
 
     createLocationDto.owner_id = userId; // Ensure the owner_id is set to the authenticated user
 
+    // The group arrives as a name; the row stores its id.
+    const { group, ...locationFields } = createLocationDto;
+    const orgId = ctx.org?.id ?? null;
+    const groupId = await this.groupsService.resolveForWrite(
+      'location',
+      user,
+      group,
+      orgId,
+    );
+
     const { data: locationData, error: locationError } = (await client
       .from('cw_locations')
       .insert({
-        ...createLocationDto,
+        ...locationFields,
+        group_id: groupId,
         owner_id: userId,
         // Explicit org (the compat trigger only knows home orgs; a
         // transferred company's owner may not be its home_of user).
-        org_id: ctx.org?.id ?? null,
+        org_id: orgId,
       })
-      .select('*')
-      .single()) as QueryResult<LocationRow>;
+      .select(`*, ${LOCATION_GROUP_EMBED}`)
+      .single()) as QueryResult<LocationGroupRow>;
 
-    if (locationError) {
+    if (locationError || !locationData) {
       throw new InternalServerErrorException('Failed to create location');
     }
 
-    const location = locationData as LocationDto;
+    const location = withLocationGroup(locationData);
 
     const locationOwnerObject: CreateLocationOwnerDto = {
       user_id: userId,
@@ -112,7 +133,7 @@ export class LocationsService {
       throw new InternalServerErrorException('Failed to create location owner');
     }
 
-    return locationData;
+    return location;
   }
 
   async findAll(
@@ -126,6 +147,7 @@ export class LocationsService {
     let query = client.from('cw_locations').select(`
     *,
     ${LOCATION_OWNER_MATCH_EMBED},
+    ${LOCATION_GROUP_EMBED},
     cw_location_owners(*)
   `);
 
@@ -148,9 +170,11 @@ export class LocationsService {
       throw new InternalServerErrorException('Failed to fetch locations');
     }
 
-    return naturalSort((data ?? []) as LocationRecord[], (l) => l.name, {
-      locale,
-    });
+    return naturalSort(
+      ((data ?? []) as LocationRecord[]).map(withLocationGroup),
+      (l) => l.name,
+      { locale },
+    );
   }
 
   async findOne(id: number, user: AuthenticatedUser) {
@@ -160,7 +184,7 @@ export class LocationsService {
     let query = client
       .from('cw_locations')
       .select(
-        `*,${LOCATION_OWNER_MATCH_EMBED},cw_location_owners(*, profiles(id, full_name, email))`,
+        `*,${LOCATION_OWNER_MATCH_EMBED},${LOCATION_GROUP_EMBED},cw_location_owners(*, profiles(id, full_name, email))`,
       )
       .eq('location_id', id);
 
@@ -183,7 +207,7 @@ export class LocationsService {
     }
 
     return {
-      ...data,
+      ...withLocationGroup(data),
       cw_location_owners: filterStaffOwnerRows(
         data.cw_location_owners,
         isGlobalUser,
@@ -199,7 +223,7 @@ export class LocationsService {
     const client = this.supabaseService.getClient();
 
     // 404 when invisible, 403 when visible but below Manager.
-    await this.accessService.assertLocationAccess(
+    const access = await this.accessService.assertLocationAccess(
       user,
       id,
       Action.LocationEdit,
@@ -211,18 +235,26 @@ export class LocationsService {
     // Only write the fields the caller sent, so a coordinates-only save
     // doesn't touch the name/group and a rename doesn't clear coordinates.
     const changes: TableUpdate<'cw_locations'> = {};
-    for (const key of ['name', 'group', 'lat', 'long', 'map_zoom'] as const) {
+    for (const key of ['name', 'lat', 'long', 'map_zoom'] as const) {
       if (updateLocationDto[key] !== undefined) {
         Object.assign(changes, { [key]: updateLocationDto[key] });
       }
+    }
+    if (updateLocationDto.group !== undefined) {
+      changes.group_id = await this.groupsService.resolveForWrite(
+        'location',
+        user,
+        updateLocationDto.group,
+        access.orgId,
+      );
     }
 
     const { data, error } = (await client
       .from('cw_locations')
       .update(changes)
       .eq('location_id', id)
-      .select('*')
-      .maybeSingle()) as QueryResult<LocationRow>;
+      .select(`*, ${LOCATION_GROUP_EMBED}`)
+      .maybeSingle()) as QueryResult<LocationGroupRow>;
 
     if (error) {
       throw new InternalServerErrorException('Failed to update location');
@@ -232,7 +264,7 @@ export class LocationsService {
       throw new NotFoundException('Location not found');
     }
 
-    return data;
+    return withLocationGroup(data);
   }
 
   /**
@@ -318,10 +350,10 @@ export class LocationsService {
   ): Promise<string[]> {
     const client = this.supabaseService.getClient();
 
+    // Groups in use only: the sidebar filters existing locations by them.
     let query = client
       .from('cw_locations')
-      .select(`${LOCATION_OWNER_MATCH_EMBED}, group`)
-      .not('group', 'is', null);
+      .select(`${LOCATION_OWNER_MATCH_EMBED}, ${LOCATION_GROUP_INNER_EMBED}`);
 
     // Shared read scope: owned OR granted below Disabled. (Previously this
     // had an extra owner_id filter that hid every shared location's group.)
@@ -337,10 +369,10 @@ export class LocationsService {
       throw new InternalServerErrorException('Failed to fetch location groups');
     }
 
-    const rows = (data ?? []) as Pick<LocationRow, 'group'>[];
+    const rows = (data ?? []) as { location_group?: GroupEmbed }[];
     const uniqueGroups = Array.from(
-      new Set(rows.map((item) => item.group)),
-    ).filter((group) => group !== null);
+      new Set(rows.map((item) => groupName(item.location_group))),
+    ).filter((group): group is string => group !== null);
 
     return naturalSort(uniqueGroups, (group) => group, { locale });
   }
