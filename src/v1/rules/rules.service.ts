@@ -28,6 +28,7 @@ import { RuleActionTypeDto } from './dto/rule-action-type.dto';
 import { RuleCatalogDto } from './dto/rule-catalog.dto';
 import { RuleDeviceStateDto } from './dto/rule-device-state.dto';
 import { RuleFormContextDto } from './dto/rule-form-context.dto';
+import { RuleRefDto } from './dto/rule-status.dto';
 import { RuleTemplateActionDto } from './dto/rule-template-action.dto';
 import { RuleTemplateAssignmentDto } from './dto/rule-template-assignment.dto';
 import { RuleTemplateCriterionDto } from './dto/rule-template-criterion.dto';
@@ -36,13 +37,40 @@ import { RuleTemplateDto } from './dto/rule-template.dto';
 import { RuleTriggerLogDto } from './dto/rule-trigger-log.dto';
 import { SaveRuleTemplateDto } from './dto/save-rule-template.dto';
 import type { AuthenticatedUser } from '../auth/authenticated-user';
+import {
+  NO_AUTO_PLAN,
+  normalizeInstant,
+  resolveAutoPlan,
+  type RuleAutoPlanRequest,
+} from './rule-auto-plan';
+import {
+  computeRuleStatus,
+  EMPTY_RULE_STATUS_CONTEXT,
+  type RuleChainSource,
+  type RuleStatusContext,
+} from './rule-status';
 
 // Only the columns the template selects fetch (the table also carries
-// legacy_migration_key and org_id, which this service never reads).
+// legacy_migration_key, org_id, trigger_kind and last_action_activated_at,
+// which this service never reads).
 type TemplateRow = Pick<
   TableRow<'cw_rule_templates'>,
-  'created_at' | 'description' | 'device_type_id' | 'id' | 'is_active' | 'name'
+  | 'auto_pause_at'
+  | 'auto_start_at'
+  | 'created_at'
+  | 'description'
+  | 'device_type_id'
+  | 'id'
+  | 'is_active'
+  | 'name'
+  | 'on_auto_pause_start_template_id'
+  | 'status_changed_at'
+  | 'status_changed_by_template'
+  | 'status_changed_by_user'
+  | 'status_reason'
 >;
+const TEMPLATE_COLUMNS =
+  'auto_pause_at, auto_start_at, created_at, description, device_type_id, id, is_active, name, on_auto_pause_start_template_id, status_changed_at, status_changed_by_template, status_changed_by_user, status_reason';
 type TriggerLogRow = TableRow<'cw_rule_trigger_log'>;
 type AssignmentRow = TableRow<'cw_device_rule_assignments'>;
 type CriterionRow = TableRow<'cw_rule_template_criteria'>;
@@ -53,11 +81,12 @@ type ActionRow = TableRow<'cw_rule_template_actions'> & {
 };
 type StateRow = TableRow<'cw_rule_state'>;
 
-interface NormalizedSaveRequest {
+interface NormalizedSaveRequest extends RuleAutoPlanRequest {
   name: string;
   description: string | null;
   deviceTypeId: number | null;
-  isActive: boolean;
+  /** undefined: not sent. A new rule then runs; an existing one keeps its status. */
+  isActive: boolean | undefined;
   devEuis: string[];
   criteria: SaveRuleTemplateDto['criteria'];
   actions: SaveRuleTemplateDto['actions'];
@@ -116,6 +145,8 @@ export class RulesService {
       actions: await this.visibleActions(actions, user),
       states,
       devices,
+      // Every rule the caller can see is in `templates`, so their names are known.
+      statusContext: await this.loadStatusContext(templates, user, null),
     });
 
     const search = searchTerm?.trim().toLowerCase();
@@ -302,7 +333,7 @@ export class RulesService {
     const [templateResult, assignmentsResult] = await Promise.all([
       client
         .from('cw_rule_templates')
-        .select('created_at, description, device_type_id, id, is_active, name')
+        .select(TEMPLATE_COLUMNS)
         .eq('id', id)
         .maybeSingle(),
       client
@@ -339,13 +370,19 @@ export class RulesService {
       ),
     ]);
 
+    const template = templateResult.data;
     const [rule] = buildRuleTemplates({
-      templates: [templateResult.data],
+      templates: [template],
       assignments,
       criteria,
       actions: await this.visibleActions(actions, user),
       states,
       devices,
+      statusContext: await this.loadStatusContext(
+        [template],
+        user,
+        viewableDevices.map((device) => device.devEui),
+      ),
     });
 
     if (!rule) {
@@ -409,6 +446,16 @@ export class RulesService {
     const normalized = normalizeSaveRequest(payload);
     await this.accessService.assertDevicesManageable(user, normalized.devEuis);
 
+    const { plan } = resolveAutoPlan(normalized, NO_AUTO_PLAN, Date.now());
+    if (plan.chainTemplateId !== null) {
+      await this.assertChainTarget(
+        user,
+        null,
+        normalized.devEuis,
+        plan.chainTemplateId,
+      );
+    }
+
     const client = this.supabaseService.getClient();
     const { data: templateData, error: templateError } = (await client
       .from('cw_rule_templates')
@@ -416,7 +463,10 @@ export class RulesService {
         name: normalized.name,
         description: normalized.description,
         device_type_id: normalized.deviceTypeId,
-        is_active: normalized.isActive,
+        is_active: normalized.isActive ?? true,
+        auto_start_at: plan.autoStartAt,
+        auto_pause_at: plan.autoPauseAt,
+        on_auto_pause_start_template_id: plan.chainTemplateId,
       })
       .select('created_at, description, device_type_id, id, is_active, name')
       .single()) as {
@@ -460,6 +510,45 @@ export class RulesService {
     ]);
     await this.accessService.assertDevicesManageable(user, allDevEuis);
 
+    const { plan, update: planUpdate } = resolveAutoPlan(
+      normalized,
+      {
+        autoStartAt: existing.autoStartAt,
+        autoPauseAt: existing.autoPauseAt,
+        chainTemplateId: existing.onAutoPauseStartTemplateId,
+      },
+      Date.now(),
+    );
+    const switchTo =
+      normalized.isActive !== undefined &&
+      normalized.isActive !== existing.isActive
+        ? normalized.isActive
+        : null;
+
+    // Starting, pausing or scheduling touches every device of the rule, also
+    // the ones this caller cannot see.
+    if (switchTo !== null || Object.keys(planUpdate).length > 0) {
+      await this.assertWholeRuleManageable(id, user);
+    }
+    if (
+      plan.chainTemplateId !== null &&
+      normalized.onAutoPauseStartTemplateId !== undefined
+    ) {
+      await this.assertChainTarget(
+        user,
+        id,
+        normalized.devEuis,
+        plan.chainTemplateId,
+      );
+    }
+
+    // A pause takes effect before anything is rewritten; a start only after
+    // the rule has been saved completely (see the end of this method).
+    if (switchTo === false) {
+      await this.switchRule(id, false, user);
+    }
+
+    // is_active is never written here: cw_rule_switch owns it.
     const client = this.supabaseService.getClient();
     const { error: updateError } = await client
       .from('cw_rule_templates')
@@ -467,7 +556,7 @@ export class RulesService {
         name: normalized.name,
         description: normalized.description,
         device_type_id: normalized.deviceTypeId,
-        is_active: normalized.isActive,
+        ...planUpdate,
       })
       .eq('id', id);
 
@@ -486,7 +575,138 @@ export class RulesService {
     await this.replaceTemplateChildren(id, normalized);
     await this.cleanupStateForUnassignedDevices(id, normalized.devEuis);
 
+    if (switchTo === true) {
+      await this.switchRule(id, true, user);
+    }
+
     return this.findOne(id, user);
+  }
+
+  /**
+   * Starts or pauses a rule by hand. Nothing else about the rule is rewritten,
+   * so its actions keep their ids.
+   */
+  async setRunning(
+    id: number,
+    running: boolean,
+    user: AuthenticatedUser,
+  ): Promise<RuleTemplateDto> {
+    // 404 for a rule the caller cannot see, before anything else.
+    await this.findOne(id, user);
+    await this.assertWholeRuleManageable(id, user);
+    await this.switchRule(id, running, user);
+    return this.findOne(id, user);
+  }
+
+  /**
+   * The one place this service changes cw_rule_templates.is_active: the
+   * cw_rule_switch database function also closes open alarms and records who
+   * did it. Already in the requested state is fine ('noop').
+   */
+  private async switchRule(
+    id: number,
+    activate: boolean,
+    user: AuthenticatedUser,
+  ): Promise<void> {
+    const { data, error } = (await this.supabaseService
+      .getClient()
+      .rpc('cw_rule_switch', {
+        p_template_id: id,
+        p_activate: activate,
+        p_reason: 'manual',
+        p_by_user: user.sub,
+      })) as { data: string | null; error: PostgrestError | null };
+
+    if (data === 'not_found') {
+      throw new NotFoundException('Rule template not found');
+    }
+    if (error || (data !== 'changed' && data !== 'noop')) {
+      throw new InternalServerErrorException(
+        activate ? 'Failed to start the rule' : 'Failed to pause the rule',
+      );
+    }
+  }
+
+  /** Every device the rule is assigned to, also the ones the caller cannot see. */
+  private async loadAssignedDevEuis(templateId: number): Promise<string[]> {
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('cw_device_rule_assignments')
+      .select('dev_eui')
+      .eq('template_id', templateId);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule assignments');
+    }
+
+    return uniqueValues(
+      ((data ?? []) as Pick<AssignmentRow, 'dev_eui'>[]).map(
+        (row) => row.dev_eui,
+      ),
+    );
+  }
+
+  private async assertWholeRuleManageable(
+    templateId: number,
+    user: AuthenticatedUser,
+  ): Promise<void> {
+    await this.accessService.assertDevicesManageable(
+      user,
+      await this.loadAssignedDevEuis(templateId),
+    );
+  }
+
+  /**
+   * The rule to start after a pause date must be another rule that the caller
+   * manages in full, and both rules must sit inside the same single
+   * organization. cw_rule_switch enforces the organization again when the
+   * date arrives; checking here turns a silent refusal later into an error now.
+   */
+  private async assertChainTarget(
+    user: AuthenticatedUser,
+    sourceTemplateId: number | null,
+    sourceDevEuis: string[],
+    targetTemplateId: number,
+  ): Promise<void> {
+    if (targetTemplateId === sourceTemplateId) {
+      throw new BadRequestException('A rule cannot start itself');
+    }
+
+    const targetDevEuis = await this.loadAssignedDevEuis(targetTemplateId);
+    const devices = await this.accessService.listAccessibleDevices(user);
+    const manageable = new Set(
+      devices.filter((d) => d.canManage).map((d) => d.devEui),
+    );
+    // Missing, without devices, or not the caller's to manage: all the same answer.
+    if (
+      targetDevEuis.length === 0 ||
+      targetDevEuis.some((devEui) => !manageable.has(devEui))
+    ) {
+      throw new NotFoundException('The rule to start was not found');
+    }
+
+    const devEuis = uniqueValues([...sourceDevEuis, ...targetDevEuis]);
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('cw_devices')
+      .select('dev_eui, org_id')
+      .in('dev_eui', devEuis);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule devices');
+    }
+
+    const rows = (data ?? []) as { dev_eui: string; org_id: string | null }[];
+    const orgIds = new Set(rows.map((row) => row.org_id));
+    if (
+      rows.length !== devEuis.length ||
+      orgIds.size !== 1 ||
+      orgIds.has(null)
+    ) {
+      throw new BadRequestException(
+        'A rule can only start a rule of the same organization, and all devices of both rules must belong to that organization',
+      );
+    }
   }
 
   async remove(id: number, user: AuthenticatedUser): Promise<{ id: number }> {
@@ -521,7 +741,7 @@ export class RulesService {
     const { data, error } = await this.supabaseService
       .getClient()
       .from('cw_rule_templates')
-      .select('created_at, description, device_type_id, id, is_active, name')
+      .select(TEMPLATE_COLUMNS)
       .in('id', templateIds);
 
     if (error) {
@@ -529,6 +749,234 @@ export class RulesService {
     }
 
     return data ?? [];
+  }
+
+  /**
+   * What the status of these rules refers to: who changed it, which rules
+   * start them, and the names of the rules involved.
+   *
+   * `viewableDevEuis` is null when `templates` already holds every rule the
+   * caller can see (the list); otherwise the rules referred to are looked up
+   * and named only when the caller can see them.
+   */
+  private async loadStatusContext(
+    templates: TemplateRow[],
+    user: AuthenticatedUser,
+    viewableDevEuis: string[] | null,
+  ): Promise<RuleStatusContext> {
+    if (templates.length === 0) return EMPTY_RULE_STATUS_CONTEXT;
+
+    const [chainSources, userNames] = await Promise.all([
+      this.loadChainSources(templates.map((template) => template.id)),
+      this.loadStatusUserNames(
+        templates.map((template) => template.status_changed_by_user),
+        user,
+      ),
+    ]);
+
+    const ruleNames = new Map(
+      templates.map((template) => [template.id, template.name]),
+    );
+    if (viewableDevEuis !== null) {
+      const referenced = uniqueValues(
+        [
+          ...templates.flatMap((template) => [
+            template.on_auto_pause_start_template_id,
+            template.status_changed_by_template,
+          ]),
+          ...[...chainSources.values()].flat().map((source) => source.id),
+        ].filter((id): id is number => typeof id === 'number'),
+      ).filter((id) => !ruleNames.has(id));
+      const visibleNames = await this.loadVisibleRuleNames(
+        referenced,
+        viewableDevEuis,
+      );
+      for (const [id, name] of visibleNames) ruleNames.set(id, name);
+    }
+
+    return { userNames, ruleNames, chainSources };
+  }
+
+  /** Target rule id -> the rules that start it when their pause date arrives. */
+  private async loadChainSources(
+    targetIds: number[],
+  ): Promise<Map<number, RuleChainSource[]>> {
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('cw_rule_templates')
+      .select('id, auto_pause_at, on_auto_pause_start_template_id')
+      .in('on_auto_pause_start_template_id', targetIds);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule status');
+    }
+
+    const sources = new Map<number, RuleChainSource[]>();
+    for (const row of (data ?? []) as Pick<
+      TemplateRow,
+      'id' | 'auto_pause_at' | 'on_auto_pause_start_template_id'
+    >[]) {
+      const targetId = row.on_auto_pause_start_template_id;
+      // The takeover only happens on a pause date.
+      if (typeof targetId !== 'number' || !row.auto_pause_at) continue;
+      const list = sources.get(targetId) ?? [];
+      list.push({ id: row.id, at: row.auto_pause_at });
+      sources.set(targetId, list);
+    }
+    return sources;
+  }
+
+  /**
+   * Display names of the people who started or paused a rule. A customer never
+   * gets the name of a CropWatch staff member.
+   */
+  private async loadStatusUserNames(
+    userIds: (string | null | undefined)[],
+    user: AuthenticatedUser,
+  ): Promise<Map<string, string>> {
+    const ids = uniqueValues(
+      userIds.filter((id): id is string => typeof id === 'string'),
+    );
+    const names = new Map<string, string>();
+    if (ids.length === 0) return names;
+
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('profiles')
+      .select('id, email, full_name, username')
+      .in('id', ids);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule status');
+    }
+
+    for (const profile of (data ?? []) as {
+      id: string;
+      email: string | null;
+      full_name: string | null;
+      username: string | null;
+    }[]) {
+      if (!user.isStaff && isStaffEmail(profile.email)) continue;
+      const name = profile.full_name?.trim() || profile.username?.trim();
+      if (name) names.set(profile.id, name);
+    }
+    return names;
+  }
+
+  /** Names of the given rules, limited to the ones with a device the caller can view. */
+  private async loadVisibleRuleNames(
+    templateIds: number[],
+    viewableDevEuis: string[],
+  ): Promise<Map<number, string>> {
+    const names = new Map<number, string>();
+    if (templateIds.length === 0 || viewableDevEuis.length === 0) return names;
+
+    const client = this.supabaseService.getClient();
+    const { data: assignments, error: assignmentsError } = await client
+      .from('cw_device_rule_assignments')
+      .select('template_id')
+      .in('template_id', templateIds)
+      .in('dev_eui', viewableDevEuis);
+
+    if (assignmentsError) {
+      throw new InternalServerErrorException('Failed to load rule status');
+    }
+
+    const visibleIds = uniqueValues(
+      ((assignments ?? []) as Pick<AssignmentRow, 'template_id'>[]).map(
+        (row) => row.template_id,
+      ),
+    );
+    if (visibleIds.length === 0) return names;
+
+    const { data, error } = await client
+      .from('cw_rule_templates')
+      .select('id, name')
+      .in('id', visibleIds);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule status');
+    }
+
+    for (const row of (data ?? []) as Pick<TemplateRow, 'id' | 'name'>[]) {
+      names.set(row.id, row.name);
+    }
+    return names;
+  }
+
+  /**
+   * The rules a rule may start after its pause date: the ones the caller
+   * manages in full (every assigned device), each inside one organization.
+   */
+  private async listRuleOptions(
+    user: AuthenticatedUser,
+    excludeTemplateId?: number,
+  ): Promise<RuleRefDto[]> {
+    const devices = await this.accessService.listAccessibleDevices(user);
+    const manageable = new Set(
+      devices.filter((d) => d.canManage).map((d) => d.devEui),
+    );
+    if (manageable.size === 0) return [];
+
+    const client = this.supabaseService.getClient();
+    const { data: mine, error: mineError } = await client
+      .from('cw_device_rule_assignments')
+      .select('template_id')
+      .in('dev_eui', [...manageable]);
+
+    if (mineError) {
+      throw new InternalServerErrorException('Failed to load rule assignments');
+    }
+
+    const candidateIds = uniqueValues(
+      ((mine ?? []) as Pick<AssignmentRow, 'template_id'>[]).map(
+        (row) => row.template_id,
+      ),
+    ).filter((id) => id !== excludeTemplateId);
+    if (candidateIds.length === 0) return [];
+
+    const [assignmentsResult, templatesResult] = await Promise.all([
+      client
+        .from('cw_device_rule_assignments')
+        .select('dev_eui, template_id, cw_devices(org_id)')
+        .in('template_id', candidateIds),
+      client
+        .from('cw_rule_templates')
+        .select('id, name')
+        .in('id', candidateIds),
+    ]);
+
+    if (assignmentsResult.error) {
+      throw new InternalServerErrorException('Failed to load rule assignments');
+    }
+    if (templatesResult.error) {
+      throw new InternalServerErrorException('Failed to load rule templates');
+    }
+
+    const assignmentsByTemplateId = groupBy(
+      (assignmentsResult.data ?? []) as {
+        dev_eui: string;
+        template_id: number;
+        cw_devices?: unknown;
+      }[],
+      (row) => row.template_id,
+    );
+
+    return ((templatesResult.data ?? []) as Pick<TemplateRow, 'id' | 'name'>[])
+      .filter((template) => {
+        const rows = assignmentsByTemplateId.get(template.id) ?? [];
+        const orgIds = new Set(
+          rows.map((row) => unwrapJoin(row.cw_devices)?.org_id ?? null),
+        );
+        return (
+          rows.length > 0 &&
+          rows.every((row) => manageable.has(row.dev_eui)) &&
+          orgIds.size === 1 &&
+          !orgIds.has(null)
+        );
+      })
+      .map((template) => ({ id: template.id, name: template.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   private async loadCriteriaByTemplateIds(
@@ -695,20 +1143,23 @@ export class RulesService {
     user: AuthenticatedUser,
     templateId?: number,
   ): Promise<RuleFormContextDto> {
-    const [devicesPage, locations, actionTypes, template] = await Promise.all([
-      this.devicesService.findAll(user),
-      this.locationsService.findAll(user),
-      this.findAllActionTypes(),
-      typeof templateId === 'number'
-        ? this.findOne(templateId, user)
-        : Promise.resolve(null),
-    ]);
+    const [devicesPage, locations, actionTypes, template, ruleOptions] =
+      await Promise.all([
+        this.devicesService.findAll(user),
+        this.locationsService.findAll(user),
+        this.findAllActionTypes(),
+        typeof templateId === 'number'
+          ? this.findOne(templateId, user)
+          : Promise.resolve(null),
+        this.listRuleOptions(user, templateId),
+      ]);
 
     return {
       devices: devicesPage.data ?? [],
       locations: locations ?? [],
       actionTypes,
       template,
+      ruleOptions,
     };
   }
 
@@ -892,8 +1343,17 @@ function buildRuleTemplates(args: {
   actions: ActionRow[];
   states: StateRow[];
   devices: AccessibleDevice[];
+  statusContext: RuleStatusContext;
 }): RuleTemplateDto[] {
-  const { templates, assignments, criteria, actions, states, devices } = args;
+  const {
+    templates,
+    assignments,
+    criteria,
+    actions,
+    states,
+    devices,
+    statusContext,
+  } = args;
 
   const devicesById = new Map(devices.map((device) => [device.devEui, device]));
   const assignmentsByTemplateId = groupBy(
@@ -921,6 +1381,11 @@ function buildRuleTemplates(args: {
         deviceTypeId: template.device_type_id,
         isActive: template.is_active ?? true,
         createdAt: template.created_at,
+        autoStartAt: template.auto_start_at ?? null,
+        autoPauseAt: template.auto_pause_at ?? null,
+        onAutoPauseStartTemplateId:
+          template.on_auto_pause_start_template_id ?? null,
+        status: computeRuleStatus(template, statusContext),
         assignments: ruleAssignments.map(
           (assignment): RuleTemplateAssignmentDto => {
             const device = devicesById.get(assignment.dev_eui);
@@ -1076,11 +1541,26 @@ function normalizeSaveRequest(
       Number.isFinite(payload.deviceTypeId)
         ? payload.deviceTypeId
         : null,
-    isActive: typeof payload.isActive === 'boolean' ? payload.isActive : true,
+    isActive:
+      typeof payload.isActive === 'boolean' ? payload.isActive : undefined,
+    autoStartAt: normalizeInstant(payload.autoStartAt, 'The start date'),
+    autoPauseAt: normalizeInstant(payload.autoPauseAt, 'The pause date'),
+    onAutoPauseStartTemplateId:
+      payload.onAutoPauseStartTemplateId === undefined ||
+      payload.onAutoPauseStartTemplateId === null
+        ? payload.onAutoPauseStartTemplateId
+        : assertTemplateId(payload.onAutoPauseStartTemplateId),
     devEuis,
     criteria,
     actions,
   };
+}
+
+function assertTemplateId(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    throw new BadRequestException('The rule to start is not valid');
+  }
+  return value;
 }
 
 // PostgREST `not ... in` filters take a parenthesized, comma-separated list;

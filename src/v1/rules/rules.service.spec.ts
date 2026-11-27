@@ -8,6 +8,7 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { AccessService, type AccessibleDevice } from '../common/authz';
 import { DevicesService } from '../devices/devices.service';
 import { LocationsService } from '../locations/locations.service';
+import { computeRuleStatus } from './rule-status';
 import { RulesService } from './rules.service';
 
 type StubResult = { data: unknown; error: unknown };
@@ -418,6 +419,21 @@ describe('RulesService', () => {
       deviceTypeId: null,
       isActive: true,
       createdAt: null,
+      autoStartAt: null,
+      autoPauseAt: null,
+      onAutoPauseStartTemplateId: null,
+      status: computeRuleStatus({
+        id,
+        is_active: true,
+        created_at: null,
+        auto_start_at: null,
+        auto_pause_at: null,
+        on_auto_pause_start_template_id: null,
+        status_changed_at: null,
+        status_reason: null,
+        status_changed_by_user: null,
+        status_changed_by_template: null,
+      }),
       criteria: [],
       actions: [],
       assignments: assignments.map((entry, index) => ({
