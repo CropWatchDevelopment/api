@@ -6,6 +6,7 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsISO8601,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -77,10 +78,46 @@ export class SaveRuleTemplateDto {
   @IsInt()
   deviceTypeId?: number | null;
 
-  @ApiProperty({ required: false })
+  @ApiProperty({
+    required: false,
+    description:
+      'Running (true) or paused (false). Left out: a new rule runs, an existing rule keeps its status.',
+  })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    format: 'date-time',
+    description:
+      'Start the rule at this instant (ISO 8601 with a UTC offset). null clears it; left out keeps it.',
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  autoStartAt?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    format: 'date-time',
+    description:
+      'Pause the rule at this instant (ISO 8601 with a UTC offset). null clears it; left out keeps it.',
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  autoPauseAt?: string | null;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description:
+      'The rule to start when this one pauses on its pause date. null clears it; left out keeps it.',
+  })
+  @IsOptional()
+  @IsInt()
+  onAutoPauseStartTemplateId?: number | null;
 
   @ApiProperty({ type: String, isArray: true })
   @IsArray()

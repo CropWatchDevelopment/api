@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Header,
+  HttpCode,
   Param,
   ParseIntPipe,
   Patch,
@@ -197,6 +198,34 @@ export class RulesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.rulesService.update(id, body, user);
+  }
+  @ApiOkResponse({
+    description:
+      'Starts a paused rule. Its alarms begin from a clean state, so a reading that is still bad alerts again. Already running is fine.',
+    type: RuleTemplateDto,
+    isArray: false,
+  })
+  @HttpCode(200)
+  @Post(':id/start')
+  start(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.rulesService.setRunning(id, true, user);
+  }
+  @ApiOkResponse({
+    description:
+      'Pauses a rule: it stops alerting and its open alarms are closed without a notification. Already paused is fine.',
+    type: RuleTemplateDto,
+    isArray: false,
+  })
+  @HttpCode(200)
+  @Post(':id/pause')
+  pause(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.rulesService.setRunning(id, false, user);
   }
   @ApiOkResponse({
     description: 'Deletes a rule template the user manages.',
