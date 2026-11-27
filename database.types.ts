@@ -1880,6 +1880,64 @@ export type Database = {
         }
         Relationships: []
       }
+      cw_rule_status_events: {
+        Row: {
+          activated: boolean
+          at: string
+          by_template: number | null
+          by_user: string | null
+          detail: string | null
+          id: number
+          outcome: string
+          reason: string
+          template_id: number
+        }
+        Insert: {
+          activated: boolean
+          at?: string
+          by_template?: number | null
+          by_user?: string | null
+          detail?: string | null
+          id?: never
+          outcome: string
+          reason: string
+          template_id: number
+        }
+        Update: {
+          activated?: boolean
+          at?: string
+          by_template?: number | null
+          by_user?: string | null
+          detail?: string | null
+          id?: never
+          outcome?: string
+          reason?: string
+          template_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_rule_status_events_by_template_fkey"
+            columns: ["by_template"]
+            isOneToOne: false
+            referencedRelation: "cw_rule_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cw_rule_status_events_by_user_fkey"
+            columns: ["by_user"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cw_rule_status_events_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_rule_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cw_rule_template_actions: {
         Row: {
           action_type: number
@@ -1959,33 +2017,92 @@ export type Database = {
       }
       cw_rule_templates: {
         Row: {
+          auto_pause_at: string | null
+          auto_start_at: string | null
           created_at: string | null
           description: string | null
           device_type_id: number | null
           id: number
           is_active: boolean | null
+          last_action_activated_at: string | null
           legacy_migration_key: string | null
           name: string
+          on_auto_pause_start_template_id: number | null
+          org_id: string | null
+          status_changed_at: string | null
+          status_changed_by_template: number | null
+          status_changed_by_user: string | null
+          status_reason: string | null
+          trigger_kind: string
         }
         Insert: {
+          auto_pause_at?: string | null
+          auto_start_at?: string | null
           created_at?: string | null
           description?: string | null
           device_type_id?: number | null
           id?: number
           is_active?: boolean | null
+          last_action_activated_at?: string | null
           legacy_migration_key?: string | null
           name: string
+          on_auto_pause_start_template_id?: number | null
+          org_id?: string | null
+          status_changed_at?: string | null
+          status_changed_by_template?: number | null
+          status_changed_by_user?: string | null
+          status_reason?: string | null
+          trigger_kind?: string
         }
         Update: {
+          auto_pause_at?: string | null
+          auto_start_at?: string | null
           created_at?: string | null
           description?: string | null
           device_type_id?: number | null
           id?: number
           is_active?: boolean | null
+          last_action_activated_at?: string | null
           legacy_migration_key?: string | null
           name?: string
+          on_auto_pause_start_template_id?: number | null
+          org_id?: string | null
+          status_changed_at?: string | null
+          status_changed_by_template?: number | null
+          status_changed_by_user?: string | null
+          status_reason?: string | null
+          trigger_kind?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cw_rule_templates_on_auto_pause_start_template_id_fkey"
+            columns: ["on_auto_pause_start_template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_rule_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cw_rule_templates_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cw_rule_templates_status_changed_by_template_fkey"
+            columns: ["status_changed_by_template"]
+            isOneToOne: false
+            referencedRelation: "cw_rule_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cw_rule_templates_status_changed_by_user_fkey"
+            columns: ["status_changed_by_user"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cw_rule_trigger_log: {
         Row: {
@@ -2843,6 +2960,27 @@ export type Database = {
       }
       cw_overview_prune: { Args: never; Returns: Json }
       cw_overview_tick: { Args: never; Returns: Json }
+      cw_rule_single_org: {
+        Args: { p_template_id: number }
+        Returns: string
+      }
+      cw_rule_switch: {
+        Args: {
+          p_activate: boolean
+          p_by_template?: number
+          p_by_user?: string
+          p_now?: string
+          p_reason: string
+          p_source_org?: string
+          p_template_id: number
+        }
+        Returns: string
+      }
+      cw_rule_target_orgs: {
+        Args: { p_template_id: number }
+        Returns: string[]
+      }
+      cw_rules_tick: { Args: { p_now?: string }; Returns: Json }
       cw_traffic_daily_totals: {
         Args: { dev_eui: string; end_ts: string; start_ts: string; tz?: string }
         Returns: {
