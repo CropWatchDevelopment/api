@@ -1067,4 +1067,53 @@ describe('PaymentsService', () => {
       ).rejects.toMatchObject({ status: 409 });
     });
   });
+
+  describe('adminListCustomers', () => {
+    // readAll pages with select().range(); one page per table is enough here.
+    const createPagedClient = (tables: Record<string, unknown[]>) => ({
+      from: jest.fn((table: string) => ({
+        select: jest.fn(() => ({
+          range: jest.fn(() =>
+            Promise.resolve({ data: tables[table] ?? [], error: null }),
+          ),
+        })),
+      })),
+    });
+
+    it('lists every user, including sign-ups with no devices or billing row', async () => {
+      const client = createPagedClient({
+        profiles: [
+          { id: 'u-new', email: 'new@example.com', full_name: 'New User' },
+          { id: 'u-owner', email: 'owner@example.com', full_name: null },
+          { id: 'u-billed', email: 'billed@example.com', full_name: null },
+        ],
+        cw_devices: [{ dev_eui: 'DEV1', user_id: 'u-owner' }],
+        cw_device_owners: [],
+        device_licenses: [],
+        billing_customers: [{ user_id: 'u-billed', billing_mode: 'manual' }],
+      });
+      const service = createService(
+        client as unknown as ReturnType<typeof createClient>,
+        createStripeMock(),
+      );
+
+      const rows = await service.adminListCustomers();
+
+      expect(rows.map((r) => r.email)).toEqual([
+        'billed@example.com',
+        'new@example.com',
+        'owner@example.com',
+      ]);
+      expect(rows.find((r) => r.userId === 'u-new')).toMatchObject({
+        fullName: 'New User',
+        deviceCount: 0,
+        billingMode: 'stripe',
+        seatCount: 0,
+      });
+      expect(rows.find((r) => r.userId === 'u-owner')?.deviceCount).toBe(1);
+      expect(rows.find((r) => r.userId === 'u-billed')?.billingMode).toBe(
+        'manual',
+      );
+    });
+  });
 });

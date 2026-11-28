@@ -696,9 +696,9 @@ export class PaymentsService {
   // ---------------------------------------------------------------------------
 
   /**
-   * Every device owner and every billing customer, with device / license /
-   * subscription counts — the staff overview used to spot legacy unlicensed
-   * devices and to manage manual-invoice customers.
+   * Every user (plus any device owner or billing customer without a profile),
+   * with device / license / subscription counts — the staff overview used to
+   * spot legacy unlicensed devices and to manage manual-invoice customers.
    */
   async adminListCustomers(): Promise<AdminBillingCustomer[]> {
     const client = this.supabaseService.getAdminClient();
@@ -767,7 +767,10 @@ export class PaymentsService {
     const customerByUser = new Map(customers.map((c) => [c.user_id, c]));
     const profileByUser = new Map(profiles.map((p) => [p.id, p]));
 
+    // Every user is listed — including new sign-ups with no devices or billing
+    // row yet — so staff can set billing up before the first device arrives.
     const userIds = new Set<string>([
+      ...profileByUser.keys(),
       ...devicesByOwner.keys(),
       ...customerByUser.keys(),
     ]);
