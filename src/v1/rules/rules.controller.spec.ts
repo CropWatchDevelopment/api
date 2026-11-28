@@ -83,6 +83,84 @@ describe('RulesController', () => {
     expect(setRunning).toHaveBeenCalledWith(7, running, user);
   });
 
+  it.each([
+    [undefined, false],
+    ['true', true],
+    ['false', false],
+    ['1', false],
+  ])('delete passes force=%p on as %p', async (force, expected) => {
+    const remove = jest.fn().mockResolvedValue({ id: 7 });
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [RulesController],
+      providers: [{ provide: RulesService, useValue: { remove } }],
+    }).compile();
+    const user = { sub: 'user-1', email: 'user@example.com', isStaff: false };
+
+    await module.get<RulesController>(RulesController).remove(7, user, force);
+
+    expect(remove).toHaveBeenCalledWith(7, user, expected);
+  });
+
+  describe('save validation of a Date/Time rule', () => {
+    const pipe = new ValidationPipe({
+      forbidNonWhitelisted: true,
+      transform: true,
+      whitelist: true,
+    });
+    const validate = (extra: Record<string, unknown>) =>
+      pipe.transform(
+        {
+          name: 'Every morning',
+          triggerKind: 'schedule',
+          schedule: {
+            timeOfDay: '09:00',
+            daysOfWeek: [1, 3, 5],
+            timezone: 'Asia/Tokyo',
+          },
+          devEuis: [],
+          criteria: [],
+          actions: [{ actionType: 6, config: { targetTemplateId: 2 } }],
+          ...extra,
+        },
+        { type: 'body', metatype: SaveRuleTemplateDto },
+      ) as Promise<SaveRuleTemplateDto>;
+
+    it('accepts a schedule without devices or conditions', async () => {
+      await expect(validate({})).resolves.toMatchObject({
+        triggerKind: 'schedule',
+        schedule: {
+          timeOfDay: '09:00',
+          daysOfWeek: [1, 3, 5],
+          timezone: 'Asia/Tokyo',
+        },
+        devEuis: [],
+        criteria: [],
+      });
+    });
+
+    it.each([
+      [{ triggerKind: 'timer' }],
+      [{ schedule: { timeOfDay: '9am', daysOfWeek: [1], timezone: 'UTC' } }],
+      [{ schedule: { timeOfDay: '09:00', daysOfWeek: [], timezone: 'UTC' } }],
+      [{ schedule: { timeOfDay: '09:00', daysOfWeek: [0], timezone: 'UTC' } }],
+      [{ schedule: { timeOfDay: '09:00', daysOfWeek: [8], timezone: 'UTC' } }],
+      [{ schedule: { timeOfDay: '09:00', daysOfWeek: [1], timezone: '' } }],
+      [
+        {
+          schedule: {
+            timeOfDay: '09:00',
+            daysOfWeek: [1],
+            timezone: 'UTC',
+            seconds: 30,
+          },
+        },
+      ],
+      [{ devEuis: 'AA' }],
+    ])('refuses %j', async (extra) => {
+      await expect(validate(extra)).rejects.toMatchObject({ status: 400 });
+    });
+  });
+
   describe('save validation of the status and date fields', () => {
     const pipe = new ValidationPipe({
       forbidNonWhitelisted: true,

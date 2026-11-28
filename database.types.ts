@@ -1853,6 +1853,62 @@ export type Database = {
         }
         Relationships: []
       }
+      cw_rule_schedule_runs: {
+        Row: {
+          actions: Json
+          error: string | null
+          id: number
+          late_seconds: number
+          local_date: string
+          occurrence_at: string
+          ran_at: string
+          relay_claimed_at: string | null
+          relay_done_at: string | null
+          relay_results: Json | null
+          relay_status: string
+          switch_results: Json
+          template_id: number
+        }
+        Insert: {
+          actions?: Json
+          error?: string | null
+          id?: never
+          late_seconds?: number
+          local_date: string
+          occurrence_at: string
+          ran_at?: string
+          relay_claimed_at?: string | null
+          relay_done_at?: string | null
+          relay_results?: Json | null
+          relay_status?: string
+          switch_results?: Json
+          template_id: number
+        }
+        Update: {
+          actions?: Json
+          error?: string | null
+          id?: never
+          late_seconds?: number
+          local_date?: string
+          occurrence_at?: string
+          ran_at?: string
+          relay_claimed_at?: string | null
+          relay_done_at?: string | null
+          relay_results?: Json | null
+          relay_status?: string
+          switch_results?: Json
+          template_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_rule_schedule_runs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "cw_rule_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cw_rule_state: {
         Row: {
           dev_eui: string
@@ -1861,6 +1917,10 @@ export type Database = {
           last_reset_at: string | null
           last_triggered_at: string | null
           template_id: number
+          last_counted_at: string | null
+          last_resend_at: string | null
+          reports_since_send: number
+          resend_count: number
         }
         Insert: {
           dev_eui: string
@@ -1869,6 +1929,10 @@ export type Database = {
           last_reset_at?: string | null
           last_triggered_at?: string | null
           template_id: number
+          last_counted_at?: string | null
+          last_resend_at?: string | null
+          reports_since_send?: number
+          resend_count?: number
         }
         Update: {
           dev_eui?: string
@@ -1877,6 +1941,10 @@ export type Database = {
           last_reset_at?: string | null
           last_triggered_at?: string | null
           template_id?: number
+          last_counted_at?: string | null
+          last_resend_at?: string | null
+          reports_since_send?: number
+          resend_count?: number
         }
         Relationships: []
       }
@@ -2015,6 +2083,47 @@ export type Database = {
           },
         ]
       }
+      cw_rule_template_schedules: {
+        Row: {
+          created_at: string
+          days_of_week: number[]
+          last_fired_at: string | null
+          next_fire_at: string | null
+          template_id: number
+          time_of_day: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          days_of_week: number[]
+          last_fired_at?: string | null
+          next_fire_at?: string | null
+          template_id: number
+          time_of_day: string
+          timezone: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          days_of_week?: number[]
+          last_fired_at?: string | null
+          next_fire_at?: string | null
+          template_id?: number
+          time_of_day?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cw_rule_template_schedules_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: true
+            referencedRelation: "cw_rule_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cw_rule_templates: {
         Row: {
           auto_pause_at: string | null
@@ -2029,6 +2138,8 @@ export type Database = {
           name: string
           on_auto_pause_start_template_id: number | null
           org_id: string | null
+          resend_after_reports: number | null
+          resend_max: number
           status_changed_at: string | null
           status_changed_by_template: number | null
           status_changed_by_user: string | null
@@ -2048,6 +2159,8 @@ export type Database = {
           name: string
           on_auto_pause_start_template_id?: number | null
           org_id?: string | null
+          resend_after_reports?: number | null
+          resend_max?: number
           status_changed_at?: string | null
           status_changed_by_template?: number | null
           status_changed_by_user?: string | null
@@ -2067,6 +2180,8 @@ export type Database = {
           name?: string
           on_auto_pause_start_template_id?: number | null
           org_id?: string | null
+          resend_after_reports?: number | null
+          resend_max?: number
           status_changed_at?: string | null
           status_changed_by_template?: number | null
           status_changed_by_user?: string | null
@@ -2960,6 +3075,19 @@ export type Database = {
       }
       cw_overview_prune: { Args: never; Returns: Json }
       cw_overview_tick: { Args: never; Returns: Json }
+      cw_rule_schedule_next: {
+        Args: {
+          p_after: string
+          p_days: number[]
+          p_time: string
+          p_tz: string
+        }
+        Returns: string
+      }
+      cw_rule_schedule_prev: {
+        Args: { p_at: string; p_days: number[]; p_time: string; p_tz: string }
+        Returns: string
+      }
       cw_rule_single_org: {
         Args: { p_template_id: number }
         Returns: string
