@@ -65,6 +65,18 @@ jobs:
           python3 .github/scripts/snyk-summary.py \
             snyk-deps.json snyk-code.sarif "$DEPS_EXIT" "$CODE_EXIT" snyk-badge.json
 
+      # The full results, for when the summary's tables are not enough.
+      - name: Keep the scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-results
+          path: |
+            snyk-deps.json
+            snyk-code.sarif
+          if-no-files-found: ignore
+          retention-days: 14
+
       # Only master's result feeds the README badge. The branch holds a single
       # commit with snyk.json and is force-pushed on each run. Vercel reads
       # vercel.json from the commit it is deploying, so the branch carries its
