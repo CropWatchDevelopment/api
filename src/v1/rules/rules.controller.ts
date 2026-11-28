@@ -234,11 +234,18 @@ export class RulesController {
       properties: { id: { type: 'number' } },
     },
   })
+  @ApiQuery({
+    name: 'force',
+    description:
+      'true deletes the rule although other rules start or pause it. Without it such a delete is refused (409) with the list of those rules.',
+    required: false,
+  })
   @Delete(':id')
   remove(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthenticatedUser,
+    @Query('force') force?: string,
   ) {
-    return this.rulesService.remove(id, user);
+    return this.rulesService.remove(id, user, force === 'true');
   }
 }

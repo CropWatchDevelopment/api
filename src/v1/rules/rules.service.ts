@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -28,7 +30,12 @@ import { RuleActionTypeDto } from './dto/rule-action-type.dto';
 import { RuleCatalogDto } from './dto/rule-catalog.dto';
 import { RuleDeviceStateDto } from './dto/rule-device-state.dto';
 import { RuleFormContextDto } from './dto/rule-form-context.dto';
-import { RuleRefDto } from './dto/rule-status.dto';
+import {
+  RuleOptionDto,
+  RuleRefDto,
+  RuleScheduleDto,
+  type RuleTriggerKind,
+} from './dto/rule-status.dto';
 import { RuleTemplateActionDto } from './dto/rule-template-action.dto';
 import { RuleTemplateAssignmentDto } from './dto/rule-template-assignment.dto';
 import { RuleTemplateCriterionDto } from './dto/rule-template-criterion.dto';
@@ -44,6 +51,20 @@ import {
   type RuleAutoPlanRequest,
 } from './rule-auto-plan';
 import {
+  allowedOnDateTimeRule,
+  readRelayDevEui,
+  relayIsTimedPulse,
+  readTargetTemplateId,
+  ruleActionKind,
+  switchesAnotherRule,
+} from './rule-action-kinds';
+import {
+  normalizeSchedule,
+  sameSchedule,
+  timeOfDayFromDb,
+  type RuleSchedule,
+} from './rule-schedule';
+import {
   computeRuleStatus,
   EMPTY_RULE_STATUS_CONTEXT,
   type RuleChainSource,
@@ -51,8 +72,8 @@ import {
 } from './rule-status';
 
 // Only the columns the template selects fetch (the table also carries
-// legacy_migration_key, org_id, trigger_kind and last_action_activated_at,
-// which this service never reads).
+// legacy_migration_key and last_action_activated_at, which this service never
+// reads).
 type TemplateRow = Pick<
   TableRow<'cw_rule_templates'>,
   | 'auto_pause_at'
@@ -64,13 +85,42 @@ type TemplateRow = Pick<
   | 'is_active'
   | 'name'
   | 'on_auto_pause_start_template_id'
+  | 'org_id'
+  | 'resend_after_reports'
+  | 'resend_max'
   | 'status_changed_at'
   | 'status_changed_by_template'
   | 'status_changed_by_user'
   | 'status_reason'
+  | 'trigger_kind'
 >;
 const TEMPLATE_COLUMNS =
-  'auto_pause_at, auto_start_at, created_at, description, device_type_id, id, is_active, name, on_auto_pause_start_template_id, status_changed_at, status_changed_by_template, status_changed_by_user, status_reason';
+  'auto_pause_at, auto_start_at, created_at, description, device_type_id, id, is_active, name, on_auto_pause_start_template_id, org_id, resend_after_reports, resend_max, status_changed_at, status_changed_by_template, status_changed_by_user, status_reason, trigger_kind';
+type ScheduleRow = Pick<
+  TableRow<'cw_rule_template_schedules'>,
+  | 'days_of_week'
+  | 'last_fired_at'
+  | 'next_fire_at'
+  | 'template_id'
+  | 'time_of_day'
+  | 'timezone'
+>;
+const SCHEDULE_COLUMNS =
+  'days_of_week, last_fired_at, next_fire_at, template_id, time_of_day, timezone';
+
+/** A Date/Time rule: no devices, owned by an organization, run by the database tick. */
+const isDateTimeRule = (row: Pick<TemplateRow, 'trigger_kind'>): boolean =>
+  row.trigger_kind === 'schedule';
+
+/** cw_rule_templates.resend_max's default (api update 044). */
+const DEFAULT_RESEND_MAX = 5;
+
+const SAME_ORGANIZATION_MESSAGE =
+  'A rule can only start or pause a rule of the same organization, and all devices of both rules must belong to that organization';
+const DATE_TIME_ORGANIZATION_MESSAGE =
+  'Everything a Date/Time rule switches (rules and relays) must belong to one organization';
+const DATE_TIME_MANAGERS_MESSAGE =
+  'Only the owner and the managers of the organization can manage its Date/Time rules';
 type TriggerLogRow = TableRow<'cw_rule_trigger_log'>;
 type AssignmentRow = TableRow<'cw_device_rule_assignments'>;
 type CriterionRow = TableRow<'cw_rule_template_criteria'>;
@@ -79,9 +129,36 @@ type ActionTypeJoin = Pick<ActionTypeRow, 'id' | 'name'>;
 type ActionRow = TableRow<'cw_rule_template_actions'> & {
   cw_rule_action_types?: ActionTypeJoin | ActionTypeJoin[] | null;
 };
-type StateRow = TableRow<'cw_rule_state'>;
+// The re-send counters of cw_rule_state are the alert service's; this service
+// only resets them (see update).
+type StateRow = Pick<
+  TableRow<'cw_rule_state'>,
+  | 'dev_eui'
+  | 'id'
+  | 'is_triggered'
+  | 'last_reset_at'
+  | 'last_triggered_at'
+  | 'template_id'
+>;
+
+/** What a rule's actions are checked against. */
+interface ActionSource {
+  kind: RuleTriggerKind;
+  /** null while the rule is being created. */
+  templateId: number | null;
+  /** A sensor rule's devices. */
+  devEuis: string[];
+}
 
 interface NormalizedSaveRequest extends RuleAutoPlanRequest {
+  /** 'sensor' unless the request says 'schedule'. */
+  triggerKind: RuleTriggerKind;
+  /** Set for a Date/Time rule only. */
+  schedule: RuleSchedule | null;
+  /** Re-send: undefined keeps the setting, null turns it off. */
+  resendAfterReports: number | null | undefined;
+  /** undefined keeps the cap. */
+  resendMax: number | undefined;
   name: string;
   description: string | null;
   deviceTypeId: number | null;
@@ -106,37 +183,35 @@ export class RulesService {
     searchTerm?: string,
   ): Promise<RuleTemplateDto[]> {
     const devices = await this.accessService.listAccessibleDevices(user);
-    const viewableDevices = devices.filter((device) => device.canView);
-    if (viewableDevices.length === 0) return [];
+    const viewableDevEuis = devices
+      .filter((device) => device.canView)
+      .map((device) => device.devEui);
 
-    const client = this.supabaseService.getClient();
-    const { data: assignmentsData, error: assignmentsError } = await client
-      .from('cw_device_rule_assignments')
-      .select(
-        'created_at, dev_eui, id, is_active, template_id, cw_devices(cw_locations(name))',
-      )
-      .in(
-        'dev_eui',
-        viewableDevices.map((device) => device.devEui),
-      );
-
-    if (assignmentsError) {
-      throw new InternalServerErrorException('Failed to load rule assignments');
-    }
-
-    const assignments = (assignmentsData ?? []) as AssignmentRow[];
-    const templateIds = uniqueValues(assignments.map((row) => row.template_id));
-    if (templateIds.length === 0) return [];
-
-    const [templates, criteria, actions, states] = await Promise.all([
-      this.loadTemplatesByIds(templateIds),
-      this.loadCriteriaByTemplateIds(templateIds),
-      this.loadActionsByTemplateIds(templateIds),
-      this.loadStates(
-        templateIds,
-        assignments.map((row) => row.dev_eui),
-      ),
+    // Sensor rules come with the devices the caller can view; Date/Time rules
+    // with the organizations the caller manages.
+    const [assignments, dateTimeTemplates] = await Promise.all([
+      this.loadViewableAssignments(viewableDevEuis),
+      this.loadManagedDateTimeTemplates(user),
     ]);
+    const sensorIds = uniqueValues(assignments.map((row) => row.template_id));
+    const dateTimeIds = dateTimeTemplates.map((template) => template.id);
+    if (sensorIds.length === 0 && dateTimeIds.length === 0) return [];
+
+    const [sensorTemplates, criteria, actions, states, schedules] =
+      await Promise.all([
+        this.loadTemplatesByIds(sensorIds),
+        this.loadCriteriaByTemplateIds(sensorIds),
+        this.loadActionsByTemplateIds([...sensorIds, ...dateTimeIds]),
+        this.loadStates(
+          sensorIds,
+          assignments.map((row) => row.dev_eui),
+        ),
+        this.loadSchedules(dateTimeIds),
+      ]);
+    const templates = [
+      ...sensorTemplates.filter((template) => !isDateTimeRule(template)),
+      ...dateTimeTemplates,
+    ];
 
     const rules = buildRuleTemplates({
       templates,
@@ -145,6 +220,7 @@ export class RulesService {
       actions: await this.visibleActions(actions, user),
       states,
       devices,
+      schedules,
       // Every rule the caller can see is in `templates`, so their names are known.
       statusContext: await this.loadStatusContext(templates, user, null),
     });
@@ -152,6 +228,77 @@ export class RulesService {
     const search = searchTerm?.trim().toLowerCase();
     if (!search) return rules;
     return rules.filter((rule) => matchesSearch(rule, search));
+  }
+
+  /** The rule assignments on the devices the caller can view. */
+  private async loadViewableAssignments(
+    viewableDevEuis: string[],
+  ): Promise<AssignmentRow[]> {
+    if (viewableDevEuis.length === 0) return [];
+
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('cw_device_rule_assignments')
+      .select(
+        'created_at, dev_eui, id, is_active, template_id, cw_devices(cw_locations(name))',
+      )
+      .in('dev_eui', viewableDevEuis);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule assignments');
+    }
+
+    return data ?? [];
+  }
+
+  /** Staff, or the owner or a manager of that organization. */
+  private async managesOrg(
+    user: AuthenticatedUser,
+    orgId: string | null,
+  ): Promise<boolean> {
+    if (!orgId) return false;
+    if (user.isStaff) return true;
+    return (await this.accessService.getManagedOrgIds(user)).includes(orgId);
+  }
+
+  /** The Date/Time rules of the organizations the caller manages (all of them for staff). */
+  private async loadManagedDateTimeTemplates(
+    user: AuthenticatedUser,
+  ): Promise<TemplateRow[]> {
+    const orgIds = user.isStaff
+      ? null
+      : await this.accessService.getManagedOrgIds(user);
+    if (orgIds !== null && orgIds.length === 0) return [];
+
+    let query = this.supabaseService
+      .getClient()
+      .from('cw_rule_templates')
+      .select(TEMPLATE_COLUMNS)
+      .eq('trigger_kind', 'schedule');
+    if (orgIds !== null) query = query.in('org_id', orgIds);
+    const { data, error } = await query;
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule templates');
+    }
+
+    return (data ?? []).filter(isDateTimeRule);
+  }
+
+  private async loadSchedules(templateIds: number[]): Promise<ScheduleRow[]> {
+    if (templateIds.length === 0) return [];
+
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('cw_rule_template_schedules')
+      .select(SCHEDULE_COLUMNS)
+      .in('template_id', templateIds);
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule schedules');
+    }
+
+    return data ?? [];
   }
 
   /**
@@ -324,36 +471,40 @@ export class RulesService {
 
   async findOne(id: number, user: AuthenticatedUser): Promise<RuleTemplateDto> {
     const devices = await this.accessService.listAccessibleDevices(user);
-    const viewableDevices = devices.filter((device) => device.canView);
-    if (viewableDevices.length === 0) {
-      throw new NotFoundException('Rule template not found');
-    }
+    const viewableDevEuis = devices
+      .filter((device) => device.canView)
+      .map((device) => device.devEui);
 
     const client = this.supabaseService.getClient();
-    const [templateResult, assignmentsResult] = await Promise.all([
-      client
-        .from('cw_rule_templates')
-        .select(TEMPLATE_COLUMNS)
-        .eq('id', id)
-        .maybeSingle(),
-      client
-        .from('cw_device_rule_assignments')
-        .select('created_at, dev_eui, id, is_active, template_id')
-        .eq('template_id', id)
-        .in(
-          'dev_eui',
-          viewableDevices.map((device) => device.devEui),
-        ),
-    ]);
+    const templateResult = await client
+      .from('cw_rule_templates')
+      .select(TEMPLATE_COLUMNS)
+      .eq('id', id)
+      .maybeSingle();
 
     if (templateResult.error) {
       throw new InternalServerErrorException('Failed to load rule template');
     }
+    const template = templateResult.data;
+    if (!template) {
+      throw new NotFoundException('Rule template not found');
+    }
+
+    if (isDateTimeRule(template)) {
+      return this.findDateTimeRule(template, user, viewableDevEuis);
+    }
+    if (viewableDevEuis.length === 0) {
+      throw new NotFoundException('Rule template not found');
+    }
+
+    const assignmentsResult = await client
+      .from('cw_device_rule_assignments')
+      .select('created_at, dev_eui, id, is_active, template_id')
+      .eq('template_id', id)
+      .in('dev_eui', viewableDevEuis);
+
     if (assignmentsResult.error) {
       throw new InternalServerErrorException('Failed to load rule assignments');
-    }
-    if (!templateResult.data) {
-      throw new NotFoundException('Rule template not found');
     }
 
     const assignments = (assignmentsResult.data ?? []) as AssignmentRow[];
@@ -370,7 +521,6 @@ export class RulesService {
       ),
     ]);
 
-    const template = templateResult.data;
     const [rule] = buildRuleTemplates({
       templates: [template],
       assignments,
@@ -378,16 +528,50 @@ export class RulesService {
       actions: await this.visibleActions(actions, user),
       states,
       devices,
+      schedules: [],
       statusContext: await this.loadStatusContext(
         [template],
         user,
-        viewableDevices.map((device) => device.devEui),
+        viewableDevEuis,
       ),
     });
 
     if (!rule) {
       throw new NotFoundException('Rule template not found');
     }
+
+    return rule;
+  }
+
+  /** A Date/Time rule, for the people who manage its organization; 404 for everyone else. */
+  private async findDateTimeRule(
+    template: TemplateRow,
+    user: AuthenticatedUser,
+    viewableDevEuis: string[],
+  ): Promise<RuleTemplateDto> {
+    if (!(await this.managesOrg(user, template.org_id))) {
+      throw new NotFoundException('Rule template not found');
+    }
+
+    const [actions, schedules] = await Promise.all([
+      this.loadActionsByTemplateIds([template.id]),
+      this.loadSchedules([template.id]),
+    ]);
+
+    const [rule] = buildRuleTemplates({
+      templates: [template],
+      assignments: [],
+      criteria: [],
+      actions: await this.visibleActions(actions, user),
+      states: [],
+      devices: [],
+      schedules,
+      statusContext: await this.loadStatusContext(
+        [template],
+        user,
+        viewableDevEuis,
+      ),
+    });
 
     return rule;
   }
@@ -444,16 +628,25 @@ export class RulesService {
     user: AuthenticatedUser,
   ): Promise<RuleTemplateDto> {
     const normalized = normalizeSaveRequest(payload);
+    if (normalized.triggerKind === 'schedule') {
+      return this.createDateTimeRule(normalized, user);
+    }
     await this.accessService.assertDevicesManageable(user, normalized.devEuis);
+
+    const source: ActionSource = {
+      kind: 'sensor',
+      templateId: null,
+      devEuis: normalized.devEuis,
+    };
+    normalized.actions = await this.prepareSensorActions(
+      user,
+      source,
+      normalized.actions,
+    );
 
     const { plan } = resolveAutoPlan(normalized, NO_AUTO_PLAN, Date.now());
     if (plan.chainTemplateId !== null) {
-      await this.assertChainTarget(
-        user,
-        null,
-        normalized.devEuis,
-        plan.chainTemplateId,
-      );
+      await this.assertChainTarget(user, source, null, plan.chainTemplateId);
     }
 
     const client = this.supabaseService.getClient();
@@ -467,6 +660,9 @@ export class RulesService {
         auto_start_at: plan.autoStartAt,
         auto_pause_at: plan.autoPauseAt,
         on_auto_pause_start_template_id: plan.chainTemplateId,
+        // Only named when the request sets them; otherwise the column
+        // defaults apply (re-send off, at most 5).
+        ...resendColumns(normalized),
       })
       .select('created_at, description, device_type_id, id, is_active, name')
       .single()) as {
@@ -496,6 +692,84 @@ export class RulesService {
     return this.findOne(templateData.id, user);
   }
 
+  /**
+   * A Date/Time rule has no devices: it belongs to the organization of the
+   * rules and relays it switches, which must be exactly one, and only that
+   * organization's owner and managers (and staff) may create it. The time-zone
+   * math is the database's: this only stores time, weekdays and zone.
+   */
+  private async createDateTimeRule(
+    normalized: NormalizedSaveRequest,
+    user: AuthenticatedUser,
+  ): Promise<RuleTemplateDto> {
+    const source: ActionSource = {
+      kind: 'schedule',
+      templateId: null,
+      devEuis: [],
+    };
+    const { actions, orgIds } = await this.prepareActions(
+      user,
+      source,
+      normalized.actions,
+    );
+    if (orgIds.length === 0) {
+      throw new BadRequestException(
+        'A Date/Time rule needs at least one action on another rule or on a relay',
+      );
+    }
+    if (orgIds.length > 1) {
+      throw new BadRequestException(DATE_TIME_ORGANIZATION_MESSAGE);
+    }
+    const orgId = orgIds[0];
+    if (!(await this.managesOrg(user, orgId))) {
+      throw new ForbiddenException(DATE_TIME_MANAGERS_MESSAGE);
+    }
+
+    const { plan } = resolveAutoPlan(normalized, NO_AUTO_PLAN, Date.now());
+    if (plan.chainTemplateId !== null) {
+      await this.assertChainTarget(user, source, orgId, plan.chainTemplateId);
+    }
+
+    const { data: templateData, error: templateError } =
+      (await this.supabaseService
+        .getClient()
+        .from('cw_rule_templates')
+        .insert({
+          name: normalized.name,
+          description: normalized.description,
+          device_type_id: null,
+          is_active: normalized.isActive ?? true,
+          trigger_kind: 'schedule',
+          org_id: orgId,
+          auto_start_at: plan.autoStartAt,
+          auto_pause_at: plan.autoPauseAt,
+          on_auto_pause_start_template_id: plan.chainTemplateId,
+        })
+        .select('id')
+        .single()) as {
+        data: Pick<TemplateRow, 'id'> | null;
+        error: PostgrestError | null;
+      };
+
+    if (templateError || !templateData) {
+      throw new InternalServerErrorException('Failed to create rule template');
+    }
+
+    try {
+      await this.writeSchedule(
+        templateData.id,
+        normalized.schedule as RuleSchedule,
+        'insert',
+      );
+      await this.replaceActions(templateData.id, actions);
+    } catch (error) {
+      await this.deleteTemplateBestEffort(templateData.id);
+      throw error;
+    }
+
+    return this.findOne(templateData.id, user);
+  }
+
   async update(
     id: number,
     payload: SaveRuleTemplateDto,
@@ -504,11 +778,31 @@ export class RulesService {
     const normalized = normalizeSaveRequest(payload);
     const existing = await this.findOne(id, user);
 
+    if (normalized.triggerKind !== existing.triggerKind) {
+      throw new BadRequestException(
+        'A rule cannot be changed between a sensor rule and a Date/Time rule',
+      );
+    }
+    if (existing.triggerKind === 'schedule') {
+      return this.updateDateTimeRule(existing, normalized, user);
+    }
+
     const allDevEuis = uniqueValues([
       ...existing.assignments.map((assignment) => assignment.devEui),
       ...normalized.devEuis,
     ]);
     await this.accessService.assertDevicesManageable(user, allDevEuis);
+
+    const source: ActionSource = {
+      kind: 'sensor',
+      templateId: id,
+      devEuis: normalized.devEuis,
+    };
+    normalized.actions = await this.prepareSensorActions(
+      user,
+      source,
+      normalized.actions,
+    );
 
     const { plan, update: planUpdate } = resolveAutoPlan(
       normalized,
@@ -534,12 +828,7 @@ export class RulesService {
       plan.chainTemplateId !== null &&
       normalized.onAutoPauseStartTemplateId !== undefined
     ) {
-      await this.assertChainTarget(
-        user,
-        id,
-        normalized.devEuis,
-        plan.chainTemplateId,
-      );
+      await this.assertChainTarget(user, source, null, plan.chainTemplateId);
     }
 
     // A pause takes effect before anything is rewritten; a start only after
@@ -547,6 +836,18 @@ export class RulesService {
     if (switchTo === false) {
       await this.switchRule(id, false, user);
     }
+
+    // Only what changed: an unchanged setting must not reset running counts.
+    const resendUpdate = resendColumns({
+      resendAfterReports:
+        normalized.resendAfterReports === existing.resendAfterReports
+          ? undefined
+          : normalized.resendAfterReports,
+      resendMax:
+        normalized.resendMax === existing.resendMax
+          ? undefined
+          : normalized.resendMax,
+    });
 
     // is_active is never written here: cw_rule_switch owns it.
     const client = this.supabaseService.getClient();
@@ -557,11 +858,33 @@ export class RulesService {
         description: normalized.description,
         device_type_id: normalized.deviceTypeId,
         ...planUpdate,
+        ...resendUpdate,
       })
       .eq('id', id);
 
     if (updateError) {
       throw new InternalServerErrorException('Failed to update rule template');
+    }
+
+    // A changed setting starts every open alarm of the rule counting afresh:
+    // "every 3 reports, at most 5 times" must mean that from now on, not from
+    // wherever the old setting had got to.
+    if (Object.keys(resendUpdate).length > 0) {
+      const { error: countersError } = await client
+        .from('cw_rule_state')
+        .update({
+          reports_since_send: 0,
+          resend_count: 0,
+          last_counted_at: null,
+          last_resend_at: null,
+        })
+        .eq('template_id', id);
+
+      if (countersError) {
+        throw new InternalServerErrorException(
+          'Failed to reset the re-send counters',
+        );
+      }
     }
 
     // A customer never saw the staff recipients, so their save must not drop them.
@@ -580,6 +903,253 @@ export class RulesService {
     }
 
     return this.findOne(id, user);
+  }
+
+  /** Saves a Date/Time rule. findOne only handed it to someone who manages its organization. */
+  private async updateDateTimeRule(
+    existing: RuleTemplateDto,
+    normalized: NormalizedSaveRequest,
+    user: AuthenticatedUser,
+  ): Promise<RuleTemplateDto> {
+    const id = existing.id;
+    const source: ActionSource = {
+      kind: 'schedule',
+      templateId: id,
+      devEuis: [],
+    };
+    const { actions, orgIds } = await this.prepareActions(
+      user,
+      source,
+      normalized.actions,
+    );
+    // The rule stays in its organization; what it switches must be there too.
+    if (orgIds.some((orgId) => orgId !== existing.orgId)) {
+      throw new BadRequestException(DATE_TIME_ORGANIZATION_MESSAGE);
+    }
+
+    const { plan, update: planUpdate } = resolveAutoPlan(
+      normalized,
+      {
+        autoStartAt: existing.autoStartAt,
+        autoPauseAt: existing.autoPauseAt,
+        chainTemplateId: existing.onAutoPauseStartTemplateId,
+      },
+      Date.now(),
+    );
+    const switchTo =
+      normalized.isActive !== undefined &&
+      normalized.isActive !== existing.isActive
+        ? normalized.isActive
+        : null;
+    if (
+      plan.chainTemplateId !== null &&
+      normalized.onAutoPauseStartTemplateId !== undefined
+    ) {
+      await this.assertChainTarget(
+        user,
+        source,
+        existing.orgId,
+        plan.chainTemplateId,
+      );
+    }
+
+    if (switchTo === false) {
+      await this.switchRule(id, false, user);
+    }
+
+    const { error: updateError } = await this.supabaseService
+      .getClient()
+      .from('cw_rule_templates')
+      .update({
+        name: normalized.name,
+        description: normalized.description,
+        ...planUpdate,
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      throw new InternalServerErrorException('Failed to update rule template');
+    }
+
+    // Written only when it changed: writing it makes the database work out the
+    // next run from "now", which would skip a run that is due this very minute.
+    const schedule = normalized.schedule as RuleSchedule;
+    if (!existing.schedule || !sameSchedule(existing.schedule, schedule)) {
+      await this.writeSchedule(
+        id,
+        schedule,
+        existing.schedule ? 'update' : 'insert',
+      );
+    }
+    await this.replaceActions(id, actions);
+
+    if (switchTo === true) {
+      await this.switchRule(id, true, user);
+    }
+
+    return this.findOne(id, user);
+  }
+
+  /** Stores time, weekdays and zone; the database checks the zone and works out the next run. */
+  private async writeSchedule(
+    templateId: number,
+    schedule: RuleSchedule,
+    mode: 'insert' | 'update',
+  ): Promise<void> {
+    const values = {
+      time_of_day: schedule.timeOfDay,
+      days_of_week: schedule.daysOfWeek,
+      timezone: schedule.timezone,
+    };
+    const table = this.supabaseService
+      .getClient()
+      .from('cw_rule_template_schedules');
+    const { error } =
+      mode === 'insert'
+        ? await table.insert({ template_id: templateId, ...values })
+        : await table.update(values).eq('template_id', templateId);
+
+    if (!error) return;
+    if (error.code === '22023' || error.message.includes('unknown time zone')) {
+      throw new BadRequestException(
+        'The time zone must be an IANA name such as Asia/Tokyo',
+      );
+    }
+    throw new InternalServerErrorException('Failed to save the rule schedule');
+  }
+
+  /** A Date/Time rule's only children: its actions. */
+  private async replaceActions(
+    templateId: number,
+    actions: NormalizedSaveRequest['actions'],
+  ): Promise<void> {
+    const client = this.supabaseService.getClient();
+    const removed = await client
+      .from('cw_rule_template_actions')
+      .delete()
+      .eq('template_id', templateId);
+    if (removed.error) {
+      throw new InternalServerErrorException('Failed to remove rule actions');
+    }
+
+    const inserted = await client.from('cw_rule_template_actions').insert(
+      actions.map((entry) => ({
+        template_id: templateId,
+        action_type: entry.actionType,
+        config: entry.config as never,
+      })),
+    );
+    if (inserted.error) {
+      throw new InternalServerErrorException('Failed to save rule actions');
+    }
+  }
+
+  /**
+   * Checks every action against what the rule may do, and tidies the configs
+   * of the rule-switch actions. Returns the organizations of everything the
+   * actions switch (target rules; for a Date/Time rule also its relays).
+   *
+   * A rule another rule starts or pauses must be one the caller manages in
+   * full and must sit inside one organization; cw_rule_switch enforces the
+   * organization again when the action runs.
+   */
+  private async prepareActions(
+    user: AuthenticatedUser,
+    source: ActionSource,
+    actions: NormalizedSaveRequest['actions'],
+  ): Promise<{ actions: NormalizedSaveRequest['actions']; orgIds: string[] }> {
+    const typeNames = new Map(
+      (await this.findAllActionTypes()).map((type) => [type.id, type.name]),
+    );
+    const prepared: NormalizedSaveRequest['actions'] = [];
+    const orgIds: string[] = [];
+    const relayDevEuis: string[] = [];
+
+    for (const [index, action] of actions.entries()) {
+      const label = `Action ${index + 1}`;
+      if (!typeNames.has(action.actionType)) {
+        throw new BadRequestException(`${label} has an unknown type`);
+      }
+      const kind = ruleActionKind(typeNames.get(action.actionType));
+
+      if (source.kind === 'schedule' && !allowedOnDateTimeRule(kind)) {
+        throw new BadRequestException(
+          `${label}: a Date/Time rule can switch rules and relays, but cannot send notifications yet`,
+        );
+      }
+
+      if (switchesAnotherRule(kind)) {
+        const verb = kind === 'activate_rule' ? 'activate' : 'deactivate';
+        const targetId = readTargetTemplateId(action.config);
+        if (targetId === null) {
+          throw new BadRequestException(`${label}: choose the rule to ${verb}`);
+        }
+        if (targetId === source.templateId) {
+          throw new BadRequestException(
+            `${label}: a rule cannot ${verb} itself this way`,
+          );
+        }
+        orgIds.push(
+          await this.manageableRuleOrg(
+            user,
+            targetId,
+            `${label}: the rule to ${verb} was not found`,
+          ),
+        );
+        prepared.push({
+          ...action,
+          config: { recipient: String(targetId), targetTemplateId: targetId },
+        });
+      } else if (kind === 'deactivate_self') {
+        prepared.push({ ...action, config: { recipient: 'self' } });
+      } else {
+        if (kind === 'relay' && source.kind === 'schedule') {
+          const devEui = readRelayDevEui(action.config);
+          if (devEui === null) {
+            throw new BadRequestException(
+              `${label}: choose a relay and a command`,
+            );
+          }
+          relayDevEuis.push(devEui);
+        }
+        prepared.push({
+          ...action,
+          config: withRepeatFlag(action.config, source.kind, kind, label),
+        });
+      }
+    }
+
+    if (relayDevEuis.length > 0) {
+      const devEuis = uniqueValues(relayDevEuis);
+      await this.accessService.assertDevicesManageable(user, devEuis);
+      const relayOrg = await this.singleDeviceOrg(devEuis);
+      if (relayOrg === null) {
+        throw new BadRequestException(DATE_TIME_ORGANIZATION_MESSAGE);
+      }
+      orgIds.push(relayOrg);
+    }
+
+    return { actions: prepared, orgIds: uniqueValues(orgIds) };
+  }
+
+  /** A sensor rule's actions: the rules it switches must be in its own organization. */
+  private async prepareSensorActions(
+    user: AuthenticatedUser,
+    source: ActionSource,
+    actions: NormalizedSaveRequest['actions'],
+  ): Promise<NormalizedSaveRequest['actions']> {
+    const { actions: prepared, orgIds } = await this.prepareActions(
+      user,
+      source,
+      actions,
+    );
+    if (orgIds.length > 0) {
+      const ownOrg = await this.singleDeviceOrg(source.devEuis);
+      if (ownOrg === null || orgIds.some((orgId) => orgId !== ownOrg)) {
+        throw new BadRequestException(SAME_ORGANIZATION_MESSAGE);
+      }
+    }
+    return prepared;
   }
 
   /**
@@ -657,40 +1227,19 @@ export class RulesService {
   }
 
   /**
-   * The rule to start after a pause date must be another rule that the caller
-   * manages in full, and both rules must sit inside the same single
-   * organization. cw_rule_switch enforces the organization again when the
-   * date arrives; checking here turns a silent refusal later into an error now.
+   * The one organization all these devices belong to; null when there is none
+   * (no devices, a device without an organization or without a row, or more
+   * than one organization).
    */
-  private async assertChainTarget(
-    user: AuthenticatedUser,
-    sourceTemplateId: number | null,
-    sourceDevEuis: string[],
-    targetTemplateId: number,
-  ): Promise<void> {
-    if (targetTemplateId === sourceTemplateId) {
-      throw new BadRequestException('A rule cannot start itself');
-    }
+  private async singleDeviceOrg(devEuis: string[]): Promise<string | null> {
+    const unique = uniqueValues(devEuis);
+    if (unique.length === 0) return null;
 
-    const targetDevEuis = await this.loadAssignedDevEuis(targetTemplateId);
-    const devices = await this.accessService.listAccessibleDevices(user);
-    const manageable = new Set(
-      devices.filter((d) => d.canManage).map((d) => d.devEui),
-    );
-    // Missing, without devices, or not the caller's to manage: all the same answer.
-    if (
-      targetDevEuis.length === 0 ||
-      targetDevEuis.some((devEui) => !manageable.has(devEui))
-    ) {
-      throw new NotFoundException('The rule to start was not found');
-    }
-
-    const devEuis = uniqueValues([...sourceDevEuis, ...targetDevEuis]);
     const { data, error } = await this.supabaseService
       .getClient()
       .from('cw_devices')
       .select('dev_eui, org_id')
-      .in('dev_eui', devEuis);
+      .in('dev_eui', unique);
 
     if (error) {
       throw new InternalServerErrorException('Failed to load rule devices');
@@ -698,23 +1247,123 @@ export class RulesService {
 
     const rows = (data ?? []) as { dev_eui: string; org_id: string | null }[];
     const orgIds = new Set(rows.map((row) => row.org_id));
+    const [orgId] = orgIds;
+    return rows.length === unique.length && orgIds.size === 1 && orgId
+      ? orgId
+      : null;
+  }
+
+  /**
+   * The organization of a rule the caller manages IN FULL: every device of a
+   * sensor rule, or the organization of a Date/Time rule. Missing, without
+   * devices, or not the caller's to manage all give the same "not found"; a
+   * sensor rule that spans organizations can be switched by no rule.
+   */
+  private async manageableRuleOrg(
+    user: AuthenticatedUser,
+    templateId: number,
+    notFoundMessage: string,
+  ): Promise<string> {
+    const { data, error } = await this.supabaseService
+      .getClient()
+      .from('cw_rule_templates')
+      .select('id, org_id, trigger_kind')
+      .eq('id', templateId)
+      .maybeSingle();
+
+    if (error) {
+      throw new InternalServerErrorException('Failed to load rule template');
+    }
+    // The service's client is untyped: name the columns' types here.
+    const rule: Pick<TemplateRow, 'id' | 'org_id' | 'trigger_kind'> | null =
+      data;
+    if (!rule) {
+      throw new NotFoundException(notFoundMessage);
+    }
+
+    if (isDateTimeRule(rule)) {
+      if (!rule.org_id || !(await this.managesOrg(user, rule.org_id))) {
+        throw new NotFoundException(notFoundMessage);
+      }
+      return rule.org_id;
+    }
+
+    const devEuis = await this.loadAssignedDevEuis(templateId);
+    const devices = await this.accessService.listAccessibleDevices(user);
+    const manageable = new Set(
+      devices.filter((d) => d.canManage).map((d) => d.devEui),
+    );
     if (
-      rows.length !== devEuis.length ||
-      orgIds.size !== 1 ||
-      orgIds.has(null)
+      devEuis.length === 0 ||
+      devEuis.some((devEui) => !manageable.has(devEui))
     ) {
-      throw new BadRequestException(
-        'A rule can only start a rule of the same organization, and all devices of both rules must belong to that organization',
-      );
+      throw new NotFoundException(notFoundMessage);
+    }
+
+    const orgId = await this.singleDeviceOrg(devEuis);
+    if (orgId === null) {
+      throw new BadRequestException(SAME_ORGANIZATION_MESSAGE);
+    }
+    return orgId;
+  }
+
+  /**
+   * The rule to start after a pause date must be another rule that the caller
+   * manages in full, in the same single organization as this rule.
+   * cw_rule_switch enforces the organization again when the date arrives;
+   * checking here turns a silent refusal later into an error now.
+   */
+  private async assertChainTarget(
+    user: AuthenticatedUser,
+    source: ActionSource,
+    dateTimeOrgId: string | null,
+    targetTemplateId: number,
+  ): Promise<void> {
+    if (targetTemplateId === source.templateId) {
+      throw new BadRequestException('A rule cannot start itself');
+    }
+
+    const targetOrg = await this.manageableRuleOrg(
+      user,
+      targetTemplateId,
+      'The rule to start was not found',
+    );
+    const ownOrg =
+      source.kind === 'schedule'
+        ? dateTimeOrgId
+        : await this.singleDeviceOrg(source.devEuis);
+    if (ownOrg === null || ownOrg !== targetOrg) {
+      throw new BadRequestException(SAME_ORGANIZATION_MESSAGE);
     }
   }
 
-  async remove(id: number, user: AuthenticatedUser): Promise<{ id: number }> {
+  /**
+   * Deletes a rule. When other rules start or pause it (a switch action, or
+   * "then start" after a pause date) the delete is refused with the list of
+   * those rules, unless `force` says the caller has seen it.
+   */
+  async remove(
+    id: number,
+    user: AuthenticatedUser,
+    force = false,
+  ): Promise<{ id: number }> {
     const existing = await this.findOne(id, user);
+    // A Date/Time rule was only handed out to someone who manages its organization.
     await this.accessService.assertDevicesManageable(
       user,
       existing.assignments.map((assignment) => assignment.devEui),
     );
+
+    if (!force) {
+      const dependents = await this.findDependents(id, user);
+      if (dependents.length > 0) {
+        throw new ConflictException({
+          message:
+            'Other rules start or pause this rule. They will no longer find it once it is deleted.',
+          dependents,
+        });
+      }
+    }
 
     await this.deleteTemplateState(id);
     await this.closeOpenTriggerLogs(id);
@@ -731,6 +1380,51 @@ export class RulesService {
     }
 
     return { id };
+  }
+
+  /** The rules that start or pause this one, named when the caller can see them. */
+  private async findDependents(
+    id: number,
+    user: AuthenticatedUser,
+  ): Promise<RuleRefDto[]> {
+    const client = this.supabaseService.getClient();
+    const [chains, actions] = await Promise.all([
+      client
+        .from('cw_rule_templates')
+        .select('id')
+        .eq('on_auto_pause_start_template_id', id),
+      client
+        .from('cw_rule_template_actions')
+        .select('template_id, cw_rule_action_types(id, name)')
+        .eq('config->>targetTemplateId', String(id)),
+    ]);
+
+    if (chains.error || actions.error) {
+      throw new InternalServerErrorException('Failed to load rule dependents');
+    }
+
+    const ids = uniqueValues([
+      ...((chains.data ?? []) as Pick<TemplateRow, 'id'>[]).map(
+        (row) => row.id,
+      ),
+      ...((actions.data ?? []) as unknown as ActionRow[])
+        .filter((row) =>
+          switchesAnotherRule(ruleActionKind(readActionTypeName(row))),
+        )
+        .map((row) => row.template_id),
+    ]).filter((dependentId) => dependentId !== id);
+    if (ids.length === 0) return [];
+
+    const devices = await this.accessService.listAccessibleDevices(user);
+    const names = await this.loadVisibleRuleNames(
+      ids,
+      devices.filter((device) => device.canView).map((d) => d.devEui),
+      user,
+    );
+    return ids.map((dependentId) => ({
+      id: dependentId,
+      name: names.get(dependentId) ?? null,
+    }));
   }
 
   private async loadTemplatesByIds(
@@ -790,6 +1484,7 @@ export class RulesService {
       const visibleNames = await this.loadVisibleRuleNames(
         referenced,
         viewableDevEuis,
+        user,
       );
       for (const [id, name] of visibleNames) ruleNames.set(id, name);
     }
@@ -863,55 +1558,99 @@ export class RulesService {
     return names;
   }
 
-  /** Names of the given rules, limited to the ones with a device the caller can view. */
+  /**
+   * Names of the given rules, limited to the ones the caller can see: a sensor
+   * rule through a device they can view, a Date/Time rule through an
+   * organization they manage.
+   */
   private async loadVisibleRuleNames(
     templateIds: number[],
     viewableDevEuis: string[],
+    user: AuthenticatedUser,
   ): Promise<Map<number, string>> {
     const names = new Map<number, string>();
-    if (templateIds.length === 0 || viewableDevEuis.length === 0) return names;
+    if (templateIds.length === 0) return names;
 
     const client = this.supabaseService.getClient();
-    const { data: assignments, error: assignmentsError } = await client
-      .from('cw_device_rule_assignments')
-      .select('template_id')
-      .in('template_id', templateIds)
-      .in('dev_eui', viewableDevEuis);
-
-    if (assignmentsError) {
-      throw new InternalServerErrorException('Failed to load rule status');
-    }
-
-    const visibleIds = uniqueValues(
-      ((assignments ?? []) as Pick<AssignmentRow, 'template_id'>[]).map(
-        (row) => row.template_id,
-      ),
-    );
-    if (visibleIds.length === 0) return names;
-
     const { data, error } = await client
       .from('cw_rule_templates')
-      .select('id, name')
-      .in('id', visibleIds);
+      .select('id, name, org_id, trigger_kind')
+      .in('id', templateIds);
 
     if (error) {
       throw new InternalServerErrorException('Failed to load rule status');
     }
+    const rows = (data ?? []) as Pick<
+      TemplateRow,
+      'id' | 'name' | 'org_id' | 'trigger_kind'
+    >[];
 
-    for (const row of (data ?? []) as Pick<TemplateRow, 'id' | 'name'>[]) {
-      names.set(row.id, row.name);
+    const sensorIds = rows
+      .filter((row) => !isDateTimeRule(row))
+      .map((row) => row.id);
+    const visibleSensorIds = new Set<number>();
+    if (sensorIds.length > 0 && viewableDevEuis.length > 0) {
+      const { data: assignments, error: assignmentsError } = await client
+        .from('cw_device_rule_assignments')
+        .select('template_id')
+        .in('template_id', sensorIds)
+        .in('dev_eui', viewableDevEuis);
+
+      if (assignmentsError) {
+        throw new InternalServerErrorException('Failed to load rule status');
+      }
+      for (const row of (assignments ?? []) as Pick<
+        AssignmentRow,
+        'template_id'
+      >[]) {
+        visibleSensorIds.add(row.template_id);
+      }
+    }
+
+    for (const row of rows) {
+      const visible = isDateTimeRule(row)
+        ? await this.managesOrg(user, row.org_id)
+        : visibleSensorIds.has(row.id);
+      if (visible) names.set(row.id, row.name);
     }
     return names;
   }
 
   /**
-   * The rules a rule may start after its pause date: the ones the caller
-   * manages in full (every assigned device), each inside one organization.
+   * The rules another rule may start or pause: the ones the caller manages in
+   * full (every device of a sensor rule; a Date/Time rule of an organization
+   * they manage), each inside one organization.
    */
   private async listRuleOptions(
     user: AuthenticatedUser,
     excludeTemplateId?: number,
-  ): Promise<RuleRefDto[]> {
+  ): Promise<RuleOptionDto[]> {
+    const [sensorRules, dateTimeTemplates] = await Promise.all([
+      this.listSensorRuleOptions(user),
+      this.loadManagedDateTimeTemplates(user),
+    ]);
+    const dateTimeRules = dateTimeTemplates.flatMap(
+      (template): RuleOptionDto[] =>
+        template.org_id
+          ? [
+              {
+                id: template.id,
+                name: template.name,
+                orgId: template.org_id,
+                triggerKind: 'schedule',
+              },
+            ]
+          : [],
+    );
+
+    return [...sensorRules, ...dateTimeRules]
+      .filter((rule) => rule.id !== excludeTemplateId)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  private async listSensorRuleOptions(
+    user: AuthenticatedUser,
+  ): Promise<RuleOptionDto[]> {
     const devices = await this.accessService.listAccessibleDevices(user);
     const manageable = new Set(
       devices.filter((d) => d.canManage).map((d) => d.devEui),
@@ -932,7 +1671,7 @@ export class RulesService {
       ((mine ?? []) as Pick<AssignmentRow, 'template_id'>[]).map(
         (row) => row.template_id,
       ),
-    ).filter((id) => id !== excludeTemplateId);
+    );
     if (candidateIds.length === 0) return [];
 
     const [assignmentsResult, templatesResult] = await Promise.all([
@@ -962,21 +1701,28 @@ export class RulesService {
       (row) => row.template_id,
     );
 
-    return ((templatesResult.data ?? []) as Pick<TemplateRow, 'id' | 'name'>[])
-      .filter((template) => {
-        const rows = assignmentsByTemplateId.get(template.id) ?? [];
-        const orgIds = new Set(
-          rows.map((row) => unwrapJoin(row.cw_devices)?.org_id ?? null),
-        );
-        return (
-          rows.length > 0 &&
-          rows.every((row) => manageable.has(row.dev_eui)) &&
-          orgIds.size === 1 &&
-          !orgIds.has(null)
-        );
-      })
-      .map((template) => ({ id: template.id, name: template.name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+    return (
+      (templatesResult.data ?? []) as Pick<TemplateRow, 'id' | 'name'>[]
+    ).flatMap((template): RuleOptionDto[] => {
+      const rows = assignmentsByTemplateId.get(template.id) ?? [];
+      const orgIds = new Set(
+        rows.map((row) => unwrapJoin(row.cw_devices)?.org_id ?? null),
+      );
+      const [orgId] = orgIds;
+      return rows.length > 0 &&
+        rows.every((row) => manageable.has(row.dev_eui)) &&
+        orgIds.size === 1 &&
+        typeof orgId === 'string'
+        ? [
+            {
+              id: template.id,
+              name: template.name,
+              orgId,
+              triggerKind: 'sensor',
+            },
+          ]
+        : [];
+    });
   }
 
   private async loadCriteriaByTemplateIds(
@@ -1143,16 +1889,23 @@ export class RulesService {
     user: AuthenticatedUser,
     templateId?: number,
   ): Promise<RuleFormContextDto> {
-    const [devicesPage, locations, actionTypes, template, ruleOptions] =
-      await Promise.all([
-        this.devicesService.findAll(user),
-        this.locationsService.findAll(user),
-        this.findAllActionTypes(),
-        typeof templateId === 'number'
-          ? this.findOne(templateId, user)
-          : Promise.resolve(null),
-        this.listRuleOptions(user, templateId),
-      ]);
+    const [
+      devicesPage,
+      locations,
+      actionTypes,
+      template,
+      ruleOptions,
+      managedOrgIds,
+    ] = await Promise.all([
+      this.devicesService.findAll(user),
+      this.locationsService.findAll(user),
+      this.findAllActionTypes(),
+      typeof templateId === 'number'
+        ? this.findOne(templateId, user)
+        : Promise.resolve(null),
+      this.listRuleOptions(user, templateId),
+      user.isStaff ? [] : this.accessService.getManagedOrgIds(user),
+    ]);
 
     return {
       devices: devicesPage.data ?? [],
@@ -1160,6 +1913,7 @@ export class RulesService {
       actionTypes,
       template,
       ruleOptions,
+      canManageDateTimeRules: user.isStaff || managedOrgIds.length > 0,
     };
   }
 
@@ -1343,6 +2097,7 @@ function buildRuleTemplates(args: {
   actions: ActionRow[];
   states: StateRow[];
   devices: AccessibleDevice[];
+  schedules: ScheduleRow[];
   statusContext: RuleStatusContext;
 }): RuleTemplateDto[] {
   const {
@@ -1352,8 +2107,12 @@ function buildRuleTemplates(args: {
     actions,
     states,
     devices,
+    schedules,
     statusContext,
   } = args;
+  const schedulesByTemplateId = new Map(
+    schedules.map((schedule) => [schedule.template_id, schedule]),
+  );
 
   const devicesById = new Map(devices.map((device) => [device.devEui, device]));
   const assignmentsByTemplateId = groupBy(
@@ -1371,8 +2130,11 @@ function buildRuleTemplates(args: {
 
   return templates
     .map((template): RuleTemplateDto | null => {
+      const dateTime = isDateTimeRule(template);
       const ruleAssignments = assignmentsByTemplateId.get(template.id) ?? [];
-      if (ruleAssignments.length === 0) return null;
+      // A sensor rule is seen through its devices; a Date/Time rule has none.
+      if (!dateTime && ruleAssignments.length === 0) return null;
+      const schedule = schedulesByTemplateId.get(template.id);
 
       return {
         id: template.id,
@@ -1386,6 +2148,11 @@ function buildRuleTemplates(args: {
         onAutoPauseStartTemplateId:
           template.on_auto_pause_start_template_id ?? null,
         status: computeRuleStatus(template, statusContext),
+        triggerKind: dateTime ? 'schedule' : 'sensor',
+        orgId: template.org_id ?? null,
+        schedule: dateTime && schedule ? mapSchedule(schedule) : null,
+        resendAfterReports: template.resend_after_reports ?? null,
+        resendMax: template.resend_max ?? DEFAULT_RESEND_MAX,
         assignments: ruleAssignments.map(
           (assignment): RuleTemplateAssignmentDto => {
             const device = devicesById.get(assignment.dev_eui);
@@ -1414,6 +2181,16 @@ function buildRuleTemplates(args: {
     })
     .filter((rule): rule is RuleTemplateDto => rule !== null)
     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function mapSchedule(row: ScheduleRow): RuleScheduleDto {
+  return {
+    timeOfDay: timeOfDayFromDb(row.time_of_day),
+    daysOfWeek: [...row.days_of_week].sort((a, b) => a - b),
+    timezone: row.timezone,
+    nextFireAt: row.next_fire_at,
+    lastFiredAt: row.last_fired_at,
+  };
 }
 
 function mapCriterion(row: CriterionRow): RuleTemplateCriterionDto {
@@ -1481,37 +2258,45 @@ function normalizeSaveRequest(
     throw new BadRequestException('Rule name is required');
   }
 
-  const devEuis = uniqueValues(
-    (payload.devEuis ?? [])
-      .map((value) => (typeof value === 'string' ? value.trim() : ''))
-      .filter((value) => value.length > 0),
-  );
-  if (devEuis.length === 0) {
+  // A Date/Time rule has a schedule instead of devices and conditions.
+  const dateTime = payload.triggerKind === 'schedule';
+  const schedule = dateTime ? normalizeSchedule(payload.schedule) : null;
+
+  const devEuis = dateTime
+    ? []
+    : uniqueValues(
+        (payload.devEuis ?? [])
+          .map((value) => (typeof value === 'string' ? value.trim() : ''))
+          .filter((value) => value.length > 0),
+      );
+  if (!dateTime && devEuis.length === 0) {
     throw new BadRequestException('At least one device is required');
   }
 
-  const criteria = (payload.criteria ?? []).map((entry, index) => {
-    const subject = (entry.subject ?? '').trim();
-    const operator = (entry.operator ?? '').trim();
-    if (
-      !subject ||
-      !operator ||
-      !Number.isFinite(entry.triggerValue) ||
-      !Number.isFinite(entry.resetValue)
-    ) {
-      throw new BadRequestException(
-        `Condition ${index + 1} must include a field, operator, trigger value, and reset value`,
-      );
-    }
-    return {
-      id: entry.id ?? null,
-      subject,
-      operator,
-      triggerValue: entry.triggerValue,
-      resetValue: entry.resetValue,
-    };
-  });
-  if (criteria.length === 0) {
+  const criteria = (dateTime ? [] : (payload.criteria ?? [])).map(
+    (entry, index) => {
+      const subject = (entry.subject ?? '').trim();
+      const operator = (entry.operator ?? '').trim();
+      if (
+        !subject ||
+        !operator ||
+        !Number.isFinite(entry.triggerValue) ||
+        !Number.isFinite(entry.resetValue)
+      ) {
+        throw new BadRequestException(
+          `Condition ${index + 1} must include a field, operator, trigger value, and reset value`,
+        );
+      }
+      return {
+        id: entry.id ?? null,
+        subject,
+        operator,
+        triggerValue: entry.triggerValue,
+        resetValue: entry.resetValue,
+      };
+    },
+  );
+  if (!dateTime && criteria.length === 0) {
     throw new BadRequestException('At least one condition is required');
   }
 
@@ -1530,7 +2315,20 @@ function normalizeSaveRequest(
     throw new BadRequestException('At least one action is required');
   }
 
+  const resendAfterReports = normalizeResendAfterReports(
+    payload.resendAfterReports,
+  );
+  if (dateTime && typeof resendAfterReports === 'number') {
+    throw new BadRequestException(
+      'A Date/Time rule has no reports to count, so it cannot re-send',
+    );
+  }
+
   return {
+    triggerKind: dateTime ? 'schedule' : 'sensor',
+    schedule,
+    resendAfterReports,
+    resendMax: normalizeResendMax(payload.resendMax),
     name,
     description:
       typeof payload.description === 'string' && payload.description.trim()
@@ -1553,6 +2351,84 @@ function normalizeSaveRequest(
     devEuis,
     criteria,
     actions,
+  };
+}
+
+/** Re-send every N reports: undefined keeps the setting, null turns it off, else 3..1000. */
+function normalizeResendAfterReports(
+  value: unknown,
+): number | null | undefined {
+  if (value === undefined || value === null) return value;
+  if (
+    typeof value !== 'number' ||
+    !Number.isInteger(value) ||
+    value < 3 ||
+    value > 1000
+  ) {
+    throw new BadRequestException(
+      'Re-send needs a whole number of reports between 3 and 1000',
+    );
+  }
+  return value;
+}
+
+/** At most N re-sends per alarm: undefined keeps the setting, else 1..50. */
+function normalizeResendMax(value: unknown): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (
+    typeof value !== 'number' ||
+    !Number.isInteger(value) ||
+    value < 1 ||
+    value > 50
+  ) {
+    throw new BadRequestException(
+      'The number of re-sends must be a whole number between 1 and 50',
+    );
+  }
+  return value;
+}
+
+/** The re-send columns a request sets (none when it does not mention them). */
+function resendColumns(request: {
+  resendAfterReports: number | null | undefined;
+  resendMax: number | undefined;
+}): { resend_after_reports?: number | null; resend_max?: number } {
+  return {
+    ...(request.resendAfterReports === undefined
+      ? {}
+      : { resend_after_reports: request.resendAfterReports }),
+    ...(request.resendMax === undefined
+      ? {}
+      : { resend_max: request.resendMax }),
+  };
+}
+
+/**
+ * An action's `config.repeat`: whether a re-send sends it again. It must be a
+ * boolean when present. A Date/Time rule never re-sends, so there it is
+ * dropped; a relay repeats only as a timed pulse, so any other relay command
+ * is stored as "not repeated".
+ */
+function withRepeatFlag(
+  config: SaveRuleTemplateDto['actions'][number]['config'],
+  kind: RuleTriggerKind,
+  actionKind: ReturnType<typeof ruleActionKind>,
+  label: string,
+): SaveRuleTemplateDto['actions'][number]['config'] {
+  if (!config || typeof config !== 'object' || Array.isArray(config)) {
+    return config;
+  }
+  const { repeat, ...rest } = config as Record<string, unknown>;
+  if (repeat === undefined) return config;
+  if (typeof repeat !== 'boolean') {
+    throw new BadRequestException(`${label}: "repeat" must be true or false`);
+  }
+  if (kind === 'schedule') {
+    return rest as SaveRuleTemplateDto['actions'][number]['config'];
+  }
+  return {
+    ...rest,
+    repeat: repeat && (actionKind !== 'relay' || relayIsTimedPulse(config)),
   };
 }
 

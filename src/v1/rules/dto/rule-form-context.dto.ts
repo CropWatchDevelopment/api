@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { DeviceDto } from '../../devices/dto/device.dto';
 import { LocationDto } from '../../locations/dto/location.dto';
 import { RuleActionTypeDto } from './rule-action-type.dto';
-import { RuleRefDto } from './rule-status.dto';
+import { RuleOptionDto } from './rule-status.dto';
 import { RuleTemplateDto } from './rule-template.dto';
 
 export class RuleFormContextDto {
@@ -19,10 +19,16 @@ export class RuleFormContextDto {
   template: RuleTemplateDto | null;
 
   @ApiProperty({
-    type: () => RuleRefDto,
+    type: () => RuleOptionDto,
     isArray: true,
     description:
-      'Rules this rule may start after its pause date: the ones the caller manages in full, each inside one organization.',
+      'Rules this rule may start or pause: the ones the caller manages in full, each inside one organization.',
   })
-  ruleOptions: RuleRefDto[];
+  ruleOptions: RuleOptionDto[];
+
+  @ApiProperty({
+    description:
+      'Whether the caller may create Date/Time rules (owner or manager of an organization, or staff).',
+  })
+  canManageDateTimeRules: boolean;
 }

@@ -30,6 +30,7 @@ interface QueryStub {
   delete: jest.Mock;
   eq: jest.Mock;
   in: jest.Mock;
+  order: jest.Mock;
   single: jest.Mock;
   maybeSingle: jest.Mock;
   then: (resolve: (value: StubResult) => unknown) => unknown;
@@ -93,6 +94,7 @@ function buildQueryStub(handlers: {
   });
   stub.eq = jest.fn().mockReturnValue(stub);
   stub.in = jest.fn().mockReturnValue(stub);
+  stub.order = jest.fn().mockReturnValue(stub);
   stub.single = jest
     .fn()
     .mockResolvedValue(handlers.single ?? { data: null, error: null });
@@ -126,7 +128,22 @@ function buildClient(stubsByTable: Record<string, QueryStub | QueryStub[]>) {
 interface AccessServiceMock {
   listAccessibleDevices: jest.Mock;
   assertDevicesManageable: jest.Mock;
+  getManagedOrgIds: jest.Mock;
 }
+
+// The action types a save looks up to tell notifications from rule switches.
+const actionTypesStub = () =>
+  buildQueryStub({
+    list: {
+      data: [
+        { id: 1, name: 'EMail', created_at: '' },
+        { id: 2, name: 'LINE', created_at: '' },
+        { id: 3, name: 'Push', created_at: '' },
+        { id: 4, name: 'LoRaWAN', created_at: '' },
+      ],
+      error: null,
+    },
+  });
 
 // Stands in for AccessService: resolves the caller's accessible devices and
 // passes manage checks unless a test rejects them explicitly.
@@ -136,6 +153,8 @@ function buildAccessService(
   return {
     listAccessibleDevices: jest.fn().mockResolvedValue(devices),
     assertDevicesManageable: jest.fn().mockResolvedValue(undefined),
+    // Nobody in these tests manages an organization: no Date/Time rules.
+    getManagedOrgIds: jest.fn().mockResolvedValue([]),
   };
 }
 
@@ -434,6 +453,11 @@ describe('RulesService', () => {
         status_changed_by_user: null,
         status_changed_by_template: null,
       }),
+      triggerKind: 'sensor' as const,
+      orgId: null,
+      schedule: null,
+      resendAfterReports: null,
+      resendMax: 5,
       criteria: [],
       actions: [],
       assignments: assignments.map((entry, index) => ({
@@ -583,6 +607,7 @@ describe('RulesService', () => {
         }),
         cw_rule_template_criteria: buildQueryStub({}),
         cw_rule_template_actions: buildQueryStub({}),
+        cw_rule_action_types: actionTypesStub(),
         cw_rule_state: state,
         cw_rule_trigger_log: triggerLog,
       });
@@ -767,6 +792,7 @@ describe('RulesService', () => {
         }),
         cw_rule_template_criteria: buildQueryStub({}),
         cw_rule_template_actions: actions,
+        cw_rule_action_types: actionTypesStub(),
         cw_rule_state: buildQueryStub({}),
         cw_rule_trigger_log: buildQueryStub({}),
         ...(withProfiles ? { profiles } : {}),
