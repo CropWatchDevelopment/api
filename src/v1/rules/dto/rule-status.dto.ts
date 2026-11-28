@@ -25,6 +25,54 @@ export class RuleRefDto {
   name: string | null;
 }
 
+export const RULE_TRIGGER_KINDS = ['sensor', 'schedule'] as const;
+export type RuleTriggerKind = (typeof RULE_TRIGGER_KINDS)[number];
+
+/** A rule another rule may start or pause, or start after its pause date. */
+export class RuleOptionDto {
+  @ApiProperty()
+  id: number;
+
+  @ApiProperty()
+  name: string;
+
+  @ApiProperty({
+    description:
+      'The one organization the rule sits in. A rule only switches rules of its own organization.',
+  })
+  orgId: string;
+
+  @ApiProperty({ enum: RULE_TRIGGER_KINDS })
+  triggerKind: RuleTriggerKind;
+}
+
+/** When a Date/Time rule runs. */
+export class RuleScheduleDto {
+  @ApiProperty({ example: '09:00', description: 'HH:mm, in `timezone`.' })
+  timeOfDay: string;
+
+  @ApiProperty({
+    type: Number,
+    isArray: true,
+    description: 'ISO weekdays: 1 = Monday ... 7 = Sunday.',
+  })
+  daysOfWeek: number[];
+
+  @ApiProperty({ example: 'Asia/Tokyo', description: 'IANA time zone.' })
+  timezone: string;
+
+  @ApiProperty({
+    nullable: true,
+    required: false,
+    format: 'date-time',
+    description: 'The next run; null while the rule is paused.',
+  })
+  nextFireAt: string | null;
+
+  @ApiProperty({ nullable: true, required: false, format: 'date-time' })
+  lastFiredAt: string | null;
+}
+
 export class RuleNextStartDto {
   @ApiProperty({ format: 'date-time' })
   at: string;
